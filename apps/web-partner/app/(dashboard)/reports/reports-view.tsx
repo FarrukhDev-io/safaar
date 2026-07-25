@@ -8,6 +8,7 @@ import {
   TrendingUp,
   CreditCard,
   Calendar,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -26,7 +27,7 @@ import { useReservations } from "../../_hooks/use-reservations";
 import { useRoomTypes } from "../../_hooks/use-room-types";
 import { useDataStore } from "../../_stores/data-store";
 import { useAuthStore } from "../../_stores/auth-store";
-import { getPartnerLabels, isDacha } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 import { TODAY_ISO } from "../../_lib/mocks/data";
 import { cn } from "../../_lib/utils/cn";
 
@@ -40,6 +41,7 @@ export function ReportsView() {
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const dacha = isDacha(partnerType);
+  const restaurant = isRestaurant(partnerType);
 
   const dailyStats = useMemo(
     () => buildDailyStats(reservations, TODAY_ISO, 30),
@@ -116,7 +118,7 @@ export function ReportsView() {
           tone="accent"
         />
         <ReportMetric
-          label="O'rtacha kunlik narx (ADR)"
+          label={restaurant ? "O'rtacha bron narxi" : "O'rtacha kunlik narx (ADR)"}
           value={formatMoney(adr)}
           trend={{ value: 2, positive: false }}
           icon={<CreditCard className="h-6 w-6" />}
@@ -126,7 +128,7 @@ export function ReportsView() {
           label="Yangi Bronlar"
           value={monthBookings.toString()}
           trend={{ value: 8, positive: true }}
-          icon={<BedDouble className="h-6 w-6" />}
+          icon={restaurant ? <UtensilsCrossed className="h-6 w-6" /> : <BedDouble className="h-6 w-6" />}
           tone="success"
         />
       </section>

@@ -9,6 +9,7 @@ import {
   Printer,
   StickyNote,
   User,
+  UtensilsCrossed,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -43,7 +44,7 @@ import {
 } from "../../../_lib/utils/format";
 import { useAuthStore } from "../../../_stores/auth-store";
 import { useDataStore } from "../../../_stores/data-store";
-import { getPartnerLabels } from "../../../_lib/utils/partner-labels";
+import { getPartnerLabels, isRestaurant } from "../../../_lib/utils/partner-labels";
 
 export function ReservationDetailView({ id }: { id: string }) {
   const { data } = useReservation(id);
@@ -54,6 +55,7 @@ export function ReservationDetailView({ id }: { id: string }) {
   const beds = useDataStore((s) => s.beds);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
+  const restaurant = isRestaurant(partnerType);
 
   const [confirmDialog, setConfirmDialog] = useState<
     "reject" | "cancel" | null
@@ -97,7 +99,11 @@ export function ReservationDetailView({ id }: { id: string }) {
       <PageHeader
         eyebrow={`Bron ${data.id}`}
         title={data.guest.fullName}
-        description={`${formatDate(data.checkIn)} → ${formatDate(data.checkOut)} · ${data.nights} kech.`}
+        description={
+          restaurant && data.slotTime
+            ? `${formatDate(data.checkIn)} · ${data.slotTime}`
+            : `${formatDate(data.checkIn)} → ${formatDate(data.checkOut)} · ${data.nights} kech.`
+        }
         actions={
           <>
             <Button
@@ -177,7 +183,7 @@ export function ReservationDetailView({ id }: { id: string }) {
             </CardHeader>
             <CardBody className="grid gap-4 sm:grid-cols-2">
               <InfoItem
-                icon={<BedDouble className="h-4 w-4" aria-hidden />}
+                icon={restaurant ? <UtensilsCrossed className="h-4 w-4" aria-hidden /> : <BedDouble className="h-4 w-4" aria-hidden />}
                 label={labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1)}
                 value={
                   <>
@@ -187,7 +193,6 @@ export function ReservationDetailView({ id }: { id: string }) {
                         · {data.roomNumber}
                         {data.bedId &&
                           ` · ${beds.find((b) => b.id === data.bedId)?.label ?? ""}`}
-                        {data.slotTime && ` · ${data.slotTime}`}
                       </span>
                     )}
                   </>
@@ -195,19 +200,29 @@ export function ReservationDetailView({ id }: { id: string }) {
               />
               <InfoItem
                 icon={<User className="h-4 w-4" aria-hidden />}
-                label="Mehmonlar"
-                value={`${data.adults} kattalar${data.children > 0 ? `, ${data.children} bola` : ""}`}
+                label={restaurant ? "Kishilar soni" : "Mehmonlar"}
+                value={
+                  restaurant
+                    ? `${data.adults} kishi`
+                    : `${data.adults} kattalar${data.children > 0 ? `, ${data.children} bola` : ""}`
+                }
               />
               <InfoItem
                 icon={<CalendarRange className="h-4 w-4" aria-hidden />}
                 label="Kelish"
-                value={formatDate(data.checkIn)}
+                value={
+                  restaurant && data.slotTime
+                    ? `${formatDate(data.checkIn)} · ${data.slotTime}`
+                    : formatDate(data.checkIn)
+                }
               />
-              <InfoItem
-                icon={<CalendarRange className="h-4 w-4" aria-hidden />}
-                label="Ketish"
-                value={`${formatDate(data.checkOut)} (${data.nights} kech.)`}
-              />
+              {!restaurant && (
+                <InfoItem
+                  icon={<CalendarRange className="h-4 w-4" aria-hidden />}
+                  label="Ketish"
+                  value={`${formatDate(data.checkOut)} (${data.nights} kech.)`}
+                />
+              )}
               {data.specialRequests && (
                 <InfoItem
                   icon={<StickyNote className="h-4 w-4" aria-hidden />}

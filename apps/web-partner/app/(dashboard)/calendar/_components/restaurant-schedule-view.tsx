@@ -300,7 +300,7 @@ export function RestaurantScheduleView() {
             <EmptyState
               icon={<CalendarDays className="h-10 w-10" aria-hidden />}
               title={`${labels.unitPlural.charAt(0).toUpperCase()}${labels.unitPlural.slice(1)} yo'q`}
-              description="Avval Stollar bo'limidan qo'shing."
+              description={`Avval ${labels.unitsPageTitle} bo'limidan qo'shing.`}
             />
           </CardBody>
         </Card>

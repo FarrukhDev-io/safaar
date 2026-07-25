@@ -11,6 +11,7 @@ import {
   Bus,
   Route,
   Ticket,
+  UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
 import { getPartnerLabels } from "../../_lib/utils/partner-labels";
@@ -137,7 +138,40 @@ export function getNavGroups(partnerType: string): NavGroup[] {
     ];
   }
 
-  // 4. Standart / Mehmonxona (Hotel, Motel, Guesthouse)
+  // 4. Restoran uchun navigatsiya
+  if (type === "restaurant") {
+    return [
+      {
+        items: [{ label: labels.dashboardTitle, href: "/", icon: ConciergeBell }],
+      },
+      {
+        title: "Sotuv",
+        items: [{ label: labels.listingTitle, href: "/listing", icon: Megaphone }],
+      },
+      {
+        title: "Operatsion",
+        items: [
+          { label: capitalize(labels.unitPlural), href: "/rooms", icon: UtensilsCrossed },
+          { label: labels.reservationsTitle, href: "/reservations", icon: CalendarRange },
+          { label: "Kalendar", href: "/calendar", icon: CalendarDays },
+        ],
+      },
+      {
+        title: "Mijoz",
+        items: [{ label: "Mijozlar", href: "/guests", icon: Users }],
+      },
+      {
+        title: "Boshqaruv",
+        items: [
+          { label: "Hisobotlar", href: "/reports", icon: BarChart3 },
+          { label: "Sozlamalar", href: "/settings/hotel", icon: Settings },
+          { label: "Yordam", href: "/support", icon: LifeBuoy },
+        ],
+      },
+    ];
+  }
+
+  // 5. Standart / Mehmonxona (Hotel, Motel, Guesthouse)
   return [
     {
       items: [{ label: labels.dashboardTitle, href: "/", icon: ConciergeBell }],

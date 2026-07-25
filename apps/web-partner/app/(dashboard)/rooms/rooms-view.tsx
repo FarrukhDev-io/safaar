@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, BedSingle, Users } from "lucide-react";
+import { BedDouble, BedSingle, UtensilsCrossed, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../_components/layout/page-header";
@@ -13,7 +13,7 @@ import { Button } from "../../_components/ui/button";
 import { formatMoney } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
 import { useDataStore } from "../../_stores/data-store";
-import { getPartnerLabels, hasBeds, isDacha } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBeds, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 
 export function RoomsView() {
   const router = useRouter();
@@ -24,6 +24,7 @@ export function RoomsView() {
   const labels = getPartnerLabels(partnerType);
   const isHostel = hasBeds(partnerType);
   const isDachaType = isDacha(partnerType);
+  const restaurant = isRestaurant(partnerType);
 
   const [addingRoom, setAddingRoom] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -68,7 +69,11 @@ export function RoomsView() {
         />
         <div className="mt-4 sm:mt-0">
           <Button onClick={() => setAddingRoom(true)}>
-            <BedDouble className="mr-2 h-4 w-4" />
+            {restaurant ? (
+              <UtensilsCrossed className="mr-2 h-4 w-4" />
+            ) : (
+              <BedDouble className="mr-2 h-4 w-4" />
+            )}
             {labels.addUnitLabel}
           </Button>
         </div>
@@ -96,6 +101,7 @@ export function RoomsView() {
                     room={room}
                     roomType={roomType}
                     beds={isHostel ? roomBeds : undefined}
+                    restaurant={restaurant}
                     onEdit={() => setEditingRoom(room)}
                     onManageBeds={isHostel ? () => setManagingBedsFor(room) : undefined}
                   />
@@ -131,12 +137,14 @@ function RoomCard({
   room,
   roomType,
   beds,
+  restaurant,
   onEdit,
   onManageBeds,
 }: {
   room: Room;
   roomType?: RoomType;
   beds?: Bed[];
+  restaurant: boolean;
   onEdit: () => void;
   onManageBeds?: () => void;
 }) {
@@ -157,7 +165,11 @@ function RoomCard({
           {room.number}
         </span>
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400">
-          <BedDouble className="h-4 w-4" />
+          {restaurant ? (
+            <UtensilsCrossed className="h-4 w-4" />
+          ) : (
+            <BedDouble className="h-4 w-4" />
+          )}
         </div>
       </div>
 
@@ -181,7 +193,7 @@ function RoomCard({
 
       <div className="mt-4 flex items-center justify-between gap-2 pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
         <div>
-          <span className="text-[11px] font-medium text-[var(--muted-foreground)]">1 kechaga:</span>
+          <span className="text-[11px] font-medium text-[var(--muted-foreground)]">{restaurant ? "Narxi:" : "1 kechaga:"}</span>
           <div className="font-semibold text-brand-700 dark:text-brand-300 mt-0.5">
             {roomType ? formatMoney(roomType.basePrice) : "—"}
           </div>

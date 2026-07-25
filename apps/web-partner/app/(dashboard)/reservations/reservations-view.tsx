@@ -11,6 +11,7 @@ import {
   Download,
   Search,
   UserPlus,
+  UtensilsCrossed,
   Wallet,
   XCircle,
 } from "lucide-react";
@@ -39,7 +40,7 @@ import type { Bed, ReservationUiStatus, ReservationView } from "../../_lib/domai
 import { formatDate, formatMoney, formatPhone } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
 import { useDataStore } from "../../_stores/data-store";
-import { getPartnerLabels } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, isRestaurant } from "../../_lib/utils/partner-labels";
 
 type FilterKey = "all" | ReservationUiStatus;
 
@@ -52,16 +53,15 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: BookingStatus.CANCELLED, label: "Bekor qilingan" },
 ];
 
-function exportToCsv(items: ReservationView[], unitLabel: string, beds: Bed[]) {
+function exportToCsv(items: ReservationView[], unitLabel: string, beds: Bed[], restaurant: boolean) {
   const headers = [
     "ID",
     "Mijoz",
     "Telefon",
     `${unitLabel} turi`,
     unitLabel,
-    "Kelish",
-    "Ketish",
-    "Kech.",
+    "Sana",
+    ...(restaurant ? ["Vaqt"] : ["Ketish", "Kech."]),
     "Summa",
     "To'langan",
     "Status",
@@ -76,8 +76,7 @@ function exportToCsv(items: ReservationView[], unitLabel: string, beds: Bed[]) {
       r.roomTypeName,
       [r.roomNumber, bed?.label].filter(Boolean).join(" · "),
       r.checkIn,
-      r.checkOut,
-      r.nights,
+      ...(restaurant ? [r.slotTime ?? ""] : [r.checkOut, r.nights]),
       r.totalPrice,
       r.paidAmount,
       r.status,
@@ -118,6 +117,7 @@ export function ReservationsView() {
   const beds = useDataStore((s) => s.beds);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
+  const restaurant = isRestaurant(partnerType);
 
   const [filter, setFilter] = useState<FilterKey>("all");
   const [query, setQuery] = useState("");
@@ -214,7 +214,7 @@ export function ReservationsView() {
       <PageHeader
         eyebrow="Bron boshqaruvi"
         title={labels.reservationsTitle}
-        description="Web-userdan kelgan buyurtmalar, walk-in bronlar, to'lov va check-in jarayonlari."
+        description={`Web-userdan kelgan buyurtmalar, walk-in bronlar, to'lov va ${labels.checkInLabel.toLowerCase()} jarayonlari.`}
         actions={
           <>
             <Button
@@ -222,7 +222,7 @@ export function ReservationsView() {
               size="sm"
               disabled={filtered.length === 0}
               onClick={() => {
-                exportToCsv(filtered, labels.unitSingular, beds);
+                exportToCsv(filtered, labels.unitSingular, beds, restaurant);
                 toast.success(`${filtered.length} ta bron eksport qilindi`);
               }}
             >
@@ -255,7 +255,7 @@ export function ReservationsView() {
           icon={<CalendarCheck />}
           label="Bugungi kelishlar"
           value={stats.arrivalsToday.toString()}
-          hint="Check-in uchun tayyor"
+          hint={`${labels.checkInLabel} uchun tayyor`}
           tone="brand"
         />
         <MetricCard
@@ -358,7 +358,7 @@ export function ReservationsView() {
               />
               <Input
                 type="search"
-                placeholder="ID, ism, telefon, xona bo'yicha qidirish..."
+                placeholder={`ID, ism, telefon, ${labels.unitSingular} bo'yicha qidirish...`}
                 className="pl-9"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -498,6 +498,7 @@ function ReservationCard({
   const beds = useDataStore((s) => s.beds);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
+  const restaurant = isRestaurant(partnerType);
 
   return (
     <Card interactive>
@@ -539,15 +540,23 @@ function ReservationCard({
               <MiniInfo
                 icon={<CalendarRange />}
                 label="Kelish"
-                value={formatDate(reservation.checkIn)}
+                value={
+                  restaurant && reservation.slotTime
+                    ? `${formatDate(reservation.checkIn)} · ${reservation.slotTime}`
+                    : formatDate(reservation.checkIn)
+                }
               />
               <MiniInfo
                 icon={<CalendarRange />}
                 label="Ketish"
-                value={`${formatDate(reservation.checkOut)} · ${reservation.nights} kech.`}
+                value={
+                  restaurant
+                    ? formatDate(reservation.checkOut)
+                    : `${formatDate(reservation.checkOut)} · ${reservation.nights} kech.`
+                }
               />
               <MiniInfo
-                icon={<BedDouble />}
+                icon={restaurant ? <UtensilsCrossed /> : <BedDouble />}
                 label={labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1)}
                 value={`${reservation.roomTypeName}${
                   reservation.roomNumber ? ` · ${reservation.roomNumber}` : ""
@@ -555,7 +564,7 @@ function ReservationCard({
                   reservation.bedId
                     ? ` · ${beds.find((b) => b.id === reservation.bedId)?.label ?? ""}`
                     : ""
-                }${reservation.slotTime ? ` · ${reservation.slotTime}` : ""}`}
+                }`}
               />
             </div>
 
@@ -620,7 +629,7 @@ function ReservationCard({
                   }}
                 >
                   <CalendarCheck className="h-4 w-4" aria-hidden />
-                  Check-in
+                  {labels.checkInLabel}
                 </Button>
               )}
             </div>

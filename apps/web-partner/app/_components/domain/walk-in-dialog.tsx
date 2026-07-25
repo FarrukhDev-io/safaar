@@ -130,7 +130,7 @@ export function WalkInDialog({
       const roomType =
         roomTypes.find((rt) => rt.id === values.roomTypeId) ?? roomTypes[0];
       if (!roomType) {
-        toast.error("Avval xona turi yarating");
+        toast.error(`Avval ${labels.unitTypeLabel.toLowerCase()} yarating`);
         return;
       }
       if (restaurant && !values.slotTime) {

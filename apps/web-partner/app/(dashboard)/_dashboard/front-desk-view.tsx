@@ -30,7 +30,7 @@ import { useReservations } from "../../_hooks/use-reservations";
 import { useDataStore } from "../../_stores/data-store";
 import { useAuthStore } from "../../_stores/auth-store";
 import { TODAY_ISO } from "../../_lib/mocks/data";
-import { formatMoney } from "../../_lib/utils/format";
+import { formatDate, formatMoney } from "../../_lib/utils/format";
 import { cn } from "../../_lib/utils/cn";
 import { getPartnerLabels } from "../../_lib/utils/partner-labels";
 import type { ReservationView } from "../../_lib/domain/types";
@@ -484,7 +484,11 @@ function TaskCard({
           {/* Duration */}
           <div className="flex items-center gap-1.5">
             <CalendarDays className="h-4 w-4 text-zinc-400" />
-            <span>{reservation.nights} kecha</span>
+            <span>
+              {reservation.slotTime
+                ? `${formatDate(reservation.checkIn)} · ${reservation.slotTime}`
+                : `${reservation.nights} kecha`}
+            </span>
           </div>
           {/* Price & Balance */}
           <div className="flex items-center gap-1.5 font-medium">

@@ -17,6 +17,7 @@ import {
   Send,
   Sparkles,
   Star,
+  UtensilsCrossed,
   Users,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -37,18 +38,19 @@ import {
   CANCELLATION_POLICY_INFO,
   LISTING_STATUS_INFO,
   ListingStatus,
+  RESTAURANT_AMENITY_GROUPS,
 } from "../../_lib/domain/listing";
 import { useListing } from "../../_hooks/use-listing";
 import { useRooms } from "../../_hooks/use-rooms";
 import { useRoomTypes } from "../../_hooks/use-room-types";
 import { useDataStore } from "../../_stores/data-store";
 import { useAuthStore } from "../../_stores/auth-store";
-import { getPartnerLabels, hasBeds, hasStarRating, isDacha } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBeds, hasStarRating, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 import { cn } from "../../_lib/utils/cn";
 import { formatMoney } from "../../_lib/utils/format";
 
 const AMENITY_LABEL = new Map<string, string>();
-for (const group of AMENITY_GROUPS) {
+for (const group of [...AMENITY_GROUPS, ...RESTAURANT_AMENITY_GROUPS]) {
   for (const item of group.items) AMENITY_LABEL.set(item.id, item.label);
 }
 
@@ -77,6 +79,7 @@ export function ListingOverview() {
   const showStars = hasStarRating(partnerType);
   const dacha = isDacha(partnerType);
   const isHostel = hasBeds(partnerType);
+  const restaurant = isRestaurant(partnerType);
   const [openEditor, setOpenEditor] = useState<OpenEditor>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [roomTypeDialogOpen, setRoomTypeDialogOpen] = useState(false);
@@ -186,7 +189,7 @@ export function ListingOverview() {
       {
         id: "rules",
         title: "Uy qoidalari",
-        subtitle: "Check-in, check-out va bekor qilish shartlari",
+        subtitle: `${labels.checkInLabel}, ${labels.checkOutLabel.toLowerCase()} va bekor qilish shartlari`,
         action: "Qoidalarni sozlash",
         complete: rulesComplete,
         summary: `${listing.checkInTime || "--:--"} dan kirish · ${
@@ -194,11 +197,11 @@ export function ListingOverview() {
         } gacha chiqish`,
         icon: <Baby className="h-4 w-4" aria-hidden />,
         missing: !rulesComplete
-          ? "Check-in va check-out vaqtlarini kiriting."
+          ? `${labels.checkInLabel} va ${labels.checkOutLabel.toLowerCase()} vaqtlarini kiriting.`
           : undefined,
       },
     ];
-  }, [cover, listing, showStars]);
+  }, [cover, listing, showStars, labels]);
 
   const completedCount = sections.filter((section) => section.complete).length;
   const progress = Math.round((completedCount / sections.length) * 100);
@@ -403,6 +406,7 @@ export function ListingOverview() {
             roomAds={roomAds}
             labels={labels}
             isHostel={isHostel}
+            restaurant={restaurant}
             onAddRoomType={() => {
               setEditingRoomType(null);
               setRoomTypeDialogOpen(true);
@@ -450,7 +454,7 @@ export function ListingOverview() {
         <Card>
           <CardBody className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold">Mijozga ko'rinadiganlar</h2>
-            <ChecklistItem done={Boolean(listing.name)} label="Mehmonxona nomi" />
+            <ChecklistItem done={Boolean(listing.name)} label="E'lon nomi" />
             <ChecklistItem done={listing.photos.length >= 3} label="Kamida 3 ta rasm" />
             <ChecklistItem
               done={listing.amenities.length >= 3}
@@ -466,7 +470,7 @@ export function ListingOverview() {
             />
             <ChecklistItem
               done={Boolean(listing.checkInTime && listing.checkOutTime)}
-              label="Check-in/out va qoidalar"
+              label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
             />
             <ChecklistItem
               done={roomAds.length > 0 && listedRooms.length > 0}
@@ -535,6 +539,7 @@ function RoomListingsPanel({
   roomAds,
   labels,
   isHostel,
+  restaurant,
   onAddRoomType,
   onEditRoomType,
   onAddRoom,
@@ -549,6 +554,7 @@ function RoomListingsPanel({
   }>;
   labels: import("../../_lib/utils/partner-labels").PartnerLabels;
   isHostel: boolean;
+  restaurant: boolean;
   onAddRoomType: () => void;
   onEditRoomType: (roomType: import("../../_lib/domain/types").RoomType) => void;
   onAddRoom: () => void;
@@ -575,7 +581,11 @@ function RoomListingsPanel({
               {labels.addUnitLabel}
             </Button>
             <Button size="sm" onClick={onAddRoomType}>
-              <BedDouble className="h-4 w-4" aria-hidden />
+              {restaurant ? (
+                <UtensilsCrossed className="h-4 w-4" aria-hidden />
+              ) : (
+                <BedDouble className="h-4 w-4" aria-hidden />
+              )}
               {labels.unitTypeLabel} qo'shish
             </Button>
           </div>
@@ -583,10 +593,17 @@ function RoomListingsPanel({
 
         {roomAds.length === 0 ? (
           <div className="rounded-card border border-dashed border-[var(--border)] bg-[var(--surface-muted)] p-6 text-center">
-            <BedDouble
-              className="mx-auto h-8 w-8 text-[var(--muted-foreground)]"
-              aria-hidden
-            />
+            {restaurant ? (
+              <UtensilsCrossed
+                className="mx-auto h-8 w-8 text-[var(--muted-foreground)]"
+                aria-hidden
+              />
+            ) : (
+              <BedDouble
+                className="mx-auto h-8 w-8 text-[var(--muted-foreground)]"
+                aria-hidden
+              />
+            )}
             <h3 className="mt-3 text-sm font-semibold">
               Hali {labels.unitTypeLabel.toLowerCase()} yo'q
             </h3>
@@ -616,6 +633,7 @@ function RoomListingsPanel({
                   unitLabel={labels.unitSingular}
                   totalUnits={isHostel ? totalBeds : relatedRooms.length}
                   listedUnits={isHostel ? listedBedCount : listedCount}
+                  restaurant={restaurant}
                   onEdit={() => onEditRoomType(roomType)}
                 />
               ),
@@ -639,6 +657,7 @@ function RoomAdCard({
   unitLabel,
   totalUnits,
   listedUnits,
+  restaurant,
   onEdit,
 }: {
   name: string;
@@ -652,6 +671,7 @@ function RoomAdCard({
   unitLabel: string;
   totalUnits: number;
   listedUnits: number;
+  restaurant: boolean;
   onEdit: () => void;
 }) {
   return (
@@ -702,7 +722,7 @@ function RoomAdCard({
         </div>
         <div className="shrink-0 text-right">
           <p className="text-[11px] text-[var(--muted-foreground)]">
-            1 kecha
+            {restaurant ? "narxi" : "1 kecha"}
           </p>
           <p className="text-base font-semibold text-brand-700 dark:text-brand-300">
             {formatMoney(minPrice)}

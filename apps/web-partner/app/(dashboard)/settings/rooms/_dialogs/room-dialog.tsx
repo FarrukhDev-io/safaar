@@ -46,6 +46,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const isHostel = hasBeds(partnerType);
   const labels = getPartnerLabels(partnerType);
+  const unitCap = labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -90,7 +91,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
         toast.error(result.reason ?? "Tahrirlab bo'lmadi");
         return;
       }
-      toast.success(`Xona ${values.number} yangilandi`);
+      toast.success(`${unitCap} ${values.number} yangilandi`);
     } else {
       const result = addRoom(values);
       if (!result.ok) {
@@ -101,20 +102,20 @@ export function RoomDialog({ open, onClose, editing }: Props) {
         const roomType = roomTypes.find((rt) => rt.id === values.roomTypeId);
         generateBedsForRoom(result.room.id, roomType?.capacity ?? 1);
       }
-      toast.success(`Xona ${values.number} qo'shildi`);
+      toast.success(`${unitCap} ${values.number} qo'shildi`);
     }
     onClose();
   });
 
   const handleDelete = () => {
     if (!editing) return;
-    if (!confirm(`Rostdan ham xona ${editing.number} ni o'chirmoqchimisiz?`)) return;
+    if (!confirm(`Rostdan ham ${labels.unitSingular} ${editing.number} ni o'chirmoqchimisiz?`)) return;
     const result = deleteRoom(editing.id);
     if (!result.ok) {
       toast.error(result.reason ?? "O'chirib bo'lmadi");
       return;
     }
-    toast.success(`Xona ${editing.number} o'chirildi.`);
+    toast.success(`${unitCap} ${editing.number} o'chirildi.`);
     onClose();
   };
 
@@ -126,19 +127,19 @@ export function RoomDialog({ open, onClose, editing }: Props) {
     <Dialog
       open={open}
       onClose={onClose}
-      title={editing ? `Xona ${editing.number}` : `Yangi ${labels.unitTypeLabel.toLowerCase()}`}
+      title={editing ? `${unitCap} ${editing.number}` : `Yangi ${labels.unitSingular}`}
       description={
         editing
-          ? "Xona ma'lumotlarini tahrirlash"
+          ? `${unitCap} ma'lumotlarini tahrirlash`
           : isHostel
             ? "Yotoqlar soni tanlangan xona turining sig'imiga qarab avtomatik yaratiladi."
-            : "Mehmonxonangizga yangi xona qo'shish"
+            : `Ro'yxatingizga yangi ${labels.unitSingular} qo'shish`
       }
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="r-number">Xona raqami</Label>
+            <Label htmlFor="r-number">{unitCap} raqami</Label>
             <Input
               id="r-number"
               placeholder="101"
@@ -152,7 +153,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="r-floor">Qavat</Label>
+            <Label htmlFor="r-floor">{labels.floorSingular.charAt(0).toUpperCase() + labels.floorSingular.slice(1)}</Label>
             <Input
               id="r-floor"
               type="number"
@@ -163,14 +164,14 @@ export function RoomDialog({ open, onClose, editing }: Props) {
           </div>
 
           <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label htmlFor="r-type">Xona turi</Label>
+            <Label htmlFor="r-type">{labels.unitTypeLabel}</Label>
             <select
               id="r-type"
               className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"
               {...form.register("roomTypeId")}
             >
               {roomTypes.length === 0 ? (
-                <option value="">Avval xona turini yarating</option>
+                <option value="">{`Avval ${labels.unitTypeLabel.toLowerCase()}ni yarating`}</option>
               ) : (
                 roomTypes.map((rt) => (
                   <option key={rt.id} value={rt.id}>
@@ -186,7 +187,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
 
           {editing && !isHostel && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="r-status">Xona holati</Label>
+              <Label htmlFor="r-status">{unitCap} holati</Label>
               <select
                 id="r-status"
                 className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"
@@ -211,8 +212,8 @@ export function RoomDialog({ open, onClose, editing }: Props) {
               min={0}
               placeholder={
                 selectedRoomType
-                  ? `${selectedRoomType.basePrice.toLocaleString("uz-UZ")} so'm (xona turi narxi)`
-                  : "Xona turi narxi ishlatiladi"
+                  ? `${selectedRoomType.basePrice.toLocaleString("uz-UZ")} so'm (${labels.unitTypeLabel.toLowerCase()} narxi)`
+                  : `${labels.unitTypeLabel} narxi ishlatiladi`
               }
               aria-invalid={Boolean(err.nightlyPrice)}
               {...form.register("nightlyPrice", {

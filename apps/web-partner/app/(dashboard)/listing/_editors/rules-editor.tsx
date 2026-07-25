@@ -15,7 +15,7 @@ import { Tooltip } from "../../../_components/ui/tooltip";
 import { useListing } from "../../../_hooks/use-listing";
 import { useDataStore } from "../../../_stores/data-store";
 import { useAuthStore } from "../../../_stores/auth-store";
-import { getPartnerLabels } from "../../../_lib/utils/partner-labels";
+import { getPartnerLabels, isRestaurant } from "../../../_lib/utils/partner-labels";
 import {
   CANCELLATION_POLICY_INFO,
   CancellationPolicy,
@@ -47,6 +47,7 @@ export function RulesEditor({
   const removeFee = useDataStore((s) => s.removeExtraFee);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
+  const restaurant = isRestaurant(partnerType);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -91,7 +92,7 @@ export function RulesEditor({
         {/* Vaqtlar */}
         <section className="flex flex-col gap-3">
           <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">
-            Kirish va chiqish
+            {labels.checkInLabel} va {labels.checkOutLabel.toLowerCase()}
           </h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
@@ -177,14 +178,16 @@ export function RulesEditor({
                 form.setValue("petsAllowed", v, { shouldDirty: true })
               }
             />
-            <RuleToggle
-              icon={<Baby className="h-4 w-4" aria-hidden />}
-              label="Bolalar bilan mos"
-              checked={childrenAllowed}
-              onChange={(v) =>
-                form.setValue("childrenAllowed", v, { shouldDirty: true })
-              }
-            />
+            {!restaurant && (
+              <RuleToggle
+                icon={<Baby className="h-4 w-4" aria-hidden />}
+                label="Bolalar bilan mos"
+                checked={childrenAllowed}
+                onChange={(v) =>
+                  form.setValue("childrenAllowed", v, { shouldDirty: true })
+                }
+              />
+            )}
           </div>
         </section>
 
@@ -195,6 +198,7 @@ export function RulesEditor({
           </h3>
           <ExtraFeesEditor
             fees={data.extraFees}
+            restaurant={restaurant}
             onAdd={(fee) => {
               addFee(fee);
               toast.success("Qo'shildi");
@@ -241,10 +245,12 @@ function RuleToggle({
 
 function ExtraFeesEditor({
   fees,
+  restaurant,
   onAdd,
   onRemove,
 }: {
   fees: import("../../../_lib/domain/listing").ExtraFee[];
+  restaurant: boolean;
   onAdd: (
     fee: Omit<import("../../../_lib/domain/listing").ExtraFee, "id">,
   ) => void;
@@ -259,7 +265,7 @@ function ExtraFeesEditor({
 
   const chargeLabel = {
     per_stay: "Butun bron",
-    per_night: "Har kecha",
+    per_night: restaurant ? "Har bron" : "Har kecha",
     per_person: "Har mehmon",
   };
 
@@ -301,7 +307,7 @@ function ExtraFeesEditor({
             className="h-10 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"
           >
             <option value="per_stay">Butun bron uchun</option>
-            <option value="per_night">Har kecha uchun</option>
+            <option value="per_night">{restaurant ? "Har bron uchun" : "Har kecha uchun"}</option>
             <option value="per_person">Har mehmon uchun</option>
           </select>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border)] px-3 text-sm">
