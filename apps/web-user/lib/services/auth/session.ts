@@ -53,9 +53,16 @@ export async function clearSession(): Promise<void> {
   store.delete(COOKIE_NAME);
 }
 
-/** Backend auth headerlari (himoyalangan endpointlar uchun). */
-export function devAuthHeaders(session: Session): Record<string, string> {
-  return {
-    Authorization: `Bearer ${session.accessToken}`,
-  };
+/** Backend JWT auth headerlari (himoyalangan endpointlar uchun). */
+export function getAuthHeaders(session: Session | string | null): Record<string, string> {
+  const token = typeof session === "string" ? session : session?.accessToken;
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+      }
+    : {};
 }
+
+/** Dev/Legacy alias */
+export const devAuthHeaders = getAuthHeaders;
+

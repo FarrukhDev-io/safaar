@@ -7,9 +7,8 @@ import { SearchBar } from "@/components/search/SearchBar";
 import { HotelFilters } from "@/components/hotels/HotelFilters";
 import { HotelSortSelect } from "@/components/hotels/HotelSortSelect";
 import { ActiveFilters } from "@/components/hotels/ActiveFilters";
-import { HotelsPagination } from "@/components/hotels/HotelsPagination";
-import { HotelCard } from "@/components/hotels/HotelCard";
 import { Button } from "@/components/ui/Button";
+import { AccommodationListWithMap } from "@/components/features/accommodation/AccommodationListWithMap";
 import type { HotelListItem } from "@/types/view";
 
 const PAGE_SIZE = 9;
@@ -158,25 +157,15 @@ export async function AccommodationPage({
               </Link>
             </div>
           ) : (
-            <>
-              <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
-                {items.map((hotel) => (
-                  <HotelCard
-                    key={hotel.id}
-                    hotel={hotel}
-                    locale={locale}
-                    labels={{ perNight: dict.perNight, reviews: dict.reviews }}
-                  />
-                ))}
-              </div>
-              <HotelsPagination
-                basePath={basePath}
-                params={currentParams}
-                page={safePage}
-                totalPages={totalPages}
-                dict={dict.pagination}
-              />
-            </>
+            <AccommodationListWithMap
+              items={items}
+              locale={locale}
+              dict={dict}
+              basePath={basePath}
+              safePage={safePage}
+              totalPages={totalPages}
+              currentParams={currentParams}
+            />
           )}
         </section>
       </div>

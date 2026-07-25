@@ -115,16 +115,6 @@ export default async function HomePage({
           </Suspense>
         )}
 
-        <div className="flex justify-center pb-4 pt-4 sm:pb-6 sm:pt-6">
-          <div className="flex animate-bounce flex-col items-center gap-0.5 text-slate-800">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-              {dict.popularCities.title}
-            </span>
-            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden>
-              <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-        </div>
       </div>
 
       {/* EKRAN 2: Chegirmadagi takliflar */}

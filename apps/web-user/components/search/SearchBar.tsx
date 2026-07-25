@@ -10,6 +10,7 @@ import type { PropertyType, SearchDefaults } from "./types";
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import type { CityOption } from "@/types/view";
+import { trackSearchPerformed } from "@/lib/services/analytics/tracker";
 
 export type { PropertyType, SearchDefaults };
 
@@ -63,6 +64,15 @@ export function SearchBar({
     if (checkIn) params.set("check_in", checkIn);
     if (checkOut) params.set("check_out", checkOut);
     if (guests) params.set("guests", String(guests));
+
+    const selectedCity = cities.find((c) => c.id === cityId)?.name || cityId;
+    trackSearchPerformed({
+      city: selectedCity,
+      checkIn,
+      checkOut,
+      guests,
+    });
+
     const base = typePaths[activeType] ?? `/${locale}/hotels`;
     const query = params.toString();
     router.push(`${base}${query ? `?${query}` : ""}`);
@@ -72,7 +82,7 @@ export function SearchBar({
     <div className="mx-auto w-full max-w-4xl">
       <form
         onSubmit={handleSubmit}
-        className="rounded-2xl border-2 border-slate-300 bg-slate-50 p-3 shadow-lg shadow-slate-200/60 transition-all duration-200 hover:border-slate-400 sm:p-3.5"
+        className="rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-xl shadow-slate-200/50 transition-all duration-200 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-4"
       >
         {/* Desktop grid layout & Mobile stack layout */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2">

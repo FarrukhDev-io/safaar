@@ -1,8 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { Star, Building2, Check, Coffee, CreditCard, Flame } from "lucide-react";
 import type { Locale } from "@/i18n/config";
-import { formatSum } from "@/lib/money";
+import { useCurrency } from "@/lib/context/CurrencyContext";
 import { resolveImage } from "@/lib/images";
 import type { HotelListItem } from "@/types/view";
 import {
@@ -28,6 +30,7 @@ export function HotelCard({
   locale: Locale;
   labels: HotelCardLabels;
 }) {
+  const { format } = useCurrency();
   const imageUrl = resolveImage(hotel.imageUrl, hotel.id, 600, 450);
 
   // Conversion & Trust Badges Logic
@@ -113,7 +116,7 @@ export function HotelCard({
         <CardContent className="p-3.5 sm:p-4 pt-0 mt-auto">
           <div className="pt-3 border-t border-slate-100">
             <p className="text-base font-bold tabular-nums text-slate-900 sm:text-lg">
-              {formatSum(hotel.minPriceSum)}
+              {format(hotel.minPriceSum)}
               <span className="text-xs font-normal text-slate-500">
                 {" "}
                 / {labels.perNight}

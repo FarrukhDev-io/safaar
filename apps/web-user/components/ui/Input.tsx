@@ -1,16 +1,30 @@
 import type { InputHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-export type InputProps = InputHTMLAttributes<HTMLInputElement>;
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  error?: boolean | string;
+}
 
-export function Input({ className, ...props }: InputProps) {
+export function Input({ className, error, ...props }: InputProps) {
+  const hasError = Boolean(error);
   return (
-    <input
-      className={cn(
-        "h-10.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-bold text-slate-900 shadow-2xs transition-all placeholder:text-slate-500 hover:border-slate-400 focus-visible:border-blue-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500/20 active:bg-slate-50",
-        className,
+    <div className="flex w-full flex-col gap-1">
+      <input
+        aria-invalid={hasError || undefined}
+        className={cn(
+          "min-h-[44px] h-11 w-full rounded-xl border bg-white px-3.5 text-sm font-bold text-slate-900 shadow-2xs transition-all placeholder:text-slate-400 hover:border-slate-300 focus-visible:outline-hidden dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500",
+          hasError
+            ? "border-red-500 text-red-900 focus-visible:border-red-600 focus-visible:ring-2 focus-visible:ring-red-500/20 dark:border-red-500 dark:text-red-100"
+            : "border-slate-200 focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20 dark:border-slate-800",
+          className,
+        )}
+        {...props}
+      />
+      {typeof error === "string" && error.length > 0 && (
+        <span role="alert" className="text-xs font-bold text-red-600 dark:text-red-400">
+          {error}
+        </span>
       )}
-      {...props}
-    />
+    </div>
   );
 }

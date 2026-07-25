@@ -1,0 +1,194 @@
+"use client";
+
+import { useState } from "react";
+import { CheckCircle2, ShieldCheck, Zap, Banknote, CreditCard, Smartphone } from "lucide-react";
+import { cn } from "@/lib/cn";
+import { trackPaymentMethodSelected } from "@/lib/services/analytics/tracker";
+
+export type PaymentMethodId = "click" | "payme" | "uzcard" | "humo" | "cash";
+
+export interface PaymentOption {
+  id: PaymentMethodId;
+  name: string;
+  subtitle: string;
+  badges: string[];
+  type: "online" | "card" | "cash";
+  colorTheme: {
+    badgeBg: string;
+    badgeText: string;
+    borderSelected: string;
+    bgSelected: string;
+    iconBg: string;
+  };
+}
+
+const PAYMENT_OPTIONS: PaymentOption[] = [
+  {
+    id: "click",
+    name: "Click Pass / Evolution",
+    subtitle: "Click Evolution ilovasi yoki *880# USSD orqali zudlik bilan to'lash",
+    badges: ["1-click to'lov", "Instant confirmation"],
+    type: "online",
+    colorTheme: {
+      badgeBg: "bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800",
+      badgeText: "text-blue-700 dark:text-blue-300",
+      borderSelected: "border-blue-500 ring-2 ring-blue-500/20",
+      bgSelected: "bg-blue-50/40 dark:bg-blue-950/20",
+      iconBg: "bg-blue-600 text-white",
+    },
+  },
+  {
+    id: "payme",
+    name: "Payme",
+    subtitle: "Payme ilovasi yoki rasmiy sayti orqali xavfsiz va tezkor to'lov",
+    badges: ["0% komissiya", "Zudlik bilan tasdiqlash"],
+    type: "online",
+    colorTheme: {
+      badgeBg: "bg-cyan-50 dark:bg-cyan-950/60 border-cyan-200 dark:border-cyan-800",
+      badgeText: "text-cyan-700 dark:text-cyan-300",
+      borderSelected: "border-cyan-500 ring-2 ring-cyan-500/20",
+      bgSelected: "bg-cyan-50/40 dark:bg-cyan-950/20",
+      iconBg: "bg-cyan-500 text-white",
+    },
+  },
+  {
+    id: "uzcard",
+    name: "Uzcard / Humo (Plastik karta)",
+    subtitle: "Barcha milliy Uzcard va Humo plastik kartalari orqali to'g'ridan-to'g'ri to'lov",
+    badges: ["3D-Secure xavfsizlik", "Milliy karta"],
+    type: "card",
+    colorTheme: {
+      badgeBg: "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800",
+      badgeText: "text-emerald-700 dark:text-emerald-300",
+      borderSelected: "border-emerald-500 ring-2 ring-emerald-500/20",
+      bgSelected: "bg-emerald-50/40 dark:bg-emerald-950/20",
+      iconBg: "bg-emerald-600 text-white",
+    },
+  },
+  {
+    id: "cash",
+    name: "Joyida to'lash (Naqd / Terminal)",
+    subtitle: "Oldindan to'lov talab qilinmaydi. Mehmonxonaga kelganda qabulxonada to'lanadi",
+    badges: ["Oldindan to'lovsiz", "Moslashuvchan bekor qilish"],
+    type: "cash",
+    colorTheme: {
+      badgeBg: "bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800",
+      badgeText: "text-amber-800 dark:text-amber-300",
+      borderSelected: "border-amber-500 ring-2 ring-amber-500/20",
+      bgSelected: "bg-amber-50/40 dark:bg-amber-950/20",
+      iconBg: "bg-amber-500 text-white",
+    },
+  },
+];
+
+export interface PaymentSelectorProps {
+  defaultValue?: PaymentMethodId;
+  name?: string;
+  onChange?: (value: PaymentMethodId) => void;
+  dict?: Record<string, string>;
+  className?: string;
+}
+
+export function PaymentSelector({
+  defaultValue = "click",
+  name = "paymentMethod",
+  onChange,
+  className,
+}: PaymentSelectorProps) {
+  const [selected, setSelected] = useState<PaymentMethodId>(defaultValue);
+
+  const handleSelect = (id: PaymentMethodId) => {
+    setSelected(id);
+    trackPaymentMethodSelected({ paymentMethod: id });
+    if (onChange) onChange(id);
+  };
+
+  return (
+    <div className={cn("flex flex-col gap-3", className)}>
+      <input type="hidden" name={name} value={selected} />
+
+      <div className="grid grid-cols-1 gap-3">
+        {PAYMENT_OPTIONS.map((option) => {
+          const isSelected = selected === option.id;
+          return (
+            <div
+              key={option.id}
+              role="radio"
+              aria-checked={isSelected}
+              tabIndex={0}
+              onClick={() => handleSelect(option.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleSelect(option.id);
+                }
+              }}
+              className={cn(
+                "group relative flex cursor-pointer items-start justify-between rounded-2xl border p-4 transition-all duration-200 hover:shadow-md",
+                isSelected
+                  ? cn(option.colorTheme.borderSelected, option.colorTheme.bgSelected)
+                  : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/80 dark:hover:border-slate-700"
+              )}
+            >
+              <div className="flex items-start gap-3.5">
+                {/* Method Icon / Logo Badge */}
+                <div
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold shadow-xs transition-transform duration-200 group-hover:scale-105",
+                    option.colorTheme.iconBg
+                  )}
+                >
+                  {option.id === "click" && <Smartphone className="h-5 w-5 stroke-[2.2]" />}
+                  {option.id === "payme" && <Zap className="h-5 w-5 stroke-[2.2]" />}
+                  {option.id === "uzcard" && <CreditCard className="h-5 w-5 stroke-[2.2]" />}
+                  {option.id === "cash" && <Banknote className="h-5 w-5 stroke-[2.2]" />}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {option.name}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {option.subtitle}
+                  </p>
+
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {option.badges.map((badge, i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold",
+                          option.colorTheme.badgeBg,
+                          option.colorTheme.badgeText
+                        )}
+                      >
+                        <ShieldCheck className="h-3 w-3" />
+                        {badge}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom Radio Circle indicator */}
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center pt-0.5">
+                <div
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full border transition-all",
+                    isSelected
+                      ? "border-primary-600 bg-primary-600 text-white dark:border-primary-500 dark:bg-primary-500"
+                      : "border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-800"
+                  )}
+                >
+                  {isSelected && <CheckCircle2 className="h-4 w-4 stroke-[3]" />}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

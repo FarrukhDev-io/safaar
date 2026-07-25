@@ -6,7 +6,6 @@ import Image from "next/image";
 import { Tag, Clock } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
-import { formatSum } from "@/lib/money";
 import {
   Card,
   CardHeader,
@@ -28,6 +27,8 @@ export interface DealItem {
   endsAt: string;
 }
 
+import { useCurrency } from "@/lib/context/CurrencyContext";
+
 export function DealsSection({
   deals,
   dict,
@@ -37,6 +38,7 @@ export function DealsSection({
   dict: HomeDict["deals"];
   locale: Locale;
 }) {
+  const { format } = useCurrency();
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [now] = useState(() => Date.now());
@@ -66,10 +68,10 @@ export function DealsSection({
   return (
     <section className="mx-auto w-full max-w-6xl px-4 sm:px-6">
       <div className="mb-4 sm:mb-5">
-        <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
+        <h2 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
           {dict.title}
         </h2>
-        <p className="mt-0.5 text-xs text-slate-500 sm:text-sm dark:text-slate-400">
+        <p className="mt-0.5 text-xs font-semibold text-slate-600 sm:text-sm dark:text-slate-400">
           {dict.subtitle}
         </p>
       </div>
@@ -92,8 +94,8 @@ export function DealsSection({
               href={`/${locale}/hotels/${deal.slug}`}
               className="group w-[calc(50%-0.375rem)] shrink-0 snap-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              <Card className="flex h-full flex-col overflow-hidden border border-slate-200 shadow-xs transition-all duration-200 hover:border-slate-300 hover:shadow-md active:scale-[0.98]">
-                <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
+              <Card className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 ease-out group-hover:-translate-y-1.5 group-hover:border-blue-400/80 group-hover:shadow-xl dark:border-slate-800 dark:bg-slate-900">
+                <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-800">
                   {deal.imageUrl && (
                     <Image
                       src={deal.imageUrl}
@@ -105,35 +107,35 @@ export function DealsSection({
                     />
                   )}
 
-                  <Badge variant="destructive" className="absolute left-2.5 top-2.5 z-10 gap-1 shadow-xs">
+                  <Badge variant="destructive" className="absolute left-2.5 top-2.5 z-10 gap-1 bg-red-600 text-white font-black shadow-xs">
                     <Tag className="h-3.5 w-3.5" aria-hidden />
-                    -{deal.discountPercent}%
+                    -{deal.discountPercent}% Flash Sale
                   </Badge>
 
-                  <Badge variant="outline" className="absolute right-2.5 top-2.5 z-10 gap-1 shadow-xs">
-                    <Clock className="h-3.5 w-3.5 text-slate-600" aria-hidden />
+                  <Badge variant="outline" className="absolute right-2.5 top-2.5 z-10 gap-1 border-white/40 bg-white/80 text-slate-900 font-extrabold backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80 dark:text-white shadow-xs">
+                    <Clock className="h-3.5 w-3.5 text-amber-500" aria-hidden />
                     {endsInDays} {dict.days}
                   </Badge>
                 </div>
 
                 <CardHeader className="p-3.5 pb-2 space-y-0.5">
-                  <CardTitle className="line-clamp-1 text-sm font-semibold text-slate-900">
+                  <CardTitle className="line-clamp-1 text-sm font-bold text-slate-900 dark:text-white">
                     {deal.name}
                   </CardTitle>
-                  <CardDescription className="text-xs font-normal text-slate-500">
+                  <CardDescription className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     {deal.cityName}
                   </CardDescription>
                 </CardHeader>
 
                 <CardContent className="p-3.5 pt-0 mt-auto">
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                    <span className="text-xs font-normal text-slate-400 line-through">
-                      {formatSum(deal.oldPriceSum)}
+                  <div className="flex flex-wrap items-baseline gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-xs font-semibold text-slate-400 line-through">
+                      {format(deal.oldPriceSum)}
                     </span>
-                    <span className="text-base font-bold text-red-600">
-                      {formatSum(deal.newPriceSum)}
+                    <span className="text-base font-black text-rose-600 dark:text-rose-400">
+                      {format(deal.newPriceSum)}
                     </span>
-                    <span className="text-xs font-normal text-slate-500">{dict.perNight}</span>
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{dict.perNight}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -154,8 +156,8 @@ export function DealsSection({
               href={`/${locale}/hotels/${deal.slug}`}
               className="group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              <Card className="flex h-full flex-col overflow-hidden border border-slate-200 shadow-xs transition-all duration-200 hover:border-slate-300 hover:shadow-md active:scale-[0.98]">
-                <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
+              <Card className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 ease-out group-hover:-translate-y-1.5 group-hover:border-blue-400/80 group-hover:shadow-xl dark:border-slate-800 dark:bg-slate-900">
+                <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-800">
                   {deal.imageUrl && (
                     <Image
                       src={deal.imageUrl}
@@ -167,35 +169,35 @@ export function DealsSection({
                     />
                   )}
 
-                  <Badge variant="destructive" className="absolute left-2.5 top-2.5 z-10 gap-1 shadow-xs">
+                  <Badge variant="destructive" className="absolute left-2.5 top-2.5 z-10 gap-1 bg-red-600 text-white font-black shadow-xs">
                     <Tag className="h-3.5 w-3.5" aria-hidden />
-                    -{deal.discountPercent}%
+                    -{deal.discountPercent}% Flash Sale
                   </Badge>
 
-                  <Badge variant="outline" className="absolute right-2.5 top-2.5 z-10 gap-1 shadow-xs">
-                    <Clock className="h-3.5 w-3.5 text-slate-600" aria-hidden />
+                  <Badge variant="outline" className="absolute right-2.5 top-2.5 z-10 gap-1 border-white/40 bg-white/80 text-slate-900 font-extrabold backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80 dark:text-white shadow-xs">
+                    <Clock className="h-3.5 w-3.5 text-amber-500" aria-hidden />
                     {endsInDays} {dict.days}
                   </Badge>
                 </div>
 
                 <CardHeader className="p-3.5 pb-2 space-y-0.5">
-                  <CardTitle className="line-clamp-1 text-sm font-semibold text-slate-900 sm:text-base">
+                  <CardTitle className="line-clamp-1 text-sm font-bold text-slate-900 sm:text-base dark:text-white">
                     {deal.name}
                   </CardTitle>
-                  <CardDescription className="text-xs font-normal text-slate-500">
+                  <CardDescription className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     {deal.cityName}
                   </CardDescription>
                 </CardHeader>
 
                 <CardContent className="p-3.5 pt-0 mt-auto">
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                    <span className="text-xs font-normal text-slate-400 line-through">
-                      {formatSum(deal.oldPriceSum)}
+                  <div className="flex flex-wrap items-baseline gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-xs font-semibold text-slate-400 line-through">
+                      {format(deal.oldPriceSum)}
                     </span>
-                    <span className="text-base font-bold text-red-600">
-                      {formatSum(deal.newPriceSum)}
+                    <span className="text-base font-black text-rose-600 dark:text-rose-400">
+                      {format(deal.newPriceSum)}
                     </span>
-                    <span className="text-xs font-normal text-slate-500">{dict.perNight}</span>
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{dict.perNight}</span>
                   </div>
                 </CardContent>
               </Card>

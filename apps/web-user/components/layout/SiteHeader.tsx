@@ -6,6 +6,7 @@ import { logoutAction } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/Button";
 import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
 import { LocaleSwitcher } from "./LocaleSwitcher";
+import { CurrencySwitcher } from "./CurrencySwitcher";
 
 export function SiteHeader({
   locale,
@@ -49,8 +50,18 @@ export function SiteHeader({
     { href: `${base}/help`, label: dict.nav.help, icon: <HelpCircle className="h-4 w-4" /> },
   ];
 
-  const localeSwitcher = <LocaleSwitcher current={locale} />;
-  const localeSwitcherLight = <LocaleSwitcher current={locale} light />;
+  const localeSwitcher = (
+    <div className="flex items-center gap-1.5">
+      <CurrencySwitcher />
+      <LocaleSwitcher current={locale} />
+    </div>
+  );
+  const localeSwitcherLight = (
+    <div className="flex items-center gap-1.5">
+      <CurrencySwitcher light />
+      <LocaleSwitcher current={locale} light />
+    </div>
+  );
 
   const authActions = authed ? (
     <div className="flex items-center gap-1.5">

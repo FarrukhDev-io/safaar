@@ -1,27 +1,77 @@
 /**
- * Pul bilan ishlash — UZS (so'm).
- *
- * ⚠️ MUHIM: Backend pul summalarini **tiyin**da (minor unit) saqlaydi.
- * 1 so'm = 100 tiyin. Masalan backend `base_price: 45000000` → 450 000 so'm.
- * Shuning uchun ko'rsatishdan oldin doim `tiyinToSum` orqali o'tkazamiz.
+ * Pul bilan ishlash va Ko'p Valyutali Formatlash (UZS, USD, EUR, RUB).
  */
+
+export type CurrencyCode = "UZS" | "USD" | "EUR" | "RUB";
 
 export const TIYIN_PER_SUM = 100;
 
-/** Tiyin (butun) → so'm (butun/kasrli). */
+export const DEFAULT_EXCHANGE_RATES: Record<CurrencyCode, number> = {
+  UZS: 1,
+  USD: 12650,
+  EUR: 13800,
+  RUB: 140,
+};
+
+export const CURRENCY_INFO: Record<
+  CurrencyCode,
+  { code: CurrencyCode; symbol: string; flag: string; name: string }
+> = {
+  UZS: { code: "UZS", symbol: "so'm", flag: "🇺🇿", name: "O'zbek so'mi" },
+  USD: { code: "USD", symbol: "$", flag: "🇺🇸", name: "US Dollar" },
+  EUR: { code: "EUR", symbol: "€", flag: "🇪🇺", name: "Euro" },
+  RUB: { code: "RUB", symbol: "₽", flag: "🇷🇺", name: "Российский рубль" },
+};
+
+/** Tiyin (butun) → so'm. */
 export function tiyinToSum(tiyin: number): number {
   return Math.round(tiyin) / TIYIN_PER_SUM;
 }
 
-/** So'm qiymatini O'zbek formatida matn qilib qaytaradi: `450 000 so'm`. */
-export function formatSum(sum: number): string {
-  const formatted = Math.round(sum)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
-  return `${formatted} so'm`;
+/**
+ * Valyuta bo'yicha narxni konvertatsiya qilish va formatlash.
+ */
+export function formatMoney(
+  amountInSum: number,
+  currency: CurrencyCode = "UZS",
+  rates: Record<CurrencyCode, number> = DEFAULT_EXCHANGE_RATES
+): string {
+  const rate = rates[currency] || 1;
+  const converted = amountInSum / rate;
+
+  if (currency === "UZS") {
+    const formatted = Math.round(converted)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
+    return `${formatted} so'm`;
+  }
+
+  if (currency === "USD") {
+    const val = converted < 10 ? converted.toFixed(2) : Math.round(converted).toLocaleString("en-US");
+    return `$${val}`;
+  }
+
+  if (currency === "EUR") {
+    const val = converted < 10 ? converted.toFixed(2) : Math.round(converted).toLocaleString("de-DE");
+    return `€${val}`;
+  }
+
+  if (currency === "RUB") {
+    const val = Math.round(converted)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
+    return `${val} ₽`;
+  }
+
+  return `${Math.round(converted)} ${currency}`;
 }
 
-/** Tiyinni to'g'ridan-to'g'ri so'm matniga: `450 000 so'm`. */
+/** So'm qiymatini matn qilib qaytaradi (backward compatibility). */
+export function formatSum(sum: number): string {
+  return formatMoney(sum, "UZS");
+}
+
+/** Tiyinni to'g'ridan-to'g'ri so'm matniga. */
 export function formatTiyin(tiyin: number): string {
   return formatSum(tiyinToSum(tiyin));
 }

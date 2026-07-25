@@ -8,6 +8,8 @@ import { formatSum } from "@/lib/money";
 import { bookingStatusTone, statusBadgeClasses } from "@/lib/bookingStatus";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { CalendarX } from "lucide-react";
 import type { BookingView } from "@/types/view";
 
 export default async function AccountBookingsPage({
@@ -35,16 +37,13 @@ export default async function AccountBookingsPage({
 
   if (bookings.length === 0) {
     return (
-      <Card>
-        <CardBody className="py-12 text-center">
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{dict.bookings.empty}</p>
-          <Link href={`/${locale}/hotels`} className="mt-4 inline-block">
-            <Button variant="accent" size="sm">
-              Mehmonxonalarni ko'rish
-            </Button>
-          </Link>
-        </CardBody>
-      </Card>
+      <EmptyState
+        icon={<CalendarX className="h-10 w-10 text-slate-400 dark:text-slate-500" />}
+        title={dict.bookings.empty}
+        description="Sizda hali tasdiqlangan bronlar mavjud emas. Toshkent, Samarqand yoki Buxorodagi ajoyib mehmonxonalardan birini band qiling!"
+        actionLabel="Mehmonxonalarni ko'rish"
+        actionHref={`/${locale}/hotels`}
+      />
     );
   }
 

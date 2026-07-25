@@ -73,11 +73,11 @@ export async function CityCardsSection({
         <div className="mb-4 sm:mb-6">
           <h2
             id="city-cards-heading"
-            className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white"
+            className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white"
           >
             {dict.title}
           </h2>
-          <p className="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm dark:text-slate-400">
+          <p className="mt-0.5 text-xs font-semibold text-slate-600 sm:mt-1 sm:text-sm dark:text-slate-400">
             {dict.subtitle}
           </p>
         </div>
@@ -87,7 +87,7 @@ export async function CityCardsSection({
             <Link
               key={city.name}
               href={city.href}
-              className="group relative w-1/2 shrink-0 snap-start overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-md transition-all duration-200 hover:border-blue-500 hover:shadow-xl active:scale-[0.98] sm:w-auto"
+              className="group relative w-1/2 shrink-0 snap-start overflow-hidden rounded-3xl border border-slate-200/80 bg-slate-900 shadow-md transition-all duration-300 group-hover:-translate-y-1.5 group-hover:border-blue-400/80 group-hover:shadow-2xl sm:w-auto dark:border-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               <div className="relative aspect-[3/4] overflow-hidden sm:aspect-4/3">
                 <Image
@@ -95,29 +95,25 @@ export async function CityCardsSection({
                   alt={city.name}
                   fill
                   sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 300px"
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                   quality={85}
                 />
               </div>
 
+              {/* Gradient Overlay */}
               <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"
+                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"
                 aria-hidden
               />
 
-              <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3 md:p-4">
-                <h3 className="text-sm font-bold text-white drop-shadow-sm sm:text-base md:text-lg">
+              <div className="absolute inset-x-0 bottom-0 flex flex-col items-start p-3.5 sm:p-4">
+                <h3 className="text-base font-black text-white drop-shadow-md sm:text-lg md:text-xl">
                   {city.name}
                 </h3>
-                <p className="mt-0.5 text-[11px] text-white/80 sm:text-xs md:text-sm">
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/20 px-2.5 py-0.5 text-[11px] font-extrabold text-white backdrop-blur-md shadow-2xs">
                   {city.hotelCount} {dict.hotels}
-                </p>
+                </span>
               </div>
-
-              <div
-                className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/20 transition-all duration-200 group-hover:ring-primary-400/50 sm:rounded-2xl"
-                aria-hidden
-              />
             </Link>
           ))}
         </div>

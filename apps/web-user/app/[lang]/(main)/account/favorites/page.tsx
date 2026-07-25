@@ -6,10 +6,10 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { api } from "@/lib/api";
 import { Card, CardBody } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { resolveImage } from "@/lib/images";
 import { formatSum } from "@/lib/money";
-import { Star, Building2 } from "lucide-react";
+import { Star, Building2, HeartOff } from "lucide-react";
 import type { FavoriteView, HotelListItem } from "@/types/view";
 
 const KNOWN_MOCK_FAVORITES: Record<string, HotelListItem> = {
@@ -44,16 +44,13 @@ export default async function AccountFavoritesPage({
 
   if (rawFavorites.length === 0) {
     return (
-      <Card>
-        <CardBody className="py-12 text-center">
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{dict.favorites.empty}</p>
-          <Link href={`/${locale}/hotels`} className="mt-4 inline-block">
-            <Button variant="accent" size="sm">
-              Mehmonxonalarni kashf eting
-            </Button>
-          </Link>
-        </CardBody>
-      </Card>
+      <EmptyState
+        icon={<HeartOff className="h-10 w-10 text-slate-400 dark:text-slate-500" />}
+        title={dict.favorites.empty}
+        description="Siz hali hech qanday mehmonxonani saralanganlarga qo'shmadingiz. Yoqtirgan ob'ektlaringizdagi yurakcha belgisini bosing!"
+        actionLabel="Mehmonxonalarni kashf eting"
+        actionHref={`/${locale}/hotels`}
+      />
     );
   }
 

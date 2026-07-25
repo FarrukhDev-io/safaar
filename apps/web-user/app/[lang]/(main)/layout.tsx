@@ -30,7 +30,7 @@ export default async function MainLayout({
     <>
       <PromoBar config={promoConfig} fallbackText={common.promo} locale={locale} />
       <SiteHeader locale={locale} dict={common} authed={!!session} />
-      <div className="flex flex-1 flex-col">{children}</div>
+      <div className="flex flex-1 flex-col bg-slate-100/60 dark:bg-slate-950">{children}</div>
       <SiteFooter locale={locale} dict={common} />
     </>
   );

@@ -1,24 +1,39 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { CheckCircle2, AlertTriangle, CreditCard, ShieldCheck } from "lucide-react";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { api } from "@/lib/api";
 import { formatSum } from "@/lib/money";
-import { Button } from "@/components/ui/Button";
 import { BackButton } from "@/components/ui/BackButton";
+import { RetryPaymentForm } from "./_components/RetryPaymentForm";
+import { BookingActions } from "./_components/BookingActions";
 import type { BookingView } from "@/types/view";
+import type { PaymentProvider } from "@/lib/services/payments/payments";
+
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function one(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 export default async function BookingDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string; id: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
   const { lang, id } = await params;
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
+  const sp = await searchParams;
 
-  // SENIOR OPTIMIZATION: Parallelize session and dictionary fetching
+  const paymentQuery = one(sp.payment);
+  const statusQuery = one(sp.status);
+  const providerQuery = one(sp.provider);
+
+  // Parallelize session and dictionary fetching
   const [dict, session] = await Promise.all([
     getDictionary(locale, "booking"),
     getSession(),
@@ -29,7 +44,7 @@ export default async function BookingDetailPage({
   }
 
   const booking: BookingView | null = await api.bookings.getBooking(id, { token: session.accessToken }).catch(
-    () => null,
+    () => null
   );
 
   if (!booking) {
@@ -46,43 +61,127 @@ export default async function BookingDetailPage({
   const paymentStatuses = dict.paymentStatuses as Record<string, string>;
   const statusLabel = statuses[booking.status] ?? booking.status;
   const payment = booking.payment;
-  const canPay =
-    payment && payment.url && payment.status !== "paid" ? payment.url : null;
+
+  const isConfirmed =
+    statusQuery === "confirmed" ||
+    paymentQuery === "success" ||
+    booking.status === "CONFIRMED" ||
+    payment?.status === "paid";
+
+  const isFailed = paymentQuery === "failed" || payment?.status === "failed";
+  const isAwaitingCash = paymentQuery === "cash" || payment?.status === "awaiting_cash";
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
       <BackButton className="fixed left-4 top-16 z-50 md:left-8 md:top-20" />
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{dict.title}</h1>
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-btn dark:border-slate-800 dark:bg-slate-900">
-        <Row label={dict.number} value={booking.bookingNumber} />
-        <Row label={dict.status}>
-          <span className="rounded-full bg-primary-100 px-3 py-1 text-sm font-semibold text-primary-800 dark:bg-primary-950 dark:text-primary-300">
+      {/* Header Banner depending on payment/booking status */}
+      {isConfirmed ? (
+        <div className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/40">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <h1 className="text-xl font-extrabold tracking-tight text-emerald-950 dark:text-emerald-100 sm:text-2xl">
+              🎉 Broningiz muvaffaqiyatli tasdiqlandi!
+            </h1>
+          </div>
+          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+            Tafsilotlar va vaucher ma'lumotlari shaxsiy kabinetingizda saqlanti.
+          </p>
+        </div>
+      ) : isFailed ? (
+        <div className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50/80 p-6 shadow-sm dark:border-red-900/50 dark:bg-red-950/40">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-7 w-7 text-red-600 dark:text-red-400 shrink-0" />
+            <h1 className="text-xl font-extrabold tracking-tight text-red-950 dark:text-red-100 sm:text-2xl">
+              ⚠️ To'lov tranzaksiyasi amalga oshmadi
+            </h1>
+          </div>
+          <p className="text-sm font-medium text-red-800 dark:text-red-300">
+            Tranzaksiya bekor qilindi yoki xatolik yuz berdi. Quyida to'lov usulini qayta tanlab urinib ko'rishingiz mumkin.
+          </p>
+        </div>
+      ) : isAwaitingCash ? (
+        <div className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 p-6 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="h-7 w-7 text-amber-600 dark:text-amber-400 shrink-0" />
+            <h1 className="text-xl font-extrabold tracking-tight text-amber-950 dark:text-amber-100 sm:text-2xl">
+              Joyida to'lash usuli tanlandi
+            </h1>
+          </div>
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+            Joyingiz band qilindi! To'lov mehmonxonaga kelganda qabulxonada amalga oshiriladi.
+          </p>
+        </div>
+      ) : (
+        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          {dict.title}
+        </h1>
+      )}
+
+      {/* Receipt & Order Details Card */}
+      <section aria-label="Receipt Summary" className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Kvitansiya Xulosasi (Receipt Summary)
+          </span>
+          <span className="rounded-full bg-primary-100 px-3 py-1 text-xs font-bold text-primary-800 dark:bg-primary-950 dark:text-primary-300">
             {statusLabel}
           </span>
+        </div>
+
+        <Row label={dict.number} value={booking.bookingNumber || id} />
+
+        <Row label="Yaratilgan sana">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            {booking.createdAt ? new Date(booking.createdAt).toLocaleString(locale) : "Bugun"}
+          </span>
         </Row>
+
         <Row label={dict.total} value={formatSum(booking.totalSum)} />
+
         {payment && (
           <Row label={dict.payment}>
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <span className="text-sm font-semibold capitalize text-slate-900 dark:text-white">
+              {payment.provider ? `${payment.provider.toUpperCase()} · ` : ""}
               {paymentStatuses[payment.status] ?? payment.status}
             </span>
           </Row>
         )}
-      </div>
+      </section>
 
-      <div className="flex flex-wrap gap-3">
-        {canPay && (
-          <a href={canPay} target="_blank" rel="noopener noreferrer">
-            <Button variant="accent" size="lg">{dict.pay}</Button>
-          </a>
-        )}
-        <Link href={`/${locale}`}>
-          <Button variant="secondary" size="lg">
-            {dict.backHome}
-          </Button>
-        </Link>
-      </div>
+      {/* Payment Action Section / Retry Payment Selector */}
+      {(!isConfirmed && !isAwaitingCash) || isFailed ? (
+        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              To'lov Usulini Tanlang
+            </h2>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Payme, Click, Uzcard/Humo yoki Joyida to'lash usullari orqali to'lovni zudlik bilan amalga oshiring.
+          </p>
+
+          <RetryPaymentForm
+            bookingId={booking.id}
+            locale={locale}
+            initialProvider={(providerQuery as PaymentProvider) ?? "click"}
+          />
+        </section>
+      ) : null}
+
+      {/* Footer Navigation Buttons */}
+      <BookingActions
+        locale={locale}
+        isConfirmed={isConfirmed}
+        bookingId={booking.id}
+        totalSum={booking.totalSum}
+        paymentMethod={payment?.provider || "online"}
+        dict={{
+          voucher: dict.voucher,
+          backHome: dict.backHome,
+        }}
+      />
     </main>
   );
 }
@@ -97,7 +196,7 @@ function Row({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-4 py-1">
       <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>
       {children ?? <span className="font-semibold text-slate-900 dark:text-white">{value}</span>}
     </div>

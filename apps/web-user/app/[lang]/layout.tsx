@@ -10,7 +10,15 @@ import {
 } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { PwaInstallBanner } from "@/components/pwa/PwaInstallBanner";
+import dynamic from "next/dynamic";
+import { CurrencyProvider } from "@/lib/context/CurrencyContext";
+import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { config } from "@/lib/config";
+
+const LiveSupportWidget = dynamic(
+  () => import("@/components/chat/LiveSupportWidget").then((mod) => mod.LiveSupportWidget)
+);
 
 const inter = Inter({
   variable: "--font-inter",
@@ -89,9 +97,15 @@ export default async function LangLayout({
       data-scroll-behavior="smooth"
       className={`${inter.variable} ${manrope.variable} h-full subpixel-antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-white text-slate-900">
-        {children}
-        <ServiceWorkerRegister />
+      <body className="flex min-h-full flex-col bg-slate-100/60 text-slate-900 subpixel-antialiased dark:bg-slate-950 dark:text-slate-100">
+        <AnalyticsProvider>
+          <CurrencyProvider>
+            {children}
+            <ServiceWorkerRegister />
+            <PwaInstallBanner />
+            <LiveSupportWidget />
+          </CurrencyProvider>
+        </AnalyticsProvider>
       </body>
     </html>
   );

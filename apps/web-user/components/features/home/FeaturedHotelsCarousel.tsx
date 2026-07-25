@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { FeaturedHotelCard } from "./FeaturedHotelCard";
@@ -24,14 +24,14 @@ export function FeaturedHotelsCarousel({
 
   const cards = hotels.slice(0, 4);
 
-  function updateScrollButtons() {
+  const updateScrollButtons = useCallback(() => {
     const el = ref.current;
     if (!el) return;
     setCanScrollLeft(el.scrollLeft > 4);
     setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }
+  }, []);
 
-  function scroll(dir: "left" | "right") {
+  const scroll = useCallback((dir: "left" | "right") => {
     const el = ref.current;
     if (!el) return;
     const cardW = el.querySelector("div")?.clientWidth ?? el.clientWidth / 2;
@@ -39,7 +39,7 @@ export function FeaturedHotelsCarousel({
       left: dir === "left" ? -cardW : cardW,
       behavior: "smooth",
     });
-  }
+  }, []);
 
   useEffect(() => {
     const el = ref.current;
@@ -61,7 +61,7 @@ export function FeaturedHotelsCarousel({
       if (timer.current) clearInterval(timer.current);
       el.removeEventListener("scroll", updateScrollButtons);
     };
-  }, [cards.length]);
+  }, [cards.length, updateScrollButtons]);
 
   if (cards.length === 0) return null;
 

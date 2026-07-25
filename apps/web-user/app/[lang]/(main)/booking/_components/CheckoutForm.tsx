@@ -7,10 +7,9 @@ import { createBookingAction, type CheckoutState } from "@/lib/booking/actions";
 import { formatSum } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-const SELECT_CLASS =
-  "h-10 w-full rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-btn transition-all hover:bg-slate-50 hover:border-slate-300 hover:shadow-btn-hover focus-visible:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 active:bg-slate-100";
+import { PaymentSelector } from "@/components/features/checkout/PaymentSelector";
+import { trackBookingStarted } from "@/lib/services/analytics/tracker";
 
-const PAYMENT_METHODS = ["click", "payme", "uzcard", "humo", "cash"] as const;
 
 function nightsBetween(checkIn: string, checkOut: string): number {
   const start = Date.parse(checkIn);
@@ -46,11 +45,19 @@ export function CheckoutForm({
 
   const nights = nightsBetween(checkIn, checkOut);
   const total = room.priceSum * Math.max(nights, 0);
-  const methods = dict.methods as Record<string, string>;
+
+  const handleSubmitForm = (formData: FormData) => {
+    trackBookingStarted({
+      hotelId,
+      roomId: room.id,
+      totalSum: total,
+    });
+    action(formData);
+  };
 
   return (
     <form
-      action={action}
+      action={handleSubmitForm}
       className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]"
     >
       <input type="hidden" name="locale" value={locale} />
@@ -104,15 +111,9 @@ export function CheckoutForm({
           </div>
         </section>
 
-        <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold">{dict.paymentMethod}</h2>
-          <select name="paymentMethod" defaultValue="click" className={SELECT_CLASS}>
-            {PAYMENT_METHODS.map((m) => (
-              <option key={m} value={m}>
-                {methods[m] ?? m}
-              </option>
-            ))}
-          </select>
+        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">{dict.paymentMethod}</h2>
+          <PaymentSelector defaultValue="click" name="paymentMethod" />
         </section>
       </div>
 

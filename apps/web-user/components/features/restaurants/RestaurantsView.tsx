@@ -28,10 +28,16 @@ import type { RestaurantItem } from "@/components/catalog/types";
 
 export type { RestaurantItem };
 
+import { LayoutGrid, Map as MapIcon } from "lucide-react";
+import { InteractiveMapView, type MapMarkerItem } from "@/components/features/map/InteractiveMapView";
+
 export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) {
   const [query, setQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
   const [selectedRestaurant, setSelectedRestaurant] = useState<RestaurantItem | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Reservation form state
   const [guestCount, setGuestCount] = useState(2);
@@ -51,6 +57,16 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
       selectedCity === "all" || r.cityName.toLowerCase() === selectedCity.toLowerCase();
     return matchesQuery && matchesCity;
   });
+
+  const mapItems: MapMarkerItem[] = filtered.map((r) => ({
+    id: r.id,
+    name: r.name,
+    cityName: r.cityName,
+    address: r.address,
+    priceFormatted: formatSum(r.averageCheckSum),
+    rating: r.rating,
+    imageUrl: r.imageUrl,
+  }));
 
   function handleOpenModal(restaurant: RestaurantItem) {
     setSelectedRestaurant(restaurant);
@@ -79,87 +95,177 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
         onSearchChange={setQuery}
         searchPlaceholder={dict.searchPlaceholder}
         filterControls={
-          <select
-            value={selectedCity}
-            onChange={(e) => setSelectedCity(e.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{dict.allCities}</option>
-            {cities.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedCity}
+              onChange={(e) => setSelectedCity(e.target.value)}
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+            >
+              <option value="all">{dict.allCities}</option>
+              {cities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-900">
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  viewMode === "grid"
+                    ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>Grid</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode("map")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  viewMode === "map"
+                    ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                }`}
+              >
+                <MapIcon className="h-3.5 w-3.5" />
+                <span>Xarita</span>
+              </button>
+            </div>
+          </div>
         }
       />
 
-      {/* Grid listing */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
-        {filtered.map((item) => (
-          <Card key={item.id} className="group flex flex-col overflow-hidden">
-            <div className="relative aspect-16/9 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-              <Image
-                src={item.imageUrl}
-                alt={item.name}
-                fill
-                sizes="(max-width: 640px) 100vw, 600px"
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-              <Badge variant="outline" className="absolute left-3 top-3 z-10 gap-1 text-amber-700 shadow-xs">
-                <Star className="h-3.5 w-3.5 fill-current text-amber-500" aria-hidden />
-                {item.rating.toFixed(1)}
-              </Badge>
-            </div>
+      {viewMode === "map" ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_450px]">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            {filtered.map((item) => (
+              <div
+                key={item.id}
+                onMouseEnter={() => setHoveredId(item.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                className={`transition-all duration-200 rounded-2xl ${
+                  selectedId === item.id ? "ring-2 ring-blue-500 shadow-lg" : ""
+                }`}
+              >
+                <Card className="group flex flex-col overflow-hidden">
+                  <div className="relative aspect-16/9 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.name}
+                      fill
+                      sizes="(max-width: 640px) 100vw, 400px"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <Badge variant="outline" className="absolute left-3 top-3 z-10 gap-1 text-amber-700 shadow-xs">
+                      <Star className="h-3.5 w-3.5 fill-current text-amber-500" aria-hidden />
+                      {item.rating.toFixed(1)}
+                    </Badge>
+                  </div>
+                  <CardBody className="flex flex-1 flex-col justify-between p-4">
+                    <div className="flex flex-col gap-1.5">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">{item.name}</h3>
+                      <p className="text-xs text-slate-500">{item.cityName} · {item.cuisine}</p>
+                      <p className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                        {dict.avgCheck}: {formatSum(item.averageCheckSum)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="mt-3 w-full text-xs font-bold"
+                      onClick={() => handleOpenModal(item)}
+                    >
+                      {dict.reserveTable}
+                    </Button>
+                  </CardBody>
+                </Card>
+              </div>
+            ))}
+          </div>
 
-            <CardBody className="flex flex-1 flex-col justify-between p-5">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-start justify-between gap-2">
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                    {item.name}
-                  </h2>
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                    {item.cuisine}
-                  </span>
-                </div>
-
-                <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                  <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                  {item.cityName} · {item.address}
-                </p>
-
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5 text-slate-400" />
-                    {item.workingHours}
-                  </span>
-                  <span className="font-semibold text-slate-900 dark:text-white">
-                    {dict.avgCheck}: {formatSum(item.averageCheckSum)}
-                  </span>
-                </div>
+          <div className="lg:sticky lg:top-24 lg:h-[calc(100vh-120px)]">
+            <InteractiveMapView
+              items={mapItems}
+              hoveredItemId={hoveredId}
+              selectedItemId={selectedId}
+              onSelectItem={(item) => setSelectedId(item.id)}
+              className="h-[450px] w-full lg:h-full rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800"
+            />
+          </div>
+        </div>
+      ) : (
+        /* Grid listing */
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
+          {filtered.map((item) => (
+            <Card key={item.id} className="group flex flex-col overflow-hidden">
+              <div className="relative aspect-16/9 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                <Image
+                  src={item.imageUrl}
+                  alt={item.name}
+                  fill
+                  sizes="(max-width: 640px) 100vw, 600px"
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <Badge variant="outline" className="absolute left-3 top-3 z-10 gap-1 text-amber-700 shadow-xs">
+                  <Star className="h-3.5 w-3.5 fill-current text-amber-500" aria-hidden />
+                  {item.rating.toFixed(1)}
+                </Badge>
               </div>
 
-              <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-100 pt-3.5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-                <a
-                  href={`tel:${item.phone.replace(/\s+/g, "")}`}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 transition-colors hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400"
-                >
-                  <PhoneCall className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                  <span className="truncate">{item.phone}</span>
-                </a>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="w-full text-xs font-bold whitespace-nowrap px-3 sm:w-auto"
-                  onClick={() => handleOpenModal(item)}
-                >
-                  {dict.reserveTable}
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
-        ))}
-      </div>
+              <CardBody className="flex flex-1 flex-col justify-between p-5">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                      {item.name}
+                    </h2>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      {item.cuisine}
+                    </span>
+                  </div>
+
+                  <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    {item.cityName} · {item.address}
+                  </p>
+
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-slate-400" />
+                      {item.workingHours}
+                    </span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
+                      {dict.avgCheck}: {formatSum(item.averageCheckSum)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-100 pt-3.5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+                  <a
+                    href={`tel:${item.phone.replace(/\s+/g, "")}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 transition-colors hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400"
+                  >
+                    <PhoneCall className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    <span className="truncate">{item.phone}</span>
+                  </a>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full text-xs font-bold whitespace-nowrap px-3 sm:w-auto"
+                    onClick={() => handleOpenModal(item)}
+                  >
+                    {dict.reserveTable}
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Table Reservation Modal */}
       {selectedRestaurant && (

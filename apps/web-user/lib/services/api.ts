@@ -1,12 +1,14 @@
-/**
- * Application API Gateway.
- * Configures and re-exports the shared API Client SDK.
- */
-
-import { apiConfig } from "@safaar/api-client";
+import { api as baseApi, apiConfig } from "@safaar/api-client";
 import { config } from "../config/config";
+import { paymentsService } from "./payments/payments";
 
 // Configure base URL at initialization
 apiConfig.setBaseUrl(config.apiUrl);
 
-export { api, ApiRequestError } from "@safaar/api-client";
+export const api = {
+  ...baseApi,
+  payments: paymentsService,
+};
+
+export { ApiRequestError } from "@safaar/api-client";
+

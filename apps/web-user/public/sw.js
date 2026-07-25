@@ -1,17 +1,13 @@
-/* Safaar service worker — KONSERVATIV, offline-friendly.
- * Maqsad: online ishni BUZMASLIK. Faqat sahifa navigatsiyasi (navigate)
- * tarmoqsiz qolganda offline fallback ko'rsatamiz. Qolgan hamma narsa
- * (API, _next/data, RSC, POST va h.k.) tarmoqqa to'g'ridan-to'g'ri o'tadi.
- */
+/* Safaar PWA Service Worker — Cache First for static, Network First for navigation, Web Push & Offline Fallbacks. */
 
 const CACHE_PREFIX = "safaar-cache";
-const CACHE_NAME = `${CACHE_PREFIX}-v1.2.0`;
+const CACHE_NAME = `${CACHE_PREFIX}-v1.3.0`;
 
-// Tilga mos offline sahifalar oldindan keshlanadi.
+// Offline fallback sahifalari
 const OFFLINE_URLS = ["/uz/offline", "/ru/offline", "/en/offline"];
 const DEFAULT_OFFLINE = "/uz/offline";
 
-// Static asset'lar uchun cache-first (RSC/_next/data EMAS).
+// Statik aktivlar (Cache First)
 const STATIC_ASSET_RE = /\.(?:css|js|woff2?|png|jpe?g|svg|webp|ico|webmanifest)$/i;
 
 self.addEventListener("install", (event) => {
@@ -19,7 +15,7 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => cache.addAll(OFFLINE_URLS))
-      .then(() => self.skipWaiting()),
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -31,14 +27,13 @@ self.addEventListener("activate", (event) => {
         Promise.all(
           keys
             .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
-            .map((key) => caches.delete(key)),
-        ),
+            .map((key) => caches.delete(key))
+        )
       )
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
   );
 });
 
-// Mos offline sahifani tanlash (URL path birinchi segmenti bo'yicha).
 function offlineFallbackFor(url) {
   try {
     const segment = new URL(url).pathname.split("/").filter(Boolean)[0];
@@ -50,54 +45,115 @@ function offlineFallbackFor(url) {
   return DEFAULT_OFFLINE;
 }
 
+/* ───────────────────────── Fetch Event ───────────────────────── */
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
 
-  // GET bo'lmagan so'rovlarga aralashmaymiz.
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
 
-  // Faqat shu origin. API va _next/data ga ARALASHMAYMIZ.
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api") || url.pathname.startsWith("/_next/data"))
-    return;
-  // RSC so'rovlari (?_rsc=...) — keshlamaymiz.
+  if (url.pathname.startsWith("/api") || url.pathname.startsWith("/_next/data")) return;
   if (url.searchParams.has("_rsc")) return;
 
-  // 1) Sahifa navigatsiyasi: network-first, offline'da fallback.
+  // 1) Sahifa navigatsiyasi: Network First (with Offline Fallback)
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(() =>
         caches
           .match(offlineFallbackFor(request.url))
-          .then((cached) => cached || caches.match(DEFAULT_OFFLINE)),
-      ),
+          .then((cached) => cached || caches.match(DEFAULT_OFFLINE))
+      )
     );
     return;
   }
 
-  // 2) Static asset'lar: cache-first (faqat _next/static yoki asset kengaytmasi).
+  // 2) Static Assets & Shriftlar: Cache First (with Network Update)
   const isStatic =
-    url.pathname.startsWith("/_next/static") ||
-    STATIC_ASSET_RE.test(url.pathname);
+    url.pathname.startsWith("/_next/static") || STATIC_ASSET_RE.test(url.pathname);
 
   if (isStatic) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
         return fetch(request).then((response) => {
-          // Faqat to'liq, muvaffaqiyatli javoblarni keshlaymiz.
           if (response && response.status === 200 && response.type === "basic") {
             const copy = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return response;
         });
-      }),
+      })
     );
     return;
   }
+});
 
-  // 3) Qolganlari: default (return) — brauzer o'zi tarmoqdan oladi.
+/* ───────────────────────── Web Push Notifications ───────────────────────── */
+
+self.addEventListener("push", (event) => {
+  let payload = {
+    title: "Safaar — Bron Bildirishnomasi",
+    body: "Sizning broningiz holati muvaffaqiyatli yangilandi.",
+    icon: "/Samarkand-Registan-cinematic.jpeg",
+    badge: "/file.svg",
+    url: "/uz/account/bookings",
+  };
+
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      payload = { ...payload, ...data };
+    } catch {
+      payload.body = event.data.text() || payload.body;
+    }
+  }
+
+  const options = {
+    body: payload.body,
+    icon: payload.icon || "/Samarkand-Registan-cinematic.jpeg",
+    badge: payload.badge || "/file.svg",
+    data: {
+      url: payload.url || "/uz/account/bookings",
+    },
+    vibrate: [100, 50, 100],
+    actions: [
+      { action: "open", title: "Bronni ko'rish" },
+      { action: "close", title: "Yopish" },
+    ],
+  };
+
+  event.waitUntil(self.registration.showNotification(payload.title, options));
+});
+
+/* ───────────────────────── Notification Click Event ───────────────────────── */
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  if (event.action === "close") return;
+
+  const targetUrl =
+    event.notification.data && event.notification.data.url
+      ? event.notification.data.url
+      : "/uz/account/bookings";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.focus();
+          if ("navigate" in client) {
+            return client.navigate(targetUrl);
+          }
+          return;
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
 });

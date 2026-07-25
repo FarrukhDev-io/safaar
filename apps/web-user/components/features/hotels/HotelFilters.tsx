@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { HotelsDict } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
@@ -43,30 +43,30 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
     return raw ? raw.split(",") : [];
   });
 
-  function toggleAmenity(id: string) {
+  const toggleAmenity = useCallback((id: string) => {
     setSelectedAmenities((prev) =>
       prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
     );
-  }
+  }, []);
 
-  function togglePayment(id: string) {
+  const togglePayment = useCallback((id: string) => {
     setSelectedPayments((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
-  }
+  }, []);
 
   function setOrDelete(params: URLSearchParams, key: string, value: string) {
     if (value) params.set(key, value);
     else params.delete(key);
   }
 
-  function push(params: URLSearchParams) {
+  const push = useCallback((params: URLSearchParams) => {
     params.delete("page");
     const query = params.toString();
     router.push(`${pathname}${query ? `?${query}` : ""}`);
-  }
+  }, [router, pathname]);
 
-  function apply() {
+  const apply = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
     setOrDelete(params, "stars", stars);
     setOrDelete(params, "min_price", minPrice);
@@ -75,9 +75,9 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
     setOrDelete(params, "payment", selectedPayments.join(","));
     push(params);
     setOpen(false);
-  }
+  }, [searchParams, stars, minPrice, maxPrice, selectedAmenities, selectedPayments, push]);
 
-  function reset() {
+  const reset = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
     for (const key of ["stars", "min_price", "max_price", "amenities", "payment"]) params.delete(key);
     setStars("");
@@ -86,7 +86,7 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
     setSelectedAmenities([]);
     setSelectedPayments([]);
     push(params);
-  }
+  }, [searchParams, push]);
 
   return (
     <aside aria-label={dict.filters.title} className="lg:sticky lg:top-20 lg:h-fit">
@@ -107,7 +107,7 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
       {/* Main Filter Container */}
       <div
         className={cn(
-          "flex-col gap-4.5 rounded-2xl border border-slate-300 bg-slate-50 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900",
+          "flex-col gap-4.5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900",
           open ? "flex" : "hidden",
           "lg:flex",
         )}

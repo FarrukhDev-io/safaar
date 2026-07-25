@@ -249,6 +249,7 @@ export default async function HotelDetailPage({
               reviews={reviews}
               dict={reviewsDict}
               locale={locale}
+              hotelName={hotel.name}
             />
           </section>
         </div>
