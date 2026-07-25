@@ -43,7 +43,11 @@ export function buildDailyStats(
     let bookings = 0;
 
     for (const r of active) {
-      if (dateIso >= r.checkIn && dateIso < r.checkOut) {
+      const matches =
+        r.checkIn === r.checkOut
+          ? dateIso === r.checkIn
+          : dateIso >= r.checkIn && dateIso < r.checkOut;
+      if (matches) {
         revenue += r.nights > 0 ? r.totalPrice / r.nights : 0;
         bookings += 1;
       }

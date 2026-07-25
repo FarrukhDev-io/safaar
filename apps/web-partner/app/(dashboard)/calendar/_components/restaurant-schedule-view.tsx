@@ -17,12 +17,15 @@ import { cn } from "../../../_lib/utils/cn";
 import { formatMoney } from "../../../_lib/utils/format";
 import { TODAY_ISO } from "../../../_lib/mocks/data";
 import { getPartnerLabels } from "../../../_lib/utils/partner-labels";
-import { SLOT_STEP_MINUTES, buildTimeSlots, toHHMM, toMinutes } from "../../../_lib/utils/time-slots";
+import {
+  DEFAULT_SLOT_DURATION_MINUTES,
+  SLOT_STEP_MINUTES,
+  buildTimeSlots,
+  toHHMM,
+  toMinutes,
+} from "../../../_lib/utils/time-slots";
 import type { ReservationView } from "../../../_lib/domain/types";
 import { ReservationBar } from "./reservation-bar";
-
-/** Bron uchun standart davomiylik — har bir bron nechta slotni egallashini belgilaydi. */
-const DEFAULT_DURATION_MINUTES = 90;
 
 function addDays(iso: string, days: number): string {
   const d = new Date(iso);
@@ -60,7 +63,7 @@ export function RestaurantScheduleView() {
     () => buildTimeSlots(listing.checkInTime, listing.checkOutTime),
     [listing.checkInTime, listing.checkOutTime],
   );
-  const spanSlots = Math.max(1, Math.round(DEFAULT_DURATION_MINUTES / SLOT_STEP_MINUTES));
+  const spanSlots = Math.max(1, Math.round(DEFAULT_SLOT_DURATION_MINUTES / SLOT_STEP_MINUTES));
 
   const allRows = useMemo<TableRow[]>(
     () =>

@@ -3,15 +3,17 @@
 import { Users, Sparkles, Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { BookingStatus } from "@safaar/types";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
 import { useRooms } from "../../_hooks/use-rooms";
 import { useRoomTypes } from "../../_hooks/use-room-types";
-import { useAssignRoom } from "../../_hooks/use-reservations";
+import { useReservations, useAssignRoom } from "../../_hooks/use-reservations";
 import { RoomStatus, type ReservationView, type Room, type RoomType } from "../../_lib/domain/types";
 import { cn } from "../../_lib/utils/cn";
 import { useAuthStore } from "../../_stores/auth-store";
-import { getPartnerLabels } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, isRestaurant } from "../../_lib/utils/partner-labels";
+import { DEFAULT_SLOT_DURATION_MINUTES, toMinutes } from "../../_lib/utils/time-slots";
 
 interface Props {
   open: boolean;
@@ -29,19 +31,60 @@ export function AssignRoomDialog({
 }: Props) {
   const { data: rooms } = useRooms();
   const { data: roomTypes } = useRoomTypes();
+  const { data: reservations } = useReservations();
   const assignRoom = useAssignRoom();
   const [selected, setSelected] = useState<string | null>(null);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const unitCap = labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1);
   const floorCap = labels.floorSingular.charAt(0).toUpperCase() + labels.floorSingular.slice(1);
+  const restaurant = isRestaurant(partnerType);
+
+  /**
+   * Room.status faqat "hozir jismonan band"ni bildiradi — kecha/vaqt-slot
+   * darajasidagi haqiqiy to'qnashuvni emas. Shu sabab bo'sh joyni aniqlashda
+   * ayni shu bron bilan ustma-ust tushadigan boshqa faol bronlarni ham
+   * tekshiramiz (restoranda vaqt-slot, boshqalarida sana oralig'i bo'yicha).
+   */
+  const isRoomAvailable = (room: Room): boolean => {
+    if (!reservation || room.roomTypeId !== reservation.roomTypeId) return false;
+
+    const hasConflict = reservations.some((r) => {
+      if (r.id === reservation.id || r.roomNumber !== room.number) return false;
+      if (
+        r.status === BookingStatus.CANCELLED ||
+        r.status === BookingStatus.EXPIRED ||
+        r.status === BookingStatus.COMPLETED
+      ) {
+        return false;
+      }
+      if (restaurant) {
+        if (r.checkIn !== reservation.checkIn || !r.slotTime || !reservation.slotTime) {
+          return false;
+        }
+        const existingStart = toMinutes(r.slotTime);
+        const existingEnd = existingStart + DEFAULT_SLOT_DURATION_MINUTES;
+        const targetStart = toMinutes(reservation.slotTime);
+        const targetEnd = targetStart + DEFAULT_SLOT_DURATION_MINUTES;
+        return targetStart < existingEnd && existingStart < targetEnd;
+      }
+      return r.checkIn < reservation.checkOut && reservation.checkIn < r.checkOut;
+    });
+    if (hasConflict) return false;
+
+    // Restoranda stol holati faqat "hozir band o'tirilgan"ni bildiradi, kunlik
+    // vaqt-slotlarni emas — shuning uchun faqat ta'mirdagi stollarni chetlab
+    // o'tamiz. Boshqalarida odatiy uy xo'jaligi holati talab qilinadi.
+    return restaurant
+      ? room.status !== RoomStatus.OUT_OF_SERVICE && room.status !== RoomStatus.BLOCKED
+      : room.status === RoomStatus.VACANT_CLEAN;
+  };
 
   const availableRoomsCount = useMemo(() => {
     if (!reservation) return 0;
-    return rooms.filter(
-      (r) => r.roomTypeId === reservation.roomTypeId && r.status === RoomStatus.VACANT_CLEAN
-    ).length;
-  }, [rooms, reservation]);
+    return rooms.filter((r) => isRoomAvailable(r)).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rooms, reservations, reservation, restaurant]);
 
   // Qavatlar bo'yicha xaritalash
   const floors = useMemo(() => {
@@ -120,9 +163,7 @@ export function AssignRoomDialog({
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {rooms.map((room) => {
                   const roomType = roomTypes.find(t => t.id === room.roomTypeId);
-                  const isMatch = reservation 
-                    ? room.roomTypeId === reservation.roomTypeId && room.status === RoomStatus.VACANT_CLEAN
-                    : false;
+                  const isMatch = isRoomAvailable(room);
                   return (
                     <SmartRoomOption
                       key={room.id}

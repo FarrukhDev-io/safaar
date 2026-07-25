@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { Button } from "../../../_components/ui/button";
 import { Card, CardBody } from "../../../_components/ui/card";
 import { RoomTypeDialog } from "../../settings/rooms/_dialogs/room-type-dialog";
-import { useDataStore } from "../../../_stores/data-store";
+import { DACHA_UNIT_ROOM_TYPE_ID, useDataStore } from "../../../_stores/data-store";
 import { formatMoney } from "../../../_lib/utils/format";
 
 /** Dacha uchun: xona turi/xona CRUD o'rniga bitta soddalashtirilgan birlik kartasi. */
 export function DachaUnitPanel({ listingName }: { listingName: string }) {
-  const roomType = useDataStore((s) => s.roomTypes[0]);
+  const roomType = useDataStore((s) =>
+    s.roomTypes.find((rt) => rt.id === DACHA_UNIT_ROOM_TYPE_ID),
+  );
   const ensureSingleUnitRoom = useDataStore((s) => s.ensureSingleUnitRoom);
   const [editing, setEditing] = useState(false);
 

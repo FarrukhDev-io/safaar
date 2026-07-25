@@ -43,9 +43,10 @@ export function ReportsView() {
   const dacha = isDacha(partnerType);
   const restaurant = isRestaurant(partnerType);
 
+  const daysForRange = timeRange === "7days" ? 7 : timeRange === "year" ? 365 : 30;
   const dailyStats = useMemo(
-    () => buildDailyStats(reservations, TODAY_ISO, 30),
-    [reservations],
+    () => buildDailyStats(reservations, TODAY_ISO, daysForRange),
+    [reservations, daysForRange],
   );
   const stats = getStats();
   const totalUnits = stats.totalRooms;
@@ -77,7 +78,9 @@ export function ReportsView() {
 
   const monthRevenue = revenue.reduce((s, d) => s + d.revenue, 0);
   const monthBookings = revenue.reduce((s, d) => s + d.bookings, 0);
-  const avgOccupancy = stats.occupancyPercent;
+  const avgOccupancy = occupancy.length
+    ? Math.round(occupancy.reduce((s, d) => s + d.occupancy, 0) / occupancy.length)
+    : 0;
   const adr = monthBookings > 0 ? Math.round(monthRevenue / monthBookings) : 0;
 
   // Oxirgi 7 kunni olish

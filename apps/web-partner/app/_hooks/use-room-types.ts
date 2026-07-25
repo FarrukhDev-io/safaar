@@ -3,12 +3,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { pageItems, toRoomType } from "../_lib/api/adapters";
 import { partners } from "../_lib/api";
-import { useDataStore } from "../_stores/data-store";
+import { DACHA_UNIT_ROOM_TYPE_ID, useDataStore } from "../_stores/data-store";
 import { useAuthStore } from "../_stores/auth-store";
+import { isDacha } from "../_lib/utils/partner-labels";
 
 export function useRoomTypes() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
-  const fallback = useDataStore((s) => s.roomTypes);
+  const dacha = isDacha(useAuthStore((s) => s.user?.partnerType));
+  const rawFallback = useDataStore((s) => s.roomTypes);
+  const fallback = dacha
+    ? rawFallback
+    : rawFallback.filter((rt) => rt.id !== DACHA_UNIT_ROOM_TYPE_ID);
   const query = useQuery({
     queryKey: ["partner", "room-types"],
     queryFn: async () => {

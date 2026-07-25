@@ -1,19 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { BookingStatus } from "@safaar/types";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { TODAY_ISO } from "../../_lib/mocks/data";
-import { useDataStore } from "../../_stores/data-store";
+import { DACHA_UNIT_ROOM_ID, useDataStore } from "../../_stores/data-store";
 import { useAuthStore } from "../../_stores/auth-store";
 import { getPartnerLabels, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
-import { buildTimeSlots } from "../../_lib/utils/time-slots";
+import { DEFAULT_SLOT_DURATION_MINUTES, buildTimeSlots, toMinutes } from "../../_lib/utils/time-slots";
 import {
   isValidPhone,
   maskPhone,
@@ -24,6 +25,7 @@ const schema = z.object({
   fullName: z.string().min(2, "Ism kamida 2 belgi"),
   phone: z.string().refine(isValidPhone, "Telefon noto'g'ri"),
   roomTypeId: z.string().min(1, "Xona turini tanlang"),
+  roomNumber: z.string().optional(),
   checkIn: z.string().min(1),
   checkOut: z.string().min(1),
   slotTime: z.string().optional(),
@@ -70,6 +72,7 @@ export function WalkInDialog({
 }: WalkInDialogProps) {
   const roomTypes = useDataStore((s) => s.roomTypes);
   const rooms = useDataStore((s) => s.rooms);
+  const reservations = useDataStore((s) => s.reservations);
   const addReservation = useDataStore((s) => s.addReservation);
   const ensureSingleUnitRoom = useDataStore((s) => s.ensureSingleUnitRoom);
   const listingName = useDataStore((s) => s.listing.name);
@@ -77,11 +80,13 @@ export function WalkInDialog({
   const listingCheckOutTime = useDataStore((s) => s.listing.checkOutTime);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
+  const unitCap = labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1);
   const dacha = isDacha(partnerType);
   const restaurant = isRestaurant(partnerType);
   const [submitting, setSubmitting] = useState(false);
 
   const timeSlots = restaurant ? buildTimeSlots(listingCheckInTime, listingCheckOutTime) : [];
+  const dachaRoom = dacha ? rooms.find((r) => r.id === DACHA_UNIT_ROOM_ID) : undefined;
 
   useEffect(() => {
     if (open && dacha) ensureSingleUnitRoom(listingName || "Dacha");
@@ -98,6 +103,7 @@ export function WalkInDialog({
       fullName: "",
       phone: "+998 ",
       roomTypeId: initialValues?.roomTypeId ?? roomTypes[0]?.id ?? "",
+      roomNumber: initialValues?.roomNumber ?? "",
       checkIn: defaultCheckIn,
       checkOut: defaultCheckOut,
       slotTime: initialValues?.slotTime ?? timeSlots[0],
@@ -114,6 +120,7 @@ export function WalkInDialog({
         fullName: "",
         phone: "+998 ",
         roomTypeId: initialValues?.roomTypeId ?? roomTypes[0]?.id ?? "",
+        roomNumber: initialValues?.roomNumber ?? "",
         checkIn: ci,
         checkOut: restaurant ? ci : (initialValues?.checkOut ?? addDaysIso(ci, 1)),
         slotTime: initialValues?.slotTime ?? timeSlots[0],
@@ -124,11 +131,23 @@ export function WalkInDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialValues, form, roomTypes]);
 
+  const watchedRoomTypeId = useWatch({ control: form.control, name: "roomTypeId" });
+  const availableTables = restaurant
+    ? rooms.filter((r) => r.roomTypeId === watchedRoomTypeId)
+    : [];
+
   const onSubmit = form.handleSubmit((values) => {
     setSubmitting(true);
     try {
+      const effectiveRoomTypeId = dacha
+        ? (dachaRoom?.roomTypeId ?? values.roomTypeId)
+        : values.roomTypeId;
+      const effectiveRoomNumber = dacha
+        ? dachaRoom?.number
+        : (initialValues?.roomNumber ?? (values.roomNumber || undefined));
+
       const roomType =
-        roomTypes.find((rt) => rt.id === values.roomTypeId) ?? roomTypes[0];
+        roomTypes.find((rt) => rt.id === effectiveRoomTypeId) ?? roomTypes[0];
       if (!roomType) {
         toast.error(`Avval ${labels.unitTypeLabel.toLowerCase()} yarating`);
         return;
@@ -137,10 +156,45 @@ export function WalkInDialog({
         toast.error("Vaqtni tanlang");
         return;
       }
+      if (restaurant && !effectiveRoomNumber) {
+        toast.error(`${unitCap}ni tanlang`);
+        return;
+      }
       const checkOut = restaurant ? values.checkIn : values.checkOut;
+      if (!restaurant && new Date(checkOut).getTime() <= new Date(values.checkIn).getTime()) {
+        toast.error(`${labels.checkOutLabel} ${labels.checkInLabel.toLowerCase()}dan keyin bo'lishi kerak`);
+        return;
+      }
       const nights = nightsBetween(values.checkIn, checkOut);
-      const selectedRoom = initialValues?.roomNumber
-        ? rooms.find((room) => room.number === initialValues.roomNumber)
+
+      if (effectiveRoomNumber) {
+        const activeConflicts = reservations.filter(
+          (r) =>
+            r.roomNumber === effectiveRoomNumber &&
+            r.status !== BookingStatus.CANCELLED &&
+            r.status !== BookingStatus.EXPIRED &&
+            r.status !== BookingStatus.COMPLETED,
+        );
+        const hasConflict = restaurant
+          ? activeConflicts.some((r) => {
+              if (r.checkIn !== values.checkIn || !r.slotTime || !values.slotTime) return false;
+              const existingStart = toMinutes(r.slotTime);
+              const existingEnd = existingStart + DEFAULT_SLOT_DURATION_MINUTES;
+              const newStart = toMinutes(values.slotTime);
+              const newEnd = newStart + DEFAULT_SLOT_DURATION_MINUTES;
+              return newStart < existingEnd && existingStart < newEnd;
+            })
+          : activeConflicts.some(
+              (r) => r.checkIn < checkOut && values.checkIn < r.checkOut,
+            );
+        if (hasConflict) {
+          toast.error(`Bu ${labels.unitSingular} tanlangan vaqtda band`);
+          return;
+        }
+      }
+
+      const selectedRoom = effectiveRoomNumber
+        ? rooms.find((room) => room.number === effectiveRoomNumber)
         : null;
       const nightlyPrice = selectedRoom?.nightlyPrice ?? roomType.basePrice;
       const total = nightlyPrice * nights;
@@ -148,8 +202,8 @@ export function WalkInDialog({
       const created = addReservation({
         fullName: values.fullName,
         phone: normalizePhone(values.phone),
-        roomTypeId: values.roomTypeId,
-        roomNumber: initialValues?.roomNumber,
+        roomTypeId: effectiveRoomTypeId,
+        roomNumber: effectiveRoomNumber,
         bedId: initialValues?.bedId,
         slotTime: restaurant ? values.slotTime : undefined,
         checkIn: values.checkIn,
@@ -231,11 +285,29 @@ export function WalkInDialog({
           </div>
         )}
 
-        {initialValues?.roomNumber && (
+        {initialValues?.roomNumber ? (
           <div className="rounded-card border border-brand-200 bg-brand-50/60 px-3 py-2 text-sm text-brand-900 dark:border-brand-900/50 dark:bg-brand-950/25 dark:text-brand-100 md:col-span-2">
-            <span className="font-semibold">Kalendar xonasi:</span>{" "}
+            <span className="font-semibold">Kalendar {labels.unitSingular}si:</span>{" "}
             {initialValues.roomNumber}
           </div>
+        ) : (
+          restaurant && (
+            <div className="flex flex-col gap-1.5 md:col-span-2">
+              <Label htmlFor="roomNumber">{unitCap}</Label>
+              <select
+                id="roomNumber"
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"
+                {...form.register("roomNumber")}
+              >
+                <option value="">{`${unitCap}ni tanlang`}</option>
+                {availableTables.map((r) => (
+                  <option key={r.id} value={r.number}>
+                    {r.number}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )
         )}
 
         <div className="flex flex-col gap-1.5">

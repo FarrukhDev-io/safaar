@@ -30,6 +30,12 @@ import {
 } from "../_lib/domain/listing";
 import { mockListing } from "../_lib/mocks/listing-mock";
 
+/** Dacha uchun yagona birlik — umumiy mock ma'lumotlardan mustaqil, doimiy id. */
+export const DACHA_UNIT_ROOM_ID = "room-unit-1";
+export const DACHA_UNIT_ROOM_TYPE_ID = "rt-dacha-unit";
+
+let reservationSeq = mockReservations.length;
+
 export interface WalkInDraft {
   fullName: string;
   phone: string;
@@ -303,7 +309,8 @@ export const useDataStore = create<DataState>((set, get) => ({
     }),
 
   addReservation: (draft) => {
-    const id = `RES-${Date.now().toString().slice(-4)}`;
+    reservationSeq += 1;
+    const id = `RES-${1000 + reservationSeq}`;
     const roomType = get().roomTypes.find((rt) => rt.id === draft.roomTypeId);
     const reservation: ReservationView = {
       id,
@@ -516,17 +523,18 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   ensureSingleUnitRoom: (defaultName) => {
     const state = get();
-    if (state.rooms.length > 0) return state.rooms[0];
+    const existing = state.rooms.find((r) => r.id === DACHA_UNIT_ROOM_ID);
+    if (existing) return existing;
 
     const roomType: RoomType = {
-      id: `rt-${Date.now().toString(36)}`,
+      id: DACHA_UNIT_ROOM_TYPE_ID,
       name: defaultName,
       basePrice: 0,
       capacity: 2,
       amenities: [],
     };
     const room: Room = {
-      id: "room-unit-1",
+      id: DACHA_UNIT_ROOM_ID,
       number: "1",
       floor: 1,
       roomTypeId: roomType.id,
@@ -535,7 +543,10 @@ export const useDataStore = create<DataState>((set, get) => ({
       nightlyPrice: roomType.basePrice,
       status: RoomStatus.VACANT_CLEAN,
     };
-    set({ roomTypes: [...state.roomTypes, roomType], rooms: [room] });
+    set({
+      roomTypes: [...state.roomTypes, roomType],
+      rooms: [...state.rooms, room],
+    });
     return room;
   },
 

@@ -7,7 +7,7 @@ import { Button } from "../../../_components/ui/button";
 import { PageHeader } from "../../../_components/layout/page-header";
 import { WalkInDialog, type WalkInInitial } from "../../../_components/domain/walk-in-dialog";
 import { useReservations } from "../../../_hooks/use-reservations";
-import { useDataStore } from "../../../_stores/data-store";
+import { DACHA_UNIT_ROOM_ID, useDataStore } from "../../../_stores/data-store";
 import { getPartnerLabels } from "../../../_lib/utils/partner-labels";
 import { useAuthStore } from "../../../_stores/auth-store";
 import { TODAY_ISO } from "../../../_lib/mocks/data";
@@ -28,7 +28,7 @@ export function DachaAvailabilityView() {
   const labels = getPartnerLabels(partnerType);
   const listingName = useDataStore((s) => s.listing.name);
   const ensureSingleUnitRoom = useDataStore((s) => s.ensureSingleUnitRoom);
-  const room = useDataStore((s) => s.rooms[0]);
+  const room = useDataStore((s) => s.rooms.find((r) => r.id === DACHA_UNIT_ROOM_ID));
   const { data: reservations } = useReservations();
 
   const [startOffset, setStartOffset] = useState(0);

@@ -1,6 +1,8 @@
 /** Restoran uchun kun ichidagi vaqt-slotlarni hisoblash yordamchilari. */
 
 export const SLOT_STEP_MINUTES = 30;
+/** Har bir restoran broni standart bo'yicha nechta daqiqa davom etadi (stol band hisoblanadi). */
+export const DEFAULT_SLOT_DURATION_MINUTES = 90;
 const FALLBACK_OPEN = "09:00";
 const FALLBACK_CLOSE = "23:00";
 
