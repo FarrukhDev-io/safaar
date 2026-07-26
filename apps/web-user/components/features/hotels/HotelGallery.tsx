@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import { cn } from "@/lib/cn";
 import { SHOW_PLACEHOLDER_PHOTOS, placeholderPhoto } from "@/lib/images";

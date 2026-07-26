@@ -3,7 +3,21 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { HotelsDict } from "@/i18n/dictionaries";
 import { formatSum } from "@/lib/money";
-import { X } from "lucide-react";
+import { ActiveFilters as SharedActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilters";
+
+const AMENITIES_MAP: Record<string, string> = {
+  pool: "Basseyn",
+  tapchan: "Tapchan",
+  sauna: "Sauna",
+  wifi: "Wi-Fi",
+  breakfast: "Nonushta",
+  billiards: "Bilyard",
+};
+
+const PAYMENT_MAP: Record<string, string> = {
+  pay_at_property: "Joyida to'lash",
+  online_payment: "Online to'lash",
+};
 
 export function ActiveFilters({ dict }: { dict: HotelsDict }) {
   const router = useRouter();
@@ -22,58 +36,96 @@ export function ActiveFilters({ dict }: { dict: HotelsDict }) {
   const min = searchParams.get("min_price");
   const max = searchParams.get("max_price");
   const sort = searchParams.get("sort");
+  const amenities = searchParams.get("amenities")?.split(",").filter(Boolean) ?? [];
+  const payments = searchParams.get("payment")?.split(",").filter(Boolean) ?? [];
+
   const sortLabels: Record<string, string> = {
     price_asc: dict.sort.priceAsc,
     price_desc: dict.sort.priceDesc,
     rating: dict.sort.rating,
   };
 
-  const chips: Array<{ key: string; label: string }> = [];
+  const chips: ActiveFilterChip[] = [];
+
   if (stars) {
     chips.push({
       key: "stars",
       label: dict.filters.starsValue.replace("{n}", stars),
+      onRemove: () => remove(["stars"]),
     });
   }
+
   if (min && Number.isFinite(Number(min))) {
     chips.push({
       key: "min_price",
       label: `${dict.filters.priceMin}: ${formatSum(Number(min))}`,
+      onRemove: () => remove(["min_price"]),
     });
   }
+
   if (max && Number.isFinite(Number(max))) {
     chips.push({
       key: "max_price",
       label: `${dict.filters.priceMax}: ${formatSum(Number(max))}`,
+      onRemove: () => remove(["max_price"]),
     });
   }
+
   if (sort && sortLabels[sort]) {
-    chips.push({ key: "sort", label: sortLabels[sort] });
+    chips.push({
+      key: "sort",
+      label: sortLabels[sort],
+      onRemove: () => remove(["sort"]),
+    });
   }
 
-  if (chips.length === 0) return null;
+  amenities.forEach((amenity) => {
+    chips.push({
+      key: `amenity-${amenity}`,
+      label: AMENITIES_MAP[amenity] ?? amenity,
+      onRemove: () => {
+        const remaining = amenities.filter((a) => a !== amenity);
+        const params = new URLSearchParams(searchParams.toString());
+        if (remaining.length) {
+          params.set("amenities", remaining.join(","));
+        } else {
+          params.delete("amenities");
+        }
+        params.delete("page");
+        const query = params.toString();
+        router.push(`${pathname}${query ? `?${query}` : ""}`);
+      },
+    });
+  });
+
+  payments.forEach((payment) => {
+    chips.push({
+      key: `payment-${payment}`,
+      label: PAYMENT_MAP[payment] ?? payment,
+      onRemove: () => {
+        const remaining = payments.filter((p) => p !== payment);
+        const params = new URLSearchParams(searchParams.toString());
+        if (remaining.length) {
+          params.set("payment", remaining.join(","));
+        } else {
+          params.delete("payment");
+        }
+        params.delete("page");
+        const query = params.toString();
+        router.push(`${pathname}${query ? `?${query}` : ""}`);
+      },
+    });
+  });
+
+  const handleClearAll = () => {
+    remove(["stars", "min_price", "max_price", "sort", "amenities", "payment"]);
+  };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {chips.map((chip) => (
-        <button
-          key={chip.key}
-          type="button"
-          onClick={() => remove([chip.key])}
-          aria-label={`${dict.removeFilter}: ${chip.label}`}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-950 shadow-2xs transition-all hover:bg-blue-100 hover:border-blue-400 active:scale-[0.97]"
-        >
-          <span>{chip.label}</span>
-          <X className="h-3.5 w-3.5 stroke-[2.5] text-blue-700" aria-hidden />
-        </button>
-      ))}
-      <button
-        type="button"
-        onClick={() => remove(["stars", "min_price", "max_price", "sort"])}
-        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-400 active:scale-[0.97]"
-      >
-        {dict.clearFilters}
-      </button>
-    </div>
+    <SharedActiveFilters
+      chips={chips}
+      onClearAll={handleClearAll}
+      clearAllLabel={dict.clearFilters}
+    />
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import {
   CurrencyCode,
   DEFAULT_EXCHANGE_RATES,
@@ -25,16 +25,17 @@ const CurrencyContext = createContext<CurrencyContextType>({
 });
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [currency, setCurrencyState] = useState<CurrencyCode>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("safaar_currency") as CurrencyCode;
-      if (saved && CURRENCY_INFO[saved]) {
-        return saved;
-      }
-    }
-    return "UZS";
-  });
+  const [currency, setCurrencyState] = useState<CurrencyCode>("UZS");
   const [rates] = useState<Record<CurrencyCode, number>>(DEFAULT_EXCHANGE_RATES);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("safaar_currency") as CurrencyCode;
+    if (saved && CURRENCY_INFO[saved]) {
+      setTimeout(() => {
+        setCurrencyState(saved);
+      }, 0);
+    }
+  }, []);
 
   const setCurrency = (code: CurrencyCode) => {
     if (!CURRENCY_INFO[code]) return;

@@ -31,3 +31,26 @@
 * **ESLint:** `npm run lint` — **0 error, 0 warning**
 * **Production Build:** `npm run build` — **100% Yashil (71/71 static pages)**
 * **Arxitektura Balli:** **10.0 / 10 (Ideal Enterprise Architecture)**
+
+
+
+
+
+
+xatolik,
+
+
+
+http://localhost:3000/en/hotels/hilton-tashkent  da
+
+
+
+Car Rentals & Airport Transfers dagi cardlarni to'grilash kerak
+
+
+Restaurants & National Dishes dagi cardalar ham
+
+restaranni band qilish modalini qayta resayn qilish kerak 
+
+
+Attractions & Sightseeing dagi cardlarni ham redizayn qilish kerak

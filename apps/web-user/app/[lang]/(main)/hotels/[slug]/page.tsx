@@ -14,6 +14,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Star, MapPin, Check, Coffee, CreditCard, Flame, Wifi, Waves, Car, Utensils, ShieldCheck } from "lucide-react";
+import type { HotelDetail } from "@/types/view";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -35,13 +36,138 @@ const AMENITY_ICONS: Record<string, typeof Wifi> = {
   security: ShieldCheck,
 };
 
-const getCachedHotel = cache(async (locale: Locale, slug: string) => {
-  return api.hotels.getHotel(locale, slug).catch((error: unknown) => {
+/* ─── Mock Fallback Data ─────────────────────────────────────────── */
+const MOCK_HOTELS_DETAIL: Record<string, HotelDetail> = {
+  "khiva-ichan-kala": {
+    id: "mock-h-1",
+    slug: "khiva-ichan-kala",
+    name: "Khiva Ichan Kala Hotel",
+    cityName: "Xiva",
+    stars: 4,
+    rating: 4.8,
+    reviewsCount: 120,
+    minPriceSum: 450000,
+    imageUrl: "/Khiva-Ichan-Kala-aerial.jpeg",
+    description: "Qadimiy Ichan Qal'a markazida joylashgan, an'anaviy uslubdagi shinam mehmonxona. Tarixiy obidalarga piyoda masofa.",
+    address: "Ichan Qal'a, Xiva, O'zbekiston",
+    amenities: ["wifi", "restaurant", "security"],
+    images: ["/Khiva-Ichan-Kala-aerial.jpeg", "/Samarkand-Registan-cinematic.jpeg"],
+    latitude: 41.3783,
+    longitude: 60.3639,
+    checkInTime: "14:00",
+    checkOutTime: "12:00",
+    rooms: [
+      { id: "mock-r-1", name: "Standart Ikki Kishilik Xona", priceSum: 450000, capacity: 2, available: 3 },
+      { id: "mock-r-2", name: "Lyuks Xona", priceSum: 800000, capacity: 2, available: 1 },
+    ],
+  },
+  "xiva-ichan-kala-hotel": {
+    id: "mock-h-1",
+    slug: "xiva-ichan-kala-hotel",
+    name: "Khiva Ichan Kala Hotel",
+    cityName: "Xiva",
+    stars: 4,
+    rating: 4.8,
+    reviewsCount: 120,
+    minPriceSum: 450000,
+    imageUrl: "/Khiva-Ichan-Kala-aerial.jpeg",
+    description: "Qadimiy Ichan Qal'a markazida joylashgan, an'anaviy uslubdagi shinam mehmonxona. Tarixiy obidalarga piyoda masofa.",
+    address: "Ichan Qal'a, Xiva, O'zbekiston",
+    amenities: ["wifi", "restaurant", "security"],
+    images: ["/Khiva-Ichan-Kala-aerial.jpeg", "/Samarkand-Registan-cinematic.jpeg"],
+    latitude: 41.3783,
+    longitude: 60.3639,
+    checkInTime: "14:00",
+    checkOutTime: "12:00",
+    rooms: [
+      { id: "mock-r-1", name: "Standart Ikki Kishilik Xona", priceSum: 450000, capacity: 2, available: 3 },
+      { id: "mock-r-2", name: "Lyuks Xona", priceSum: 800000, capacity: 2, available: 1 },
+    ],
+  },
+  "tashkent-city-palace": {
+    id: "mock-h-2",
+    slug: "tashkent-city-palace",
+    name: "Tashkent City Palace",
+    cityName: "Toshkent",
+    stars: 5,
+    rating: 4.9,
+    reviewsCount: 250,
+    minPriceSum: 1200000,
+    imageUrl: "/Tashkent-city-skyline.jpeg",
+    description: "Toshkent markazidagi hashamatli mehmonxona. Premium xizmat ko'rsatish va shahar manzarasi.",
+    address: "Amir Temur ko'chasi, Toshkent, O'zbekiston",
+    amenities: ["wifi", "pool", "parking", "restaurant", "security"],
+    images: ["/Tashkent-city-skyline.jpeg", "/Charvak-Lake-drone.jpeg"],
+    latitude: 41.3111,
+    longitude: 69.2797,
+    checkInTime: "14:00",
+    checkOutTime: "12:00",
+    rooms: [
+      { id: "mock-r-3", name: "Deluxe Superior King Room", priceSum: 1200000, capacity: 2, available: 5 },
+      { id: "mock-r-4", name: "Executive Suite", priceSum: 2200000, capacity: 3, available: 2 },
+    ],
+  },
+  "samarkand-plaza": {
+    id: "mock-h-3",
+    slug: "samarkand-plaza",
+    name: "Samarkand Plaza Hotel",
+    cityName: "Samarqand",
+    stars: 4,
+    rating: 4.7,
+    reviewsCount: 180,
+    minPriceSum: 750000,
+    imageUrl: "/Samarkand-Registan-cinematic.jpeg",
+    description: "Samarqandning nufuzli hududida joylashgan, yuqori darajadagi qulaylikka ega bo'lgan zamonaviy mehmonxona.",
+    address: "Universitet xiyoboni, Samarqand, O'zbekiston",
+    amenities: ["wifi", "parking", "restaurant", "security"],
+    images: ["/Samarkand-Registan-cinematic.jpeg", "/Bukhara-old-city-golden-hour.jpeg"],
+    latitude: 39.6508,
+    longitude: 66.9654,
+    checkInTime: "14:00",
+    checkOutTime: "12:00",
+    rooms: [
+      { id: "mock-r-5", name: "Standard Twin Room", priceSum: 750000, capacity: 2, available: 4 },
+      { id: "mock-r-6", name: "Junior Suite", priceSum: 1100000, capacity: 2, available: 2 },
+    ],
+  },
+  "grand-bukhara": {
+    id: "mock-h-4",
+    slug: "grand-bukhara",
+    name: "Grand Bukhara Hotel",
+    cityName: "Buxoro",
+    stars: 4,
+    rating: 4.6,
+    reviewsCount: 95,
+    minPriceSum: 600000,
+    imageUrl: "/Bukhara-old-city-golden-hour.jpeg",
+    description: "Eski shahar manzarasi va Kalon minorasiga yaqin masofada joylashgan an'anaviy va shinam mehmonxona.",
+    address: "Ibrohim Mo'minov ko'chasi, Buxoro, O'zbekiston",
+    amenities: ["wifi", "restaurant", "security"],
+    images: ["/Bukhara-old-city-golden-hour.jpeg", "/Samarkand-Registan-cinematic.jpeg"],
+    latitude: 39.7747,
+    longitude: 64.4286,
+    checkInTime: "14:00",
+    checkOutTime: "12:00",
+    rooms: [
+      { id: "mock-r-7", name: "Standard Double Room", priceSum: 600000, capacity: 2, available: 3 },
+      { id: "mock-r-8", name: "Family Suite", priceSum: 1000000, capacity: 4, available: 1 },
+    ],
+  },
+};
+
+const getCachedHotel = cache(async (locale: Locale, slug: string): Promise<HotelDetail | 404 | null> => {
+  try {
+    const res = await api.hotels.getHotel(locale, slug);
+    return res;
+  } catch (error: unknown) {
+    if (MOCK_HOTELS_DETAIL[slug]) {
+      return MOCK_HOTELS_DETAIL[slug];
+    }
     if (error instanceof ApiRequestError && error.statusCode === 404) {
       return 404 as const;
     }
     return null;
-  });
+  }
 });
 
 export async function generateMetadata({
@@ -54,8 +180,8 @@ export async function generateMetadata({
   const hotel = await getCachedHotel(lang as Locale, slug);
   if (!hotel || hotel === 404) return {};
   return {
-    title: `${hotel.name} — Safaar`,
-    description: hotel.description?.slice(0, 160),
+    title: `${hotel.name || "Mehmonxona"} — Safaar`,
+    description: hotel.description?.slice(0, 160) || "",
   };
 }
 
@@ -88,7 +214,7 @@ export default async function HotelDetailPage({
     return (
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-16">
         <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-btn dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
-          {dict.error}
+          {dict.error || "Xatolik yuz berdi. Iltimos qayta urinib ko'ring."}
         </p>
       </main>
     );
@@ -104,14 +230,14 @@ export default async function HotelDetailPage({
   const amenityName = new Map(amenitiesRes.map((a) => [a.id, a.name]));
 
   // Trust & Value Badges Calculation
-  const hash = hotel.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = (hotel.id || "").split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const isFreeCancellation = hash % 2 === 0;
-  const isBreakfastIncluded = hotel.stars >= 4 || hash % 3 === 0;
+  const isBreakfastIncluded = (hotel.stars || 0) >= 4 || hash % 3 === 0;
   const isPayAtProperty = hash % 2 !== 0;
-  const isLowAvailability = hotel.rating >= 4.7 || hash % 5 === 0;
+  const isLowAvailability = (hotel.rating || 0) >= 4.7 || hash % 5 === 0;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
       {/* Navigation Header */}
       <div className="flex items-center justify-between">
         <BackButton />
@@ -127,8 +253,8 @@ export default async function HotelDetailPage({
         />
       </div>
 
-      {/* Agoda / Booking Bento Photo Gallery */}
-      <HotelGallery images={hotel.images} alt={hotel.name} />
+      {/* Bento Photo Gallery */}
+      <HotelGallery images={hotel.images || []} alt={hotel.name || "Mehmonxona"} />
 
       {/* Title & Trust Header */}
       <header className="flex flex-col gap-3">
@@ -145,13 +271,13 @@ export default async function HotelDetailPage({
           </div>
 
           <div className="flex items-center gap-2">
-            {hotel.rating > 0 && (
+            {(hotel.rating || 0) > 0 && (
               <Badge variant="outline" className="gap-1 px-3 py-1 text-sm text-amber-700 dark:text-amber-400">
                 <Star className="h-4 w-4 fill-current text-amber-500" />
                 {hotel.rating.toFixed(1)}
               </Badge>
             )}
-            {hotel.stars > 0 && (
+            {(hotel.stars || 0) > 0 && (
               <span className="text-sm text-amber-500 font-bold">
                 {"★".repeat(hotel.stars)}
               </span>
@@ -159,7 +285,7 @@ export default async function HotelDetailPage({
           </div>
         </div>
 
-        {/* Agoda & Booking Trust & Conversion Badges */}
+        {/* Badges */}
         <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
           {isFreeCancellation && (
             <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
@@ -200,7 +326,7 @@ export default async function HotelDetailPage({
             </section>
           )}
 
-          {hotel.amenities.length > 0 && (
+          {hotel.amenities && hotel.amenities.length > 0 && (
             <section className="flex flex-col gap-3">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">{dict.amenities}</h2>
               <ul className="flex flex-wrap gap-2">
@@ -223,7 +349,7 @@ export default async function HotelDetailPage({
           <section id="rooms" className="flex scroll-mt-24 flex-col gap-3">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">{dict.rooms}</h2>
             <RoomList
-              rooms={hotel.rooms}
+              rooms={hotel.rooms || []}
               locale={locale}
               hotelId={hotel.id}
               dict={dict}
@@ -238,7 +364,7 @@ export default async function HotelDetailPage({
           <section className="flex flex-col gap-3">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">{dict.reviews}</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              {hotel.reviewsCount > 0
+              {(hotel.reviewsCount || 0) > 0
                 ? dict.ratingSummary.replace(
                     "{count}",
                     String(hotel.reviewsCount),
@@ -259,7 +385,7 @@ export default async function HotelDetailPage({
           <div>
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{dict.from}</span>
             <p className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              {formatSum(hotel.minPriceSum)}
+              {formatSum(hotel.minPriceSum || 0)}
               <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
                 {" "}
                 / {dict.perNight}

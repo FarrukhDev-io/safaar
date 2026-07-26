@@ -1,19 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Tag, Clock } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { useCurrency } from "@/lib/context/CurrencyContext";
+import { BaseCard } from "@/components/ui/BaseCard";
 
 export interface DealItem {
   id: string;
@@ -27,7 +19,64 @@ export interface DealItem {
   endsAt: string;
 }
 
-import { useCurrency } from "@/lib/context/CurrencyContext";
+function DealCard({
+  deal,
+  locale,
+  dict,
+  now,
+}: {
+  deal: DealItem;
+  locale: Locale;
+  dict: HomeDict["deals"];
+  now: number;
+}) {
+  const { format } = useCurrency();
+  const endsInDays = deal.endsAt
+    ? Math.max(0, Math.ceil((Date.parse(deal.endsAt) - now) / 86_400_000))
+    : 0;
+
+  const badge = (
+    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
+      -{deal.discountPercent}%
+    </span>
+  );
+
+  const subInfo = (
+    <>
+      {deal.cityName}
+      {endsInDays > 0 && (
+        <span className="text-slate-400"> · {endsInDays} {dict.days}</span>
+      )}
+    </>
+  );
+
+  return (
+    <BaseCard
+      imageSrc={deal.imageUrl}
+      imageAlt={deal.name}
+      badge={badge}
+      title={deal.name}
+      subInfo={subInfo}
+      href={`/${locale}/hotels/${deal.slug}`}
+      footerLeft={
+        <>
+          <span className="text-xs text-slate-400 line-through">
+            {format(deal.oldPriceSum)}
+          </span>
+          <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
+            {format(deal.newPriceSum)}
+          </span>
+          <span className="text-[10px] text-slate-400">/ {dict.perNight}</span>
+        </>
+      }
+      footerRight={
+        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+          <ArrowRight className="h-3.5 w-3.5" />
+        </span>
+      }
+    />
+  );
+}
 
 export function DealsSection({
   deals,
@@ -38,7 +87,6 @@ export function DealsSection({
   dict: HomeDict["deals"];
   locale: Locale;
 }) {
-  const { format } = useCurrency();
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [now] = useState(() => Date.now());
@@ -76,134 +124,26 @@ export function DealsSection({
         </p>
       </div>
 
-      {/* Mobile Horizontal Carousel */}
+      {/* Mobile Carousel */}
       <div
         ref={ref}
         className="scrollbar-none flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory sm:hidden"
       >
-        {deals.map((deal) => {
-          const endsInDays = deal.endsAt
-            ? Math.max(
-                0,
-                Math.ceil((Date.parse(deal.endsAt) - now) / 86_400_000),
-              )
-            : 0;
-          return (
-            <Link
-              key={deal.id}
-              href={`/${locale}/hotels/${deal.slug}`}
-              className="group w-[calc(50%-0.375rem)] shrink-0 snap-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            >
-              <Card className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 ease-out group-hover:-translate-y-1.5 group-hover:border-blue-400/80 group-hover:shadow-xl dark:border-slate-800 dark:bg-slate-900">
-                <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-800">
-                  {deal.imageUrl && (
-                    <Image
-                      src={deal.imageUrl}
-                      alt={deal.name}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 300px"
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      quality={85}
-                    />
-                  )}
-
-                  <Badge variant="destructive" className="absolute left-2.5 top-2.5 z-10 gap-1 bg-red-600 text-white font-black shadow-xs">
-                    <Tag className="h-3.5 w-3.5" aria-hidden />
-                    -{deal.discountPercent}% Flash Sale
-                  </Badge>
-
-                  <Badge variant="outline" className="absolute right-2.5 top-2.5 z-10 gap-1 border-white/40 bg-white/80 text-slate-900 font-extrabold backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80 dark:text-white shadow-xs">
-                    <Clock className="h-3.5 w-3.5 text-amber-500" aria-hidden />
-                    {endsInDays} {dict.days}
-                  </Badge>
-                </div>
-
-                <CardHeader className="p-3.5 pb-2 space-y-0.5">
-                  <CardTitle className="line-clamp-1 text-sm font-bold text-slate-900 dark:text-white">
-                    {deal.name}
-                  </CardTitle>
-                  <CardDescription className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    {deal.cityName}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="p-3.5 pt-0 mt-auto">
-                  <div className="flex flex-wrap items-baseline gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <span className="text-xs font-semibold text-slate-400 line-through">
-                      {format(deal.oldPriceSum)}
-                    </span>
-                    <span className="text-base font-black text-rose-600 dark:text-rose-400">
-                      {format(deal.newPriceSum)}
-                    </span>
-                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{dict.perNight}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
+        {deals.map((deal) => (
+          <div
+            key={deal.id}
+            className="w-[calc(50%-0.375rem)] shrink-0 snap-start"
+          >
+            <DealCard deal={deal} locale={locale} dict={dict} now={now} />
+          </div>
+        ))}
       </div>
 
       {/* Desktop Grid */}
       <div className="hidden sm:grid sm:grid-cols-4 sm:gap-4">
-        {deals.slice(0, 4).map((deal) => {
-          const endsInDays = deal.endsAt
-            ? Math.max(0, Math.ceil((Date.parse(deal.endsAt) - now) / 86_400_000))
-            : 0;
-          return (
-            <Link
-              key={deal.id}
-              href={`/${locale}/hotels/${deal.slug}`}
-              className="group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            >
-              <Card className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 ease-out group-hover:-translate-y-1.5 group-hover:border-blue-400/80 group-hover:shadow-xl dark:border-slate-800 dark:bg-slate-900">
-                <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-800">
-                  {deal.imageUrl && (
-                    <Image
-                      src={deal.imageUrl}
-                      alt={deal.name}
-                      fill
-                      sizes="(max-width: 1024px) 25vw, 300px"
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      quality={85}
-                    />
-                  )}
-
-                  <Badge variant="destructive" className="absolute left-2.5 top-2.5 z-10 gap-1 bg-red-600 text-white font-black shadow-xs">
-                    <Tag className="h-3.5 w-3.5" aria-hidden />
-                    -{deal.discountPercent}% Flash Sale
-                  </Badge>
-
-                  <Badge variant="outline" className="absolute right-2.5 top-2.5 z-10 gap-1 border-white/40 bg-white/80 text-slate-900 font-extrabold backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80 dark:text-white shadow-xs">
-                    <Clock className="h-3.5 w-3.5 text-amber-500" aria-hidden />
-                    {endsInDays} {dict.days}
-                  </Badge>
-                </div>
-
-                <CardHeader className="p-3.5 pb-2 space-y-0.5">
-                  <CardTitle className="line-clamp-1 text-sm font-bold text-slate-900 sm:text-base dark:text-white">
-                    {deal.name}
-                  </CardTitle>
-                  <CardDescription className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    {deal.cityName}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="p-3.5 pt-0 mt-auto">
-                  <div className="flex flex-wrap items-baseline gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <span className="text-xs font-semibold text-slate-400 line-through">
-                      {format(deal.oldPriceSum)}
-                    </span>
-                    <span className="text-base font-black text-rose-600 dark:text-rose-400">
-                      {format(deal.newPriceSum)}
-                    </span>
-                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{dict.perNight}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
+        {deals.slice(0, 4).map((deal) => (
+          <DealCard key={deal.id} deal={deal} locale={locale} dict={dict} now={now} />
+        ))}
       </div>
     </section>
   );

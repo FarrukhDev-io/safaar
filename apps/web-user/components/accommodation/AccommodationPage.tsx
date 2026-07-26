@@ -106,7 +106,7 @@ export async function AccommodationPage({
   const retryHref = `${basePath}${retryQuery ? `?${retryQuery}` : ""}`;
 
   return (
-    <main className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 pb-8 pt-4 sm:px-6 sm:pt-6">
+    <main className="relative mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 pb-8 pt-4 sm:px-6 sm:pt-6">
       <SearchBar
         locale={locale}
         dict={common.search}

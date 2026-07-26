@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import {
   MapPin,
   Star,
-  Utensils,
   Clock,
+  Utensils,
+  ArrowRight,
   PhoneCall,
   X,
   CheckCircle2,
@@ -14,32 +15,117 @@ import {
   Users,
   User,
   Phone,
+  LayoutGrid,
+  Map as MapIcon,
+  Filter,
+  ChevronDown,
 } from "lucide-react";
 import { formatSum } from "@/lib/money";
-import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
 import { DatePicker } from "@/components/ui/DatePicker";
 import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import { MOCK_RESTAURANTS } from "@/components/catalog/data";
 import type { RestaurantItem } from "@/components/catalog/types";
+import { InteractiveMapView, type MapMarkerItem } from "@/components/features/map/InteractiveMapView";
+import { BaseCard } from "@/components/ui/BaseCard";
+import { FilterSidebar } from "@/components/ui/FilterSidebar";
+import { FilterGroup } from "@/components/ui/FilterGroup";
+import { ActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilters";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export type { RestaurantItem };
 
-import { LayoutGrid, Map as MapIcon } from "lucide-react";
-import { InteractiveMapView, type MapMarkerItem } from "@/components/features/map/InteractiveMapView";
+/* ─── RestaurantCard ─────────────────────────────────────────────── */
+function RestaurantCard({
+  item,
+  dict,
+  onBook,
+}: {
+  item: RestaurantItem;
+  dict: CatalogDict["restaurants"];
+  onBook: () => void;
+}) {
+  const badge = (
+    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
+      {item.cuisine}
+    </span>
+  );
+
+  const subInfo = (
+    <>
+      <MapPin className="h-3.5 w-3.5 shrink-0" />
+      {item.cityName}
+      <span className="text-slate-300 dark:text-slate-700">·</span>
+      <Clock className="h-3.5 w-3.5 shrink-0" />
+      {item.workingHours}
+    </>
+  );
+
+  const ratingElement = (
+    <>
+      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+      <span className="font-semibold text-slate-700 dark:text-slate-300">
+        {item.rating.toFixed(1)}
+      </span>
+      <span>· {item.reviewsCount} ta sharh</span>
+    </>
+  );
+
+  return (
+    <BaseCard
+      imageSrc={item.imageUrl}
+      imageAlt={item.name}
+      badge={badge}
+      title={item.name}
+      subInfo={subInfo}
+      rating={ratingElement}
+      onClick={onBook}
+      footerLeft={
+        <>
+          <span className="text-[10px] font-medium text-slate-400">{dict.avgCheck}</span>
+          <span className="text-sm font-bold text-slate-900 dark:text-white">
+            {formatSum(item.averageCheckSum)}
+          </span>
+        </>
+      }
+      footerRight={
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onBook();
+          }}
+          aria-label={`${item.name} uchun stol bron qilish`}
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          {dict.reserveTable}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </button>
+      }
+    />
+  );
+}
 
 export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) {
   const [query, setQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
-  const [selectedRestaurant, setSelectedRestaurant] = useState<RestaurantItem | null>(null);
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
+  const [maxAvgCheck, setMaxAvgCheck] = useState<string>("");
+
+  // Temporary filter state for sidebar/drawer before applying
+  const [tempCity, setTempCity] = useState("all");
+  const [tempCuisines, setTempCuisines] = useState<string[]>([]);
+  const [tempMaxAvgCheck, setTempMaxAvgCheck] = useState<string>("");
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Reservation form state
+  const [selectedRestaurant, setSelectedRestaurant] = useState<RestaurantItem | null>(null);
   const [guestCount, setGuestCount] = useState(2);
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [time, setTime] = useState("18:00");
@@ -47,45 +133,116 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
   const [phoneInput, setPhoneInput] = useState("+998");
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const cities = Array.from(new Set(MOCK_RESTAURANTS.map((r) => r.cityName)));
+  const cities = useMemo(() => Array.from(new Set(MOCK_RESTAURANTS.map((r) => r.cityName))), []);
+  const cuisines = useMemo(() => Array.from(new Set(MOCK_RESTAURANTS.map((r) => r.cuisine))), []);
 
-  const filtered = MOCK_RESTAURANTS.filter((r) => {
-    const matchesQuery =
-      r.name.toLowerCase().includes(query.toLowerCase()) ||
-      r.cuisine.toLowerCase().includes(query.toLowerCase());
-    const matchesCity =
-      selectedCity === "all" || r.cityName.toLowerCase() === selectedCity.toLowerCase();
-    return matchesQuery && matchesCity;
-  });
-
-  const mapItems: MapMarkerItem[] = filtered.map((r) => ({
-    id: r.id,
-    name: r.name,
-    cityName: r.cityName,
-    address: r.address,
-    priceFormatted: formatSum(r.averageCheckSum),
-    rating: r.rating,
-    imageUrl: r.imageUrl,
-  }));
-
-  function handleOpenModal(restaurant: RestaurantItem) {
+  const handleOpenModalCb = useCallback((restaurant: RestaurantItem) => {
     setSelectedRestaurant(restaurant);
     setIsSuccess(false);
     setGuestCount(2);
-  }
+  }, []);
 
-  function handleCloseModal() {
+  const handleCloseModal = useCallback(() => {
     setSelectedRestaurant(null);
     setIsSuccess(false);
-  }
+  }, []);
 
-  function handleReserveSubmit(e: React.FormEvent) {
+  const handleReserveSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     setIsSuccess(true);
-  }
+  }, []);
+
+  const handleApply = useCallback(() => {
+    setSelectedCity(tempCity);
+    setSelectedCuisines(tempCuisines);
+    setSelectedCuisines(tempCuisines);
+    setSelectedCity(tempCity);
+    setSelectedCuisines(tempCuisines);
+    setMaxAvgCheck(tempMaxAvgCheck);
+  }, [tempCity, tempCuisines, tempMaxAvgCheck]);
+
+  const handleReset = useCallback(() => {
+    setTempCity("all");
+    setTempCuisines([]);
+    setTempMaxAvgCheck("");
+    setSelectedCity("all");
+    setSelectedCuisines([]);
+    setMaxAvgCheck("");
+  }, []);
+
+  const toggleTempCuisine = useCallback((cuisine: string) => {
+    setTempCuisines((prev) =>
+      prev.includes(cuisine) ? prev.filter((c) => c !== cuisine) : [...prev, cuisine]
+    );
+  }, []);
+
+  const filtered = useMemo(() => {
+    return MOCK_RESTAURANTS.filter((r) => {
+      const q = query.toLowerCase();
+      const matchesQuery =
+        r.name.toLowerCase().includes(q) || r.cuisine.toLowerCase().includes(q);
+      const matchesCity =
+        selectedCity === "all" || r.cityName.toLowerCase() === selectedCity.toLowerCase();
+      const matchesCuisine =
+        selectedCuisines.length === 0 || selectedCuisines.includes(r.cuisine);
+      const matchesPrice =
+        !maxAvgCheck || r.averageCheckSum <= Number(maxAvgCheck);
+
+      return matchesQuery && matchesCity && matchesCuisine && matchesPrice;
+    });
+  }, [query, selectedCity, selectedCuisines, maxAvgCheck]);
+
+  const mapItems: MapMarkerItem[] = useMemo(
+    () =>
+      filtered.map((r) => ({
+        id: r.id,
+        name: r.name,
+        cityName: r.cityName,
+        address: r.address,
+        priceFormatted: formatSum(r.averageCheckSum),
+        rating: r.rating,
+        imageUrl: r.imageUrl,
+      })),
+    [filtered]
+  );
+
+  const activeFilterChips = useMemo(() => {
+    const chips: ActiveFilterChip[] = [];
+    if (selectedCity !== "all") {
+      chips.push({
+        key: "city",
+        label: selectedCity,
+        onRemove: () => {
+          setSelectedCity("all");
+          setTempCity("all");
+        },
+      });
+    }
+    selectedCuisines.forEach((c) => {
+      chips.push({
+        key: `cuisine-${c}`,
+        label: c,
+        onRemove: () => {
+          setSelectedCuisines((prev) => prev.filter((x) => x !== c));
+          setTempCuisines((prev) => prev.filter((x) => x !== c));
+        },
+      });
+    });
+    if (maxAvgCheck) {
+      chips.push({
+        key: "price",
+        label: `Max Check: ${formatSum(Number(maxAvgCheck))}`,
+        onRemove: () => {
+          setMaxAvgCheck("");
+          setTempMaxAvgCheck("");
+        },
+      });
+    }
+    return chips;
+  }, [selectedCity, selectedCuisines, maxAvgCheck]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
       <CatalogHeader
         icon={<Utensils className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />}
         badge={dict.badge}
@@ -95,20 +252,19 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
         onSearchChange={setQuery}
         searchPlaceholder={dict.searchPlaceholder}
         filterControls={
-          <div className="flex items-center gap-3">
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+          <div className="flex items-center justify-between gap-3 w-full">
+            {/* Mobile Filter Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(true)}
+              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-white lg:hidden min-h-[44px]"
             >
-              <option value="all">{dict.allCities}</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
+              <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span>Filtrlar</span>
+              <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            </button>
 
+            {/* View Mode Toggle */}
             <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-900">
               <button
                 type="button"
@@ -140,132 +296,125 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
         }
       />
 
-      {viewMode === "map" ? (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_450px]">
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-            {filtered.map((item) => (
-              <div
-                key={item.id}
-                onMouseEnter={() => setHoveredId(item.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                className={`transition-all duration-200 rounded-2xl ${
-                  selectedId === item.id ? "ring-2 ring-blue-500 shadow-lg" : ""
-                }`}
-              >
-                <Card className="group flex flex-col overflow-hidden">
-                  <div className="relative aspect-16/9 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                    <Image
-                      src={item.imageUrl}
-                      alt={item.name}
-                      fill
-                      sizes="(max-width: 640px) 100vw, 400px"
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <Badge variant="outline" className="absolute left-3 top-3 z-10 gap-1 text-amber-700 shadow-xs">
-                      <Star className="h-3.5 w-3.5 fill-current text-amber-500" aria-hidden />
-                      {item.rating.toFixed(1)}
-                    </Badge>
-                  </div>
-                  <CardBody className="flex flex-1 flex-col justify-between p-4">
-                    <div className="flex flex-col gap-1.5">
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white">{item.name}</h3>
-                      <p className="text-xs text-slate-500">{item.cityName} · {item.cuisine}</p>
-                      <p className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                        {dict.avgCheck}: {formatSum(item.averageCheckSum)}
-                      </p>
-                    </div>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      className="mt-3 w-full text-xs font-bold"
-                      onClick={() => handleOpenModal(item)}
-                    >
-                      {dict.reserveTable}
-                    </Button>
-                  </CardBody>
-                </Card>
-              </div>
-            ))}
-          </div>
-
-          <div className="lg:sticky lg:top-24 lg:h-[calc(100vh-120px)]">
-            <InteractiveMapView
-              items={mapItems}
-              hoveredItemId={hoveredId}
-              selectedItemId={selectedId}
-              onSelectItem={(item) => setSelectedId(item.id)}
-              className="h-[450px] w-full lg:h-full rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800"
-            />
-          </div>
-        </div>
-      ) : (
-        /* Grid listing */
-        <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
-          {filtered.map((item) => (
-            <Card key={item.id} className="group flex flex-col overflow-hidden">
-              <div className="relative aspect-16/9 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                <Image
-                  src={item.imageUrl}
-                  alt={item.name}
-                  fill
-                  sizes="(max-width: 640px) 100vw, 600px"
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                <Badge variant="outline" className="absolute left-3 top-3 z-10 gap-1 text-amber-700 shadow-xs">
-                  <Star className="h-3.5 w-3.5 fill-current text-amber-500" aria-hidden />
-                  {item.rating.toFixed(1)}
-                </Badge>
-              </div>
-
-              <CardBody className="flex flex-1 flex-col justify-between p-5">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                      {item.name}
-                    </h2>
-                    <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                      {item.cuisine}
-                    </span>
-                  </div>
-
-                  <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    {item.cityName} · {item.address}
-                  </p>
-
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5 text-slate-400" />
-                      {item.workingHours}
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
-                      {dict.avgCheck}: {formatSum(item.averageCheckSum)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-100 pt-3.5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-                  <a
-                    href={`tel:${item.phone.replace(/\s+/g, "")}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 transition-colors hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400"
-                  >
-                    <PhoneCall className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <span className="truncate">{item.phone}</span>
-                  </a>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="w-full text-xs font-bold whitespace-nowrap px-3 sm:w-auto"
-                    onClick={() => handleOpenModal(item)}
-                  >
-                    {dict.reserveTable}
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
-          ))}
+      {/* Active filters display */}
+      {activeFilterChips.length > 0 && (
+        <div className="mb-6">
+          <ActiveFilters chips={activeFilterChips} onClearAll={handleReset} />
         </div>
       )}
+
+      {/* Grid Layout: Left Sidebar + Right Listing */}
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
+        {/* Responsive filter sidebar component */}
+        <FilterSidebar
+          title="Restoranlar Filtri"
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          onApply={handleApply}
+          onReset={handleReset}
+        >
+          {/* City filter */}
+          <FilterGroup title="Shahar">
+            <select
+              value={tempCity}
+              onChange={(e) => setTempCity(e.target.value)}
+              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+            >
+              <option value="all">{dict.allCities}</option>
+              {cities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+          </FilterGroup>
+
+          {/* Cuisine filter */}
+          <FilterGroup title="Oshxona Turi">
+            <div className="flex flex-col gap-2">
+              {cuisines.map((cuisine) => {
+                const checked = tempCuisines.includes(cuisine);
+                return (
+                  <label
+                    key={cuisine}
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
+                      checked
+                        ? "border-blue-500 bg-blue-50/50 text-blue-900 font-bold dark:bg-blue-950/50 dark:text-blue-300"
+                        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleTempCuisine(cuisine)}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>{cuisine}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </FilterGroup>
+
+          {/* Price check filter */}
+          <FilterGroup title="O'rtacha Hisob (Max)">
+            <Input
+              type="number"
+              min={0}
+              placeholder="Masalan: 100000"
+              value={tempMaxAvgCheck}
+              onChange={(e) => setTempMaxAvgCheck(e.target.value)}
+            />
+          </FilterGroup>
+        </FilterSidebar>
+
+        {/* Content list */}
+        <div className="flex-1">
+          {filtered.length === 0 ? (
+            <EmptyState
+              title="Restoranlar topilmadi"
+              description="Siz kiritgan filtrlar bo'yicha hech qanday restoran topilmadi. Filtrlar va qidiruv so'zini tozalab qaytadan urinib ko'ring."
+              actionLabel="Hammasini tozalash"
+              onAction={handleReset}
+            />
+          ) : viewMode === "map" ? (
+            /* ── Map view ── */
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_450px]">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                {filtered.map((item) => (
+                  <div
+                    key={item.id}
+                    onMouseEnter={() => setHoveredId(item.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    className={`transition-all duration-200 rounded-2xl ${
+                      selectedId === item.id ? "ring-2 ring-blue-500 shadow-md" : ""
+                    }`}
+                  >
+                    <RestaurantCard item={item} dict={dict} onBook={() => handleOpenModalCb(item)} />
+                  </div>
+                ))}
+              </div>
+
+              <div className="lg:sticky lg:top-24 lg:h-[calc(100vh-120px)]">
+                <InteractiveMapView
+                  items={mapItems}
+                  hoveredItemId={hoveredId}
+                  selectedItemId={selectedId}
+                  onSelectItem={(item) => setSelectedId(item.id)}
+                  className="h-[450px] w-full lg:h-full rounded-2xl overflow-hidden shadow-lg border border-slate-200/80 dark:border-slate-800"
+                />
+              </div>
+            </div>
+          ) : (
+            /* ── Grid view ── */
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {filtered.map((item) => (
+                <RestaurantCard key={item.id} item={item} dict={dict} onBook={() => handleOpenModalCb(item)} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Table Reservation Modal */}
       {selectedRestaurant && (
