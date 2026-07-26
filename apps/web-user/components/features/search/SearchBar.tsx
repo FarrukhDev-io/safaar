@@ -10,6 +10,7 @@ import type { PropertyType, SearchDefaults } from "./types";
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import type { CityOption } from "@/types/view";
+import { Button } from "@/components/ui/Button";
 
 export type { PropertyType, SearchDefaults };
 
@@ -150,13 +151,14 @@ export function SearchBar({
 
           {/* 4. Qidirish tugmasi */}
           <div className="shrink-0 pt-1 md:pt-0">
-            <button
+            <Button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition-all duration-150 hover:bg-blue-700 active:scale-[0.98] md:w-auto md:py-3"
+              variant="primary"
+              className="w-full md:w-auto rounded-xl uppercase tracking-wide"
             >
               <Search className="h-4 w-4 stroke-[2.5]" aria-hidden />
-              <span className="uppercase tracking-wide">{dict.submit}</span>
-            </button>
+              <span>{dict.submit}</span>
+            </Button>
           </div>
         </div>
       </form>

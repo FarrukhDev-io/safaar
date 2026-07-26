@@ -48,7 +48,7 @@ function AttractionCard({
   const entryPrice = Math.round(item.rating * 60_000);
 
   const badge = (
-    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
+    <span className="rounded-full bg-slate-950/40 backdrop-blur-md border border-white/20 px-2.5 py-1 text-xs font-medium text-white">
       {categoryLabel}
     </span>
   );
@@ -91,18 +91,12 @@ function AttractionCard({
         </>
       }
       footerRight={
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoreInfo();
-          }}
-          aria-label={`${item.name} haqida batafsil`}
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        <div
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 dark:border-slate-700 dark:text-slate-300"
         >
           Batafsil
-          <ArrowRight className="h-3.5 w-3.5" />
-        </button>
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+        </div>
       }
     />
   );

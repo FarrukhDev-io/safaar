@@ -34,6 +34,7 @@ import { FilterSidebar } from "@/components/ui/FilterSidebar";
 import { FilterGroup } from "@/components/ui/FilterGroup";
 import { ActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilters";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Modal } from "@/components/ui/Modal";
 
 export type { RestaurantItem };
 
@@ -48,7 +49,7 @@ function RestaurantCard({
   onBook: () => void;
 }) {
   const badge = (
-    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
+    <span className="rounded-full bg-slate-950/40 backdrop-blur-md border border-white/20 px-2.5 py-1 text-xs font-medium text-white">
       {item.cuisine}
     </span>
   );
@@ -91,18 +92,12 @@ function RestaurantCard({
         </>
       }
       footerRight={
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onBook();
-          }}
-          aria-label={`${item.name} uchun stol bron qilish`}
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        <div
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 dark:border-slate-700 dark:text-slate-300"
         >
           {dict.reserveTable}
-          <ArrowRight className="h-3.5 w-3.5" />
-        </button>
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+        </div>
       }
     />
   );
@@ -132,6 +127,7 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
   const [fullName, setFullName] = useState("");
   const [phoneInput, setPhoneInput] = useState("+998");
   const [isSuccess, setIsSuccess] = useState(false);
+  const [bookingRef, setBookingRef] = useState("");
 
   const cities = useMemo(() => Array.from(new Set(MOCK_RESTAURANTS.map((r) => r.cityName))), []);
   const cuisines = useMemo(() => Array.from(new Set(MOCK_RESTAURANTS.map((r) => r.cuisine))), []);
@@ -140,6 +136,9 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
     setSelectedRestaurant(restaurant);
     setIsSuccess(false);
     setGuestCount(2);
+    setFullName("");
+    setPhoneInput("+998");
+    setBookingRef("");
   }, []);
 
   const handleCloseModal = useCallback(() => {
@@ -149,6 +148,8 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
 
   const handleReserveSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
+    const randomRef = `#SR-${Math.floor(1000 + Math.random() * 9000)}`;
+    setBookingRef(randomRef);
     setIsSuccess(true);
   }, []);
 
@@ -417,61 +418,83 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
       </div>
 
       {/* Table Reservation Modal */}
-      {selectedRestaurant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
-            onClick={handleCloseModal}
-          />
-
-          <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+      <Modal
+        isOpen={!!selectedRestaurant}
+        onClose={handleCloseModal}
+        size="lg"
+        hideCloseButton={true}
+      >
+        {selectedRestaurant && (
+          <>
             <button
               type="button"
               onClick={handleCloseModal}
-              className="absolute right-4 top-4 rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+              className={`absolute right-4 top-4 z-20 rounded-full p-2 transition-colors ${
+                !isSuccess
+                  ? "bg-slate-950/40 text-white/90 backdrop-blur-xs hover:bg-slate-950/60 hover:text-white"
+                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+              }`}
             >
               <X className="h-5 w-5" />
             </button>
 
             {!isSuccess ? (
               <form onSubmit={handleReserveSubmit} className="flex flex-col gap-5">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
-                  <div className="relative h-14 w-14 overflow-hidden rounded-2xl bg-slate-100">
-                    <Image
-                      src={selectedRestaurant.imageUrl}
-                      alt={selectedRestaurant.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                {/* Modal Banner & Header */}
+                <div className="relative -mx-6 -mt-6 h-36 overflow-hidden">
+                  <Image
+                    src={selectedRestaurant.imageUrl}
+                    alt={selectedRestaurant.name}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+                  <div className="absolute bottom-4 left-6 right-6 text-white">
+                    <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-md">
                       {selectedRestaurant.name}
                     </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {selectedRestaurant.cityName} · {selectedRestaurant.cuisine}
+                    <p className="mt-1 flex items-center gap-1 text-xs font-medium text-slate-200">
+                      <MapPin className="h-3.5 w-3.5 text-slate-350" />
+                      <span>{selectedRestaurant.cityName} · {selectedRestaurant.cuisine}</span>
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <label className="flex flex-col gap-1.5">
+                  {/* Custom Guest Picker */}
+                  <div className="flex flex-col gap-1.5">
                     <span className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
                       <Users className="h-3.5 w-3.5 text-blue-600" />
                       {dict.guests}
                     </span>
-                    <select
-                      value={guestCount}
-                      onChange={(e) => setGuestCount(Number(e.target.value))}
-                      className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-white"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
-                        <option key={n} value={n}>
-                          {n} kishi
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                    <div className="flex items-center justify-between h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-2 dark:border-slate-800 dark:bg-slate-900/50">
+                      <button
+                        type="button"
+                        disabled={guestCount <= 1}
+                        onClick={() => setGuestCount((c) => Math.max(1, c - 1))}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-700 shadow-xs hover:bg-slate-50 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/80"
+                      >
+                        <span className="text-lg font-bold leading-none">-</span>
+                      </button>
+                      <span className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white select-none">
+                        {guestCount === 1 ? (
+                          <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        ) : (
+                          <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        )}
+                        {guestCount} kishi
+                      </span>
+                      <button
+                        type="button"
+                        disabled={guestCount >= 20}
+                        onClick={() => setGuestCount((c) => Math.min(20, c + 1))}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-700 shadow-xs hover:bg-slate-50 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/80"
+                      >
+                        <span className="text-lg font-bold leading-none">+</span>
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="flex flex-col gap-1.5">
                     <span className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -486,80 +509,177 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
+                {/* Custom Time Selector */}
+                <div className="flex flex-col gap-2">
                   <span className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
                     <Clock className="h-3.5 w-3.5 text-blue-600" />
                     {dict.time}
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {["12:00", "14:00", "18:00", "19:30", "20:30"].map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setTime(t)}
-                        className={`rounded-xl border px-3.5 py-1.5 text-xs font-bold transition-all ${
-                          time === t
-                            ? "border-blue-600 bg-blue-600 text-white"
-                            : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300"
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-5 gap-2">
+                    {["12:00", "14:00", "18:00", "19:30", "20:30"].map((t) => {
+                      const isDinner = parseInt(t.split(":")[0], 10) >= 16;
+                      const isSelected = time === t;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTime(t)}
+                          className={`group flex flex-col items-center justify-center rounded-xl p-2 border text-center transition-all duration-250 active:scale-95 ${
+                            isSelected
+                              ? "border-blue-600 bg-blue-50/70 text-blue-900 shadow-md ring-1 ring-blue-500 scale-105 dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-100"
+                              : "border-slate-200 bg-slate-50/50 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:bg-slate-800/80"
+                          }`}
+                        >
+                          <span className={`text-sm font-bold tracking-tight transition-colors ${
+                            isSelected ? "text-blue-700 dark:text-blue-400" : "text-slate-800 dark:text-slate-200"
+                          }`}>
+                            {t}
+                          </span>
+                          <span className={`text-[10px] font-semibold mt-0.5 transition-colors ${
+                            isSelected ? "text-blue-600/85 dark:text-blue-400/85" : "text-slate-400 dark:text-slate-500"
+                          }`}>
+                            {isDinner ? "Kechki" : "Tushlik"}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <label className="flex flex-col gap-1.5">
-                  <span className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                    <User className="h-3.5 w-3.5 text-blue-600" />
+                {/* Modern Form Fields */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                     {dict.fullName}
                   </span>
-                  <Input
-                    type="text"
-                    required
-                    placeholder="Masalan: Jasur Rahimov"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                  />
-                </label>
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 pointer-events-none text-slate-400 dark:text-slate-500">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <Input
+                      type="text"
+                      required
+                      placeholder="Masalan: Jasur Rahimov"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="pl-10 h-11 w-full bg-slate-50/50 border-slate-200 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20 placeholder:text-slate-400 dark:bg-slate-800/40 dark:border-slate-800 dark:text-white transition-all rounded-xl font-semibold"
+                    />
+                  </div>
+                </div>
 
-                <label className="flex flex-col gap-1.5">
-                  <span className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                    <Phone className="h-3.5 w-3.5 text-blue-600" />
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                     {dict.phone}
                   </span>
-                  <Input
-                    type="tel"
-                    required
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                  />
-                </label>
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 pointer-events-none text-slate-400 dark:text-slate-500">
+                      <Phone className="h-4 w-4" />
+                    </div>
+                    <Input
+                      type="tel"
+                      required
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      className="pl-10 h-11 w-full bg-slate-50/50 border-slate-200 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20 dark:bg-slate-800/40 dark:border-slate-800 dark:text-white transition-all rounded-xl font-semibold"
+                    />
+                  </div>
+                </div>
 
                 <Button
                   type="submit"
                   size="lg"
-                  className="mt-2 w-full rounded-2xl bg-blue-600 font-bold text-white shadow-md hover:bg-blue-700"
+                  className="mt-2 w-full min-h-[44px] rounded-2xl bg-blue-600 font-bold text-white shadow-md hover:bg-blue-700 active:scale-[0.98] transition-transform"
                 >
                   {dict.confirm}
                 </Button>
               </form>
             ) : (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
-                  <CheckCircle2 className="h-10 w-10" />
+              <div className="flex flex-col items-center justify-center py-2 text-center animate-ticket">
+                {/* Style tag for animations */}
+                <style>{`
+                  @keyframes ticket-scale-up {
+                    0% { transform: scale(0.95); opacity: 0; }
+                    100% { transform: scale(1); opacity: 1; }
+                  }
+                  @keyframes check-scale-up {
+                    0% { transform: scale(0.6); opacity: 0; }
+                    70% { transform: scale(1.1); }
+                    100% { transform: scale(1); opacity: 1; }
+                  }
+                  .animate-ticket {
+                    animation: ticket-scale-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                  }
+                  .animate-check {
+                    animation: check-scale-up 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+                  }
+                `}</style>
+
+                {/* Checkmark Icon Container */}
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 animate-check shadow-xs">
+                  <CheckCircle2 className="h-8 w-8" />
                 </div>
+                
                 <h3 className="mt-4 text-xl font-extrabold text-slate-900 dark:text-white">
                   {dict.successTitle}
                 </h3>
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {dict.successDesc}
                 </p>
 
+                {/* Booking Receipt Ticket */}
+                <div className="mt-6 w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-900/40 relative overflow-hidden">
+                  {/* Decorative side ticket notches */}
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800" />
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-4 rounded-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800" />
+
+                  {/* Top part: Booking Reference & Restaurant */}
+                  <div className="flex justify-between items-center text-xs text-slate-400 dark:text-slate-500 mb-3">
+                    <span className="font-medium">Buyurtma ID</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white bg-slate-200/50 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px]">
+                      {bookingRef}
+                    </span>
+                  </div>
+                  
+                  <div className="text-left border-b border-dashed border-slate-200 dark:border-slate-800 pb-3 mb-3">
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{selectedRestaurant.name}</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{selectedRestaurant.cityName} · {selectedRestaurant.cuisine}</p>
+                  </div>
+
+                  {/* Structured details grid */}
+                  <div className="grid grid-cols-2 gap-y-3.5 gap-x-4 text-left text-xs">
+                    <div>
+                      <span className="block text-slate-400 dark:text-slate-500 font-medium">Mijoz</span>
+                      <span className="block font-semibold text-slate-800 dark:text-slate-200 mt-0.5 truncate">{fullName}</span>
+                    </div>
+                    <div>
+                      <span className="block text-slate-400 dark:text-slate-500 font-medium">Telefon</span>
+                      <span className="block font-semibold text-slate-800 dark:text-slate-200 mt-0.5 truncate">{phoneInput}</span>
+                    </div>
+                    
+                    {/* Dotted border separation divider */}
+                    <div className="col-span-2 border-t border-dashed border-slate-200 dark:border-slate-800 my-1" />
+
+                    <div>
+                      <span className="block text-slate-400 dark:text-slate-500 font-medium">Mehmonlar</span>
+                      <span className="block font-semibold text-slate-800 dark:text-slate-200 mt-0.5 flex items-center gap-1">
+                        <Users className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                        {guestCount} kishi
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-slate-400 dark:text-slate-500 font-medium">Sana & Vaqt</span>
+                      <span className="block font-semibold text-slate-800 dark:text-slate-200 mt-0.5 flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                        {date} ({time})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
                 <div className="mt-6 flex w-full flex-col gap-3">
                   <a
                     href={`tel:${selectedRestaurant.phone.replace(/\s+/g, "")}`}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-md hover:bg-emerald-700"
+                    className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-emerald-700 active:scale-[0.98] transition-transform"
                   >
                     <PhoneCall className="h-4 w-4" />
                     <span>{dict.callNow}: {selectedRestaurant.phone}</span>
@@ -568,16 +688,16 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
                     type="button"
                     variant="secondary"
                     onClick={handleCloseModal}
-                    className="w-full rounded-2xl"
+                    className="w-full min-h-[44px] rounded-2xl font-bold border border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 active:scale-[0.98] transition-transform"
                   >
                     {dict.close}
                   </Button>
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </main>
   );
 }
