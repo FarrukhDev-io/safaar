@@ -1,6 +1,6 @@
 "use client";
 
-import { BedSingle, Sparkles, Check } from "lucide-react";
+import { BedSingle, Sparkles, Check, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BookingStatus } from "@safaar/types";
@@ -82,20 +82,49 @@ export function AssignBedDialog({ open, onClose, reservation, onAssigned }: Prop
       }));
   }, [matchingRooms]);
 
-  const handleConfirm = () => {
-    if (!reservation || !selected) return;
+  // Xaritada birinchi ko'rinadigan mos yotoq — "Avtomatik tayinlash" shu bilan
+  // ishlaydi, natija odam qo'lda tanlaganida kutadigan tanlov bilan bir xil.
+  const firstAvailableBed = (() => {
+    for (const { rooms: floorRooms } of floors) {
+      for (const room of floorRooms) {
+        const bed = beds
+          .filter((b) => b.roomId === room.id)
+          .sort((a, b) => a.label.localeCompare(b.label))
+          .find((b) => isBedAvailable(b));
+        if (bed) return { room, bed };
+      }
+    }
+    return null;
+  })();
+
+  const assignAndClose = (room: Room, bed: Bed, auto: boolean) => {
+    if (!reservation) return;
     assignRoom.mutate(
-      { id: reservation.id, roomNumber: selected.room.number },
+      { id: reservation.id, roomNumber: room.number },
       {
         onSuccess: () => {
-          assignBed(reservation.id, selected.bed.id);
-          toast.success(`${selected.room.number} · ${selected.bed.label} tayinlandi.`);
-          onAssigned?.(selected.room.number);
+          assignBed(reservation.id, bed.id);
+          toast.success(
+            auto
+              ? `${room.number} · ${bed.label} avtomatik tayinlandi.`
+              : `${room.number} · ${bed.label} tayinlandi.`,
+          );
+          onAssigned?.(room.number);
           setSelected(null);
           onClose();
         },
       },
     );
+  };
+
+  const handleAutoAssign = () => {
+    if (!firstAvailableBed) return;
+    assignAndClose(firstAvailableBed.room, firstAvailableBed.bed, true);
+  };
+
+  const handleConfirm = () => {
+    if (!selected) return;
+    assignAndClose(selected.room, selected.bed, false);
   };
 
   return (
@@ -127,6 +156,22 @@ export function AssignBedDialog({ open, onClose, reservation, onAssigned }: Prop
                 </p>
               </div>
             </div>
+            <Button
+              onClick={handleAutoAssign}
+              disabled={!firstAvailableBed || assignRoom.isPending}
+              loading={assignRoom.isPending}
+            >
+              <Zap className="h-4 w-4" aria-hidden />
+              Avtomatik tayinlash
+            </Button>
+          </div>
+        )}
+
+        {reservation && (
+          <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
+            <div className="h-px flex-1 bg-[var(--border)]" />
+            yoki qo'lda tanlang
+            <div className="h-px flex-1 bg-[var(--border)]" />
           </div>
         )}
 
