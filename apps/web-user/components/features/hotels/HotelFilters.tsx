@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Filter, ChevronDown } from "lucide-react";
 import { FilterSidebar } from "@/components/ui/FilterSidebar";
 import { FilterGroup } from "@/components/ui/FilterGroup";
+import { Button } from "@/components/ui/Button";
 
 const AMENITIES = [
   { id: "pool", label: "Basseyn (Yopiq/Ochiq)" },
@@ -92,17 +93,21 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
   return (
     <div className="w-full">
       {/* Mobile Toggle Trigger Button */}
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        size="md"
         onClick={() => setOpen(true)}
-        className="mb-4 flex w-full items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:bg-slate-100 hover:border-slate-400 active:scale-[0.98] dark:border-slate-800 dark:bg-slate-900 dark:text-white lg:hidden"
+        className="mb-4 lg:hidden"
       >
-        <span className="inline-flex items-center gap-2">
-          <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          <span>{dict.filters.toggle}</span>
+        <span className="flex items-center justify-between w-full">
+          <span className="inline-flex items-center gap-2">
+            <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <span>{dict.filters.toggle}</span>
+          </span>
+          <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
         </span>
-        <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-      </button>
+      </Button>
 
       <FilterSidebar
         title={dict.filters.title}

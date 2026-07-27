@@ -92,13 +92,16 @@ export function FilterSidebar({
                   {title}
                 </h2>
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                rounded="full"
+                size="sm"
                 onClick={onClose}
-                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="h-8 w-8 min-h-0 p-0 flex items-center justify-center border-none text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
                 <X className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
 
             {/* Scrollable body */}

@@ -23,6 +23,7 @@ import {
 import { formatSum } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { cn } from "@/lib/cn";
 import { DatePicker } from "@/components/ui/DatePicker";
 import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
@@ -255,43 +256,53 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
         filterControls={
           <div className="flex items-center justify-between gap-3 w-full">
             {/* Mobile Filter Trigger */}
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-white lg:hidden min-h-[44px]"
+              className="lg:hidden"
             >
               <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <span>Filtrlar</span>
               <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-            </button>
+            </Button>
 
             {/* View Mode Toggle */}
             <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-900">
-              <button
+              <Button
                 type="button"
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                size="sm"
+                rounded="lg"
                 onClick={() => setViewMode("grid")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                className={cn(
+                  "gap-1.5 h-8 min-h-0",
                   viewMode === "grid"
-                    ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
-                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                }`}
+                    ? "bg-white text-slate-900 shadow-xs border-none hover:bg-white"
+                    : "text-slate-600 hover:text-slate-900 border-none"
+                )}
               >
                 <LayoutGrid className="h-3.5 w-3.5" />
                 <span>Grid</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant={viewMode === "map" ? "secondary" : "ghost"}
+                size="sm"
+                rounded="lg"
                 onClick={() => setViewMode("map")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                className={cn(
+                  "gap-1.5 h-8 min-h-0",
                   viewMode === "map"
-                    ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
-                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                }`}
+                    ? "bg-white text-slate-900 shadow-xs border-none hover:bg-white"
+                    : "text-slate-600 hover:text-slate-900 border-none"
+                )}
               >
                 <MapIcon className="h-3.5 w-3.5" />
                 <span>Xarita</span>
-              </button>
+              </Button>
             </div>
           </div>
         }
@@ -426,17 +437,21 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
       >
         {selectedRestaurant && (
           <>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              rounded="full"
+              size="sm"
               onClick={handleCloseModal}
-              className={`absolute right-4 top-4 z-20 rounded-full p-2 transition-colors ${
+              className={cn(
+                "absolute right-4 top-4 z-20 min-h-0 h-9 w-9 p-0 flex items-center justify-center border-none",
                 !isSuccess
                   ? "bg-slate-950/40 text-white/90 backdrop-blur-xs hover:bg-slate-950/60 hover:text-white"
-                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
-              }`}
+                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              )}
             >
               <X className="h-5 w-5" />
-            </button>
+            </Button>
 
             {!isSuccess ? (
               <form onSubmit={handleReserveSubmit} className="flex flex-col gap-5">
@@ -469,14 +484,17 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
                       {dict.guests}
                     </span>
                     <div className="flex items-center justify-between h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-2 dark:border-slate-800 dark:bg-slate-900/50">
-                      <button
+                      <Button
                         type="button"
+                        variant="secondary"
+                        size="sm"
+                        rounded="lg"
                         disabled={guestCount <= 1}
                         onClick={() => setGuestCount((c) => Math.max(1, c - 1))}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-700 shadow-xs hover:bg-slate-50 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/80"
+                        className="h-8 w-8 min-h-0 p-0 text-lg font-bold"
                       >
-                        <span className="text-lg font-bold leading-none">-</span>
-                      </button>
+                        -
+                      </Button>
                       <span className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white select-none">
                         {guestCount === 1 ? (
                           <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -485,14 +503,17 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
                         )}
                         {guestCount} kishi
                       </span>
-                      <button
+                      <Button
                         type="button"
+                        variant="secondary"
+                        size="sm"
+                        rounded="lg"
                         disabled={guestCount >= 20}
                         onClick={() => setGuestCount((c) => Math.min(20, c + 1))}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-700 shadow-xs hover:bg-slate-50 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/80"
+                        className="h-8 w-8 min-h-0 p-0 text-lg font-bold"
                       >
-                        <span className="text-lg font-bold leading-none">+</span>
-                      </button>
+                        +
+                      </Button>
                     </div>
                   </div>
 

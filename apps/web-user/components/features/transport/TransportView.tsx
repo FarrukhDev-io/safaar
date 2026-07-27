@@ -16,6 +16,7 @@ import { FilterSidebar } from "@/components/ui/FilterSidebar";
 import { FilterGroup } from "@/components/ui/FilterGroup";
 import { ActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilters";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { cn } from "@/lib/cn";
 import { Modal } from "@/components/ui/Modal";
 
 export type { TransportItem };
@@ -221,15 +222,17 @@ export function TransportView({ dict }: { dict: CatalogDict["transport"] }) {
         filterControls={
           <div className="flex items-center justify-between gap-3 w-full">
             {/* Mobile Filter Button */}
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-white lg:hidden min-h-[44px]"
+              className="lg:hidden"
             >
               <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <span>Filtrlar</span>
               <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-            </button>
+            </Button>
 
             {/* Spacer / Mode indicator */}
             <div className="text-xs font-semibold text-slate-500">
@@ -334,17 +337,21 @@ export function TransportView({ dict }: { dict: CatalogDict["transport"] }) {
       >
         {selectedItem && (
           <>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              rounded="full"
+              size="sm"
               onClick={() => setSelectedItem(null)}
-              className={`absolute right-4 top-4 z-20 rounded-full p-2 transition-colors ${
+              className={cn(
+                "absolute right-4 top-4 z-20 min-h-0 h-9 w-9 p-0 flex items-center justify-center border-none",
                 !isSuccess
                   ? "bg-slate-950/40 text-white/90 backdrop-blur-xs hover:bg-slate-950/60 hover:text-white"
-                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
-              }`}
+                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              )}
             >
               <X className="h-5 w-5" />
-            </button>
+            </Button>
 
             {!isSuccess ? (
               <form onSubmit={handleReserveSubmit} className="flex flex-col gap-5">

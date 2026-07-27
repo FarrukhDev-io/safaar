@@ -23,6 +23,8 @@ import { BaseCard } from "@/components/ui/BaseCard";
 import { FilterSidebar } from "@/components/ui/FilterSidebar";
 import { FilterGroup } from "@/components/ui/FilterGroup";
 import { ActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilters";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
 
 export type { AttractionItem };
 
@@ -211,43 +213,53 @@ export function AttractionsView({ dict }: { dict: CatalogDict["attractions"] }) 
         filterControls={
           <div className="flex items-center justify-between gap-3 w-full">
             {/* Mobile Filter Button */}
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-white lg:hidden min-h-[44px]"
+              className="lg:hidden"
             >
               <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <span>Filtrlar</span>
               <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-            </button>
+            </Button>
 
             {/* View Toggle */}
             <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-900">
-              <button
+              <Button
                 type="button"
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                size="sm"
+                rounded="lg"
                 onClick={() => setViewMode("grid")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                className={cn(
+                  "gap-1.5 h-8 min-h-0",
                   viewMode === "grid"
-                    ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
-                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                }`}
+                    ? "bg-white text-slate-900 shadow-xs border-none hover:bg-white"
+                    : "text-slate-600 hover:text-slate-900 border-none"
+                )}
               >
                 <LayoutGrid className="h-3.5 w-3.5" />
                 <span>Grid</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant={viewMode === "map" ? "secondary" : "ghost"}
+                size="sm"
+                rounded="lg"
                 onClick={() => setViewMode("map")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                className={cn(
+                  "gap-1.5 h-8 min-h-0",
                   viewMode === "map"
-                    ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
-                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                }`}
+                    ? "bg-white text-slate-900 shadow-xs border-none hover:bg-white"
+                    : "text-slate-600 hover:text-slate-900 border-none"
+                )}
               >
                 <MapIcon className="h-3.5 w-3.5" />
                 <span>Xarita</span>
-              </button>
+              </Button>
             </div>
           </div>
         }
