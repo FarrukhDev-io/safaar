@@ -3,10 +3,11 @@
 import { BedSingle, Sparkles, Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { BookingStatus } from "@safaar/types";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
 import { useRooms } from "../../_hooks/use-rooms";
-import { useAssignRoom } from "../../_hooks/use-reservations";
+import { useReservations, useAssignRoom } from "../../_hooks/use-reservations";
 import { useDataStore } from "../../_stores/data-store";
 import { RoomStatus, type Bed, type ReservationView, type Room } from "../../_lib/domain/types";
 import { cn } from "../../_lib/utils/cn";
@@ -21,6 +22,7 @@ interface Props {
 
 export function AssignBedDialog({ open, onClose, reservation, onAssigned }: Props) {
   const { data: rooms } = useRooms();
+  const { data: reservations } = useReservations();
   const beds = useDataStore((s) => s.beds);
   const assignBed = useDataStore((s) => s.assignBed);
   const assignRoom = useAssignRoom();
@@ -31,15 +33,38 @@ export function AssignBedDialog({ open, onClose, reservation, onAssigned }: Prop
     [rooms, reservation],
   );
 
+  /**
+   * Bed.status faqat "hozir jismonan band"ni bildiradi — kelajakdagi
+   * tasdiqlangan bronlar bilan sana bo'yicha to'qnashuvni emas (chunki
+   * yotoq check-in bo'lgunga qadar status o'zgarmaydi). Shu sabab bo'sh
+   * joyni aniqlashda ayni shu bron bilan sana oralig'i ustma-ust
+   * tushadigan boshqa faol bronlarni ham tekshiramiz.
+   */
+  const isBedAvailable = (bed: Bed): boolean => {
+    if (bed.status !== RoomStatus.VACANT_CLEAN || !reservation) return false;
+    const hasConflict = reservations.some((r) => {
+      if (r.id === reservation.id || r.bedId !== bed.id) return false;
+      if (
+        r.status === BookingStatus.CANCELLED ||
+        r.status === BookingStatus.EXPIRED ||
+        r.status === BookingStatus.COMPLETED
+      ) {
+        return false;
+      }
+      return r.checkIn < reservation.checkOut && reservation.checkIn < r.checkOut;
+    });
+    return !hasConflict;
+  };
+
   const availableBedsCount = useMemo(
     () =>
       matchingRooms.reduce(
         (sum, room) =>
-          sum +
-          beds.filter((b) => b.roomId === room.id && b.status === RoomStatus.VACANT_CLEAN).length,
+          sum + beds.filter((b) => b.roomId === room.id && isBedAvailable(b)).length,
         0,
       ),
-    [matchingRooms, beds],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [matchingRooms, beds, reservations, reservation],
   );
 
   // Qavatlar bo'yicha xaritalash
@@ -123,7 +148,7 @@ export function AssignBedDialog({ open, onClose, reservation, onAssigned }: Prop
                       </span>
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                         {roomBeds.map((bed) => {
-                          const isMatch = bed.status === RoomStatus.VACANT_CLEAN;
+                          const isMatch = isBedAvailable(bed);
                           const isSelected = selected?.bed.id === bed.id;
                           return (
                             <SmartBedOption

@@ -1,9 +1,17 @@
 /**
  * UZS valyutasini lokalizatsiya bilan formatlash.
  * Misol: formatMoney(2400000) → "2 400 000 so'm"
+ *
+ * `toLocaleString("uz-UZ")` ishlatilmaydi — server (Node ICU) va brauzer
+ * (Chromium ICU) ming xonalarni ajratuvchi belgini boshqacha tanlashi
+ * mumkin (oddiy va uzilmas bo'shliq), bu esa React hydration mismatchiga
+ * olib keladi. Shu sabab faqat oddiy string amallariga tayanamiz.
  */
 export function formatMoney(value: number): string {
-  return `${value.toLocaleString("uz-UZ")} so'm`;
+  const sign = value < 0 ? "-" : "";
+  const digits = Math.trunc(Math.abs(value)).toString();
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return `${sign}${grouped} so'm`;
 }
 
 /**

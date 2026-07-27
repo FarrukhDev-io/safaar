@@ -332,13 +332,19 @@ export const useDataStore = create<DataState>((set, get) => ({
   addReservation: (draft) => {
     reservationSeq += 1;
     const id = `RES-${1000 + reservationSeq}`;
-    const roomType = get().roomTypes.find((rt) => rt.id === draft.roomTypeId);
+    const state = get();
+    const roomType = state.roomTypes.find((rt) => rt.id === draft.roomTypeId);
+    // Bir xil telefon raqamli mehmon oldin bo'lgan bo'lsa, uning mavjud
+    // profiliga bog'laymiz — aks holda har walk-in safar yangi, ajratilgan
+    // profil yaratilib, mijoz tarixi/statistikasi bo'linib ketardi.
+    const existingGuest = state.guests.find((g) => g.phone === draft.phone);
+    const guestId = existingGuest?.id ?? `g-${1000 + reservationSeq}`;
     const reservation: ReservationView = {
       id,
       status: BookingStatus.CONFIRMED,
       source: ReservationSource.WALK_IN,
       guest: {
-        id: `g-walkin-${id}`,
+        id: guestId,
         fullName: draft.fullName,
         phone: draft.phone,
       },
@@ -356,7 +362,23 @@ export const useDataStore = create<DataState>((set, get) => ({
       paidAmount: 0,
       createdAt: new Date().toISOString(),
     };
-    set((state) => ({ reservations: [reservation, ...state.reservations] }));
+    set((s) => ({
+      reservations: [reservation, ...s.reservations],
+      guests: existingGuest
+        ? s.guests
+        : [
+            ...s.guests,
+            {
+              id: guestId,
+              fullName: draft.fullName,
+              phone: draft.phone,
+              totalStays: 0,
+              totalSpent: 0,
+              isVip: false,
+              tags: [],
+            },
+          ],
+    }));
     return reservation;
   },
 
@@ -482,6 +504,22 @@ export const useDataStore = create<DataState>((set, get) => ({
       return {
         ok: false,
         reason: "Bu xonada mehmon bor. Avval check-out qiling.",
+      };
+    }
+    // Xona hali check-in bo'lmagan bo'lsa ham (status hali OCCUPIED emas),
+    // unga tayinlangan faol bron bo'lishi mumkin — shuni ham tekshiramiz,
+    // aks holda bron "osilib qolgan" xona raqamiga ishora qilib qoladi.
+    const hasActiveReservation = state.reservations.some(
+      (r) =>
+        r.roomNumber === room.number &&
+        r.status !== BookingStatus.CANCELLED &&
+        r.status !== BookingStatus.EXPIRED &&
+        r.status !== BookingStatus.COMPLETED,
+    );
+    if (hasActiveReservation) {
+      return {
+        ok: false,
+        reason: "Bu xonaga faol bron tayinlangan. Avval bronni bekor qiling yoki boshqa xonaga o'tkazing.",
       };
     }
     set({
@@ -621,6 +659,19 @@ export const useDataStore = create<DataState>((set, get) => ({
       return {
         ok: false,
         reason: "Bu yotoqda mehmon bor. Avval check-out qiling.",
+      };
+    }
+    const hasActiveReservation = state.reservations.some(
+      (r) =>
+        r.bedId === id &&
+        r.status !== BookingStatus.CANCELLED &&
+        r.status !== BookingStatus.EXPIRED &&
+        r.status !== BookingStatus.COMPLETED,
+    );
+    if (hasActiveReservation) {
+      return {
+        ok: false,
+        reason: "Bu yotoqqa faol bron tayinlangan. Avval bronni bekor qiling yoki boshqa yotoqqa o'tkazing.",
       };
     }
     set({ beds: state.beds.filter((b) => b.id !== id) });

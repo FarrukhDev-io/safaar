@@ -39,7 +39,9 @@ export function UserMenu({ name, phone, onLogout }: UserMenuProps) {
   }, [open]);
 
   const initials = name
-    .split(" ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
     .map((w) => w[0])
     .slice(0, 2)
     .join("")

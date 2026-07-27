@@ -3,22 +3,51 @@
 import { Crown, Phone, Search, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { BookingStatus } from "@safaar/types";
 import { Badge } from "../../_components/ui/badge";
 import { EmptyState } from "../../_components/ui/empty-state";
 import { Input } from "../../_components/ui/input";
 import { PageHeader } from "../../_components/layout/page-header";
 import { useGuests } from "../../_hooks/use-guests";
+import { useReservations } from "../../_hooks/use-reservations";
 import { formatDate, formatMoney, formatPhone } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
 import { getPartnerLabels } from "../../_lib/utils/partner-labels";
 
 export function GuestsView() {
   const { data } = useGuests();
+  const { data: reservations } = useReservations();
   const router = useRouter();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const [query, setQuery] = useState("");
   const [vipOnly, setVipOnly] = useState(false);
+
+  /**
+   * `totalStays`/`totalSpent`/`lastStay` mock ma'lumotdagi statik maydonlar
+   * edi — yangi bron qo'shilganda yangilanmasdi. Endi har bir mijoz uchun
+   * haqiqiy bronlardan jonli hisoblanadi.
+   */
+  const guestStats = useMemo(() => {
+    const map = new Map<string, { totalStays: number; totalSpent: number; lastStay?: string }>();
+    for (const g of data) {
+      const bookings = reservations.filter(
+        (r) => r.guest.id === g.id || r.guest.phone === g.phone,
+      );
+      const active = bookings.filter(
+        (b) => b.status !== BookingStatus.CANCELLED && b.status !== BookingStatus.EXPIRED,
+      );
+      const completed = [...bookings]
+        .filter((b) => b.status === BookingStatus.COMPLETED)
+        .sort((a, b) => (b.checkIn > a.checkIn ? 1 : -1));
+      map.set(g.id, {
+        totalStays: active.length,
+        totalSpent: active.reduce((sum, b) => sum + b.paidAmount, 0),
+        lastStay: completed[0]?.checkIn,
+      });
+    }
+    return map;
+  }, [data, reservations]);
 
   const filtered = useMemo(() => {
     let list = data;
@@ -101,7 +130,9 @@ export function GuestsView() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((g) => (
+              {filtered.map((g) => {
+                const stats = guestStats.get(g.id) ?? { totalStays: 0, totalSpent: 0, lastStay: undefined };
+                return (
                 <tr
                   key={g.id}
                   onClick={() => router.push(`/guests/${g.id}`)}
@@ -111,7 +142,9 @@ export function GuestsView() {
                     <div className="flex items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-brand-200 text-sm font-bold text-brand-700">
                         {g.fullName
-                          .split(" ")
+                          .trim()
+                          .split(/\s+/)
+                          .filter(Boolean)
                           .map((w) => w[0])
                           .slice(0, 2)
                           .join("")}
@@ -144,16 +177,16 @@ export function GuestsView() {
                     </a>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="font-semibold">{g.totalStays}</span>
+                    <span className="font-semibold">{stats.totalStays}</span>
                     <span className="ml-1 text-xs text-[var(--muted-foreground)]">
                       marta
                     </span>
                   </td>
                   <td className="px-4 py-3 font-medium">
-                    {formatMoney(g.totalSpent)}
+                    {formatMoney(stats.totalSpent)}
                   </td>
                   <td className="px-4 py-3 text-[var(--muted-foreground)]">
-                    {g.lastStay ? formatDate(g.lastStay) : "—"}
+                    {stats.lastStay ? formatDate(stats.lastStay) : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
@@ -165,7 +198,8 @@ export function GuestsView() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

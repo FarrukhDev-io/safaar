@@ -1,7 +1,6 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
 import { pageItems, toReservation } from "../_lib/api/adapters";
 import { partners } from "../_lib/api";
 import { useDataStore } from "../_stores/data-store";
@@ -10,10 +9,14 @@ import { useAuthStore } from "../_stores/auth-store";
 /**
  * Bronlar ro'yxati — store'dan reaktiv.
  * Backend tayyor bo'lsa, `useQuery` bilan almashtiriladi.
+ *
+ * `query.data`ni do'konga qaytarib yozadigan effekt ataylab yo'q: React
+ * Query'ning `staleTime` keshi eski (backend ulanmagan paytdagi) natijani
+ * saqlab qoladi va keyingi mount'da shu eski holatni jonli do'kon ustiga
+ * yozib, yangi qo'shilgan bronlarni "yo'qotib qo'yishi" mumkin edi.
  */
 export function useReservations() {
   const data = useDataStore((s) => s.reservations);
-  const setReservations = useDataStore((s) => s.setReservations);
   const query = useQuery({
     queryKey: ["partner", "bookings"],
     queryFn: async () => {
@@ -25,13 +28,9 @@ export function useReservations() {
     },
   });
 
-  useEffect(() => {
-    if (query.data) setReservations(query.data);
-  }, [query.data, setReservations]);
-
   return {
     data,
-    isLoading: query.isLoading && data.length === 0,
+    isLoading: false,
     refetch: query.refetch,
     isFetching: query.isFetching,
   };
