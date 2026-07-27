@@ -25,6 +25,7 @@ import { FilterGroup } from "@/components/ui/FilterGroup";
 import { ActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilters";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { Select, type SelectOption } from "@/components/ui/Select";
 
 export type { AttractionItem };
 
@@ -284,33 +285,25 @@ export function AttractionsView({ dict }: { dict: CatalogDict["attractions"] }) 
         >
           {/* Category */}
           <FilterGroup title="Kategoriya">
-            <select
+            <Select
               value={tempCategory}
-              onChange={(e) => setTempCategory(e.target.value)}
-              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+              onChange={setTempCategory}
+              options={categories.map((c): SelectOption => ({ value: c.id, label: c.label }))}
+              ariaLabel="Kategoriya filtri"
+            />
           </FilterGroup>
 
           {/* City */}
           <FilterGroup title="Shahar">
-            <select
+            <Select
               value={tempCity}
-              onChange={(e) => setTempCity(e.target.value)}
-              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">Barcha shaharlar</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
+              onChange={setTempCity}
+              options={[
+                { value: "all", label: "Barcha shaharlar" },
+                ...cities.map((city): SelectOption => ({ value: city, label: city })),
+              ]}
+              ariaLabel="Shahar filtri"
+            />
           </FilterGroup>
         </FilterSidebar>
 

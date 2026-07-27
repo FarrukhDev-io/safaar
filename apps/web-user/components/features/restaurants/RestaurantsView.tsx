@@ -20,6 +20,7 @@ import {
   Filter,
   ChevronDown,
 } from "lucide-react";
+import { Select, type SelectOption } from "@/components/ui/Select";
 import { formatSum } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -327,18 +328,15 @@ export function RestaurantsView({ dict }: { dict: CatalogDict["restaurants"] }) 
         >
           {/* City filter */}
           <FilterGroup title="Shahar">
-            <select
+            <Select
               value={tempCity}
-              onChange={(e) => setTempCity(e.target.value)}
-              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">{dict.allCities}</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
+              onChange={setTempCity}
+              options={[
+                { value: "all", label: dict.allCities },
+                ...cities.map((city): SelectOption => ({ value: city, label: city })),
+              ]}
+              ariaLabel="Shahar filtri"
+            />
           </FilterGroup>
 
           {/* Cuisine filter */}

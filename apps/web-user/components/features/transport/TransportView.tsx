@@ -18,6 +18,7 @@ import { ActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilt
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/cn";
 import { Modal } from "@/components/ui/Modal";
+import { Select, type SelectOption } from "@/components/ui/Select";
 
 export type { TransportItem };
 
@@ -261,46 +262,39 @@ export function TransportView({ dict }: { dict: CatalogDict["transport"] }) {
         >
           {/* Category */}
           <FilterGroup title="Xizmat Turi">
-            <select
+            <Select
               value={tempCategory}
-              onChange={(e) => setTempCategory(e.target.value)}
-              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+              onChange={setTempCategory}
+              options={categories.map((c): SelectOption => ({ value: c.id, label: c.label }))}
+              ariaLabel="Xizmat turi filtri"
+            />
           </FilterGroup>
 
           {/* City */}
           <FilterGroup title="Shahar">
-            <select
+            <Select
               value={tempCity}
-              onChange={(e) => setTempCity(e.target.value)}
-              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">Barcha shaharlar</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
+              onChange={setTempCity}
+              options={[
+                { value: "all", label: "Barcha shaharlar" },
+                ...cities.map((city): SelectOption => ({ value: city, label: city })),
+              ]}
+              ariaLabel="Shahar filtri"
+            />
           </FilterGroup>
 
           {/* Driver */}
           <FilterGroup title="Haydovchi Xizmati">
-            <select
+            <Select
               value={tempDriver}
-              onChange={(e) => setTempDriver(e.target.value)}
-              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">Hammasi</option>
-              <option value="yes">{dict.driverIncluded}</option>
-              <option value="no">{dict.withoutDriver}</option>
-            </select>
+              onChange={setTempDriver}
+              options={[
+                { value: "all", label: "Hammasi" },
+                { value: "yes", label: dict.driverIncluded },
+                { value: "no", label: dict.withoutDriver },
+              ]}
+              ariaLabel="Haydovchi xizmati filtri"
+            />
           </FilterGroup>
         </FilterSidebar>
 
