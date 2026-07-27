@@ -4,6 +4,21 @@ import {
   findPartnerRequestByPhone,
   listPartnerRequests,
 } from "@/lib/partner-requests-store";
+import type { PartnerType } from "@/types/admin";
+
+const VALID_PARTNER_TYPES: PartnerType[] = [
+  "hotel",
+  "bus",
+  "hostel",
+  "guesthouse",
+  "motel",
+  "dacha",
+  "restaurant",
+];
+
+function normalizePartnerType(value: unknown): PartnerType {
+  return VALID_PARTNER_TYPES.includes(value as PartnerType) ? (value as PartnerType) : "hotel";
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,7 +55,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const created = createPartnerRequest({
     companyName: String(body.companyName ?? body.company_name ?? ""),
-    type: body.type === "bus" ? "bus" : "hotel",
+    type: normalizePartnerType(body.type),
     contactPerson: String(body.contactPerson ?? body.contact_person ?? ""),
     phone: String(body.phone ?? ""),
     email: String(body.email ?? ""),

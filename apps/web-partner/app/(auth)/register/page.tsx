@@ -50,7 +50,7 @@ export default function RegisterPage() {
     try {
       const result = await access.submitPartnerApplication({
         ...values,
-        type: values.type as any,
+        type: values.type,
         phone: normalizePhone(values.phone),
       });
       setSubmitted({ id: result.item.id });

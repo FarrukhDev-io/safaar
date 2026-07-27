@@ -4,7 +4,7 @@ export type PartnerAccessStatus = "not_found" | "new" | "reviewing" | "approved"
 
 export interface PartnerApplicationDraft {
   companyName: string;
-  type: "hotel" | "bus";
+  type: "hotel" | "bus" | "hostel" | "guesthouse" | "motel" | "dacha" | "restaurant";
   contactPerson: string;
   phone: string;
   email: string;

@@ -1,7 +1,7 @@
-import { Hotel, Bus, Home, Bed, Trees, MapPin } from "lucide-react";
+import { Hotel, Bus, Home, Bed, Trees, MapPin, UtensilsCrossed } from "lucide-react";
 import React from "react";
 
-export type ExtendedPartnerType = "hotel" | "bus" | "hostel" | "guesthouse" | "motel" | "dacha" | string;
+export type ExtendedPartnerType = "hotel" | "bus" | "hostel" | "guesthouse" | "motel" | "dacha" | "restaurant" | string;
 
 export function PartnerTypeDisplay({ type }: { type: ExtendedPartnerType }) {
   let icon = <MapPin size={14} className="text-[var(--text-muted)]" />;
@@ -31,6 +31,10 @@ export function PartnerTypeDisplay({ type }: { type: ExtendedPartnerType }) {
     case "bus":
       icon = <Bus size={14} className="text-[var(--info)]" />;
       label = "Avtobus";
+      break;
+    case "restaurant":
+      icon = <UtensilsCrossed size={14} className="text-[var(--accent)]" />;
+      label = "Restoran";
       break;
     default:
       label = type ? type.charAt(0).toUpperCase() + type.slice(1) : "Noma'lum";

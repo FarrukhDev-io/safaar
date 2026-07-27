@@ -1,11 +1,11 @@
-import type { PartnerRequest, PartnerRequestStatus } from "@/types/admin";
+import type { PartnerRequest, PartnerRequestStatus, PartnerType } from "@/types/admin";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 type PartnerRequestInput = {
   companyName: string;
-  type: "hotel" | "bus";
+  type: PartnerType;
   contactPerson: string;
   phone: string;
   email: string;

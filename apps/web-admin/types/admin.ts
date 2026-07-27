@@ -129,7 +129,7 @@ export interface UserPayment {
    Partners
    ──────────────────────────────────────────── */
 
-export type PartnerType = "hotel" | "bus" | "hostel" | "guesthouse" | "motel" | "dacha";
+export type PartnerType = "hotel" | "bus" | "hostel" | "guesthouse" | "motel" | "dacha" | "restaurant";
 export type PartnerRequestStatus = "new" | "reviewing" | "approved" | "rejected" | "submitted";
 export type PartnerStatus = "active" | "suspended" | "blocked";
 
@@ -223,7 +223,7 @@ export interface BookingStatusHistory {
 
 export interface BookingDetail {
   id: string;
-  serviceType: "hotel" | "bus";
+  serviceType: "hotel" | "bus" | "restaurant";
   status: BookingStatus;
   createdAt: string;
 
@@ -233,7 +233,7 @@ export interface BookingDetail {
   customerEmail: string;
   customerId: string;
 
-  // Mehmonxona
+  // Mehmonxona / Restoran (stol turi va vaqt-slot restoran uchun ishlatiladi)
   hotelName?: string;
   hotelAddress?: string;
   roomType?: string;
@@ -241,6 +241,8 @@ export interface BookingDetail {
   checkOut?: string;
   nights?: number;
   guests?: number;
+  /** Faqat restoran: bron vaqt-sloti ("HH:MM"). */
+  slotTime?: string;
 
   // Avtobus
   companyName?: string;
