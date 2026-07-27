@@ -14,7 +14,11 @@ export function useRooms() {
   const fallback = dacha
     ? rawFallback
     : rawFallback.filter((r) => r.id !== DACHA_UNIT_ROOM_ID);
-  const query = useQuery({
+  // Faqat real backend bilan sinxronlash uchun urinish — natija o'qilmaydi,
+  // chunki `fallback` (Zustand) har doim haqiqiy manba hisoblanadi. Aks holda
+  // React Query'ning `staleTime` keshi keyingi do'kon o'zgarishlarini
+  // (masalan reseed yoki tahrirlarni) UI'dan berkitib qo'yadi.
+  useQuery({
     queryKey: ["partner", "rooms"],
     queryFn: async () => {
       try {
@@ -28,5 +32,5 @@ export function useRooms() {
     },
   });
 
-  return { data: query.data ?? fallback, isLoading: query.isLoading && !query.data };
+  return { data: fallback, isLoading: false };
 }

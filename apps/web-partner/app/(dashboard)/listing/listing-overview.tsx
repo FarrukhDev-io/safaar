@@ -20,7 +20,7 @@ import {
   UtensilsCrossed,
   Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../../_components/ui/button";
 import { Card, CardBody } from "../../_components/ui/card";
@@ -80,6 +80,12 @@ export function ListingOverview() {
   const dacha = isDacha(partnerType);
   const isHostel = hasBeds(partnerType);
   const restaurant = isRestaurant(partnerType);
+  const ensureRestaurantListingSeed = useDataStore((s) => s.ensureRestaurantListingSeed);
+
+  useEffect(() => {
+    if (restaurant) ensureRestaurantListingSeed();
+  }, [restaurant, ensureRestaurantListingSeed]);
+
   const [openEditor, setOpenEditor] = useState<OpenEditor>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [roomTypeDialogOpen, setRoomTypeDialogOpen] = useState(false);
@@ -708,8 +714,8 @@ function RoomAdCard({
               <Users className="h-3.5 w-3.5" aria-hidden />
               {capacity} kishi
             </span>
-            {bedType && <span>{bedType}</span>}
-            {typeof sizeSqm === "number" && sizeSqm > 0 && (
+            {!restaurant && bedType && <span>{bedType}</span>}
+            {!restaurant && typeof sizeSqm === "number" && sizeSqm > 0 && (
               <span>{sizeSqm} m²</span>
             )}
             <span>{listedUnits}/{totalUnits} {unitLabel} e'londa</span>

@@ -16,21 +16,26 @@ export function useFrontDeskStats() {
   void reservations;
   void rooms;
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
-  const fallback = getStats();
+  const data = getStats();
+
+  // Faqat real backend bilan sinxronlash uchun urinish — natija o'qilmaydi,
+  // chunki `data` (Zustand'dan hisoblangan) har doim haqiqiy manba
+  // hisoblanadi. Aks holda React Query'ning `staleTime` keshi keyingi
+  // do'kon o'zgarishlarini UI'dan berkitib qo'yadi.
   const query = useQuery({
     queryKey: ["partner", "dashboard"],
     queryFn: async () => {
       try {
         return toFrontDeskStats(await partners.getRawDashboard(accessToken));
       } catch {
-        return fallback;
+        return data;
       }
     },
   });
 
   return {
-    data: query.data ?? fallback,
-    isLoading: query.isLoading && !query.data,
+    data,
+    isLoading: false,
     refetch: query.refetch,
     isFetching: query.isFetching,
   };

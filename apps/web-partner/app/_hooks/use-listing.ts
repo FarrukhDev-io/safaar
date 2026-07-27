@@ -8,7 +8,12 @@ import { useDataStore } from "../_stores/data-store";
 /** E'lon (listing) — mehmonxona mijozga ko'rinadigan sahifasi. */
 export function useListing() {
   const fallback = useDataStore((s) => s.listing);
-  const query = useQuery({
+
+  // Faqat real backend bilan sinxronlash uchun urinish — natija o'qilmaydi,
+  // chunki `fallback` (Zustand) har doim haqiqiy manba hisoblanadi. Aks holda
+  // React Query'ning `staleTime` keshi keyingi do'kon o'zgarishlarini
+  // (masalan reseed yoki tahrirlarni) UI'dan berkitib qo'yadi.
+  useQuery({
     queryKey: ["partner", "listing"],
     queryFn: async () => {
       try {
@@ -20,7 +25,7 @@ export function useListing() {
     },
   });
 
-  return { data: query.data ?? fallback, isLoading: query.isLoading && !query.data };
+  return { data: fallback, isLoading: false };
 }
 
 /** E'lon to'ldirilganligini tekshirish. */

@@ -172,7 +172,7 @@ export function LocationEditor({
             <Label>Manzil</Label>
             <Input value={data.address} disabled />
             <p className="text-xs text-[var(--muted-foreground)]">
-              Manzilni Sozlamalar → Mehmonxona bo'limidan o'zgartiring.
+              Manzilni Sozlamalar → Biznes bo'limidan o'zgartiring.
             </p>
           </div>
           <div className="flex flex-col gap-2 rounded-card border border-[var(--border)] bg-[var(--surface-muted)] p-3">

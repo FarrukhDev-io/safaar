@@ -13,7 +13,7 @@ import { Label } from "../../../_components/ui/label";
 import { useListing } from "../../../_hooks/use-listing";
 import { useDataStore } from "../../../_stores/data-store";
 import { useAuthStore } from "../../../_stores/auth-store";
-import { hasStarRating } from "../../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasStarRating, isRestaurant } from "../../../_lib/utils/partner-labels";
 import { cn } from "../../../_lib/utils/cn";
 
 const schema = z.object({
@@ -36,6 +36,8 @@ export function GeneralEditor({
   const update = useDataStore((s) => s.updateListingGeneral);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const showStars = hasStarRating(partnerType);
+  const restaurant = isRestaurant(partnerType);
+  const labels = getPartnerLabels(partnerType);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -83,7 +85,7 @@ export function GeneralEditor({
           <Label htmlFor="e-name">Nomi</Label>
           <Input
             id="e-name"
-            placeholder="Hotel Samarkand Plaza"
+            placeholder={restaurant ? "Osh Markazi Samarqand" : "Hotel Samarkand Plaza"}
             aria-invalid={Boolean(err.name)}
             {...form.register("name")}
           />
@@ -187,7 +189,7 @@ export function GeneralEditor({
             </p>
           )}
           <p className="text-xs text-[var(--muted-foreground)]">
-            Mehmonxona sahifasida to'liq matn.
+            {labels.listingTitle} sahifasida to'liq matn.
           </p>
         </div>
       </form>

@@ -36,6 +36,25 @@ export const DACHA_UNIT_ROOM_TYPE_ID = "rt-dacha-unit";
 
 let reservationSeq = mockReservations.length;
 
+/** Restoran-ga xos ekanligini bildiruvchi belgi — mavjud bo'lsa reseed qayta ishlamaydi. */
+const RESTAURANT_SEED_MARKER = "halal";
+const RESTAURANT_DEFAULT_AMENITIES = [
+  "wifi",
+  RESTAURANT_SEED_MARKER,
+  "kids_menu",
+  "bar",
+  "outdoor_seating",
+  "live_music",
+  "parking",
+  "family_friendly",
+  "reservation_required",
+  "ac",
+];
+const RESTAURANT_SHORT_DESCRIPTION =
+  "Registon markazidan 200 metr uzoqlikda joylashgan, milliy va Yevropa taomlarini taklif etuvchi zamonaviy restoran.";
+const RESTAURANT_FULL_DESCRIPTION =
+  "Bizning restoranimiz tarixiy Registon ansambli yaqinida joylashgan. Mehmonlarga qulay stollar, ochiq terrasa, bepul Wi-Fi va bolalar menyusi taklif etiladi. Milliy va Yevropa taomlari professional oshpazlar tomonidan tayyorlanadi, kechqurun jonli musiqa dasturi bor.\n\nBiznes tushliklari, oilaviy kechki ovqatlar yoki katta tadbirlar uchun ideal joy.";
+
 export interface WalkInDraft {
   fullName: string;
   phone: string;
@@ -167,6 +186,8 @@ interface DataState {
   generateBedsForRoom: (roomId: string, count: number) => Bed[];
 
   // Listing (e'lon) mutations
+  /** Restoran uchun: hotel-shaped demo tavsif/qulaylik/rasm ma'lumotlarini almashtiradi (idempotent). */
+  ensureRestaurantListingSeed: () => void;
   updateListingGeneral: (draft: ListingGeneralDraft) => void;
   updateListingRules: (draft: ListingRulesDraft) => void;
   updateListingLocation: (draft: ListingLocationDraft) => void;
@@ -620,6 +641,20 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
 
   // ─── Listing (e'lon) mutations ───────────────────────────────────
+
+  ensureRestaurantListingSeed: () => {
+    const state = get();
+    if (state.listing.amenities.includes(RESTAURANT_SEED_MARKER)) return;
+    set({
+      listing: {
+        ...state.listing,
+        shortDescription: RESTAURANT_SHORT_DESCRIPTION,
+        fullDescription: RESTAURANT_FULL_DESCRIPTION,
+        amenities: RESTAURANT_DEFAULT_AMENITIES,
+        photos: [],
+      },
+    });
+  },
 
   updateListingGeneral: (draft) =>
     set((state) => ({
