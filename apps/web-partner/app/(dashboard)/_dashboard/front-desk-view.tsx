@@ -32,7 +32,7 @@ import { useAuthStore } from "../../_stores/auth-store";
 import { TODAY_ISO } from "../../_lib/mocks/data";
 import { formatDate, formatMoney } from "../../_lib/utils/format";
 import { cn } from "../../_lib/utils/cn";
-import { getPartnerLabels } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, isDacha } from "../../_lib/utils/partner-labels";
 import type { ReservationView } from "../../_lib/domain/types";
 
 // "IN_HOUSE" — backend'da BookingStatus enum'da yo'q, lekin frontend'da qo'llaniladi
@@ -81,6 +81,7 @@ export function FrontDeskView() {
   const user = useAuthStore((s) => s.user);
   const partnerType = user?.partnerType ?? "hotel";
   const labels = getPartnerLabels(partnerType);
+  const dacha = isDacha(partnerType);
 
   const checkIn = useDataStore((s) => s.checkIn);
   const checkOut = useDataStore((s) => s.checkOut);
@@ -263,6 +264,7 @@ export function FrontDeskView() {
                   kind={kind}
                   reservation={reservation}
                   labels={labels}
+                  dacha={dacha}
                   onCheckIn={() => handleCheckIn(reservation)}
                   onCheckOut={() => handleCheckOut(reservation)}
                   onConfirm={() => handleConfirm(reservation)}
@@ -288,7 +290,7 @@ export function FrontDeskView() {
               </div>
 
               {nextTask ? (
-                <NextTaskCard task={nextTask} labels={labels} />
+                <NextTaskCard task={nextTask} labels={labels} dacha={dacha} />
               ) : (
                 <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 p-4 text-sm text-center text-zinc-500 dark:text-zinc-400">
                   Hozircha shoshilinch vazifa yo'q. 🎉
@@ -412,6 +414,7 @@ function TaskCard({
   kind,
   reservation,
   labels,
+  dacha,
   onCheckIn,
   onCheckOut,
   onConfirm,
@@ -420,6 +423,7 @@ function TaskCard({
   kind: TaskKind;
   reservation: ReservationView;
   labels: PartnerLabels;
+  dacha: boolean;
   onCheckIn: () => void;
   onCheckOut: () => void;
   onConfirm: () => void;
@@ -461,8 +465,8 @@ function TaskCard({
         </div>
 
         <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-500 dark:text-zinc-400">
-          {/* Unit type */}
-          {reservation.roomTypeName && (
+          {/* Unit type — dacha uchun bitta birlik bo'lgani sabab ko'rsatilmaydi */}
+          {!dacha && reservation.roomTypeName && (
             <div className="flex items-center gap-1.5">
               <span className="text-zinc-400">📋</span>
               <span>
@@ -541,7 +545,7 @@ function TaskCard({
   );
 }
 
-function NextTaskCard({ task, labels }: { task: Task; labels: PartnerLabels }) {
+function NextTaskCard({ task, labels, dacha }: { task: Task; labels: PartnerLabels; dacha: boolean }) {
   const meta = TASK_META[task.kind];
   const beds = useDataStore((s) => s.beds);
   const bed = task.reservation.bedId ? beds.find((b) => b.id === task.reservation.bedId) : undefined;
@@ -565,7 +569,8 @@ function NextTaskCard({ task, labels }: { task: Task; labels: PartnerLabels }) {
           {task.reservation.guest.fullName}
         </p>
         <p className="truncate text-xs text-zinc-500 mt-0.5">
-          {kindLabel} · {task.reservation.roomTypeName}
+          {kindLabel}
+          {!dacha && task.reservation.roomTypeName && ` · ${task.reservation.roomTypeName}`}
           {bed && ` · ${bed.label}`}
           {task.reservation.slotTime && ` · ${task.reservation.slotTime}`}
         </p>
