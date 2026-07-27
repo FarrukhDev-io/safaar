@@ -12,13 +12,21 @@ interface DashboardStats {
 
 export default function FinanceOverviewPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    MockApi.getDashboardStats().then((data) => {
-      setStats(data);
-      setLoading(false);
-    });
+    Promise.all([MockApi.getDashboardStats(), MockApi.getWithdrawals()]).then(
+      ([data, withdrawals]) => {
+        setStats(data);
+        setPendingWithdrawals(
+          withdrawals
+            .filter((w) => w.status === "pending")
+            .reduce((sum, w) => sum + w.amount, 0),
+        );
+        setLoading(false);
+      },
+    );
   }, []);
 
   if (loading) {
@@ -68,7 +76,7 @@ export default function FinanceOverviewPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-[var(--text-secondary)]">Kutilayotgan to'lovlar</p>
-              <h3 className="text-2xl font-bold text-[var(--text-primary)] mt-1">{formatPrice(25100000)}</h3>
+              <h3 className="text-2xl font-bold text-[var(--text-primary)] mt-1">{formatPrice(pendingWithdrawals)}</h3>
             </div>
           </div>
         </div>

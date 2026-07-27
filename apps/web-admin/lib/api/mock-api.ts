@@ -1,4 +1,4 @@
-import { mockUsers, mockPartners, mockHotelBookings, mockWithdrawals, mockFinanceReports, mockCmsBanners, mockCmsNews, mockCmsPages, mockRegions, mockAmenities, mockPromos, mockTickets, mockTicketMessages } from "../mock-data";
+import { mockUsers, mockPartners, mockHotelBookings, mockBusBookings, mockWithdrawals, mockFinanceReports, mockCmsBanners, mockCmsNews, mockCmsPages, mockRegions, mockAmenities, mockPromos, mockTickets, mockTicketMessages, mockPartnerRequests } from "../mock-data";
 import {
   AdminManagedUser,
   Partner,
@@ -268,9 +268,12 @@ export const MockApi = {
           apiClient.get("/admin/partners/requests").catch(() => ({ data: { items: [] } })),
         ]);
         const backendRequests = items<BackendPartner>(backend.data).map(toPartnerRequest);
-        return mergeRequests(localRequests, backendRequests);
+        // Demo seed arizalar (mockPartnerRequests) eng past ustuvorlik bilan
+        // qo'shiladi — real backend yoki mahalliy (tmp fayl) manbadan kelgan
+        // arizalar bilan id to'qnashsa, ular ustunlik qiladi.
+        return mergeRequests(mergeRequests(localRequests, backendRequests), mockPartnerRequests);
       },
-      () => import("../mock-data").then((mod) => mod.mockPartnerRequests),
+      () => mockPartnerRequests,
     );
   },
 
@@ -336,8 +339,14 @@ export const MockApi = {
       () => ({
         totalUsers: mockUsers.length,
         totalPartners: mockPartners.length,
-        totalBookings: mockHotelBookings.length,
-        revenue: 15400000,
+        totalBookings: mockHotelBookings.length + mockBusBookings.length,
+        revenue:
+          mockHotelBookings
+            .filter((b) => b.status !== "CANCELLED")
+            .reduce((sum, b) => sum + b.amount, 0) +
+          mockBusBookings
+            .filter((b) => b.status !== "CANCELLED")
+            .reduce((sum, b) => sum + b.amount, 0),
       }),
     );
   },

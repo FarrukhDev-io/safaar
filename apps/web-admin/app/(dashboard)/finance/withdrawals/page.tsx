@@ -10,6 +10,7 @@ import { formatDate, formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import { Check, X, Download } from "lucide-react";
 import { exportToExcel } from "@/lib/export";
+import { toast } from "sonner";
 
 const STATUS_MAP = {
   pending: { label: "Kutilmoqda", color: "var(--warning)", bg: "rgba(243, 156, 18, 0.1)" },
@@ -29,11 +30,15 @@ export default function WithdrawalsPage() {
   }, []);
 
   const handleApprove = (id: string) => {
+    if (!confirm("Rostdan ham ushbu to'lov so'rovini tasdiqlamoqchimisiz?")) return;
     setData((prev) => prev.map((d) => d.id === id ? { ...d, status: "approved" } : d));
+    toast.success("To'lov so'rovi tasdiqlandi!");
   };
 
   const handleReject = (id: string) => {
+    if (!confirm("Rostdan ham ushbu to'lov so'rovini rad etmoqchimisiz?")) return;
     setData((prev) => prev.map((d) => d.id === id ? { ...d, status: "rejected" } : d));
+    toast.success("To'lov so'rovi rad etildi!");
   };
 
   const columns: Column<WithdrawalRequest>[] = [

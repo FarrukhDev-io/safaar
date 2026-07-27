@@ -13,7 +13,6 @@ import type { PartnerRequest } from "@/types/admin";
 import { PartnerTypeDisplay } from "@/components/ui/PartnerTypeDisplay";
 import { toast } from "sonner";
 
-import apiClient from "@/lib/api/client";
 import { useAdminStore } from "@/lib/store";
 
 function isActiveRequest(request: PartnerRequest) {
@@ -44,11 +43,11 @@ export default function PartnerRequestsPage() {
   const handleDecision = async (id: string, decision: "approve" | "reject") => {
     try {
       if (decision === "approve") {
-        await apiClient.post(`/admin/partners/${id}/approve`);
+        await MockApi.approvePartner(id);
         approvePartnerRequest(id);
         toast.success("Ariza muvaffaqiyatli tasdiqlandi!");
       } else {
-        await apiClient.post(`/admin/partners/${id}/reject`, { reason: "" });
+        await MockApi.rejectPartner(id, "");
         rejectPartnerRequest(id);
         toast.success("Ariza rad etildi!");
       }
@@ -123,7 +122,7 @@ export default function PartnerRequestsPage() {
         title={selectedRequest ? `Ariza: ${selectedRequest.companyName}` : ""}
         size="lg"
         footer={
-          selectedRequest && selectedRequest.status === "new" ? (
+          selectedRequest && isActiveRequest(selectedRequest) ? (
             <>
               <Button variant="danger" size="sm" icon={<XCircle size={14} />} onClick={() => handleDecision(selectedRequest.id, "reject")}>
                 Rad etish

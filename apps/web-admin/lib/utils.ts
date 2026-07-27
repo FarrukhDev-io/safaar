@@ -7,9 +7,22 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(" ");
 }
 
+/**
+ * Ming xonalarni bo'shliq bilan ajratish — `toLocaleString("uz-UZ")` ishlatilmaydi,
+ * chunki bu server (Node ICU) va brauzer (Chromium ICU) o'rtasida boshqacha
+ * ajratuvchi belgi (oddiy va uzilmas bo'shliq) ishlab, React hydration
+ * mismatchiga olib kelgan edi. Bu variant faqat oddiy string amallariga
+ * tayanadi — natija server va klientda har doim bir xil bo'ladi.
+ */
+function groupDigits(value: number): string {
+  const sign = value < 0 ? "-" : "";
+  const digits = Math.trunc(Math.abs(value)).toString();
+  return sign + digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
 /** Narxni o'zbek formatiga o'tkazish: 1234500 → "1 234 500 so'm" */
 export function formatPrice(amount: number): string {
-  return amount.toLocaleString("uz-UZ").replace(/,/g, " ") + " so'm";
+  return groupDigits(amount) + " so'm";
 }
 
 /** Qisqa narx: 85000000 → "85 mln" */
@@ -28,7 +41,7 @@ export function formatShortPrice(amount: number): string {
 
 /** Raqamni formatlash: 45230 → "45 230" */
 export function formatNumber(num: number): string {
-  return num.toLocaleString("uz-UZ").replace(/,/g, " ");
+  return groupDigits(num);
 }
 
 /** ISO sanani o'zbek formatiga: "2026-06-15" → "15.06.2026" */

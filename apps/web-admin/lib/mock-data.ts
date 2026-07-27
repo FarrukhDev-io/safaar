@@ -19,6 +19,27 @@ import type {
   BookingDetail,
 } from "@/types/admin";
 
+/**
+ * Deterministik pseudo-random generator (mulberry32).
+ *
+ * `Math.random()` server va klientda har xil qiymat qaytaradi — bu esa
+ * demo ma'lumot to'g'ridan-to'g'ri render qilinganda React hydration
+ * mismatch xatosiga olib keladi (server HTML'i bilan klient render'i
+ * mos kelmay qoladi). Har bir generatsiya blokini bir xil seed bilan
+ * boshlab, natija har doim bir xil ("tasodifiy" ko'rinsa ham) bo'lishini
+ * kafolatlaymiz.
+ */
+function createSeededRandom(seed: number) {
+  let s = seed >>> 0;
+  return () => {
+    s |= 0;
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /* ────────────────────────────────────────────
    DASHBOARD
    ──────────────────────────────────────────── */
@@ -32,13 +53,14 @@ export const dashboardStats: DashboardStat[] = [
   { label: "Bekor qilingan", value: "487", change: -3.2, icon: "XCircle", color: "#E74C3C" },
 ];
 
+const randTrend = createSeededRandom(1);
 export const bookingTrends: BookingTrend[] = Array.from({ length: 30 }, (_, i) => {
   const d = new Date();
   d.setDate(d.getDate() - (29 - i));
   return {
     date: `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, "0")}`,
-    hotels: Math.floor(Math.random() * 80) + 40,
-    buses: Math.floor(Math.random() * 50) + 20,
+    hotels: Math.floor(randTrend() * 80) + 40,
+    buses: Math.floor(randTrend() * 50) + 20,
   };
 });
 
@@ -91,17 +113,18 @@ const userNames = [
   "Doniyor Qobilov", "Shahlo Mirkomilova",
 ];
 
+const randUsers = createSeededRandom(2);
 export const mockUsers: AdminManagedUser[] = userNames.map((name, i) => ({
   id: `U-${1001 + i}`,
   fullName: name,
   phone: `+998 ${90 + Math.floor(i / 10)} ${String(100 + i * 13).slice(0, 3)} ${String(2000 + i * 37).slice(0, 2)} ${String(10 + i * 7).slice(0, 2)}`,
   email: name.toLowerCase().replace(/ /g, ".").replace(/'/g, "") + "@gmail.com",
   status: i % 7 === 0 ? "blocked" : i % 11 === 0 ? "unverified" : "active" as const,
-  bookingsCount: Math.floor(Math.random() * 25),
-  totalSpent: Math.floor(Math.random() * 15_000_000),
-  bonusBalance: Math.floor(Math.random() * 500_000),
-  lastLogin: new Date(Date.now() - Math.random() * 30 * 86400000).toISOString(),
-  createdAt: new Date(Date.now() - Math.random() * 365 * 86400000).toISOString(),
+  bookingsCount: Math.floor(randUsers() * 25),
+  totalSpent: Math.floor(randUsers() * 15_000_000),
+  bonusBalance: Math.floor(randUsers() * 500_000),
+  lastLogin: new Date(Date.now() - randUsers() * 30 * 86400000).toISOString(),
+  createdAt: new Date(Date.now() - randUsers() * 365 * 86400000).toISOString(),
 }));
 
 /* ────────────────────────────────────────────
@@ -121,6 +144,7 @@ const partnerData = [
   { name: "Andijan Grand", type: "hotel" as const, city: "Andijon", rating: 3.9 },
 ];
 
+const randPartners = createSeededRandom(3);
 export const mockPartners: Partner[] = partnerData.map((p, i) => ({
   id: `P-${201 + i}`,
   companyName: p.name,
@@ -130,15 +154,15 @@ export const mockPartners: Partner[] = partnerData.map((p, i) => ({
   email: p.name.toLowerCase().replace(/ /g, "").replace(/'/g, "") + "@company.uz",
   city: p.city,
   address: `${p.city}, Amir Temur ko'chasi ${10 + i}`,
-  commissionPercent: p.type === "hotel" ? 12 + Math.floor(Math.random() * 6) : 8 + Math.floor(Math.random() * 5),
+  commissionPercent: p.type === "hotel" ? 12 + Math.floor(randPartners() * 6) : 8 + Math.floor(randPartners() * 5),
   rating: p.rating,
-  totalBookings: Math.floor(Math.random() * 500) + 50,
-  totalRevenue: Math.floor(Math.random() * 200_000_000) + 10_000_000,
+  totalBookings: Math.floor(randPartners() * 500) + 50,
+  totalRevenue: Math.floor(randPartners() * 200_000_000) + 10_000_000,
   status: i % 8 === 0 ? "suspended" : i % 12 === 0 ? "blocked" : "active" as const,
   bankName: "Kapitalbank",
   bankAccount: `20208000${String(10000000 + i * 123456).slice(0, 12)}`,
   bankMfo: "00873",
-  createdAt: new Date(Date.now() - Math.random() * 365 * 86400000).toISOString(),
+  createdAt: new Date(Date.now() - randPartners() * 365 * 86400000).toISOString(),
 }));
 
 export const mockPartnerRequests: PartnerRequest[] = [
@@ -392,12 +416,13 @@ const methods = ["click", "payme", "uzcard", "humo"] as const;
 const roomTypes = ["Standart", "Deluxe", "Suite", "Family", "Apartament"];
 const cities = ["Toshkent", "Samarqand", "Buxoro", "Xiva", "Farg'ona", "Namangan"];
 
+const randHotelBookings = createSeededRandom(4);
 export const mockHotelBookings: AdminHotelBooking[] = Array.from({ length: 50 }, (_, i) => {
   const checkIn = new Date(Date.now() + (i - 25) * 86400000);
-  const nights = Math.floor(Math.random() * 5) + 1;
+  const nights = Math.floor(randHotelBookings() * 5) + 1;
   const checkOut = new Date(checkIn.getTime() + nights * 86400000);
-  const amount = (Math.floor(Math.random() * 800) + 200) * 1000;
-  const commissionPct = 0.12 + Math.random() * 0.06;
+  const amount = (Math.floor(randHotelBookings() * 800) + 200) * 1000;
+  const commissionPct = 0.12 + randHotelBookings() * 0.06;
 
   return {
     id: `B-${4500 + i}`,
@@ -408,19 +433,20 @@ export const mockHotelBookings: AdminHotelBooking[] = Array.from({ length: 50 },
     checkIn: checkIn.toISOString().split("T")[0],
     checkOut: checkOut.toISOString().split("T")[0],
     nights,
-    guests: Math.floor(Math.random() * 3) + 1,
+    guests: Math.floor(randHotelBookings() * 3) + 1,
     amount,
     paymentMethod: methods[i % methods.length],
     commission: Math.floor(amount * commissionPct),
     status: statuses[i % statuses.length],
     city: cities[i % cities.length],
-    createdAt: new Date(Date.now() - Math.random() * 30 * 86400000).toISOString(),
+    createdAt: new Date(Date.now() - randHotelBookings() * 30 * 86400000).toISOString(),
   };
 });
 
+const randBusBookings = createSeededRandom(5);
 export const mockBusBookings: AdminBusBooking[] = Array.from({ length: 30 }, (_, i) => {
   const dep = new Date(Date.now() + (i - 15) * 86400000);
-  const amount = (Math.floor(Math.random() * 150) + 50) * 1000;
+  const amount = (Math.floor(randBusBookings() * 150) + 50) * 1000;
 
   const busNames = ["Comfort Bus", "Sharq Transport", "Buxoro Express"];
 
@@ -432,12 +458,12 @@ export const mockBusBookings: AdminBusBooking[] = Array.from({ length: 30 }, (_,
     route: routes[i % routes.length],
     departureDate: dep.toISOString().split("T")[0],
     departureTime: `${String(6 + (i % 14)).padStart(2, "0")}:${i % 2 === 0 ? "00" : "30"}`,
-    seatNumber: `${Math.floor(Math.random() * 40) + 1}`,
+    seatNumber: `${Math.floor(randBusBookings() * 40) + 1}`,
     amount,
     paymentMethod: methods[i % methods.length],
     commission: Math.floor(amount * 0.1),
     status: statuses[i % statuses.length],
-    createdAt: new Date(Date.now() - Math.random() * 30 * 86400000).toISOString(),
+    createdAt: new Date(Date.now() - randBusBookings() * 30 * 86400000).toISOString(),
   };
 });
 
@@ -466,7 +492,7 @@ export function getMockBookingDetail(id: string): BookingDetail | null {
       totalAmount: booking.amount,
       commission: booking.commission,
       partnerAmount: booking.amount - booking.commission,
-      transactionId: `TXN-${Date.now().toString(36).toUpperCase()}-${booking.id}`,
+      transactionId: `TXN-${new Date(booking.createdAt).getTime().toString(36).toUpperCase()}-${booking.id}`,
       paidAt: booking.createdAt,
       statusHistory: [
         { status: "Yaratildi", timestamp: booking.createdAt },
@@ -495,7 +521,7 @@ export function getMockBookingDetail(id: string): BookingDetail | null {
     totalAmount: booking.amount,
     commission: booking.commission,
     partnerAmount: booking.amount - booking.commission,
-    transactionId: `TXN-${Date.now().toString(36).toUpperCase()}-${booking.id}`,
+    transactionId: `TXN-${new Date(booking.createdAt).getTime().toString(36).toUpperCase()}-${booking.id}`,
     paidAt: booking.createdAt,
     statusHistory: [
       { status: "Yaratildi", timestamp: booking.createdAt },
