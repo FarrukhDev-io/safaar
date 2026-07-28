@@ -45,6 +45,11 @@
   },
   "footer": {
     "tagline": "Book hotels and resort stays across Uzbekistan.",
-    "rights": "All rights reserved."
+    "rights": "All rights reserved.",
+    "phone": "+998 90 449 08 93",
+    "email": "info@safaar.uz",
+    "supportLabel": "(Support)",
+    "secureBooking": "Secure and guaranteed booking",
+    "partner": "Partners"
   }
 }

@@ -6,16 +6,17 @@ import { cn } from "@/lib/cn";
 
 type Variant = "primary" | "accent" | "secondary" | "ghost";
 type Size = "sm" | "md" | "lg";
+type Rounded = "full" | "2xl" | "xl" | "lg" | "md" | "sm";
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    "bg-primary-600 text-white shadow-btn hover:bg-primary-500 hover:shadow-btn-hover active:bg-primary-700 active:shadow-btn-active active:scale-[0.97] transition-all duration-150",
+    "bg-primary-600 text-white shadow-md hover:shadow-lg hover:bg-primary-500 active:scale-[0.98] transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none",
   accent:
-    "bg-accent-600 text-white shadow-btn hover:bg-accent-500 hover:shadow-btn-hover active:bg-accent-700 active:shadow-btn-active active:scale-[0.97] transition-all duration-150",
+    "bg-accent-600 text-white shadow-md hover:shadow-lg hover:bg-accent-500 active:scale-[0.98] transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none",
   secondary:
-    "border border-slate-200 bg-white text-slate-900 shadow-btn hover:bg-slate-50 hover:border-slate-300 hover:shadow-btn-hover active:bg-slate-100 active:shadow-btn-active active:scale-[0.97] transition-all duration-150",
+    "border border-slate-200 bg-white text-slate-900 shadow-sm hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all duration-150 disabled:bg-white disabled:border-slate-100 disabled:text-slate-300 disabled:shadow-none",
   ghost:
-    "text-slate-700 hover:bg-slate-100 active:bg-slate-200 active:scale-[0.97] transition-all duration-150",
+    "text-slate-700 hover:bg-slate-100 active:scale-[0.98] transition-all duration-150 disabled:bg-transparent disabled:text-slate-300",
 };
 
 const sizeClasses: Record<Size, string> = {
@@ -24,9 +25,19 @@ const sizeClasses: Record<Size, string> = {
   lg: "min-h-[48px] h-12 px-6 text-base font-extrabold",
 };
 
+const roundedClasses: Record<Rounded, string> = {
+  full: "rounded-full",
+  "2xl": "rounded-2xl",
+  xl: "rounded-xl",
+  lg: "rounded-lg",
+  md: "rounded-md",
+  sm: "rounded-sm",
+};
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
+  rounded?: Rounded;
   /** Yuklanish holati: spinner ko'rsatadi, tugmani o'chiradi (aria-busy). */
   loading?: boolean;
 }
@@ -34,6 +45,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({
   variant = "primary",
   size = "md",
+  rounded = "xl",
   loading = false,
   className,
   disabled,
@@ -43,9 +55,10 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full font-bold transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-blue-400 dark:focus-visible:ring-offset-slate-900",
+        "inline-flex items-center justify-center gap-2 font-bold transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:pointer-events-none",
         variantClasses[variant],
         sizeClasses[size],
+        roundedClasses[rounded],
         className,
       )}
       disabled={disabled || loading}

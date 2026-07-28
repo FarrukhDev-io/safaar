@@ -87,7 +87,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-5">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-light)] flex items-center justify-center text-white text-xl font-bold">
-              {user.fullName.split(" ").map((n) => n[0]).join("")}
+              {user.fullName.trim().split(/\s+/).filter(Boolean).map((n) => n[0]).join("")}
             </div>
             <div>
               <h1 className="text-xl font-bold text-[var(--text-primary)]">{user.fullName}</h1>

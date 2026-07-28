@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { Filter, X, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 
 export interface FilterSidebarProps {
   title?: string;
@@ -50,21 +51,25 @@ export function FilterSidebar({
         <div className="flex flex-col gap-1">{children}</div>
 
         <div className="flex gap-2 pt-3">
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={onApply}
-            className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-all hover:bg-blue-700 active:scale-95"
+            className="flex-1 rounded-xl"
           >
             {applyLabel}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={onReset}
             aria-label={resetLabel}
-            className="flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            className="rounded-xl"
           >
             <RotateCcw className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </aside>
 
@@ -87,13 +92,16 @@ export function FilterSidebar({
                   {title}
                 </h2>
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                rounded="full"
+                size="sm"
                 onClick={onClose}
-                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="h-8 w-8 min-h-0 p-0 flex items-center justify-center border-none text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
                 <X className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
 
             {/* Scrollable body */}
@@ -103,24 +111,28 @@ export function FilterSidebar({
 
             {/* Footer */}
             <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/40">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="md"
                 onClick={onReset}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                className="flex-1 rounded-xl"
               >
                 <RotateCcw className="h-4 w-4" />
-                {resetLabel}
-              </button>
-              <button
+                <span>{resetLabel}</span>
+              </Button>
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
                 onClick={() => {
                   onApply();
                   onClose();
                 }}
-                className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-blue-700"
+                className="flex-1 rounded-xl"
               >
                 {applyLabel}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

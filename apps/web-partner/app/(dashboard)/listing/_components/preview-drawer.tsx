@@ -217,8 +217,9 @@ export function PreviewDrawer({
                           <Users className="h-3.5 w-3.5" aria-hidden />
                           {roomType.capacity} kishi
                         </span>
-                        {roomType.bedType && <span>{roomType.bedType}</span>}
-                        {typeof roomType.sizeSqm === "number" &&
+                        {!restaurant && roomType.bedType && <span>{roomType.bedType}</span>}
+                        {!restaurant &&
+                          typeof roomType.sizeSqm === "number" &&
                           roomType.sizeSqm > 0 && (
                             <span>{roomType.sizeSqm} m²</span>
                           )}

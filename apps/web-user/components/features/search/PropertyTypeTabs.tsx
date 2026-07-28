@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PT_TYPES, PT_ICONS } from "./constants";
 import type { PropertyType } from "./types";
+import { Button } from "@/components/ui/Button";
 
 interface Props {
   activeType: PropertyType;
@@ -28,46 +29,51 @@ export function PropertyTypeTabs({ activeType, onChange, labels }: Props) {
       {/* ═══ Desktop: row ═══ */}
       <div className="hidden items-center gap-1.5 sm:flex">
         {PT_TYPES.map((type) => (
-          <button
+          <Button
             key={type}
             type="button"
+            variant={activeType === type ? "primary" : "ghost"}
+            size="sm"
+            rounded="full"
             onClick={() => onChange(type)}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
-              activeType === type
-                ? "bg-primary-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-            }`}
+            className="gap-1.5 border-none"
           >
             <span className="text-sm">{PT_ICONS[type]}</span>
             <span>{labels[type]}</span>
-          </button>
+          </Button>
         ))}
       </div>
 
       {/* ═══ Mobil: slider ═══ */}
       <div className="flex items-center justify-center gap-3 sm:hidden">
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
+          rounded="full"
           onClick={prev}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 active:scale-90"
+          className="h-9 w-9 min-h-0 p-0 flex items-center justify-center border-slate-350"
           aria-label="Oldingi"
         >
           <ChevronLeft className="h-5 w-5" />
-        </button>
+        </Button>
 
         <div className="flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2 text-sm font-semibold text-white shadow-sm">
           <span>{PT_ICONS[activeType]}</span>
           <span>{labels[activeType]}</span>
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
+          rounded="full"
           onClick={next}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 active:scale-90"
+          className="h-9 w-9 min-h-0 p-0 flex items-center justify-center border-slate-350"
           aria-label="Keyingi"
         >
           <ChevronRight className="h-5 w-5" />
-        </button>
+        </Button>
       </div>
     </>
   );

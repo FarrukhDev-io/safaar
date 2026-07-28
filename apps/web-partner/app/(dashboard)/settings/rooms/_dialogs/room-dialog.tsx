@@ -28,7 +28,7 @@ const schema = z.object({
     .min(1, "Raqamni kiriting")
     .regex(/^[0-9]+$/, "Faqat raqamlar"),
   floor: z.number().int().min(1).max(50),
-  roomTypeId: z.string().min(1, "Xona turini tanlang"),
+  roomTypeId: z.string().min(1, "Turini tanlang"),
   status: z.enum(RoomStatus),
   isListed: z.boolean(),
   nightlyPrice: z.number().int().positive().optional(),

@@ -10,7 +10,7 @@ import { formatDate, formatPrice } from "@/lib/utils";
 import { PARTNER_STATUS_MAP, BOOKING_STATUS_MAP } from "@/lib/constants";
 import {
   ArrowLeft, Ban, CheckCircle, Pause, Mail, MessageSquare, Trash2,
-  Hotel, Bus, Star, CalendarCheck, CreditCard, Pencil, MessageCircle, Home, Bed, Trees
+  Hotel, Bus, Star, CalendarCheck, CreditCard, Pencil, MessageCircle, Home, Bed, Trees, UtensilsCrossed
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -91,13 +91,16 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               style={{
                 background: partner.type === "bus"
                   ? "linear-gradient(135deg, #2ECC71, #25A85C)"
-                  : "linear-gradient(135deg, #1E3A5F, #2B5278)",
+                  : partner.type === "restaurant"
+                    ? "linear-gradient(135deg, #E67E22, #D35400)"
+                    : "linear-gradient(135deg, #1E3A5F, #2B5278)",
               }}
             >
-              {partner.type === "bus" ? <Bus size={28} /> : 
+              {partner.type === "bus" ? <Bus size={28} /> :
                partner.type === "hostel" ? <Bed size={28} /> :
                partner.type === "guesthouse" ? <Home size={28} /> :
                partner.type === "dacha" ? <Trees size={28} /> :
+               partner.type === "restaurant" ? <UtensilsCrossed size={28} /> :
                <Hotel size={28} />}
             </div>
             <div>

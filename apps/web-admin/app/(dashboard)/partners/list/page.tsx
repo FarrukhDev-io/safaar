@@ -160,6 +160,7 @@ export default function PartnersListPage() {
               { value: "guesthouse", label: "Mehmon uyi" },
               { value: "motel", label: "Motel" },
               { value: "dacha", label: "Dacha" },
+              { value: "restaurant", label: "Restoran" },
               { value: "bus", label: "Avtobus" },
             ]}
           />

@@ -45,6 +45,11 @@
   },
   "footer": {
     "tagline": "O'zbekiston bo'ylab mehmonxona va dam olish joylarini bron qilish.",
-    "rights": "Barcha huquqlar himoyalangan."
+    "rights": "Barcha huquqlar himoyalangan.",
+    "phone": "+998 90 449 08 93",
+    "email": "info@safaar.uz",
+    "supportLabel": "(Qo'llab-quvvatlash)",
+    "secureBooking": "Xavfsiz va kafolatlangan bron qilish",
+    "partner": "Hamkorlar"
   }
 }

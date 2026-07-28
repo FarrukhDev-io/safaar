@@ -94,6 +94,7 @@ export function ListingOverview() {
   const dacha = isDacha(partnerType);
   const isHostel = hasBeds(partnerType);
   const restaurant = isRestaurant(partnerType);
+
   const [openEditor, setOpenEditor] = useState<OpenEditor>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [roomTypeDialogOpen, setRoomTypeDialogOpen] = useState(false);
@@ -820,8 +821,8 @@ function RoomAdCard({
                   <Users className="h-3.5 w-3.5" aria-hidden />
                   {capacity} kishi
                 </span>
-                {bedType && <span>{bedType}</span>}
-                {typeof sizeSqm === 'number' && sizeSqm > 0 && (
+                {!restaurant && bedType && <span>{bedType}</span>}
+                {!restaurant && typeof sizeSqm === 'number' && sizeSqm > 0 && (
                   <span>{sizeSqm} m²</span>
                 )}
                 <span>

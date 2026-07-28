@@ -1,4 +1,4 @@
-import { Hotel, Bus, Home, Bed, Trees, MapPin, Utensils } from 'lucide-react';
+import { Hotel, Bus, Home, Bed, Trees, MapPin, UtensilsCrossed } from 'lucide-react';
 import React from 'react';
 
 export type ExtendedPartnerType =
@@ -41,7 +41,7 @@ export function PartnerTypeDisplay({ type }: { type: ExtendedPartnerType }) {
       label = 'Avtobus';
       break;
     case 'restaurant':
-      icon = <Utensils size={14} className="text-[var(--accent)]" />;
+      icon = <UtensilsCrossed size={14} className="text-[var(--accent)]" />;
       label = 'Restoran';
       break;
     default:

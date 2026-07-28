@@ -10,7 +10,7 @@ import { formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 import { BOOKING_STATUS_MAP, PAYMENT_METHOD_MAP } from "@/lib/constants";
 import {
   ArrowLeft, Ban, DollarSign, Phone, Mail, Printer, MessageSquare,
-  Hotel, Bus, User, CreditCard, Clock, CheckCircle,
+  Hotel, Bus, UtensilsCrossed, User, CreditCard, Clock, CheckCircle,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -48,6 +48,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const isHotel = booking.serviceType === "hotel";
+  const isRestaurant = booking.serviceType === "restaurant";
 
   const handleCancel = async () => {
     if (confirm("Rostdan ham ushbu bronni bekor qilmoqchimisiz?")) {
@@ -61,7 +62,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6">
       {/* Back */}
       <Link
-        href={isHotel ? "/bookings/hotels" : "/bookings/buses"}
+        href={!isHotel && !isRestaurant ? "/bookings/buses" : "/bookings/hotels"}
         className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors w-fit"
       >
         <ArrowLeft size={16} />
@@ -76,10 +77,12 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             style={{
               background: isHotel
                 ? "linear-gradient(135deg, #1E3A5F, #2B5278)"
-                : "linear-gradient(135deg, #2ECC71, #25A85C)",
+                : isRestaurant
+                  ? "linear-gradient(135deg, #B8860B, #D4A017)"
+                  : "linear-gradient(135deg, #2ECC71, #25A85C)",
             }}
           >
-            {isHotel ? <Hotel size={24} /> : <Bus size={24} />}
+            {isHotel ? <Hotel size={24} /> : isRestaurant ? <UtensilsCrossed size={24} /> : <Bus size={24} />}
           </div>
           <div>
             <div className="flex items-center gap-3">
@@ -87,7 +90,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               <StatusBadge status={String(booking.status)} statusMap={BOOKING_STATUS_MAP} />
             </div>
             <p className="text-sm text-[var(--text-muted)] mt-0.5">
-              {isHotel ? "Mehmonxona bron" : "Avtobus bron"} · Yaratilgan: {formatDateTime(booking.createdAt)}
+              {isHotel ? "Mehmonxona bron" : isRestaurant ? "Restoran bron" : "Avtobus bron"} · Yaratilgan: {formatDateTime(booking.createdAt)}
             </p>
           </div>
         </div>
@@ -142,9 +145,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
           {/* Service info */}
           <Card padding="lg">
             <div className="flex items-center gap-2 mb-4">
-              {isHotel ? <Hotel size={18} className="text-[var(--primary)]" /> : <Bus size={18} className="text-[var(--accent)]" />}
+              {isHotel ? <Hotel size={18} className="text-[var(--primary)]" /> : isRestaurant ? <UtensilsCrossed size={18} className="text-[var(--accent)]" /> : <Bus size={18} className="text-[var(--accent)]" />}
               <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                {isHotel ? "Mehmonxona ma'lumotlari" : "Avtobus ma'lumotlari"}
+                {isHotel ? "Mehmonxona ma'lumotlari" : isRestaurant ? "Restoran ma'lumotlari" : "Avtobus ma'lumotlari"}
               </h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -177,6 +180,33 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                   <div className="col-span-2">
                     <p className="text-xs text-[var(--text-muted)] mb-1">Tunlar soni</p>
                     <p className="text-sm font-medium">{booking.nights} tun</p>
+                  </div>
+                </>
+              ) : isRestaurant ? (
+                <>
+                  <div>
+                    <p className="text-xs text-[var(--text-muted)] mb-1">Restoran</p>
+                    <p className="text-sm font-medium">{booking.hotelName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-muted)] mb-1">Manzil</p>
+                    <p className="text-sm font-medium">{booking.hotelAddress}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-muted)] mb-1">Stol turi</p>
+                    <p className="text-sm font-medium">{booking.roomType}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-muted)] mb-1">Kishilar soni</p>
+                    <p className="text-sm font-medium">{booking.guests} kishi</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-muted)] mb-1">Sana</p>
+                    <p className="text-sm font-medium">{formatDate(booking.checkIn!)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--text-muted)] mb-1">Vaqt</p>
+                    <p className="text-sm font-medium">{booking.slotTime}</p>
                   </div>
                 </>
               ) : (

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+import { BookingStatus } from "@safaar/types";
 import { Badge } from "../../../_components/ui/badge";
 import { Button } from "../../../_components/ui/button";
 import {
@@ -54,6 +55,18 @@ export function GuestDetailView({ id }: { id: string }) {
       .sort((a, b) => (b.checkIn > a.checkIn ? 1 : -1));
   }, [reservations, guest]);
 
+  // `guest.totalStays`/`totalSpent` mock ma'lumotdagi statik maydonlar —
+  // yangi bron qo'shilganda yangilanmaydi. Haqiqiy bronlardan hisoblanadi.
+  const stats = useMemo(() => {
+    const active = bookings.filter(
+      (b) => b.status !== BookingStatus.CANCELLED && b.status !== BookingStatus.EXPIRED,
+    );
+    return {
+      totalStays: active.length,
+      totalSpent: active.reduce((sum, b) => sum + b.paidAmount, 0),
+    };
+  }, [bookings]);
+
   if (!guest) {
     return (
       <EmptyState
@@ -72,7 +85,9 @@ export function GuestDetailView({ id }: { id: string }) {
   }
 
   const initials = guest.fullName
-    .split(" ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
     .map((w) => w[0])
     .slice(0, 2)
     .join("")
@@ -155,12 +170,12 @@ export function GuestDetailView({ id }: { id: string }) {
         <StatBox
           icon={<UnitIcon className="h-4 w-4" aria-hidden />}
           label="Jami tashriflar"
-          value={guest.totalStays}
+          value={stats.totalStays}
         />
         <StatBox
           icon={<Wallet className="h-4 w-4" aria-hidden />}
           label="Jami sarflagan"
-          value={formatMoney(guest.totalSpent)}
+          value={formatMoney(stats.totalSpent)}
         />
         <StatBox
           icon={<Crown className="h-4 w-4" aria-hidden />}

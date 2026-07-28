@@ -35,7 +35,7 @@ export function BaseCard({
 }: BaseCardProps) {
 
   const content = (
-    <article className={`flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 ${className}`}>
+    <article className={`flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md ${className}`}>
       {variant === "overlay" ? (
         /* Overlay variant (e.g. City Card) */
         <div className="relative aspect-[4/3] w-full overflow-hidden">
@@ -80,7 +80,7 @@ export function BaseCard({
           </div>
 
           <div className="flex flex-col gap-1 px-4 pt-3.5 pb-1">
-            <div className="line-clamp-1 text-base font-semibold text-slate-900 dark:text-white">
+            <div className="line-clamp-1 text-base font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               {title}
             </div>
             {subInfo && (

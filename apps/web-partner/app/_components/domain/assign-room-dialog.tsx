@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, Sparkles, Check } from "lucide-react";
+import { Users, Sparkles, Check, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BookingStatus } from "@safaar/types";
@@ -106,16 +106,36 @@ export function AssignRoomDialog({
       });
   }, [rooms]);
 
-  const handleConfirm = () => {
-    if (!reservation || !selected) return;
-    assignRoom.mutate({ id: reservation.id, roomNumber: selected }, {
+  // Xaritada birinchi ko'rinadigan mos xona — "Avtomatik tayinlash" shu bilan
+  // ishlaydi, natija odam qo'lda tanlaganida kutadigan tanlov bilan bir xil.
+  const firstAvailableRoom = floors
+    .flatMap((f) => f.rooms)
+    .find((r) => isRoomAvailable(r));
+
+  const assignAndClose = (roomNumber: string, auto: boolean) => {
+    if (!reservation) return;
+    assignRoom.mutate({ id: reservation.id, roomNumber }, {
       onSuccess: () => {
-        toast.success(`${unitCap} ${selected} muvaffaqiyatli tayinlandi.`);
-        onAssigned?.(selected);
+        toast.success(
+          auto
+            ? `${unitCap} ${roomNumber} avtomatik tayinlandi.`
+            : `${unitCap} ${roomNumber} muvaffaqiyatli tayinlandi.`,
+        );
+        onAssigned?.(roomNumber);
         setSelected(null);
         onClose();
       }
     });
+  };
+
+  const handleAutoAssign = () => {
+    if (!firstAvailableRoom) return;
+    assignAndClose(firstAvailableRoom.number, true);
+  };
+
+  const handleConfirm = () => {
+    if (!selected) return;
+    assignAndClose(selected, false);
   };
 
   return (
@@ -151,6 +171,22 @@ export function AssignRoomDialog({
                 </p>
               </div>
             </div>
+            <Button
+              onClick={handleAutoAssign}
+              disabled={!firstAvailableRoom || assignRoom.isPending}
+              loading={assignRoom.isPending}
+            >
+              <Zap className="h-4 w-4" aria-hidden />
+              Avtomatik tayinlash
+            </Button>
+          </div>
+        )}
+
+        {reservation && (
+          <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
+            <div className="h-px flex-1 bg-[var(--border)]" />
+            yoki qo'lda tanlang
+            <div className="h-px flex-1 bg-[var(--border)]" />
           </div>
         )}
 

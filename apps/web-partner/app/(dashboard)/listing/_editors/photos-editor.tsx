@@ -23,6 +23,8 @@ import {
   useListing,
   useUpdateListingPhoto,
 } from "../../../_hooks/use-listing";
+import { useAuthStore } from "../../../_stores/auth-store";
+import { isRestaurant } from "../../../_lib/utils/partner-labels";
 import { PhotoCategory } from "../../../_lib/domain/listing";
 import { cn } from "../../../_lib/utils/cn";
 
@@ -38,6 +40,28 @@ const CATEGORY_LABEL: Record<PhotoCategory, string> = {
   [PhotoCategory.OTHER]: "Boshqa",
 };
 
+const RESTAURANT_CATEGORY_LABEL: Record<PhotoCategory, string> = {
+  [PhotoCategory.FACADE]: "Old tomoni",
+  [PhotoCategory.LOBBY]: "Kutish zonasi",
+  [PhotoCategory.ROOM]: "Zal ichi",
+  [PhotoCategory.BATHROOM]: "Hojatxona",
+  [PhotoCategory.RESTAURANT]: "Taomlar",
+  [PhotoCategory.POOL]: "Hovuz",
+  [PhotoCategory.GYM]: "Fitness",
+  [PhotoCategory.SPA]: "Spa",
+  [PhotoCategory.OTHER]: "Boshqa",
+};
+
+/** Restoran uchun ma'nosiz kategoriyalar (hovuz/fitness/spa) tanlovdan chetlatiladi. */
+const RESTAURANT_VISIBLE_CATEGORIES: PhotoCategory[] = [
+  PhotoCategory.FACADE,
+  PhotoCategory.LOBBY,
+  PhotoCategory.ROOM,
+  PhotoCategory.BATHROOM,
+  PhotoCategory.RESTAURANT,
+  PhotoCategory.OTHER,
+];
+
 export function PhotosEditor({
   open,
   onClose,
@@ -49,6 +73,9 @@ export function PhotosEditor({
   const deletePhoto = useDeleteListingPhoto();
   const updatePhoto = useUpdateListingPhoto();
   const [addOpen, setAddOpen] = useState(false);
+  const partnerType = useAuthStore((s) => s.user?.partnerType);
+  const restaurant = isRestaurant(partnerType);
+  const categoryLabel = restaurant ? RESTAURANT_CATEGORY_LABEL : CATEGORY_LABEL;
 
   const sortedPhotos = [...data.photos].sort((a, b) => a.order - b.order);
   const busy = deletePhoto.isPending || updatePhoto.isPending;
@@ -99,7 +126,11 @@ export function PhotosEditor({
           <EmptyState
             icon={<ImageIcon className="h-10 w-10" aria-hidden />}
             title="Hozircha rasm yo'q"
-            description="Fasad rasmi bilan boshlang — u asosiy rasm sifatida ishlatiladi."
+            description={
+              restaurant
+                ? "Old tomon rasmi bilan boshlang — u asosiy rasm sifatida ishlatiladi."
+                : "Fasad rasmi bilan boshlang — u asosiy rasm sifatida ishlatiladi."
+            }
             action={
               <Button onClick={() => setAddOpen(true)}>
                 <Plus className="h-4 w-4" aria-hidden />
@@ -122,7 +153,7 @@ export function PhotosEditor({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={photo.url}
-                  alt={photo.caption ?? CATEGORY_LABEL[photo.category]}
+                  alt={photo.caption ?? categoryLabel[photo.category]}
                   className="aspect-video w-full object-cover"
                 />
 
@@ -136,7 +167,7 @@ export function PhotosEditor({
                 <div className="absolute inset-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/70 via-transparent to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-semibold text-white">
-                      {CATEGORY_LABEL[photo.category]}
+                      {categoryLabel[photo.category]}
                     </span>
                     {photo.caption && (
                       <span className="text-[10px] text-white/80">
@@ -239,6 +270,12 @@ function AddPhotoDialog({
   const addPhoto = useAddListingPhoto();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
+  const partnerType = useAuthStore((s) => s.user?.partnerType);
+  const restaurant = isRestaurant(partnerType);
+  const categoryLabel = restaurant ? RESTAURANT_CATEGORY_LABEL : CATEGORY_LABEL;
+  const visibleCategories = restaurant
+    ? RESTAURANT_VISIBLE_CATEGORIES
+    : (Object.values(PhotoCategory) as PhotoCategory[]);
   const [caption, setCaption] = useState("");
   const [category, setCategory] = useState<PhotoCategory>(PhotoCategory.FACADE);
 
@@ -311,9 +348,9 @@ function AddPhotoDialog({
             onChange={(e) => setCategory(e.target.value as PhotoCategory)}
             className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"
           >
-            {Object.entries(CATEGORY_LABEL).map(([key, label]) => (
+            {visibleCategories.map((key) => (
               <option key={key} value={key}>
-                {label}
+                {categoryLabel[key]}
               </option>
             ))}
           </select>
