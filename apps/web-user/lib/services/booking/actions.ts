@@ -2,8 +2,27 @@
 
 import { redirect } from "next/navigation";
 import { api, ApiRequestError } from "@/lib/api";
-import { getSession } from "@/lib/auth/session";
+import { clearSession, getSession } from "@/lib/auth/session";
 import { defaultLocale, isLocale } from "@/i18n/config";
+
+const SESSION_EXPIRED_CODES = new Set([
+  "AUTH_TOKEN_INVALID",
+  "AUTH_SESSION_REVOKED",
+]);
+
+async function redirectToLoginIfSessionExpired(
+  error: unknown,
+  locale: string,
+): Promise<void> {
+  if (
+    error instanceof ApiRequestError &&
+    (error.statusCode === 401 ||
+      (error.code && SESSION_EXPIRED_CODES.has(error.code)))
+  ) {
+    await clearSession();
+    redirect(`/${locale}/login?next=/${locale}/booking&reason=session_expired`);
+  }
+}
 
 export interface CheckoutState {
   error?: string;
@@ -52,6 +71,7 @@ export async function createBookingAction(
       // Fall back to booking details page if payment session fails
     }
   } catch (error) {
+    await redirectToLoginIfSessionExpired(error, locale);
     return {
       error: error instanceof ApiRequestError ? error.message : "ERROR",
     };
@@ -117,6 +137,7 @@ export async function createBusBookingAction(
       // Fall back to booking details page
     }
   } catch (error) {
+    await redirectToLoginIfSessionExpired(error, locale);
     return {
       error: error instanceof ApiRequestError ? error.message : "ERROR",
     };

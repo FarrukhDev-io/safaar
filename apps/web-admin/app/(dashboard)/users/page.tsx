@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
@@ -14,6 +14,7 @@ import { USER_STATUS_MAP } from "@/lib/constants";
 import { Download, Mail } from "lucide-react";
 import type { AdminManagedUser } from "@/types/admin";
 import { exportToExcel } from "@/lib/export";
+import { AdminApi } from "@/lib/api/admin-api";
 
 import { useAdminStore } from "@/lib/store";
 
@@ -22,9 +23,17 @@ const ITEMS_PER_PAGE = 12;
 export default function UsersPage() {
   const router = useRouter();
   const users = useAdminStore((s) => s.users);
+  const setUsers = useAdminStore((s) => s.setUsers);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    AdminApi.getUsers()
+      .then((items) => setUsers(items))
+      .finally(() => setLoading(false));
+  }, [setUsers]);
 
   const filtered = useMemo(() => {
     let result = users;
@@ -98,6 +107,14 @@ export default function UsersPage() {
       render: (row) => <StatusBadge status={row.status} statusMap={USER_STATUS_MAP} />,
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6">

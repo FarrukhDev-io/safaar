@@ -1,10 +1,13 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../../../_components/ui/button";
 import { Drawer } from "../../../_components/ui/drawer";
-import { useListing } from "../../../_hooks/use-listing";
-import { useDataStore } from "../../../_stores/data-store";
+import {
+  useListing,
+  useUpdateListingAmenities,
+} from "../../../_hooks/use-listing";
 import { useAuthStore } from "../../../_stores/auth-store";
 import { isRestaurant } from "../../../_lib/utils/partner-labels";
 import { AMENITY_GROUPS, RESTAURANT_AMENITY_GROUPS } from "../../../_lib/domain/listing";
@@ -18,7 +21,7 @@ export function AmenitiesEditor({
   onClose: () => void;
 }) {
   const { data } = useListing();
-  const toggle = useDataStore((s) => s.toggleAmenity);
+  const updateAmenities = useUpdateListingAmenities();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const groups = isRestaurant(partnerType) ? RESTAURANT_AMENITY_GROUPS : AMENITY_GROUPS;
   const selected = new Set(data.amenities);
@@ -47,7 +50,21 @@ export function AmenitiesEditor({
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => toggle(item.id)}
+                    onClick={() => {
+                      const next = isOn
+                        ? data.amenities.filter((id) => id !== item.id)
+                        : [...data.amenities, item.id];
+                      updateAmenities.mutate(next, {
+                        onError: (error) => {
+                          toast.error(
+                            error instanceof Error
+                              ? error.message
+                              : "Qulayliklarni saqlab bo'lmadi",
+                          );
+                        },
+                      });
+                    }}
+                    disabled={updateAmenities.isPending}
                     aria-pressed={isOn}
                     className={cn(
                       "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-all",

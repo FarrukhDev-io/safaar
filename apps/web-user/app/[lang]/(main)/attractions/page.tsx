@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
+import { api } from "@/lib/api";
 import { AttractionsView } from "@/components/features/attractions/AttractionsView";
+import type { AttractionItem } from "@/components/catalog/types";
 
 export async function generateMetadata({
   params,
@@ -30,11 +32,26 @@ export default async function AttractionsPage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const attractionsDict = await getDictionary(locale, "attractions");
+  const [attractionsDict, attractions] = await Promise.all([
+    getDictionary(locale, "attractions"),
+    api.catalog.getAttractions(locale),
+  ]);
+
+  const items: AttractionItem[] = attractions.map((item) => ({
+    ...item,
+    categoryKey: toAttractionCategory(item.categoryKey),
+  }));
 
   return (
     <main className="flex flex-1 flex-col">
-      <AttractionsView dict={attractionsDict} />
+      <AttractionsView dict={attractionsDict} items={items} />
     </main>
   );
+}
+
+function toAttractionCategory(value: string): AttractionItem["categoryKey"] {
+  if (value === "historical" || value === "unesco" || value === "nature") {
+    return value;
+  }
+  return "historical";
 }

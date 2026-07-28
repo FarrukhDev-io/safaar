@@ -28,30 +28,18 @@ export interface MapContainerProps {
   className?: string;
 }
 
-function resolveItemCoords(item: MapMarkerItem): [number, number] {
-  if (typeof item.lat === "number" && typeof item.lng === "number" && item.lat !== 0) {
+function resolveItemCoords(item: MapMarkerItem): [number, number] | null {
+  if (
+    typeof item.lat === "number" &&
+    typeof item.lng === "number" &&
+    Number.isFinite(item.lat) &&
+    Number.isFinite(item.lng) &&
+    item.lat !== 0 &&
+    item.lng !== 0
+  ) {
     return [item.lat, item.lng];
   }
-  const city = (item.cityName ?? "").toLowerCase();
-  let baseLat = 41.2995;
-  let baseLng = 69.2401;
-
-  if (city.includes("samarqand") || city.includes("samarkand")) {
-    baseLat = 39.6542;
-    baseLng = 66.9597;
-  } else if (city.includes("buxoro") || city.includes("bukhara")) {
-    baseLat = 39.7747;
-    baseLng = 64.4286;
-  } else if (city.includes("xiva") || city.includes("khiva")) {
-    baseLat = 41.3783;
-    baseLng = 60.3639;
-  }
-
-  const hash = item.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const offsetLat = ((hash % 17) - 8) * 0.007;
-  const offsetLng = (((hash * 13) % 19) - 9) * 0.007;
-
-  return [baseLat + offsetLat, baseLng + offsetLng];
+  return null;
 }
 
 function createPricePinIcon(
@@ -97,7 +85,8 @@ export function MapContainer({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const firstCoords = items.length > 0 ? resolveItemCoords(items[0]) : center;
+    const firstCoords =
+      items.map(resolveItemCoords).find((coords) => coords !== null) ?? center;
 
     const map = L.map(containerRef.current, {
       center: firstCoords,
@@ -138,10 +127,13 @@ export function MapContainer({
     markersRef.current.clear();
 
     const bounds = L.latLngBounds([]);
+    let markerCount = 0;
 
     items.forEach((item) => {
       const coords = resolveItemCoords(item);
+      if (!coords) return;
       bounds.extend(coords);
+      markerCount += 1;
 
       const isSelected = item.id === selectedItemId;
       const isHovered = item.id === hoveredItemId;
@@ -197,7 +189,7 @@ export function MapContainer({
       markersRef.current.set(item.id, marker);
     });
 
-    if (items.length > 0) {
+    if (markerCount > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
   }, [items, selectedItemId, hoveredItemId, onSelectItem]);

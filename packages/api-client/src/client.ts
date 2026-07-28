@@ -64,6 +64,39 @@ function isApiError(payload: unknown): payload is ApiError {
   );
 }
 
+/**
+ * Backend xatolarni ikki xil shaklda qaytaradi:
+ *  - `/v1/*`:  { success:false, error: { code, message, fields }, meta }
+ *  - `/api/*` (legacy): { statusCode, code, message, fields, meta }
+ * `ApiError` turi tekis (flat) shaklga mos — shuning uchun ichma-ich
+ * `error.error.*`ni ham tekshirib, tekis obyektga o'tkazamiz.
+ */
+function extractApiError(payload: unknown, response: Response): ApiError {
+  const record =
+    typeof payload === "object" && payload !== null
+      ? (payload as Record<string, unknown>)
+      : {};
+  const nested =
+    typeof record.error === "object" && record.error !== null
+      ? (record.error as Record<string, unknown>)
+      : undefined;
+
+  return {
+    success: false,
+    message:
+      (nested?.message as string | undefined) ||
+      (record.message as string | undefined) ||
+      response.statusText ||
+      "Server xatosi",
+    code:
+      (nested?.code as string | undefined) ??
+      (record.code as string | undefined),
+    fields: nested?.fields ?? record.fields,
+    statusCode: response.status,
+    meta: record.meta as ApiError["meta"],
+  };
+}
+
 export async function apiFetch<T>(
   path: string,
   options: RequestOptions = {},
@@ -90,10 +123,7 @@ export async function apiFetch<T>(
     .catch(() => null)) as ApiResponse<T> | null;
 
   if (!response.ok || payload === null || isApiError(payload)) {
-    const error: ApiError = isApiError(payload)
-      ? payload
-      : { success: false, message: response.statusText || "Server xatosi" };
-    throw new ApiRequestError(error, response.status);
+    throw new ApiRequestError(extractApiError(payload, response), response.status);
   }
 
   if ("data" in payload) {

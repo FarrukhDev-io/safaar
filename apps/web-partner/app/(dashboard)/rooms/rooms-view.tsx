@@ -4,6 +4,7 @@ import { BedDouble, BedSingle, UtensilsCrossed, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../_components/layout/page-header";
+import { useBeds } from "../../_hooks/use-beds";
 import { useRooms } from "../../_hooks/use-rooms";
 import { useRoomTypes } from "../../_hooks/use-room-types";
 import { RoomStatus, type Bed, type Room, type RoomType } from "../../_lib/domain/types";
@@ -19,6 +20,7 @@ export function RoomsView() {
   const router = useRouter();
   const { data: rooms } = useRooms();
   const { data: roomTypes } = useRoomTypes();
+  useBeds();
   const beds = useDataStore((s) => s.beds);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);

@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -24,6 +25,46 @@ const BS = {
   EXPIRED: BookingStatus.EXPIRED.toLowerCase(),
 } as const;
 
+interface HotelBookingRow {
+  id: string;
+  partner_organization_id: string;
+}
+
+interface HotelRoomRow {
+  id: string;
+  hotel_id: string;
+  base_price: string | number;
+}
+
+interface TripRow {
+  id: string;
+  company_id: string;
+  base_price: string | number;
+}
+
+interface TripSeatRow {
+  id: string;
+  seat_code: string;
+  status: string;
+  price: string | number;
+}
+
+interface BusCompanyRow {
+  partner_organization_id: string;
+}
+
+interface BookingRow {
+  id: string;
+  user_id: string | null;
+  partner_organization_id: string;
+  total_amount: string | number;
+  currency: string;
+  payment_method: string;
+  expires_at?: string | null;
+  booking_number?: string;
+  [key: string]: unknown;
+}
+
 @Injectable()
 export class BookingsService {
   constructor(
@@ -35,15 +76,15 @@ export class BookingsService {
     actor: RequestActor | undefined,
     dto: Record<string, unknown>,
   ) {
-    const currentActor = this.actorOrDemo(actor);
+    const currentActor = this.requireActor(actor);
     const hotelId = String(dto.hotel_id ?? dto.hotelId ?? '');
     const roomId = String(dto.room_id ?? dto.roomTypeId ?? '');
 
-    const [hotel] = await this.pg.query(
+    const [hotel] = await this.pg.query<HotelBookingRow>(
       "SELECT id, partner_organization_id FROM hotels WHERE id = $1 AND deleted_at IS NULL AND status = 'published'",
       [hotelId],
     );
-    const [room] = await this.pg.query(
+    const [room] = await this.pg.query<HotelRoomRow>(
       "SELECT id, base_price, hotel_id FROM hotel_rooms WHERE id = $1 AND hotel_id = $2 AND status = 'active' FOR UPDATE",
       [roomId, hotelId],
     );
@@ -99,10 +140,10 @@ export class BookingsService {
     actor: RequestActor | undefined,
     dto: Record<string, unknown>,
   ) {
-    const currentActor = this.actorOrDemo(actor);
+    const currentActor = this.requireActor(actor);
     const tripId = String(dto.trip_id ?? dto.tripId ?? '');
 
-    const [trip] = await this.pg.query(
+    const [trip] = await this.pg.query<TripRow>(
       "SELECT id, company_id, base_price FROM trips WHERE id = $1 AND status = 'scheduled'",
       [tripId],
     );
@@ -117,13 +158,13 @@ export class BookingsService {
     const seatCodes = Array.isArray(dto.seats)
       ? dto.seats.map(String)
       : (
-          await this.pg.query(
+          await this.pg.query<{ seat_code: string }>(
             "SELECT seat_code FROM trip_seats WHERE trip_id = $1 AND status = 'available' ORDER BY seat_code LIMIT 1",
             [tripId],
           )
         ).map((s) => s.seat_code);
 
-    const seats = await this.pg.query(
+    const seats = await this.pg.query<TripSeatRow>(
       'SELECT * FROM trip_seats WHERE trip_id = $1 AND seat_code = ANY($2::text[]) FOR UPDATE',
       [tripId, seatCodes],
     );
@@ -138,7 +179,7 @@ export class BookingsService {
       });
     }
 
-    const [company] = await this.pg.query(
+    const [company] = await this.pg.query<BusCompanyRow>(
       'SELECT partner_organization_id FROM bus_companies WHERE id = $1',
       [trip.company_id],
     );
@@ -195,9 +236,7 @@ export class BookingsService {
 
   async retryPayment(actor: RequestActor | undefined, id: string) {
     const booking = await this.assertBooking(id, actor);
-    return this.createPayment(
-      booking as Parameters<typeof this.createPayment>[0],
-    );
+    return this.createPayment(booking);
   }
 
   async cancelPreview(actor: RequestActor | undefined, id: string) {
@@ -256,7 +295,7 @@ export class BookingsService {
       booking_id: id,
       booking_number: booking.booking_number,
       format: 'pdf',
-      download_url: `https://api.uzbron.uz/v1/bookings/${id}/voucher/mock.pdf`,
+      download_url: `${this.publicOrigin()}/bookings/${id}/voucher`,
     };
   }
 
@@ -290,7 +329,7 @@ export class BookingsService {
     body: Record<string, unknown>,
   ) {
     await this.assertBooking(id, actor);
-    const currentActor = this.actorOrDemo(actor);
+    const currentActor = this.requireActor(actor);
     const messageId = randomUUID();
     const now = new Date().toISOString();
 
@@ -319,10 +358,9 @@ export class BookingsService {
     };
 
     // Fetch booking for partner context
-    const [booking] = await this.pg.query(
-      'SELECT partner_organization_id FROM bookings WHERE id = $1',
-      [id],
-    );
+    const [booking] = await this.pg.query<{
+      partner_organization_id?: string;
+    }>('SELECT partner_organization_id FROM bookings WHERE id = $1', [id]);
     this.events.bookingMessageCreated(
       id,
       msg,
@@ -363,15 +401,21 @@ export class BookingsService {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  private actorOrDemo(actor: RequestActor | undefined): RequestActor {
+  private requireActor(actor: RequestActor | undefined): RequestActor {
+    if (!actor) {
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+    return actor;
+  }
+
+  private publicOrigin(): string {
     return (
-      actor ?? {
-        id: '00000000-0000-0000-0000-000000000000',
-        actorType: 'user',
-        role: Role.USER,
-        roles: [Role.USER],
-      }
-    );
+      process.env.PUBLIC_API_ORIGIN ??
+      `http://localhost:${process.env.PORT ?? '4000'}`
+    ).replace(/\/$/, '');
   }
 
   private async createBooking(
@@ -539,7 +583,7 @@ export class BookingsService {
       status: 'pending',
       amount: Number(booking.total_amount),
       currency: booking.currency,
-      payment_url: `https://pay.uzbron.uz/pay/${randomUUID().slice(0, 8)}`,
+      payment_url: null,
       created_at: now,
       updated_at: now,
     };
@@ -563,8 +607,11 @@ export class BookingsService {
     return payment;
   }
 
-  private async assertBooking(id: string, actor?: RequestActor) {
-    const [booking] = await this.pg.query(
+  private async assertBooking(
+    id: string,
+    actor?: RequestActor,
+  ): Promise<BookingRow> {
+    const [booking] = await this.pg.query<BookingRow>(
       'SELECT * FROM bookings WHERE id = $1',
       [id],
     );

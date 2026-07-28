@@ -5,19 +5,7 @@
     "subtitle": "O'zbekistonning eng saralangan restoranlari, milliy oshxonalar va shinam choyxonalari.",
     "searchPlaceholder": "Restoran nomi yoki taom turi bo'yicha qidiruv...",
     "allCities": "Barcha shaharlar",
-    "avgCheck": "Chek",
-    "reserveTable": "Stol band qilish",
-    "modalTitle": "Stol band qilish",
-    "guests": "Kishilar soni",
-    "date": "Sana",
-    "time": "Vaqt",
-    "fullName": "Ismingiz",
-    "phone": "Telefon raqamingiz",
-    "confirm": "Band qilishni tasdiqlash",
-    "successTitle": "Stolingiz muvaffaqiyatli band qilindi!",
-    "successDesc": "Restoran ma'muriyati bandlikni tasdiqlash uchun tez orada siz bilan bog'lanadi.",
-    "callNow": "Hozir qo'ng'iroq qilish",
-    "close": "Yopish"
+    "avgCheck": "Chek"
   },
   "attractions": {
     "badge": "Sayohat va Ziyorat",
@@ -31,9 +19,7 @@
       "unesco": "UNESCO Merosi",
       "nature": "Tabiat & Hordiq"
     },
-    "bestTime": "Ziyorat:",
-    "moreInfo": "Batafsil",
-    "comingSoon": "{name} bo'yicha ma'lumotlar tez orada kengaytiriladi!"
+    "bestTime": "Ziyorat:"
   },
   "transport": {
     "badge": "Avtotransport & Transfer",
@@ -50,18 +36,6 @@
     "perDay": "kuniga",
     "driverIncluded": "Haydovchi bilan",
     "withoutDriver": "Haydovchisiz",
-    "seats": "o'rin",
-    "pickupDate": "Olish kuni",
-    "returnDate": "Topshirish kuni",
-    "fullName": "Ismingiz",
-    "phone": "Telefon raqamingiz",
-    "modalTitle": "Avto ijarasi va buyurtma",
-    "confirmOrder": "Buyurtmani tasdiqlash",
-    "successTitle": "Buyurtmangiz qabul qilindi!",
-    "successDesc": "Operatormiz avtoulov holati va yetkazishni tasdiqlash uchun tez orada siz bilan bog'lanadi.",
-    "callNow": "Hozir qo'ng'iroq qilish",
-    "close": "Yopish",
-    "reserve": "Ijaraga olish",
-    "comingSoon": "{name} bo'yicha buyurtma tez orada ishga tushadi! Bog'lanish: {phone}"
+    "seats": "o'rin"
   }
 }

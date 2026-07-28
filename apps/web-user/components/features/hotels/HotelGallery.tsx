@@ -1,9 +1,8 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import { cn } from "@/lib/cn";
-import { SHOW_PLACEHOLDER_PHOTOS, placeholderPhoto } from "@/lib/images";
-import { Camera, Image as ImageIcon } from "lucide-react";
+import Image from 'next/image';
+import { cn } from '@/lib/cn';
+import { Camera, Image as ImageIcon } from 'lucide-react';
 
 export function HotelGallery({
   images,
@@ -12,15 +11,10 @@ export function HotelGallery({
   images: string[];
   alt: string;
 }) {
-  const real = images.filter((src) => src.startsWith("http") || src.startsWith("/"));
-  const shots =
-    real.length > 0
-      ? real
-      : SHOW_PLACEHOLDER_PHOTOS
-        ? Array.from({ length: 5 }, (_, i) =>
-            placeholderPhoto(`${alt}-${i}`, 1280, 720),
-          )
-        : [];
+  const real = images.filter(
+    (src) => src.startsWith('http') || src.startsWith('/'),
+  );
+  const shots = real;
 
   if (shots.length === 0) {
     return (
@@ -49,7 +43,7 @@ export function HotelGallery({
             fill
             sizes="(max-width: 640px) 100vw, 50vw"
             className="object-cover transition-transform duration-500 hover:scale-105"
-            quality={90}
+            quality={85}
           />
         </div>
 
@@ -58,11 +52,11 @@ export function HotelGallery({
           <div
             key={`${src}-${i}`}
             className={cn(
-              "relative hidden overflow-hidden bg-slate-100 sm:block dark:bg-slate-800",
-              i === 0 && "sm:col-span-1 sm:row-span-1",
-              i === 1 && "sm:col-span-1 sm:row-span-1",
-              i === 2 && "sm:col-span-1 sm:row-span-1",
-              i === 3 && "sm:col-span-1 sm:row-span-1",
+              'relative hidden overflow-hidden bg-slate-100 sm:block dark:bg-slate-800',
+              i === 0 && 'sm:col-span-1 sm:row-span-1',
+              i === 1 && 'sm:col-span-1 sm:row-span-1',
+              i === 2 && 'sm:col-span-1 sm:row-span-1',
+              i === 3 && 'sm:col-span-1 sm:row-span-1',
             )}
           >
             <Image
@@ -76,15 +70,12 @@ export function HotelGallery({
         ))}
       </div>
 
-      {/* "See all photos" Overlay Badge Button */}
-      <button
-        type="button"
-        onClick={() => alert("Barcha fotogalereya tez orada to'liq ochiladi!")}
-        className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md backdrop-blur-md transition-all hover:bg-slate-900 active:scale-95"
-      >
-        <Camera className="h-4 w-4 text-amber-300" />
-        <span>Barcha {shots.length}+ rasmlar</span>
-      </button>
+      {shots.length > 1 && (
+        <div className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md backdrop-blur-md">
+          <Camera className="h-4 w-4 text-amber-300" />
+          <span>{shots.length} ta rasm</span>
+        </div>
+      )}
     </div>
   );
 }

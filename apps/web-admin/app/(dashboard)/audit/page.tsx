@@ -1,23 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { History, Search } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 import Badge from "@/components/ui/Badge";
 import Pagination from "@/components/ui/Pagination";
+import { AdminApi } from "@/lib/api/admin-api";
 
-const mockLogs = [
-  { id: "1", user: "Super Admin", action: "Partnerni tasdiqlash", target: "Hilton Hotel", date: new Date().toISOString(), ip: "192.168.1.100" },
-  { id: "2", user: "Moderator Ali", action: "Foydalanuvchini bloklash", target: "User #12345", date: new Date(Date.now() - 3600000).toISOString(), ip: "10.0.0.15" },
-  { id: "3", user: "Moliya Admini", action: "Komissiya o'zgartirildi", target: "Global Sozlamalar", date: new Date(Date.now() - 7200000).toISOString(), ip: "192.168.1.102" },
-  { id: "4", user: "Super Admin", action: "Tizimga kirish", target: "Auth", date: new Date(Date.now() - 86400000).toISOString(), ip: "192.168.1.100" },
-];
-
-type AuditLog = (typeof mockLogs)[number];
+interface AuditLog {
+  id: string;
+  user: string;
+  action: string;
+  target: string;
+  date: string;
+  ip: string;
+}
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    AdminApi.getAuditLogs()
+      .then((items) => setLogs(items))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredLogs = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return logs;
+    return logs.filter((log) =>
+      [log.user, log.action, log.target, log.ip]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [logs, search]);
 
   const columns = [
     { key: "user", label: "Foydalanuvchi" },
@@ -26,6 +46,14 @@ export default function AuditLogsPage() {
     { key: "ip", label: "IP Manzil", render: (row: AuditLog) => <span className="font-mono text-xs">{row.ip}</span> },
     { key: "date", label: "Sana", render: (row: AuditLog) => new Date(row.date).toLocaleString("uz-UZ") },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
@@ -60,8 +88,9 @@ export default function AuditLogsPage() {
         <div className="flex-1 overflow-auto">
           <DataTable
             columns={columns}
-            data={mockLogs}
+            data={filteredLogs}
             keyField="id"
+            emptyMessage="Audit loglar topilmadi"
           />
         </div>
 

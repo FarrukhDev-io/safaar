@@ -6,9 +6,10 @@ import {
   Optional,
   UnauthorizedException,
 } from '@nestjs/common';
-import { BookingStatus, Role } from '@safaar/types';
+import { BookingStatus } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
 import {
+  limitOffsetSql,
   paginateArray,
   parsePagination,
   type QueryLike,
@@ -27,16 +28,20 @@ type PublicPartnerStatus =
   | 'approved'
   | 'rejected';
 
-function localizedText(
-  body: Record<string, unknown>,
-  key: string,
-  fallback: string,
-) {
-  const value = String(body[key] ?? body.name ?? fallback);
+function localizedText(body: Record<string, unknown>, key: string) {
+  const value = String(
+    body[key] ?? body.name ?? body[`${key}_uz`] ?? '',
+  ).trim();
+  if (!value) {
+    throw new BadRequestException({
+      code: 'ROOM_TYPE_NAME_REQUIRED',
+      message: 'Xona turi nomi kiritilishi kerak',
+    });
+  }
   return {
-    uz: String(body[`${key}_uz`] ?? body.name_uz ?? value),
-    ru: String(body[`${key}_ru`] ?? body.name_ru ?? value),
-    en: String(body[`${key}_en`] ?? body.name_en ?? value),
+    uz: String(body[`${key}_uz`] ?? body.name_uz ?? value).trim(),
+    ru: String(body[`${key}_ru`] ?? body.name_ru ?? value).trim(),
+    en: String(body[`${key}_en`] ?? body.name_en ?? value).trim(),
   };
 }
 
@@ -63,15 +68,6 @@ function listingStatus(value: unknown): HotelListingStatus {
  */
 @Injectable()
 export class PartnersService {
-  private readonly teamMembers: Array<Record<string, unknown>> = [];
-  private readonly documentsStore: Array<Record<string, unknown>> = [];
-  private readonly vehiclesStore: Array<Record<string, unknown>> = [];
-  private readonly withdrawalsStore: Array<Record<string, unknown>> = [];
-  private readonly financeDocumentsStore: Array<Record<string, unknown>> = [];
-  private readonly routesInternal: Array<Record<string, unknown>> = [];
-  private readonly tripsInternal: Array<Record<string, unknown>> = [];
-  private readonly tripSeatsInternal: Array<Record<string, unknown>> = [];
-
   constructor(
     private readonly pg: PostgresService,
     private readonly jobs: JobQueueService,
@@ -154,66 +150,146 @@ export class PartnersService {
   }
 
   // ---------------------------------------------------------------------------
-  // Team members (internal array — no dedicated table)
+  // Team members
   // ---------------------------------------------------------------------------
 
-  team(actor: RequestActor | undefined) {
+  async team(actor: RequestActor | undefined) {
     const organizationId = this.organizationId(actor);
-    return this.teamMembers.filter(
-      (member) => member['organization_id'] === organizationId,
+    return this.pg.query(
+      `SELECT id::text, organization_id::text, email, full_name, role, status,
+              created_at, updated_at
+       FROM partner_users
+       WHERE organization_id = $1 AND deleted_at IS NULL
+       ORDER BY created_at DESC`,
+      [organizationId],
     );
   }
 
-  inviteTeamMember(
+  async inviteTeamMember(
     actor: RequestActor | undefined,
     body: Record<string, unknown>,
   ) {
-    const member = {
-      id: randomUUID(),
-      organization_id: this.organizationId(actor),
-      email: String(body.email ?? '').toLowerCase(),
-      role: String(body.role ?? 'operator'),
-      status: 'invited',
-      created_at: new Date().toISOString(),
-    };
-    this.teamMembers.unshift(member);
+    const email = String(body.email ?? '')
+      .trim()
+      .toLowerCase();
+    if (!email) {
+      throw new BadRequestException({
+        code: 'EMAIL_REQUIRED',
+        message: 'Email kiritilishi kerak',
+      });
+    }
+
+    const now = new Date().toISOString();
+    const [member] = await this.pg.query(
+      `INSERT INTO partner_users
+         (id, organization_id, email, password_hash, full_name, role, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'invited', $7, $8)
+       ON CONFLICT (organization_id, email) DO UPDATE
+       SET role = EXCLUDED.role,
+           status = 'invited',
+           deleted_at = NULL,
+           updated_at = EXCLUDED.updated_at
+       RETURNING id::text, organization_id::text, email, full_name, role, status, created_at, updated_at`,
+      [
+        randomUUID(),
+        this.organizationId(actor),
+        email,
+        hashSecret(randomToken(32), partnerApiPepper()),
+        body.full_name ? String(body.full_name) : null,
+        String(body.role ?? 'operator'),
+        now,
+        now,
+      ],
+    );
     return member;
   }
 
-  updateTeamMember(id: string, body: Record<string, unknown>) {
-    return {
-      id,
-      role: String(body.role ?? 'operator'),
-      status: String(body.status ?? 'active'),
-      updated_at: new Date().toISOString(),
-    };
+  async updateTeamMember(
+    actor: RequestActor | undefined,
+    id: string,
+    body: Record<string, unknown>,
+  ) {
+    const organizationId = this.organizationId(actor);
+    const [member] = await this.pg.query(
+      `UPDATE partner_users
+       SET role = COALESCE($1, role),
+           status = COALESCE($2, status),
+           full_name = COALESCE($3, full_name),
+           updated_at = $4
+       WHERE id = $5 AND organization_id = $6 AND deleted_at IS NULL
+       RETURNING id::text, organization_id::text, email, full_name, role, status, created_at, updated_at`,
+      [
+        body.role !== undefined ? String(body.role) : null,
+        body.status !== undefined ? String(body.status) : null,
+        body.full_name !== undefined ? String(body.full_name) : null,
+        new Date().toISOString(),
+        id,
+        organizationId,
+      ],
+    );
+    if (!member) {
+      throw new NotFoundException({
+        code: 'TEAM_MEMBER_NOT_FOUND',
+        message: 'Jamoa aʼzosi topilmadi',
+      });
+    }
+    return member;
   }
 
-  deleteTeamMember(id: string) {
+  async deleteTeamMember(actor: RequestActor | undefined, id: string) {
+    const organizationId = this.organizationId(actor);
+    await this.pg.query(
+      `UPDATE partner_users
+       SET deleted_at = $1, status = 'deleted', updated_at = $1
+       WHERE id = $2 AND organization_id = $3 AND deleted_at IS NULL`,
+      [new Date().toISOString(), id, organizationId],
+    );
     return { id, deleted: true };
   }
 
   // ---------------------------------------------------------------------------
-  // Documents (internal array — no dedicated table)
+  // Documents
   // ---------------------------------------------------------------------------
 
-  documents(actor: RequestActor | undefined) {
+  async documents(actor: RequestActor | undefined) {
     const organizationId = this.organizationId(actor);
-    return this.documentsStore.filter(
-      (document) => document['organization_id'] === organizationId,
+    return this.pg.query(
+      `SELECT id::text, organization_id::text, type, file_id::text, status,
+              created_at, updated_at
+       FROM partner_documents
+       WHERE organization_id = $1
+       ORDER BY created_at DESC`,
+      [organizationId],
     );
   }
 
-  addDocument(actor: RequestActor | undefined, body: Record<string, unknown>) {
-    const document = {
-      id: randomUUID(),
-      organization_id: this.organizationId(actor),
-      type: String(body.type ?? 'license'),
-      file_id: String(body.file_id ?? randomUUID()),
-      status: 'uploaded',
-      created_at: new Date().toISOString(),
-    };
-    this.documentsStore.unshift(document);
+  async addDocument(
+    actor: RequestActor | undefined,
+    body: Record<string, unknown>,
+  ) {
+    const fileId = String(body.file_id ?? body.fileId ?? '').trim();
+    if (!fileId) {
+      throw new BadRequestException({
+        code: 'DOCUMENT_FILE_REQUIRED',
+        message: 'Hujjat fayli talab qilinadi',
+      });
+    }
+
+    const now = new Date().toISOString();
+    const [document] = await this.pg.query(
+      `INSERT INTO partner_documents
+         (id, organization_id, type, file_id, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'uploaded', $5, $6)
+       RETURNING id::text, organization_id::text, type, file_id::text, status, created_at, updated_at`,
+      [
+        randomUUID(),
+        this.organizationId(actor),
+        String(body.type ?? 'license'),
+        fileId,
+        now,
+        now,
+      ],
+    );
     return document;
   }
 
@@ -333,9 +409,16 @@ export class PartnersService {
     }
 
     const now = new Date().toISOString();
-    const cityId = await this.resolveCityId(body.city ?? body.city_id);
+    const cityInput = String(body.city ?? body.city_id ?? '').trim();
+    const note = this.optionalString(body.note);
+    const cityId = await this.resolvePublicCityId(cityInput, [
+      String(body.address ?? ''),
+      note ?? '',
+    ]);
     const partnerType = this.partnerType(body.type);
-    const address = this.optionalString(body.address);
+    const address = [this.optionalString(body.address), note && `Izoh: ${note}`]
+      .filter(Boolean)
+      .join('\n');
 
     const id = randomUUID();
     const inserted = await this.pg.query(
@@ -443,17 +526,38 @@ export class PartnersService {
     const organizationId = this.organizationId(actor);
     const now = new Date().toISOString();
     const hotelId = randomUUID();
-    const slug = String(body.slug ?? `hotel-${Date.now()}`);
+    const nameUzInput = this.optionalString(body.name_uz ?? body.name);
+    if (!nameUzInput) {
+      throw new BadRequestException({
+        code: 'HOTEL_NAME_REQUIRED',
+        message: 'Obyekt nomini kiriting',
+      });
+    }
+    const nameUz = nameUzInput;
+    const nameRu = this.optionalString(body.name_ru ?? body.name) ?? nameUz;
+    const nameEn = this.optionalString(body.name_en ?? body.name) ?? nameUz;
+    const slug = String(body.slug ?? this.slugify(nameUz));
     const cityId = String(body.city_id ?? '');
     const address = String(body.address ?? '');
-    const latitude = Number(body.latitude ?? 0);
-    const longitude = Number(body.longitude ?? 0);
-    const stars = Number(body.stars ?? 3);
+    const latitude =
+      body.latitude === undefined || body.latitude === null
+        ? null
+        : Number(body.latitude);
+    const longitude =
+      body.longitude === undefined || body.longitude === null
+        ? null
+        : Number(body.longitude);
+    const stars = Number(body.stars ?? 0);
+    const checkInTime = this.optionalString(
+      body.check_in_time ?? body.checkInTime,
+    );
+    const checkOutTime = this.optionalString(
+      body.check_out_time ?? body.checkOutTime,
+    );
 
-    // Insert hotel
     await this.pg.query(
       `INSERT INTO hotels (id, partner_organization_id, slug, city_id, address, latitude, longitude, stars, rating_average, reviews_count, status, check_in_time, check_out_time, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 'draft', '14:00', '12:00', $9, $10)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 'draft', $9, $10, $11, $12)`,
       [
         hotelId,
         organizationId,
@@ -463,15 +567,12 @@ export class PartnersService {
         latitude,
         longitude,
         stars,
+        checkInTime,
+        checkOutTime,
         now,
         now,
       ],
     );
-
-    // Insert translations
-    const nameUz = String(body.name_uz ?? body.name ?? 'Yangi hotel');
-    const nameRu = String(body.name_ru ?? body.name ?? 'Новый отель');
-    const nameEn = String(body.name_en ?? body.name ?? 'New hotel');
 
     await this.pg.query(
       `INSERT INTO hotel_translations (hotel_id, language, name, description, created_at, updated_at) VALUES
@@ -688,6 +789,93 @@ export class PartnersService {
     };
   }
 
+  async updateHotelImage(
+    actor: RequestActor | undefined,
+    id: string,
+    imageId: string,
+    body: Record<string, unknown>,
+  ) {
+    await this.assertHotel(id, actor);
+    const now = new Date().toISOString();
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (body.caption !== undefined) {
+      sets.push(`caption = nullif($${idx++}, '')`);
+      params.push(String(body.caption));
+    }
+    if (body.category !== undefined) {
+      sets.push(`category = nullif($${idx++}, '')`);
+      params.push(String(body.category));
+    }
+    if (body.sortOrder !== undefined || body.sort_order !== undefined) {
+      sets.push(`sort_order = $${idx++}`);
+      params.push(Number(body.sortOrder ?? body.sort_order));
+    }
+    if (body.isCover !== undefined || body.is_cover !== undefined) {
+      const isCover = Boolean(body.isCover ?? body.is_cover);
+      if (isCover) {
+        await this.pg.query(
+          `UPDATE media_files
+           SET is_cover = false
+           WHERE owner_type = 'hotel'
+             AND owner_id = $1::uuid
+             AND deleted_at IS NULL`,
+          [id],
+        );
+      }
+      sets.push(`is_cover = $${idx++}`);
+      params.push(isCover);
+    }
+
+    if (sets.length === 0) {
+      const [image] = await this.pg.query(
+        `SELECT id::text, owner_id::text, url, caption, category, sort_order, is_cover
+         FROM media_files
+         WHERE owner_type = 'hotel'
+           AND owner_id = $1::uuid
+           AND id = $2::uuid
+           AND deleted_at IS NULL`,
+        [id, imageId],
+      );
+      if (!image) {
+        throw new NotFoundException({
+          code: 'IMAGE_NOT_FOUND',
+          message: 'Rasm topilmadi',
+        });
+      }
+      return image;
+    }
+
+    params.push(id);
+    params.push(imageId);
+    const [image] = await this.pg.query(
+      `UPDATE media_files
+       SET ${sets.join(', ')}
+       WHERE owner_type = 'hotel'
+         AND owner_id = $${idx++}::uuid
+         AND id = $${idx}::uuid
+         AND deleted_at IS NULL
+       RETURNING id::text, owner_id::text, url, caption, category, sort_order, is_cover`,
+      params,
+    );
+    if (!image) {
+      throw new NotFoundException({
+        code: 'IMAGE_NOT_FOUND',
+        message: 'Rasm topilmadi',
+      });
+    }
+    await this.touchHotel(id, now);
+    this.notifyListingChanged(
+      { id, partner_organization_id: actor?.organizationId },
+      actor,
+      'updated',
+      ['media'],
+    );
+    return image;
+  }
+
   // ---------------------------------------------------------------------------
   // Rooms
   // ---------------------------------------------------------------------------
@@ -703,13 +891,18 @@ export class PartnersService {
   async roomTypes(actor: RequestActor | undefined, id: string) {
     await this.assertHotel(id, actor);
     return this.pg.query(
-      `SELECT rt.id::text, rt.code, rt.name, rt.created_at, rt.updated_at,
-        COALESCE(MIN(hr.base_price)::float8, 0) as base_price,
-        COALESCE(MAX(hr.max_adults), 2) as max_adults,
-        COALESCE(MAX(hr.base_occupancy), 2) as base_occupancy
+      `SELECT rt.id::text, rt.code, rt.name, rt.description, rt.image_url,
+        rt.bed_type, rt.size_sqm, rt.amenities, rt.created_at, rt.updated_at,
+        COALESCE(rt.base_price::float8, MIN(hr.base_price)::float8) as base_price,
+        COALESCE(rt.capacity, MAX(hr.max_adults), MAX(hr.base_occupancy)) as capacity,
+        COALESCE(rt.capacity, MAX(hr.max_adults), MAX(hr.base_occupancy)) as max_adults,
+        COALESCE(rt.capacity, MAX(hr.base_occupancy), MAX(hr.max_adults)) as base_occupancy
        FROM room_types rt
        LEFT JOIN hotel_rooms hr ON hr.room_type_id = rt.id AND hr.hotel_id = $1
-       GROUP BY rt.id, rt.code, rt.name, rt.created_at, rt.updated_at
+       GROUP BY rt.id, rt.code, rt.name, rt.description, rt.image_url,
+         rt.bed_type, rt.size_sqm, rt.base_price, rt.capacity, rt.amenities,
+         rt.created_at, rt.updated_at
+       HAVING COUNT(hr.id) > 0 OR rt.code LIKE '%' || $1::text || '%'
        ORDER BY rt.name ->> 'uz' ASC`,
       [id],
     );
@@ -723,22 +916,54 @@ export class PartnersService {
     await this.assertHotel(id, actor);
     const roomTypeId = randomUUID();
     const now = new Date().toISOString();
-    const name = localizedText(body, 'name', 'Yangi xona turi');
-    const code = this.slugify(name.uz || `room-type-${Date.now()}`);
-    const [roomType] = await this.pg.query(
-      `INSERT INTO room_types (id, code, name, created_at, updated_at)
-       VALUES ($1, $2, $3::jsonb, $4, $4)
-       ON CONFLICT (code) DO UPDATE
-       SET name = EXCLUDED.name, updated_at = EXCLUDED.updated_at
-       RETURNING id::text, code, name, created_at, updated_at`,
-      [roomTypeId, code, JSON.stringify(name), now],
+    const name = localizedText(body, 'name');
+    const code = this.slugify(String(body.code ?? `${name.uz}-${id}`));
+    const basePrice = this.requiredNonNegativeNumber(
+      body.base_price ?? body.basePrice,
+      'ROOM_TYPE_PRICE_REQUIRED',
+      'Xona turi narxi kiritilishi kerak',
     );
-    return {
-      ...roomType,
-      base_price: Number(body.base_price ?? body.basePrice ?? 0),
-      max_adults: Number(body.capacity ?? body.max_adults ?? 2),
-      base_occupancy: Number(body.capacity ?? body.base_occupancy ?? 2),
-    };
+    const capacity = this.requiredPositiveInteger(
+      body.capacity ?? body.max_adults ?? body.base_occupancy,
+      'ROOM_TYPE_CAPACITY_REQUIRED',
+      "Xona turi sig'imi kiritilishi kerak",
+    );
+    const amenities = Array.isArray(body.amenities)
+      ? body.amenities.map(String).filter(Boolean)
+      : [];
+    const [roomType] = await this.pg.query(
+      `INSERT INTO room_types
+         (id, code, name, description, image_url, bed_type, size_sqm,
+          base_price, capacity, amenities, created_at, updated_at)
+       VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $11)
+       ON CONFLICT (code) DO UPDATE
+       SET name = EXCLUDED.name,
+           description = EXCLUDED.description,
+           image_url = EXCLUDED.image_url,
+           bed_type = EXCLUDED.bed_type,
+           size_sqm = EXCLUDED.size_sqm,
+           base_price = EXCLUDED.base_price,
+           capacity = EXCLUDED.capacity,
+           amenities = EXCLUDED.amenities,
+           updated_at = EXCLUDED.updated_at
+       RETURNING id::text, code, name, description, image_url, bed_type,
+         size_sqm, base_price::float8, capacity, capacity as max_adults,
+         capacity as base_occupancy, amenities, created_at, updated_at`,
+      [
+        roomTypeId,
+        code,
+        JSON.stringify(name),
+        this.optionalString(body.description),
+        this.optionalString(body.image_url ?? body.imageUrl),
+        this.optionalString(body.bed_type ?? body.bedType),
+        this.optionalInteger(body.size_sqm ?? body.sizeSqm),
+        basePrice,
+        capacity,
+        JSON.stringify(amenities),
+        now,
+      ],
+    );
+    return roomType;
   }
 
   async updateRoomType(
@@ -749,13 +974,91 @@ export class PartnersService {
   ) {
     await this.assertHotel(id, actor);
     const now = new Date().toISOString();
-    const name = localizedText(body, 'name', 'Xona');
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+    if (
+      body.name !== undefined ||
+      body.name_uz !== undefined ||
+      body.name_ru !== undefined ||
+      body.name_en !== undefined
+    ) {
+      sets.push(`name = $${idx++}::jsonb`);
+      params.push(JSON.stringify(localizedText(body, 'name')));
+    }
+    if (body.description !== undefined) {
+      sets.push(`description = $${idx++}`);
+      params.push(this.optionalString(body.description));
+    }
+    if (body.image_url !== undefined || body.imageUrl !== undefined) {
+      sets.push(`image_url = $${idx++}`);
+      params.push(this.optionalString(body.image_url ?? body.imageUrl));
+    }
+    if (body.bed_type !== undefined || body.bedType !== undefined) {
+      sets.push(`bed_type = $${idx++}`);
+      params.push(this.optionalString(body.bed_type ?? body.bedType));
+    }
+    if (body.size_sqm !== undefined || body.sizeSqm !== undefined) {
+      sets.push(`size_sqm = $${idx++}`);
+      params.push(this.optionalInteger(body.size_sqm ?? body.sizeSqm));
+    }
+    if (body.base_price !== undefined || body.basePrice !== undefined) {
+      sets.push(`base_price = $${idx++}`);
+      params.push(
+        this.requiredNonNegativeNumber(
+          body.base_price ?? body.basePrice,
+          'ROOM_TYPE_PRICE_REQUIRED',
+          'Xona turi narxi kiritilishi kerak',
+        ),
+      );
+    }
+    if (
+      body.capacity !== undefined ||
+      body.max_adults !== undefined ||
+      body.base_occupancy !== undefined
+    ) {
+      sets.push(`capacity = $${idx++}`);
+      params.push(
+        this.requiredPositiveInteger(
+          body.capacity ?? body.max_adults ?? body.base_occupancy,
+          'ROOM_TYPE_CAPACITY_REQUIRED',
+          "Xona turi sig'imi kiritilishi kerak",
+        ),
+      );
+    }
+    if (Array.isArray(body.amenities)) {
+      sets.push(`amenities = $${idx++}::jsonb`);
+      params.push(JSON.stringify(body.amenities.map(String).filter(Boolean)));
+    }
+
+    if (sets.length === 0) {
+      const rows = await this.pg.query(
+        `SELECT id::text, code, name, description, image_url, bed_type,
+          size_sqm, base_price::float8, capacity, capacity as max_adults,
+          capacity as base_occupancy, amenities, created_at, updated_at
+         FROM room_types WHERE id = $1::uuid`,
+        [roomTypeId],
+      );
+      if (!rows[0]) {
+        throw new NotFoundException({
+          code: 'ROOM_TYPE_NOT_FOUND',
+          message: 'Xona turi topilmadi',
+        });
+      }
+      return rows[0];
+    }
+
+    sets.push(`updated_at = $${idx++}`);
+    params.push(now);
+    params.push(roomTypeId);
     const rows = await this.pg.query(
       `UPDATE room_types
-       SET name = $1::jsonb, updated_at = $2
-       WHERE id = $3::uuid
-       RETURNING id::text, code, name, created_at, updated_at`,
-      [JSON.stringify(name), now, roomTypeId],
+       SET ${sets.join(', ')}
+       WHERE id = $${idx}::uuid
+       RETURNING id::text, code, name, description, image_url, bed_type,
+         size_sqm, base_price::float8, capacity, capacity as max_adults,
+         capacity as base_occupancy, amenities, created_at, updated_at`,
+      params,
     );
     if (!rows[0]) {
       throw new NotFoundException({
@@ -801,33 +1104,62 @@ export class PartnersService {
     await this.assertHotel(id, actor);
     const now = new Date().toISOString();
     const roomId = randomUUID();
-    const code = String(
-      body.code ?? body.number ?? body.room_number ?? `R-${Date.now()}`,
+    const code = this.requiredString(
+      body.code ?? body.number ?? body.room_number,
+      'ROOM_CODE_REQUIRED',
+      'Xona raqami kiritilishi kerak',
     );
     const roomTypeId = String(
       body.room_type_id ?? body.roomTypeId ?? body.room_type ?? '',
+    ).trim();
+    const roomType = await this.assertRoomType(roomTypeId);
+    const capacity = this.requiredPositiveInteger(
+      body.capacity ??
+        body.max_adults ??
+        body.base_occupancy ??
+        roomType.capacity,
+      'ROOM_CAPACITY_REQUIRED',
+      "Xona sig'imi kiritilishi kerak",
     );
-    const baseOccupancy = Number(body.base_occupancy ?? body.capacity ?? 2);
-    const maxAdults = Number(body.max_adults ?? body.capacity ?? 2);
-    const maxChildren = Number(body.max_children ?? 1);
+    const baseOccupancy =
+      this.optionalPositiveInteger(body.base_occupancy) ?? capacity;
+    const maxAdults = this.optionalPositiveInteger(body.max_adults) ?? capacity;
+    const maxChildren = this.optionalInteger(body.max_children) ?? 0;
     const totalInventory = Number(body.total_inventory ?? body.inventory ?? 1);
-    const basePrice = Number(
-      body.base_price ?? body.basePrice ?? body.nightlyPrice ?? 300000,
+    const basePrice = this.requiredNonNegativeNumber(
+      body.base_price ??
+        body.basePrice ??
+        body.nightlyPrice ??
+        roomType.base_price,
+      'ROOM_PRICE_REQUIRED',
+      'Xona narxi kiritilishi kerak',
     );
+    const floor = this.optionalInteger(body.floor);
+    const housekeepingStatus = this.roomHousekeepingStatus(body.status);
+    const isListed =
+      body.isListed !== undefined ? Boolean(body.isListed) : true;
 
     await this.pg.query(
-      `INSERT INTO hotel_rooms (id, hotel_id, room_type_id, code, base_occupancy, max_adults, max_children, total_inventory, base_price, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10, $11)`,
+      `INSERT INTO hotel_rooms
+         (id, hotel_id, room_type_id, code, floor, base_occupancy, max_adults,
+          max_children, total_inventory, base_price, status, housekeeping_status,
+          is_listed, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+         $11::"RoomStatus", $12, $13, $14, $15)`,
       [
         roomId,
         id,
         roomTypeId,
         code,
+        floor,
         baseOccupancy,
         maxAdults,
         maxChildren,
         totalInventory,
         basePrice,
+        isListed ? 'active' : 'inactive',
+        housekeepingStatus,
+        isListed,
         now,
         now,
       ],
@@ -855,21 +1187,50 @@ export class PartnersService {
 
     if (body.code !== undefined || body.number !== undefined) {
       sets.push(`code = $${paramIndex++}`);
-      params.push(String(body.code ?? body.number));
+      params.push(
+        this.requiredString(
+          body.code ?? body.number,
+          'ROOM_CODE_REQUIRED',
+          'Xona raqami kiritilishi kerak',
+        ),
+      );
     }
     if (body.room_type_id !== undefined || body.roomTypeId !== undefined) {
+      await this.assertRoomType(String(body.room_type_id ?? body.roomTypeId));
       sets.push(`room_type_id = $${paramIndex++}`);
       params.push(String(body.room_type_id ?? body.roomTypeId));
     }
+    if (body.floor !== undefined) {
+      sets.push(`floor = $${paramIndex++}`);
+      params.push(this.optionalInteger(body.floor));
+    }
     if (body.base_price !== undefined) {
       sets.push(`base_price = $${paramIndex++}`);
-      params.push(Number(body.base_price));
+      params.push(
+        this.requiredNonNegativeNumber(
+          body.base_price,
+          'ROOM_PRICE_REQUIRED',
+          'Xona narxi kiritilishi kerak',
+        ),
+      );
     } else if (body.basePrice !== undefined) {
       sets.push(`base_price = $${paramIndex++}`);
-      params.push(Number(body.basePrice));
+      params.push(
+        this.requiredNonNegativeNumber(
+          body.basePrice,
+          'ROOM_PRICE_REQUIRED',
+          'Xona narxi kiritilishi kerak',
+        ),
+      );
     } else if (body.nightlyPrice !== undefined) {
       sets.push(`base_price = $${paramIndex++}`);
-      params.push(Number(body.nightlyPrice));
+      params.push(
+        this.requiredNonNegativeNumber(
+          body.nightlyPrice,
+          'ROOM_PRICE_REQUIRED',
+          'Xona narxi kiritilishi kerak',
+        ),
+      );
     }
     if (body.total_inventory !== undefined) {
       sets.push(`total_inventory = $${paramIndex++}`);
@@ -891,6 +1252,17 @@ export class PartnersService {
     } else if (body.capacity !== undefined) {
       sets.push(`max_adults = $${paramIndex++}`);
       params.push(Number(body.capacity));
+    }
+    if (body.status !== undefined) {
+      sets.push(`housekeeping_status = $${paramIndex++}`);
+      params.push(this.roomHousekeepingStatus(body.status));
+    }
+    if (body.isListed !== undefined) {
+      const isListed = Boolean(body.isListed);
+      sets.push(`is_listed = $${paramIndex++}`);
+      params.push(isListed);
+      sets.push(`status = $${paramIndex++}::"RoomStatus"`);
+      params.push(isListed ? 'active' : 'inactive');
     }
 
     if (sets.length === 0) {
@@ -932,10 +1304,39 @@ export class PartnersService {
     body: Record<string, unknown>,
   ) {
     await this.assertHotel(id, actor);
-    const startNumber = Number(body.startNumber ?? body.start_number ?? 101);
-    const count = Math.max(0, Math.min(Number(body.count ?? 0), 200));
+    const startNumber = this.requiredPositiveInteger(
+      body.startNumber ?? body.start_number,
+      'ROOM_START_NUMBER_REQUIRED',
+      'Boshlanish raqami kiritilishi kerak',
+    );
+    const count = this.requiredPositiveInteger(
+      body.count,
+      'ROOM_COUNT_REQUIRED',
+      'Xonalar soni kiritilishi kerak',
+    );
+    if (count > 200) {
+      throw new BadRequestException({
+        code: 'ROOM_COUNT_TOO_LARGE',
+        message: 'Xonalar soni 200 tadan oshmasligi kerak',
+      });
+    }
     const roomTypeId = String(
       body.roomTypeId ?? body.room_type_id ?? body.room_type ?? '',
+    ).trim();
+    const roomType = await this.assertRoomType(roomTypeId);
+    const floor = this.optionalInteger(body.floor);
+    const capacity =
+      this.optionalPositiveInteger(body.capacity) ?? roomType.capacity;
+    const baseOccupancy =
+      this.optionalPositiveInteger(body.base_occupancy) ?? capacity;
+    const maxAdults = this.optionalPositiveInteger(body.max_adults) ?? capacity;
+    const maxChildren = this.optionalInteger(body.max_children) ?? 0;
+    const totalInventory =
+      this.optionalPositiveInteger(body.total_inventory ?? body.inventory) ?? 1;
+    const basePrice = this.requiredNonNegativeNumber(
+      body.base_price ?? body.basePrice ?? roomType.base_price,
+      'ROOM_PRICE_REQUIRED',
+      'Xona narxi kiritilishi kerak',
     );
 
     // Get existing codes
@@ -956,22 +1357,20 @@ export class PartnersService {
       existingCodes.add(code);
 
       const roomId = randomUUID();
-      const baseOccupancy = Number(body.base_occupancy ?? body.capacity ?? 2);
-      const maxAdults = Number(body.max_adults ?? body.capacity ?? 2);
-      const maxChildren = Number(body.max_children ?? 1);
-      const totalInventory = Number(
-        body.total_inventory ?? body.inventory ?? 1,
-      );
-      const basePrice = Number(body.base_price ?? body.basePrice ?? 300000);
 
       await this.pg.query(
-        `INSERT INTO hotel_rooms (id, hotel_id, room_type_id, code, base_occupancy, max_adults, max_children, total_inventory, base_price, status, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10, $11)`,
+        `INSERT INTO hotel_rooms
+           (id, hotel_id, room_type_id, code, floor, base_occupancy, max_adults,
+            max_children, total_inventory, base_price, status,
+            housekeeping_status, is_listed, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+           'active', 'VACANT_CLEAN', true, $11, $12)`,
         [
           roomId,
           id,
           roomTypeId,
           code,
+          floor,
           baseOccupancy,
           maxAdults,
           maxChildren,
@@ -987,6 +1386,10 @@ export class PartnersService {
         code,
         hotel_id: id,
         room_type_id: roomTypeId,
+        floor,
+        base_price: basePrice,
+        housekeeping_status: 'VACANT_CLEAN',
+        is_listed: true,
       });
     }
 
@@ -1009,10 +1412,198 @@ export class PartnersService {
     await this.assertHotel(id, actor);
     const now = new Date().toISOString();
     await this.pg.query(
-      `UPDATE hotel_rooms SET status = 'inactive', updated_at = $1 WHERE id = $2 AND hotel_id = $3`,
+      `UPDATE hotel_rooms
+       SET status = 'inactive', is_listed = false, updated_at = $1
+       WHERE id = $2 AND hotel_id = $3`,
       [now, roomId, id],
     );
     return { hotel_id: id, room_id: roomId, deleted: true };
+  }
+
+  async beds(actor: RequestActor | undefined, id: string) {
+    await this.assertHotel(id, actor);
+    return this.pg.query(
+      `SELECT rb.id::text, rb.room_id::text, rb.label, rb.status,
+              rb.is_listed, rb.nightly_price::float8, rb.created_at, rb.updated_at
+       FROM room_beds rb
+       JOIN hotel_rooms hr ON hr.id = rb.room_id
+       WHERE hr.hotel_id = $1
+       ORDER BY hr.code ASC, rb.label ASC`,
+      [id],
+    );
+  }
+
+  async roomBeds(actor: RequestActor | undefined, id: string, roomId: string) {
+    await this.assertRoomForHotel(actor, id, roomId);
+    return this.pg.query(
+      `SELECT id::text, room_id::text, label, status, is_listed,
+              nightly_price::float8, created_at, updated_at
+       FROM room_beds
+       WHERE room_id = $1
+       ORDER BY label ASC`,
+      [roomId],
+    );
+  }
+
+  async createBed(
+    actor: RequestActor | undefined,
+    id: string,
+    roomId: string,
+    body: Record<string, unknown>,
+  ) {
+    await this.assertRoomForHotel(actor, id, roomId);
+    const now = new Date().toISOString();
+    const [bed] = await this.pg.query<{ id: string }>(
+      `INSERT INTO room_beds
+         (id, room_id, label, status, is_listed, nightly_price, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+       RETURNING id::text, room_id::text, label, status, is_listed,
+         nightly_price::float8, created_at, updated_at`,
+      [
+        randomUUID(),
+        roomId,
+        this.requiredString(
+          body.label,
+          'BED_LABEL_REQUIRED',
+          'Yotoq nomi kiritilishi kerak',
+        ),
+        this.roomHousekeepingStatus(body.status),
+        body.isListed !== undefined ? Boolean(body.isListed) : true,
+        this.optionalNonNegativeNumber(body.nightlyPrice ?? body.nightly_price),
+        now,
+      ],
+    );
+    return bed;
+  }
+
+  async updateBed(
+    actor: RequestActor | undefined,
+    id: string,
+    bedId: string,
+    body: Record<string, unknown>,
+  ) {
+    await this.assertHotel(id, actor);
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+    if (body.label !== undefined) {
+      sets.push(`label = $${idx++}`);
+      params.push(
+        this.requiredString(
+          body.label,
+          'BED_LABEL_REQUIRED',
+          'Yotoq nomi kiritilishi kerak',
+        ),
+      );
+    }
+    if (body.status !== undefined) {
+      sets.push(`status = $${idx++}`);
+      params.push(this.roomHousekeepingStatus(body.status));
+    }
+    if (body.isListed !== undefined) {
+      sets.push(`is_listed = $${idx++}`);
+      params.push(Boolean(body.isListed));
+    }
+    if (body.nightlyPrice !== undefined || body.nightly_price !== undefined) {
+      sets.push(`nightly_price = $${idx++}`);
+      params.push(
+        this.optionalNonNegativeNumber(body.nightlyPrice ?? body.nightly_price),
+      );
+    }
+    if (sets.length === 0) {
+      const [bed] = await this.pg.query(
+        `SELECT rb.id::text, rb.room_id::text, rb.label, rb.status,
+                rb.is_listed, rb.nightly_price::float8, rb.created_at, rb.updated_at
+         FROM room_beds rb
+         JOIN hotel_rooms hr ON hr.id = rb.room_id
+         WHERE rb.id = $1::uuid AND hr.hotel_id = $2`,
+        [bedId, id],
+      );
+      if (!bed) {
+        throw new NotFoundException({
+          code: 'BED_NOT_FOUND',
+          message: 'Yotoq topilmadi',
+        });
+      }
+      return bed;
+    }
+    sets.push(`updated_at = $${idx++}`);
+    params.push(new Date().toISOString());
+    params.push(bedId);
+    params.push(id);
+    const [bed] = await this.pg.query(
+      `UPDATE room_beds rb
+       SET ${sets.join(', ')}
+       FROM hotel_rooms hr
+       WHERE rb.id = $${idx++}::uuid
+         AND rb.room_id = hr.id
+         AND hr.hotel_id = $${idx}
+       RETURNING rb.id::text, rb.room_id::text, rb.label, rb.status,
+         rb.is_listed, rb.nightly_price::float8, rb.created_at, rb.updated_at`,
+      params,
+    );
+    if (!bed) {
+      throw new NotFoundException({
+        code: 'BED_NOT_FOUND',
+        message: 'Yotoq topilmadi',
+      });
+    }
+    return bed;
+  }
+
+  async deleteBed(actor: RequestActor | undefined, id: string, bedId: string) {
+    await this.assertHotel(id, actor);
+    const [bed] = await this.pg.query<{ id: string }>(
+      `DELETE FROM room_beds rb
+       USING hotel_rooms hr
+       WHERE rb.id = $1::uuid
+         AND rb.room_id = hr.id
+         AND hr.hotel_id = $2
+       RETURNING rb.id::text`,
+      [bedId, id],
+    );
+    return { hotel_id: id, bed_id: bed?.id ?? bedId, deleted: Boolean(bed) };
+  }
+
+  async generateBeds(
+    actor: RequestActor | undefined,
+    id: string,
+    roomId: string,
+    body: Record<string, unknown>,
+  ) {
+    await this.assertRoomForHotel(actor, id, roomId);
+    const count = this.requiredPositiveInteger(
+      body.count,
+      'BED_COUNT_REQUIRED',
+      'Yotoqlar soni kiritilishi kerak',
+    );
+    if (count > 200) {
+      throw new BadRequestException({
+        code: 'BED_COUNT_TOO_LARGE',
+        message: 'Yotoqlar soni 200 tadan oshmasligi kerak',
+      });
+    }
+    const existing = await this.pg.query<{ label: string }>(
+      `SELECT label FROM room_beds WHERE room_id = $1`,
+      [roomId],
+    );
+    const labels = new Set(existing.map((row) => row.label));
+    const now = new Date().toISOString();
+    const created: Array<Record<string, unknown>> = [];
+    for (let index = 1; index <= count; index += 1) {
+      const label = `${index}-o'rin`;
+      if (labels.has(label)) continue;
+      const [bed] = await this.pg.query(
+        `INSERT INTO room_beds
+           (id, room_id, label, status, is_listed, created_at, updated_at)
+         VALUES ($1, $2, $3, 'VACANT_CLEAN', true, $4, $4)
+         RETURNING id::text, room_id::text, label, status, is_listed,
+           nightly_price::float8, created_at, updated_at`,
+        [randomUUID(), roomId, label, now],
+      );
+      created.push(bed);
+    }
+    return { ok: true, added: created.length, beds: created };
   }
 
   // ---------------------------------------------------------------------------
@@ -1169,7 +1760,8 @@ export class PartnersService {
 
     const hotel = await this.assertHotel(id, actor);
     this.notifyListingChanged(hotel, actor, 'updated', ['general']);
-    return hotel;
+    const [hydrated] = await this.hydratePartnerHotels([hotel]);
+    return hydrated;
   }
 
   async updateListingLocation(
@@ -1202,6 +1794,10 @@ export class PartnersService {
       sets.push(`longitude = $${idx++}`);
       params.push(Number(body.longitude));
     }
+    if (Array.isArray(body.nearbyPlaces) || Array.isArray(body.nearby_places)) {
+      sets.push(`nearby_places = $${idx++}::jsonb`);
+      params.push(JSON.stringify(body.nearbyPlaces ?? body.nearby_places));
+    }
 
     if (sets.length > 0) {
       sets.push(`updated_at = $${idx++}`);
@@ -1216,7 +1812,8 @@ export class PartnersService {
 
     const hotel = await this.assertHotel(id, actor);
     this.notifyListingChanged(hotel, actor, 'updated', ['location']);
-    return hotel;
+    const [hydrated] = await this.hydratePartnerHotels([hotel]);
+    return hydrated;
   }
 
   async updateListingRules(
@@ -1291,7 +1888,8 @@ export class PartnersService {
 
     const hotel = await this.assertHotel(id, actor);
     this.notifyListingChanged(hotel, actor, 'updated', ['rules']);
-    return hotel;
+    const [hydrated] = await this.hydratePartnerHotels([hotel]);
+    return hydrated;
   }
 
   async updateListingAmenities(
@@ -1396,118 +1994,317 @@ export class PartnersService {
   }
 
   // ---------------------------------------------------------------------------
-  // Vehicles (internal array)
+  // Vehicles
   // ---------------------------------------------------------------------------
 
-  vehicles() {
-    return this.vehiclesStore;
+  async vehicles(actor: RequestActor | undefined) {
+    const organizationId = this.organizationId(actor);
+    return this.pg.query(
+      `SELECT v.*
+       FROM vehicles v
+       JOIN bus_companies bc ON bc.id = v.company_id
+       WHERE bc.partner_organization_id = $1
+       ORDER BY v.created_at DESC`,
+      [organizationId],
+    );
   }
 
-  createVehicle(body: Record<string, unknown>) {
-    const vehicle = {
-      id: randomUUID(),
-      name: String(body.name ?? 'Yutong'),
-      plate_number: String(body.plate_number ?? ''),
-      seats_count: Number(body.seats_count ?? 45),
-      status: 'active',
-      created_at: new Date().toISOString(),
-    };
-    this.vehiclesStore.unshift(vehicle);
+  async createVehicle(
+    actor: RequestActor | undefined,
+    body: Record<string, unknown>,
+  ) {
+    const companyId = await this.busCompanyId(actor);
+    const name = String(body.name ?? '').trim();
+    const seatsCount = Number(body.seats_count ?? body.seatsCount);
+    if (!name || !Number.isFinite(seatsCount) || seatsCount <= 0) {
+      throw new BadRequestException({
+        code: 'VEHICLE_INVALID',
+        message: 'Transport nomi va o‘rindiqlar soni talab qilinadi',
+      });
+    }
+
+    const now = new Date().toISOString();
+    const [vehicle] = await this.pg.query(
+      `INSERT INTO vehicles
+         (id, company_id, name, plate_number, seats_count, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, 'active', $6, $7)
+       RETURNING *`,
+      [
+        randomUUID(),
+        companyId,
+        name,
+        body.plate_number ? String(body.plate_number) : null,
+        seatsCount,
+        now,
+        now,
+      ],
+    );
     return vehicle;
   }
 
-  updateVehicle(id: string, body: Record<string, unknown>) {
-    return { id, ...body, updated_at: new Date().toISOString() };
+  async updateVehicle(
+    actor: RequestActor | undefined,
+    id: string,
+    body: Record<string, unknown>,
+  ) {
+    await this.assertVehicle(actor, id);
+    const now = new Date().toISOString();
+    const [vehicle] = await this.pg.query(
+      `UPDATE vehicles
+       SET name = COALESCE($1, name),
+           plate_number = COALESCE($2, plate_number),
+           seats_count = COALESCE($3, seats_count),
+           status = COALESCE($4, status),
+           updated_at = $5
+       WHERE id = $6
+       RETURNING *`,
+      [
+        body.name !== undefined ? String(body.name) : null,
+        body.plate_number !== undefined ? String(body.plate_number) : null,
+        body.seats_count !== undefined ? Number(body.seats_count) : null,
+        body.status !== undefined ? String(body.status) : null,
+        now,
+        id,
+      ],
+    );
+    return vehicle;
   }
 
-  seatLayout(id: string, body: Record<string, unknown>) {
-    return {
-      vehicle_id: id,
-      layout: body.layout ?? [],
-      updated_at: new Date().toISOString(),
-    };
+  async seatLayout(
+    actor: RequestActor | undefined,
+    id: string,
+    body: Record<string, unknown>,
+  ) {
+    await this.assertVehicle(actor, id);
+    const [vehicle] = await this.pg.query(
+      `UPDATE vehicles
+       SET seat_layout = $1::jsonb, updated_at = $2
+       WHERE id = $3
+       RETURNING id::text as vehicle_id, seat_layout as layout, updated_at`,
+      [JSON.stringify(body.layout ?? []), new Date().toISOString(), id],
+    );
+    return vehicle;
   }
 
   // ---------------------------------------------------------------------------
-  // Routes (internal array)
+  // Routes
   // ---------------------------------------------------------------------------
 
-  routes() {
-    return this.routesInternal;
+  async routes(actor: RequestActor | undefined) {
+    this.organizationId(actor);
+    return this.pg.query('SELECT * FROM routes ORDER BY created_at DESC');
   }
 
-  createRoute(body: Record<string, unknown>) {
-    const route = {
-      id: randomUUID(),
-      from_city_id: String(body.from_city_id ?? 'city-tashkent'),
-      to_city_id: String(body.to_city_id ?? 'city-samarkand'),
-      duration_minutes: Number(body.duration_minutes ?? 270),
-      created_at: new Date().toISOString(),
-    };
-    this.routesInternal.unshift(route);
+  async createRoute(
+    actor: RequestActor | undefined,
+    body: Record<string, unknown>,
+  ) {
+    this.organizationId(actor);
+    const fromCityId = String(
+      body.from_city_id ?? body.fromCityId ?? '',
+    ).trim();
+    const toCityId = String(body.to_city_id ?? body.toCityId ?? '').trim();
+    const durationMinutes = Number(
+      body.duration_minutes ?? body.durationMinutes,
+    );
+    if (
+      !fromCityId ||
+      !toCityId ||
+      !Number.isFinite(durationMinutes) ||
+      durationMinutes <= 0
+    ) {
+      throw new BadRequestException({
+        code: 'ROUTE_INVALID',
+        message: 'Yo‘nalish shaharlari va davomiyligi talab qilinadi',
+      });
+    }
+
+    const now = new Date().toISOString();
+    const [route] = await this.pg.query(
+      `INSERT INTO routes
+         (id, from_city_id, to_city_id, duration_minutes, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [randomUUID(), fromCityId, toCityId, durationMinutes, now, now],
+    );
     return route;
   }
 
-  updateRoute(id: string, body: Record<string, unknown>) {
-    return { id, ...body, updated_at: new Date().toISOString() };
+  async updateRoute(
+    actor: RequestActor | undefined,
+    id: string,
+    body: Record<string, unknown>,
+  ) {
+    this.organizationId(actor);
+    const [route] = await this.pg.query(
+      `UPDATE routes
+       SET from_city_id = COALESCE($1, from_city_id),
+           to_city_id = COALESCE($2, to_city_id),
+           duration_minutes = COALESCE($3, duration_minutes),
+           updated_at = $4
+       WHERE id = $5
+       RETURNING *`,
+      [
+        body.from_city_id !== undefined ? String(body.from_city_id) : null,
+        body.to_city_id !== undefined ? String(body.to_city_id) : null,
+        body.duration_minutes !== undefined
+          ? Number(body.duration_minutes)
+          : null,
+        new Date().toISOString(),
+        id,
+      ],
+    );
+    if (!route) {
+      throw new NotFoundException({
+        code: 'ROUTE_NOT_FOUND',
+        message: 'Yo‘nalish topilmadi',
+      });
+    }
+    return route;
   }
 
   // ---------------------------------------------------------------------------
-  // Trips (internal array)
+  // Trips
   // ---------------------------------------------------------------------------
 
-  trips(query: QueryLike = {}) {
-    return this.paginatePartner(this.tripsInternal, query);
+  async trips(actor: RequestActor | undefined, query: QueryLike = {}) {
+    const organizationId = this.organizationId(actor);
+    const pagination = parsePagination(query, 'partner', {
+      defaultLimit: 50,
+      allowedSortBy: ['departure_at', 'created_at', 'status', 'base_price'],
+    });
+    const sortColumn = [
+      'departure_at',
+      'created_at',
+      'status',
+      'base_price',
+    ].includes(pagination.sortBy)
+      ? pagination.sortBy
+      : 'departure_at';
+    const orderDir = pagination.order === 'asc' ? 'ASC' : 'DESC';
+    return this.pg.query(
+      `SELECT t.*
+       FROM trips t
+       JOIN bus_companies bc ON bc.id = t.company_id
+       WHERE bc.partner_organization_id = $1
+       ORDER BY t.${sortColumn} ${orderDir}
+       ${limitOffsetSql(pagination)}`,
+      [organizationId],
+    );
   }
 
-  createTrip(body: Record<string, unknown>) {
-    const trip = {
-      id: randomUUID(),
-      route_id: String(body.route_id ?? ''),
-      company_id: 'bus-company-uzbron',
-      from_city_id: String(body.from_city_id ?? 'city-tashkent'),
-      to_city_id: String(body.to_city_id ?? 'city-samarkand'),
-      departure_at: String(body.departure_at ?? new Date().toISOString()),
-      arrival_at: String(
-        body.arrival_at ?? new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
-      ),
-      vehicle_name: String(body.vehicle_name ?? 'Yutong'),
-      status: 'scheduled' as const,
-      base_price: Number(body.base_price ?? 120000),
-      created_at: new Date().toISOString(),
-    };
-    this.tripsInternal.unshift(trip);
-    return trip;
-  }
-
-  updateTrip(id: string, body: Record<string, unknown>) {
-    const trip = this.tripsInternal.find((item) => item['id'] === id);
-    if (!trip) {
+  async createTrip(
+    actor: RequestActor | undefined,
+    body: Record<string, unknown>,
+  ) {
+    const companyId = await this.busCompanyId(actor);
+    const routeId = String(body.route_id ?? body.routeId ?? '').trim();
+    const [route] = await this.pg.query<{
+      id: string;
+      from_city_id: string;
+      to_city_id: string;
+      duration_minutes: number;
+    }>('SELECT * FROM routes WHERE id = $1', [routeId]);
+    if (!route) {
       throw new NotFoundException({
-        code: 'TRIP_NOT_FOUND',
-        message: 'Reys topilmadi',
+        code: 'ROUTE_NOT_FOUND',
+        message: 'Yo‘nalish topilmadi',
       });
     }
-    trip['base_price'] = body.base_price
-      ? Number(body.base_price)
-      : trip['base_price'];
-    return trip;
-  }
+    const vehicleId = body.vehicle_id ? String(body.vehicle_id) : null;
+    if (vehicleId) {
+      await this.assertVehicle(actor, vehicleId);
+    }
 
-  cancelTrip(id: string) {
-    const trip = this.tripsInternal.find((item) => item['id'] === id);
-    if (!trip) {
-      throw new NotFoundException({
-        code: 'TRIP_NOT_FOUND',
-        message: 'Reys topilmadi',
+    const departureAt = String(body.departure_at ?? body.departureAt ?? '');
+    const departureMs = Date.parse(departureAt);
+    const basePrice = Number(body.base_price ?? body.basePrice);
+    if (
+      !departureAt ||
+      Number.isNaN(departureMs) ||
+      !Number.isFinite(basePrice)
+    ) {
+      throw new BadRequestException({
+        code: 'TRIP_INVALID',
+        message: 'Reys vaqti va narxi talab qilinadi',
       });
     }
-    trip['status'] = 'cancelled';
+
+    const arrivalAt = body.arrival_at
+      ? String(body.arrival_at)
+      : new Date(
+          departureMs + Number(route.duration_minutes) * 60_000,
+        ).toISOString();
+    const now = new Date().toISOString();
+    const [trip] = await this.pg.query(
+      `INSERT INTO trips
+         (id, route_id, company_id, vehicle_id, from_city_id, to_city_id,
+          departure_at, arrival_at, status, base_price, policy_snapshot,
+          created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9, $10::jsonb, $11, $12)
+       RETURNING *`,
+      [
+        randomUUID(),
+        route.id,
+        companyId,
+        vehicleId,
+        route.from_city_id,
+        route.to_city_id,
+        departureAt,
+        arrivalAt,
+        basePrice,
+        JSON.stringify(body.policy_snapshot ?? null),
+        now,
+        now,
+      ],
+    );
     return trip;
   }
 
-  tripSeats(id: string) {
-    return this.tripSeatsInternal.filter((seat) => seat['trip_id'] === id);
+  async updateTrip(
+    actor: RequestActor | undefined,
+    id: string,
+    body: Record<string, unknown>,
+  ) {
+    await this.assertTrip(actor, id);
+    const [trip] = await this.pg.query(
+      `UPDATE trips
+       SET vehicle_id = COALESCE($1, vehicle_id),
+           departure_at = COALESCE($2, departure_at),
+           arrival_at = COALESCE($3, arrival_at),
+           base_price = COALESCE($4, base_price),
+           status = COALESCE($5::"TripStatus", status),
+           updated_at = $6
+       WHERE id = $7
+       RETURNING *`,
+      [
+        body.vehicle_id !== undefined ? String(body.vehicle_id) : null,
+        body.departure_at !== undefined ? String(body.departure_at) : null,
+        body.arrival_at !== undefined ? String(body.arrival_at) : null,
+        body.base_price !== undefined ? Number(body.base_price) : null,
+        body.status !== undefined ? String(body.status) : null,
+        new Date().toISOString(),
+        id,
+      ],
+    );
+    return trip;
+  }
+
+  async cancelTrip(actor: RequestActor | undefined, id: string) {
+    await this.assertTrip(actor, id);
+    const [trip] = await this.pg.query(
+      `UPDATE trips SET status = 'cancelled', updated_at = $1 WHERE id = $2 RETURNING *`,
+      [new Date().toISOString(), id],
+    );
+    return trip;
+  }
+
+  async tripSeats(actor: RequestActor | undefined, id: string) {
+    await this.assertTrip(actor, id);
+    return this.pg.query(
+      `SELECT * FROM trip_seats WHERE trip_id = $1 ORDER BY seat_code ASC`,
+      [id],
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -1531,12 +2328,45 @@ export class PartnersService {
 
     return this.pg.query(
       `SELECT b.*,
+              COALESCE(b.price_snapshot ->> 'check_in', b.policy_snapshot ->> 'check_in') AS check_in,
+              COALESCE(b.price_snapshot ->> 'check_out', b.policy_snapshot ->> 'check_out') AS check_out,
+              COALESCE(b.price_snapshot ->> 'room_type_id', hr.room_type_id::text) AS room_type_id,
+              COALESCE(b.price_snapshot ->> 'room_number', hr.code) AS room_number,
+              COALESCE(rt.name ->> 'uz', rt.name ->> 'ru', rt.name ->> 'en') AS room_type_name,
+              COALESCE((
+                SELECT SUM(p.amount)::float8
+                FROM payments p
+                WHERE p.booking_id = b.id AND p.status = 'paid'
+              ), 0) AS paid_amount,
+              jsonb_build_object(
+                'check_in', COALESCE(b.price_snapshot ->> 'check_in', b.policy_snapshot ->> 'check_in'),
+                'check_out', COALESCE(b.price_snapshot ->> 'check_out', b.policy_snapshot ->> 'check_out'),
+                'nights', COALESCE(
+                  NULLIF(b.price_snapshot ->> 'nights', '')::int,
+                  NULLIF(b.policy_snapshot ->> 'nights', '')::int
+                ),
+                'adults', COALESCE(
+                  NULLIF(b.price_snapshot ->> 'adults', '')::int,
+                  NULLIF(b.policy_snapshot ->> 'adults', '')::int
+                ),
+                'children', COALESCE(
+                  NULLIF(b.price_snapshot ->> 'children', '')::int,
+                  NULLIF(b.policy_snapshot ->> 'children', '')::int
+                )
+              ) AS item,
               u.first_name AS user_first_name,
               u.last_name  AS user_last_name,
               u.email      AS user_email,
               u.phone      AS user_phone
        FROM bookings b
        LEFT JOIN users u ON u.id = b.user_id
+       LEFT JOIN hotel_rooms hr
+         ON hr.id = NULLIF(b.price_snapshot ->> 'room_id', '')::uuid
+       LEFT JOIN room_types rt
+         ON rt.id = COALESCE(
+           NULLIF(b.price_snapshot ->> 'room_type_id', '')::uuid,
+           hr.room_type_id
+         )
        WHERE b.partner_organization_id = $1
        ORDER BY ${sortColumn} ${orderDir}
        LIMIT $2 OFFSET $3`,
@@ -1551,9 +2381,17 @@ export class PartnersService {
     const organizationId = this.organizationId(actor);
     const now = new Date().toISOString();
     const bookingId = randomUUID();
-    const bookingNumber = `B-${Date.now().toString(36).toUpperCase()}`;
-    const hotelId = String(body.hotel_id ?? body.hotelId ?? '');
-    const roomTypeId = String(body.roomTypeId ?? body.room_type_id ?? '');
+    const bookingNumber = `B-${randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+    const hotelId = this.requiredString(
+      body.hotel_id ?? body.hotelId,
+      'HOTEL_REQUIRED',
+      'Hotel tanlanishi kerak',
+    );
+    const roomTypeId = this.requiredString(
+      body.roomTypeId ?? body.room_type_id,
+      'ROOM_TYPE_REQUIRED',
+      'Xona turi tanlanishi kerak',
+    );
 
     // Validate hotel
     const hotels = await this.pg.query(
@@ -1567,58 +2405,199 @@ export class PartnersService {
       });
     }
 
-    // Find a room
-    const rooms = await this.pg.query<{
+    const [roomType] = await this.pg.query<{
       id: string;
-      room_type_id: string;
-      base_price: number;
+      name: Record<string, string>;
+      base_price: number | null;
+      capacity: number | null;
     }>(
-      `SELECT * FROM hotel_rooms WHERE hotel_id = $1${roomTypeId ? ' AND room_type_id = $2' : ''} AND status = 'active' LIMIT 1`,
-      roomTypeId ? [hotelId, roomTypeId] : [hotelId],
+      `SELECT rt.id::text, rt.name, rt.base_price::float8, rt.capacity
+       FROM room_types rt
+       WHERE rt.id = $1::uuid
+         AND EXISTS (
+           SELECT 1
+           FROM hotel_rooms hr
+           WHERE hr.hotel_id = $2::uuid
+             AND hr.room_type_id = rt.id
+             AND hr.status = 'active'
+         )`,
+      [roomTypeId, hotelId],
     );
-    if (!rooms[0]) {
+    if (!roomType) {
       throw new NotFoundException({
-        code: 'ROOM_NOT_AVAILABLE',
-        message: 'Tanlangan hotel uchun xona topilmadi',
+        code: 'ROOM_TYPE_NOT_AVAILABLE',
+        message: 'Tanlangan xona turi bu hotelda mavjud emas',
       });
     }
-    const room = rooms[0];
 
-    const checkIn = String(
-      body.checkIn ?? body.check_in ?? new Date().toISOString().slice(0, 10),
+    let roomNumber = this.optionalString(body.roomNumber ?? body.room_number);
+    type BookingRoomRow = {
+      id: string;
+      room_type_id: string;
+      code: string;
+      base_price: number;
+    };
+    let room: BookingRoomRow | null = null;
+
+    if (roomNumber) {
+      const [selectedRoom] = await this.pg.query<BookingRoomRow>(
+        `SELECT id::text, room_type_id::text, code, base_price::float8
+         FROM hotel_rooms
+         WHERE hotel_id = $1::uuid
+           AND room_type_id = $2::uuid
+           AND code = $3
+           AND status = 'active'
+         LIMIT 1`,
+        [hotelId, roomTypeId, roomNumber],
+      );
+      if (!selectedRoom) {
+        throw new NotFoundException({
+          code: 'ROOM_NOT_AVAILABLE',
+          message: 'Tanlangan xona topilmadi',
+        });
+      }
+      room = selectedRoom;
+    }
+
+    const bedId = this.optionalString(body.bedId ?? body.bed_id);
+    if (bedId) {
+      const [bed] = await this.pg.query<{
+        id: string;
+        room_id: string;
+        room_number: string;
+        room_type_id: string;
+      }>(
+        `SELECT rb.id::text, rb.room_id::text, hr.code AS room_number, hr.room_type_id::text
+         FROM room_beds rb
+         JOIN hotel_rooms hr ON hr.id = rb.room_id
+         WHERE rb.id = $1::uuid
+           AND hr.hotel_id = $2::uuid
+           AND hr.room_type_id = $3::uuid
+           AND rb.is_listed = true
+           AND rb.status <> 'OUT_OF_SERVICE'
+           AND hr.status = 'active'
+         LIMIT 1`,
+        [bedId, hotelId, roomTypeId],
+      );
+      if (!bed) {
+        throw new NotFoundException({
+          code: 'BED_NOT_AVAILABLE',
+          message: 'Tanlangan yotoq topilmadi',
+        });
+      }
+      if (room && bed.room_id !== room.id) {
+        throw new BadRequestException({
+          code: 'BED_ROOM_MISMATCH',
+          message: 'Yotoq tanlangan xonaga tegishli emas',
+        });
+      }
+      if (!room) {
+        const [bedRoom] = await this.pg.query<BookingRoomRow>(
+          `SELECT id::text, room_type_id::text, code, base_price::float8
+           FROM hotel_rooms
+           WHERE id = $1::uuid
+           LIMIT 1`,
+          [bed.room_id],
+        );
+        room = bedRoom ?? null;
+        roomNumber = bed.room_number;
+      }
+    }
+
+    const checkIn = this.requiredString(
+      body.checkIn ?? body.check_in,
+      'CHECK_IN_REQUIRED',
+      'Kelish sanasi kiritilishi kerak',
     );
-    const checkOut = String(body.checkOut ?? body.check_out ?? checkIn);
-    const nights = Math.max(1, Number(body.nights ?? 1));
-    const totalAmount = Number(
-      body.totalPrice ?? body.total_amount ?? room['base_price'] * nights,
+    const checkOut = this.requiredString(
+      body.checkOut ?? body.check_out,
+      'CHECK_OUT_REQUIRED',
+      'Ketish sanasi kiritilishi kerak',
+    );
+    const nights = this.requiredPositiveInteger(
+      body.nights,
+      'NIGHTS_REQUIRED',
+      'Kechalar soni kiritilishi kerak',
+    );
+    const totalAmount = this.requiredNonNegativeNumber(
+      body.totalPrice ?? body.total_amount,
+      'TOTAL_AMOUNT_REQUIRED',
+      'Bron summasi kiritilishi kerak',
+    );
+    const adults = this.requiredPositiveInteger(
+      body.adults,
+      'ADULTS_REQUIRED',
+      'Mehmonlar soni kiritilishi kerak',
+    );
+    const children = this.optionalNonNegativeNumber(body.children) ?? 0;
+    const source = this.requiredString(
+      body.source,
+      'BOOKING_SOURCE_REQUIRED',
+      'Bron manbasi kiritilishi kerak',
     );
     const commissionAmount = Math.round(totalAmount * 0.12);
+    const guestName = String(body.fullName ?? body.full_name ?? '').trim();
+    const guestPhone = String(body.phone ?? '').trim();
+    const guestEmail = body.email ? String(body.email).toLowerCase() : null;
+    if (!guestName && !guestPhone) {
+      throw new BadRequestException({
+        code: 'GUEST_REQUIRED',
+        message: 'Mehmon ismi yoki telefoni talab qilinadi',
+      });
+    }
 
-    const itemPayload = {
-      hotel_id: hotelId,
-      room_id: room['id'],
-      room_type_id: room['room_type_id'],
-      room_number: body.roomNumber ?? body.room_number ?? null,
-      source: String(body.source ?? 'walk_in'),
-      guest: {
-        fullName: String(body.fullName ?? body.full_name ?? 'Walk-in mijoz'),
-        phone: String(body.phone ?? ''),
-      },
+    const policySnapshot = {
+      source,
       check_in: checkIn,
       check_out: checkOut,
       nights,
-      adults: Number(body.adults ?? 1),
-      children: Number(body.children ?? 0),
+      adults,
+      children,
+      ...(body.slotTime || body.slot_time
+        ? { slot_time: String(body.slotTime ?? body.slot_time) }
+        : {}),
+    };
+    const priceSnapshot = {
+      hotel_id: hotelId,
+      room_id: room?.id ?? null,
+      room_type_id: roomType.id,
+      room_number: roomNumber,
+      bed_id: bedId,
+      slot_time:
+        body.slotTime || body.slot_time
+          ? String(body.slotTime ?? body.slot_time)
+          : null,
+      check_in: checkIn,
+      check_out: checkOut,
+      nights,
+      adults,
+      children,
+      base_price: Number(room?.base_price ?? roomType.base_price ?? 0),
+      total_amount: totalAmount,
     };
 
     // Insert booking
     await this.pg.query(
-      `INSERT INTO bookings (id, booking_number, user_id, partner_organization_id, type, confirmation_mode, payment_method, status, currency, total_amount, subtotal, discount_amount, bonus_amount, service_fee, commission_amount, partner_payable, hotel_id, item, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20)`,
+      `INSERT INTO bookings (
+         id, booking_number, user_id, partner_organization_id, type,
+         confirmation_mode, payment_method, status, currency, total_amount,
+         subtotal, discount_amount, bonus_amount, service_fee,
+         commission_amount, partner_payable, hotel_id, trip_id,
+         policy_snapshot, price_snapshot, guest_name, guest_email, guest_phone,
+         created_at, updated_at
+       )
+       VALUES (
+         $1, $2, $3, $4, $5,
+         $6, $7, $8, $9, $10,
+         $11, $12, $13, $14,
+         $15, $16, $17, $18,
+         $19::jsonb, $20::jsonb, $21, $22, $23,
+         $24, $25
+       )`,
       [
         bookingId,
         bookingNumber,
-        'demo-user-id',
+        null,
         organizationId,
         'hotel',
         'instant_confirmation',
@@ -1633,7 +2612,12 @@ export class PartnersService {
         commissionAmount,
         totalAmount - commissionAmount,
         hotelId,
-        JSON.stringify(itemPayload),
+        null,
+        JSON.stringify(policySnapshot),
+        JSON.stringify(priceSnapshot),
+        guestName || null,
+        guestEmail,
+        guestPhone || null,
         now,
         now,
       ],
@@ -1647,17 +2631,48 @@ export class PartnersService {
       [paymentId, bookingId, 'cash', 'paid', totalAmount, 'UZS', now, now],
     );
 
-    const bookings = await this.pg.query(
-      `SELECT * FROM bookings WHERE id = $1`,
-      [bookingId],
-    );
-    return bookings[0];
+    return this.booking(actor, bookingId);
   }
 
   async booking(actor: RequestActor | undefined, id: string) {
     const organizationId = this.organizationId(actor);
     const bookings = await this.pg.query(
-      `SELECT * FROM bookings WHERE id = $1`,
+      `SELECT b.*,
+              COALESCE(b.price_snapshot ->> 'check_in', b.policy_snapshot ->> 'check_in') AS check_in,
+              COALESCE(b.price_snapshot ->> 'check_out', b.policy_snapshot ->> 'check_out') AS check_out,
+              COALESCE(b.price_snapshot ->> 'room_type_id', hr.room_type_id::text) AS room_type_id,
+              COALESCE(b.price_snapshot ->> 'room_number', hr.code) AS room_number,
+              COALESCE(rt.name ->> 'uz', rt.name ->> 'ru', rt.name ->> 'en') AS room_type_name,
+              COALESCE((
+                SELECT SUM(p.amount)::float8
+                FROM payments p
+                WHERE p.booking_id = b.id AND p.status = 'paid'
+              ), 0) AS paid_amount,
+              jsonb_build_object(
+                'check_in', COALESCE(b.price_snapshot ->> 'check_in', b.policy_snapshot ->> 'check_in'),
+                'check_out', COALESCE(b.price_snapshot ->> 'check_out', b.policy_snapshot ->> 'check_out'),
+                'nights', COALESCE(
+                  NULLIF(b.price_snapshot ->> 'nights', '')::int,
+                  NULLIF(b.policy_snapshot ->> 'nights', '')::int
+                ),
+                'adults', COALESCE(
+                  NULLIF(b.price_snapshot ->> 'adults', '')::int,
+                  NULLIF(b.policy_snapshot ->> 'adults', '')::int
+                ),
+                'children', COALESCE(
+                  NULLIF(b.price_snapshot ->> 'children', '')::int,
+                  NULLIF(b.policy_snapshot ->> 'children', '')::int
+                )
+              ) AS item
+       FROM bookings b
+       LEFT JOIN hotel_rooms hr
+         ON hr.id = NULLIF(b.price_snapshot ->> 'room_id', '')::uuid
+       LEFT JOIN room_types rt
+         ON rt.id = COALESCE(
+           NULLIF(b.price_snapshot ->> 'room_type_id', '')::uuid,
+           hr.room_type_id
+         )
+       WHERE b.id = $1`,
       [id],
     );
     if (!bookings[0]) {
@@ -1680,15 +2695,71 @@ export class PartnersService {
     id: string,
     body: Record<string, unknown>,
   ) {
-    await this.booking(actor, id); // validate ownership
+    const booking = (await this.booking(actor, id)) as Record<string, unknown>;
     const now = new Date().toISOString();
-    const roomNumber = String(body.roomNumber ?? body.room_number ?? '');
+    const hotelId = this.requiredString(
+      booking['hotel_id'],
+      'HOTEL_REQUIRED',
+      'Bron hotelga bogʻlanmagan',
+    );
+    const roomNumber = this.requiredString(
+      body.roomNumber ?? body.room_number,
+      'ROOM_NUMBER_REQUIRED',
+      'Xona raqami kiritilishi kerak',
+    );
+    const bedId = this.optionalString(body.bedId ?? body.bed_id);
+    const [room] = await this.pg.query<{
+      id: string;
+      room_type_id: string;
+      code: string;
+    }>(
+      `SELECT id::text, room_type_id::text, code
+       FROM hotel_rooms
+       WHERE hotel_id = $1::uuid
+         AND code = $2
+         AND status = 'active'
+       LIMIT 1`,
+      [hotelId, roomNumber],
+    );
+    if (!room) {
+      throw new NotFoundException({
+        code: 'ROOM_NOT_AVAILABLE',
+        message: 'Tanlangan xona topilmadi',
+      });
+    }
+
+    const patch = {
+      room_id: room.id,
+      room_type_id: room.room_type_id,
+      room_number: roomNumber,
+      ...(bedId ? { bed_id: bedId } : {}),
+    };
+
+    if (bedId) {
+      const [bed] = await this.pg.query<{ id: string }>(
+        `SELECT rb.id::text
+         FROM room_beds rb
+         WHERE rb.id = $1::uuid
+           AND rb.room_id = $2::uuid
+           AND rb.is_listed = true
+           AND rb.status <> 'OUT_OF_SERVICE'
+         LIMIT 1`,
+        [bedId, room.id],
+      );
+      if (!bed) {
+        throw new NotFoundException({
+          code: 'BED_NOT_AVAILABLE',
+          message: 'Tanlangan yotoq topilmadi',
+        });
+      }
+    }
 
     const result = await this.pg.query(
       `UPDATE bookings
-       SET item = jsonb_set(COALESCE(item, '{}'::jsonb), '{room_number}', to_jsonb($1::text)), updated_at = $2
+       SET price_snapshot = COALESCE(price_snapshot, '{}'::jsonb) || $1::jsonb,
+           updated_at = $2
        WHERE id = $3 RETURNING *`,
-      [roomNumber, now, id],
+      [JSON.stringify(patch), now, id],
     );
     return result[0];
   }
@@ -1698,7 +2769,7 @@ export class PartnersService {
     id: string,
     status: string,
   ) {
-    await this.booking(actor, id); // validate ownership
+    const booking = (await this.booking(actor, id)) as Record<string, unknown>;
     const now = new Date().toISOString();
     const sets: string[] = ['updated_at = $1'];
     const params: unknown[] = [now];
@@ -1711,23 +2782,25 @@ export class PartnersService {
     } else if (status === 'checked_in') {
       sets.push(`status = $${paramIdx++}`);
       params.push(BookingStatus.CONFIRMED.toLowerCase());
-      // Set checked_in_at inside item jsonb
+      // Store operational timestamps in the booking policy snapshot.
       await this.pg.query(
-        `UPDATE bookings SET item = jsonb_set(COALESCE(item, '{}'::jsonb), '{checked_in_at}', to_jsonb($1::text)), updated_at = $1 WHERE id = $2`,
+        `UPDATE bookings SET policy_snapshot = jsonb_set(COALESCE(policy_snapshot, '{}'::jsonb), '{checked_in_at}', to_jsonb($1::text)), updated_at = $1 WHERE id = $2`,
         [now, id],
       );
+      await this.updateBookingInventoryStatus(booking, 'OCCUPIED', now);
     } else if (status === 'boarded') {
       await this.pg.query(
-        `UPDATE bookings SET item = jsonb_set(COALESCE(item, '{}'::jsonb), '{boarded_at}', to_jsonb($1::text)), updated_at = $1 WHERE id = $2`,
+        `UPDATE bookings SET policy_snapshot = jsonb_set(COALESCE(policy_snapshot, '{}'::jsonb), '{boarded_at}', to_jsonb($1::text)), updated_at = $1 WHERE id = $2`,
         [now, id],
       );
     } else if (status === 'completed') {
       sets.push(`status = $${paramIdx++}`);
       params.push(BookingStatus.COMPLETED.toLowerCase());
       await this.pg.query(
-        `UPDATE bookings SET item = jsonb_set(COALESCE(item, '{}'::jsonb), '{checked_out_at}', to_jsonb($1::text)), updated_at = $1 WHERE id = $2`,
+        `UPDATE bookings SET policy_snapshot = jsonb_set(COALESCE(policy_snapshot, '{}'::jsonb), '{checked_out_at}', to_jsonb($1::text)), updated_at = $1 WHERE id = $2`,
         [now, id],
       );
+      await this.updateBookingInventoryStatus(booking, 'VACANT_DIRTY', now);
     }
 
     if (paramIdx > 2) {
@@ -1845,29 +2918,55 @@ export class PartnersService {
   }
 
   // ---------------------------------------------------------------------------
-  // Withdrawals (internal array)
+  // Withdrawals
   // ---------------------------------------------------------------------------
 
-  withdrawal(actor: RequestActor | undefined, body: Record<string, unknown>) {
-    const request = {
-      id: randomUUID(),
-      organization_id: this.organizationId(actor),
-      amount: Number(body.amount ?? 0),
-      currency: 'UZS',
-      status: 'requested',
-      created_at: new Date().toISOString(),
-    };
-    this.withdrawalsStore.unshift(request);
+  async withdrawal(
+    actor: RequestActor | undefined,
+    body: Record<string, unknown>,
+  ) {
+    const organizationId = this.organizationId(actor);
+    const amount = Number(body.amount ?? 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException({
+        code: 'WITHDRAWAL_AMOUNT_INVALID',
+        message: 'Yechim summasi noto‘g‘ri',
+      });
+    }
+
+    const now = new Date().toISOString();
+    const [request] = await this.pg.query(
+      `INSERT INTO withdrawal_requests
+         (id, organization_id, amount, currency, status, created_at, updated_at)
+       VALUES ($1, $2, $3, 'UZS', 'requested', $4, $5)
+       RETURNING *`,
+      [randomUUID(), organizationId, amount, now, now],
+    );
     return request;
   }
 
-  withdrawals(actor: RequestActor | undefined, query: QueryLike = {}) {
+  async withdrawals(actor: RequestActor | undefined, query: QueryLike = {}) {
     const organizationId = this.organizationId(actor);
-    return this.paginatePartner(
-      this.withdrawalsStore.filter(
-        (withdrawal) => withdrawal['organization_id'] === organizationId,
-      ),
-      query,
+    const pagination = parsePagination(query, 'partner', {
+      defaultLimit: 50,
+      allowedSortBy: ['created_at', 'updated_at', 'status', 'amount'],
+    });
+    const sortColumn = [
+      'created_at',
+      'updated_at',
+      'status',
+      'amount',
+    ].includes(pagination.sortBy)
+      ? pagination.sortBy
+      : 'created_at';
+    const orderDir = pagination.order === 'asc' ? 'ASC' : 'DESC';
+    return this.pg.query(
+      `SELECT *
+       FROM withdrawal_requests
+       WHERE organization_id = $1
+       ORDER BY ${sortColumn} ${orderDir}
+       ${limitOffsetSql(pagination)}`,
+      [organizationId],
     );
   }
 
@@ -1880,11 +2979,8 @@ export class PartnersService {
     type: string,
     body: Record<string, unknown>,
   ) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'partner' as const,
-      role: Role.USER,
-    };
+    this.requireActor(actor);
+    const organizationId = this.organizationId(actor);
     const now = new Date().toISOString();
     const format = ['csv', 'xlsx', 'pdf'].includes(String(body.format))
       ? (String(body.format) as 'csv' | 'xlsx' | 'pdf')
@@ -1894,19 +2990,19 @@ export class PartnersService {
     await this.pg.query(
       `INSERT INTO export_jobs (id, owner_type, owner_id, type, format, status, created_at, updated_at)
        VALUES ($1, 'partner', $2, $3, $4, 'queued', $5, $6)`,
-      [jobId, currentActor.id, type, format, now, now],
+      [jobId, organizationId, type, format, now, now],
     );
 
     await this.jobs.add(
       'partner-export',
       {
         export_id: jobId,
-        owner_id: currentActor.id,
+        owner_id: organizationId,
         type,
         format,
       },
       {
-        idempotencyKey: `partner-export:${currentActor.id}:${type}:${format}`,
+        idempotencyKey: `partner-export:${organizationId}:${type}:${format}`,
       },
     );
 
@@ -1918,20 +3014,47 @@ export class PartnersService {
   }
 
   // ---------------------------------------------------------------------------
-  // Finance Documents (internal array)
+  // Finance Documents
   // ---------------------------------------------------------------------------
 
-  financeDocuments(actor: RequestActor | undefined) {
+  async financeDocuments(actor: RequestActor | undefined) {
     const organizationId = this.organizationId(actor);
-    return this.financeDocumentsStore.filter(
-      (document) => document['organization_id'] === organizationId,
+    return this.pg.query(
+      `SELECT id::text, owner_id::text as organization_id, type, format, status,
+              download_key, created_at, updated_at, expires_at
+       FROM export_jobs
+       WHERE owner_type = 'partner' AND owner_id = $1 AND type = 'partner-finance'
+       ORDER BY created_at DESC`,
+      [organizationId],
     );
   }
 
-  financeDocumentDownload(id: string) {
+  async financeDocumentDownload(actor: RequestActor | undefined, id: string) {
+    const organizationId = this.organizationId(actor);
+    const [document] = await this.pg.query<{ download_key?: string | null }>(
+      `SELECT download_key
+       FROM export_jobs
+       WHERE id = $1 AND owner_type = 'partner' AND owner_id = $2 AND type = 'partner-finance'
+       LIMIT 1`,
+      [id, organizationId],
+    );
+    if (!document) {
+      throw new NotFoundException({
+        code: 'EXPORT_NOT_FOUND',
+        message: 'Moliya hujjati topilmadi',
+      });
+    }
+    if (!document.download_key) {
+      throw new BadRequestException({
+        code: 'EXPORT_NOT_READY',
+        message: 'Moliya hujjati hali tayyor emas',
+      });
+    }
     return {
       id,
-      download_url: `https://api.uzbron.uz/v1/partner/finance/documents/${id}/mock.pdf`,
+      download_url: document.download_key.startsWith('http')
+        ? document.download_key
+        : `${this.publicOrigin()}/${document.download_key.replace(/^\//, '')}`,
     };
   }
 
@@ -1962,22 +3085,26 @@ export class PartnersService {
       organization_id: this.organizationId(actor),
       name: String(body.name ?? 'Default API key'),
       key_prefix: prefix,
-      scopes: Array.isArray(body.scopes) ? body.scopes : ['bookings:read'],
+      scopes: Array.isArray(body.scopes)
+        ? body.scopes.map((scope) => String(scope))
+        : ['bookings:read'],
       status: 'active',
       created_at: now,
       updated_at: now,
     };
 
     await this.pg.query(
-      `INSERT INTO partner_api_keys (id, organization_id, name, key_prefix, secret_hash, scopes, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO partner_api_keys
+         (id, organization_id, name, key_prefix, secret_hash, scopes, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $8)`,
       [
         keyId,
         apiKey.organization_id,
         apiKey.name,
         prefix,
         hashSecret(fullKey, partnerApiPepper()),
-        JSON.stringify(apiKey.scopes),
+        apiKey.scopes,
+        now,
         now,
       ],
     );
@@ -2031,9 +3158,9 @@ export class PartnersService {
         webhookId,
         organizationId,
         String(body.url ?? ''),
-        JSON.stringify(
-          Array.isArray(body.events) ? body.events : ['booking.created'],
-        ),
+        Array.isArray(body.events)
+          ? body.events.map((event) => String(event))
+          : ['booking.created'],
         now,
         now,
       ],
@@ -2065,9 +3192,9 @@ export class PartnersService {
     if (body.events !== undefined) {
       sets.push(`events = $${idx++}`);
       params.push(
-        JSON.stringify(
-          Array.isArray(body.events) ? body.events : ['booking.created'],
-        ),
+        Array.isArray(body.events)
+          ? body.events.map((event) => String(event))
+          : ['booking.created'],
       );
     }
 
@@ -2115,20 +3242,72 @@ export class PartnersService {
 
   async testWebhook(actor: RequestActor | undefined, id: string) {
     await this.assertWebhook(actor, id);
-    return {
-      webhook_id: id,
-      delivery_id: randomUUID(),
-      status: 'queued',
-    };
+    const now = new Date().toISOString();
+    const deliveryId = randomUUID();
+    const [delivery] = await this.pg.query(
+      `INSERT INTO partner_webhook_deliveries
+         (id, endpoint_id, event_type, status, payload, created_at, updated_at)
+       VALUES ($1, $2, 'webhook.test', 'queued', $3::jsonb, $4, $5)
+       RETURNING id::text, endpoint_id::text as webhook_id, event_type, status,
+                 payload, created_at, updated_at`,
+      [
+        deliveryId,
+        id,
+        JSON.stringify({ source: 'partner-test', requested_at: now }),
+        now,
+        now,
+      ],
+    );
+    await this.jobs.add(
+      'partner-webhook-delivery',
+      { delivery_id: deliveryId },
+      { idempotencyKey: `partner-webhook-delivery:${deliveryId}` },
+    );
+    return delivery;
   }
 
   async webhookDeliveries(actor: RequestActor | undefined, id: string) {
     await this.assertWebhook(actor, id);
-    return [{ id: randomUUID(), webhook_id: id, status: 'delivered' }];
+    return this.pg.query(
+      `SELECT id::text, endpoint_id::text as webhook_id, event_type, status,
+              payload, response_status, response_body, attempted_at,
+              created_at, updated_at
+       FROM partner_webhook_deliveries
+       WHERE endpoint_id = $1
+       ORDER BY created_at DESC`,
+      [id],
+    );
   }
 
-  retryWebhookDelivery(deliveryId: string) {
-    return { delivery_id: deliveryId, status: 'queued' };
+  async retryWebhookDelivery(
+    actor: RequestActor | undefined,
+    deliveryId: string,
+  ) {
+    const organizationId = this.organizationId(actor);
+    const now = new Date().toISOString();
+    const [delivery] = await this.pg.query(
+      `UPDATE partner_webhook_deliveries d
+       SET status = 'queued',
+           updated_at = $1
+       FROM partner_webhook_endpoints e
+       WHERE d.id = $2
+         AND d.endpoint_id = e.id
+         AND e.organization_id = $3
+       RETURNING d.id::text, d.endpoint_id::text as webhook_id, d.status`,
+      [now, deliveryId, organizationId],
+    );
+    if (!delivery) {
+      throw new NotFoundException({
+        code: 'WEBHOOK_DELIVERY_NOT_FOUND',
+        message: 'Webhook yetkazish yozuvi topilmadi',
+      });
+    }
+    await this.jobs.add(
+      'partner-webhook-delivery',
+      { delivery_id: deliveryId },
+      { idempotencyKey: `partner-webhook-delivery:${deliveryId}:${now}` },
+    );
+    return delivery;
   }
 
   // ---------------------------------------------------------------------------
@@ -2143,6 +3322,79 @@ export class PartnersService {
       });
     }
     return actor.organizationId;
+  }
+
+  private requireActor(actor: RequestActor | undefined): RequestActor {
+    if (!actor) {
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+    return actor;
+  }
+
+  private async busCompanyId(actor: RequestActor | undefined): Promise<string> {
+    const organizationId = this.organizationId(actor);
+    const [company] = await this.pg.query<{ id: string }>(
+      `SELECT id::text
+       FROM bus_companies
+       WHERE partner_organization_id = $1 AND status = 'active'
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [organizationId],
+    );
+    if (!company) {
+      throw new NotFoundException({
+        code: 'BUS_COMPANY_NOT_FOUND',
+        message: 'Avtobus kompaniyasi topilmadi',
+      });
+    }
+    return company.id;
+  }
+
+  private async assertVehicle(actor: RequestActor | undefined, id: string) {
+    const organizationId = this.organizationId(actor);
+    const [vehicle] = await this.pg.query(
+      `SELECT v.*
+       FROM vehicles v
+       JOIN bus_companies bc ON bc.id = v.company_id
+       WHERE v.id = $1 AND bc.partner_organization_id = $2`,
+      [id, organizationId],
+    );
+    if (!vehicle) {
+      throw new NotFoundException({
+        code: 'VEHICLE_NOT_FOUND',
+        message: 'Transport topilmadi',
+      });
+    }
+    return vehicle;
+  }
+
+  private async assertTrip(actor: RequestActor | undefined, id: string) {
+    const organizationId = this.organizationId(actor);
+    const [trip] = await this.pg.query(
+      `SELECT t.*
+       FROM trips t
+       JOIN bus_companies bc ON bc.id = t.company_id
+       WHERE t.id = $1 AND bc.partner_organization_id = $2`,
+      [id, organizationId],
+    );
+    if (!trip) {
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Reys topilmadi',
+      });
+    }
+    return trip;
+  }
+
+  private publicOrigin(): string {
+    return (
+      process.env.PUBLIC_API_ORIGIN ??
+      process.env.NEXT_PUBLIC_API_URL ??
+      `http://localhost:${process.env.PORT ?? 4000}/v1`
+    ).replace(/\/$/, '');
   }
 
   private submissionActorId(actor: RequestActor | undefined): string {
@@ -2187,13 +3439,190 @@ export class PartnersService {
     return text.length > 0 ? text : null;
   }
 
-  private partnerType(value: unknown): 'hotel' | 'bus' | 'mixed' {
-    const type = String(value ?? 'hotel').toLowerCase();
-    if (type === 'bus') {
-      return 'bus';
+  private requiredString(
+    value: unknown,
+    code: string,
+    message: string,
+  ): string {
+    const text = String(value ?? '').trim();
+    if (!text) {
+      throw new BadRequestException({ code, message });
     }
-    if (type === 'mixed') {
-      return 'mixed';
+    return text;
+  }
+
+  private optionalInteger(value: unknown): number | null {
+    if (value === undefined || value === null || value === '') return null;
+    const number = Number(value);
+    return Number.isInteger(number) ? number : null;
+  }
+
+  private optionalPositiveInteger(value: unknown): number | null {
+    const number = this.optionalInteger(value);
+    return number !== null && number > 0 ? number : null;
+  }
+
+  private requiredPositiveInteger(
+    value: unknown,
+    code: string,
+    message: string,
+  ): number {
+    const number = Number(value);
+    if (!Number.isInteger(number) || number <= 0) {
+      throw new BadRequestException({ code, message });
+    }
+    return number;
+  }
+
+  private optionalNonNegativeNumber(value: unknown): number | null {
+    if (value === undefined || value === null || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? number : null;
+  }
+
+  private requiredNonNegativeNumber(
+    value: unknown,
+    code: string,
+    message: string,
+  ): number {
+    const number = this.optionalNonNegativeNumber(value);
+    if (number === null) {
+      throw new BadRequestException({ code, message });
+    }
+    return number;
+  }
+
+  private roomHousekeepingStatus(value: unknown): string {
+    const status = String(value ?? 'VACANT_CLEAN').toUpperCase();
+    const allowed = new Set([
+      'VACANT_CLEAN',
+      'VACANT_DIRTY',
+      'OCCUPIED',
+      'OUT_OF_SERVICE',
+      'BLOCKED',
+    ]);
+    if (!allowed.has(status)) {
+      throw new BadRequestException({
+        code: 'ROOM_STATUS_INVALID',
+        message: "Xona holati noto'g'ri",
+      });
+    }
+    return status;
+  }
+
+  private async assertRoomType(roomTypeId: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(roomTypeId)) {
+      throw new BadRequestException({
+        code: 'ROOM_TYPE_REQUIRED',
+        message: 'Xona turi tanlanishi kerak',
+      });
+    }
+    const [roomType] = await this.pg.query<{
+      id: string;
+      base_price: number | null;
+      capacity: number | null;
+    }>(
+      `SELECT id::text, base_price::float8, capacity
+       FROM room_types
+       WHERE id = $1::uuid`,
+      [roomTypeId],
+    );
+    if (!roomType) {
+      throw new NotFoundException({
+        code: 'ROOM_TYPE_NOT_FOUND',
+        message: 'Xona turi topilmadi',
+      });
+    }
+    return roomType;
+  }
+
+  private async assertRoomForHotel(
+    actor: RequestActor | undefined,
+    hotelId: string,
+    roomId: string,
+  ) {
+    await this.assertHotel(hotelId, actor);
+    const [room] = await this.pg.query(
+      `SELECT * FROM hotel_rooms WHERE id = $1 AND hotel_id = $2`,
+      [roomId, hotelId],
+    );
+    if (!room) {
+      throw new NotFoundException({
+        code: 'ROOM_NOT_AVAILABLE',
+        message: 'Xona topilmadi',
+      });
+    }
+    return room;
+  }
+
+  private async updateBookingInventoryStatus(
+    booking: Record<string, unknown>,
+    status: 'OCCUPIED' | 'VACANT_DIRTY',
+    now: string,
+  ) {
+    const snapshot =
+      booking['price_snapshot'] &&
+      typeof booking['price_snapshot'] === 'object' &&
+      !Array.isArray(booking['price_snapshot'])
+        ? (booking['price_snapshot'] as Record<string, unknown>)
+        : {};
+    const bedId = this.optionalString(snapshot['bed_id']);
+    if (bedId) {
+      await this.pg.query(
+        `UPDATE room_beds SET status = $1, updated_at = $2 WHERE id = $3::uuid`,
+        [status, now, bedId],
+      );
+      return;
+    }
+
+    const roomId = this.optionalString(snapshot['room_id']);
+    if (roomId) {
+      await this.pg.query(
+        `UPDATE hotel_rooms
+         SET housekeeping_status = $1, updated_at = $2
+         WHERE id = $3::uuid`,
+        [status, now, roomId],
+      );
+      return;
+    }
+
+    const hotelId = this.optionalString(booking['hotel_id']);
+    const roomNumber = this.optionalString(
+      snapshot['room_number'] ?? booking['room_number'],
+    );
+    if (hotelId && roomNumber) {
+      await this.pg.query(
+        `UPDATE hotel_rooms
+         SET housekeeping_status = $1, updated_at = $2
+         WHERE hotel_id = $3::uuid AND code = $4`,
+        [status, now, hotelId, roomNumber],
+      );
+    }
+  }
+
+  private partnerType(
+    value: unknown,
+  ):
+    | 'hotel'
+    | 'bus'
+    | 'hostel'
+    | 'guesthouse'
+    | 'motel'
+    | 'dacha'
+    | 'restaurant'
+    | 'mixed' {
+    const type = String(value ?? 'hotel').toLowerCase();
+    if (
+      type === 'hotel' ||
+      type === 'bus' ||
+      type === 'hostel' ||
+      type === 'guesthouse' ||
+      type === 'motel' ||
+      type === 'dacha' ||
+      type === 'restaurant' ||
+      type === 'mixed'
+    ) {
+      return type;
     }
     return 'hotel';
   }
@@ -2204,7 +3633,13 @@ export class PartnersService {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
-    return slug || `room-type-${Date.now()}`;
+    if (!slug) {
+      throw new BadRequestException({
+        code: 'ROOM_TYPE_CODE_REQUIRED',
+        message: 'Xona turi kodi hosil qilinmadi',
+      });
+    }
+    return slug;
   }
 
   private publicStatus(value: unknown): PublicPartnerStatus {
@@ -2250,7 +3685,12 @@ export class PartnersService {
     }
 
     const ids = rows.map((row) => String(row['id']));
-    const [translations, images, amenities] = await Promise.all([
+    const cityIds = [
+      ...new Set(
+        rows.map((row) => String(row['city_id'] ?? '').trim()).filter(Boolean),
+      ),
+    ];
+    const [translations, images, amenities, cities] = await Promise.all([
       this.pg.query<{
         hotel_id: string;
         language: string;
@@ -2278,7 +3718,7 @@ export class PartnersService {
            AND owner_id = ANY($1::uuid[])
            AND deleted_at IS NULL
            AND url IS NOT NULL
-         ORDER BY created_at ASC`,
+         ORDER BY sort_order ASC, created_at ASC`,
         [ids],
       ),
       this.pg.query<{ hotel_id: string; code: string }>(
@@ -2288,6 +3728,14 @@ export class PartnersService {
          WHERE ha.hotel_id = ANY($1::uuid[])`,
         [ids],
       ),
+      cityIds.length > 0
+        ? this.pg.query<{ id: string; name: Record<string, string> }>(
+            `SELECT id::text, name
+             FROM cities
+             WHERE id = ANY($1::uuid[])`,
+            [cityIds],
+          )
+        : Promise.resolve([]),
     ]);
 
     const nameMap = new Map<string, Record<string, string>>();
@@ -2296,6 +3744,7 @@ export class PartnersService {
     const imageUrlMap = new Map<string, string[]>();
     const imageIdMap = new Map<string, string[]>();
     const amenityMap = new Map<string, string[]>();
+    const cityMap = new Map<string, Record<string, string>>();
 
     for (const row of translations) {
       const names = nameMap.get(row.hotel_id) ?? {};
@@ -2326,13 +3775,20 @@ export class PartnersService {
       amenityMap.set(row.hotel_id, codesForHotel);
     }
 
+    for (const row of cities) {
+      cityMap.set(row.id, row.name);
+    }
+
     return rows.map((row) => {
       const id = String(row['id']);
+      const cityId = String(row['city_id'] ?? '');
+      const cityName = localizedTextFromMap(cityMap.get(cityId), '');
       return {
         ...row,
         id,
         partner_organization_id: String(row['partner_organization_id'] ?? ''),
-        city_id: String(row['city_id'] ?? ''),
+        city_id: cityId,
+        city: cityName,
         latitude:
           row['latitude'] === null || row['latitude'] === undefined
             ? null
@@ -2364,6 +3820,7 @@ export class PartnersService {
         pets_allowed: Boolean(row['pets_allowed'] ?? false),
         children_allowed: Boolean(row['children_allowed'] ?? true),
         extra_fees: row['extra_fees'] ?? [],
+        nearby_places: row['nearby_places'] ?? [],
       };
     });
   }
@@ -2402,43 +3859,102 @@ export class PartnersService {
 
   private async resolveCityId(value: unknown): Promise<string> {
     const city = String(value ?? '').trim();
-
-    if (/^[0-9a-f-]{36}$/i.test(city)) {
-      return city;
+    if (!city) {
+      throw new BadRequestException({
+        code: 'CITY_REQUIRED',
+        message: 'Shahar tanlanishi kerak',
+      });
     }
 
-    if (city) {
-      const rows = await this.pg.query<{ id: string }>(
-        `
-          select id::text
-          from cities
-          where lower(name ->> 'uz') = lower($1)
-             or lower(name ->> 'ru') = lower($1)
-             or lower(name ->> 'en') = lower($1)
-             or lower(name::text) like '%' || lower($1) || '%'
-          order by created_at asc
-          limit 1
-        `,
-        [city],
-      );
-
-      if (rows[0]) {
-        return rows[0].id;
-      }
-    }
-
-    const fallback = await this.pg.query<{ id: string }>(
-      `select id::text from cities order by created_at asc limit 1`,
+    const rows = await this.pg.query<{ id: string }>(
+      `
+        select id::text
+        from cities
+        where id::text = $1
+           or lower(name ->> 'uz') = lower($1)
+           or lower(name ->> 'ru') = lower($1)
+           or lower(name ->> 'en') = lower($1)
+           or lower(name::text) like '%' || lower($1) || '%'
+        order by created_at asc
+        limit 1
+      `,
+      [city],
     );
 
-    if (!fallback[0]) {
+    if (!rows[0]) {
       throw new BadRequestException({
         code: 'CITY_NOT_FOUND',
         message: 'Shahar topilmadi',
       });
     }
 
-    return fallback[0].id;
+    return rows[0].id;
+  }
+
+  private async resolvePublicCityId(
+    value: unknown,
+    context: string[] = [],
+  ): Promise<string> {
+    try {
+      return await this.resolveCityId(value);
+    } catch (error) {
+      const city = String(value ?? '').trim();
+      if (!city || !isCityNotFound(error)) {
+        throw error;
+      }
+      return this.createPublicCity(city, context);
+    }
+  }
+
+  private async createPublicCity(
+    city: string,
+    context: string[],
+  ): Promise<string> {
+    const now = new Date().toISOString();
+    const regionId = await this.resolveRegionIdForPublicCity(city, context);
+    const id = randomUUID();
+    const slug = `${slugifyLoose(city)}-${id.slice(0, 8)}`;
+    const name = localizedTextFromMap({ uz: city, ru: city, en: city }, city);
+    const [created] = await this.pg.query<{ id: string }>(
+      `INSERT INTO cities (id, region_id, name, slug, image_url, sort_order, created_at, updated_at)
+       VALUES ($1, $2, $3::jsonb, $4, NULL, 9999, $5, $5)
+       RETURNING id::text`,
+      [id, regionId, JSON.stringify(name), slug, now],
+    );
+    return created.id;
+  }
+
+  private async resolveRegionIdForPublicCity(
+    city: string,
+    context: string[],
+  ): Promise<string> {
+    const probe = [city, ...context].join(' ').trim();
+    const matchingRegions = await this.pg.query<{ id: string }>(
+      `SELECT id::text
+       FROM regions
+       WHERE lower($1) LIKE '%' || lower(name ->> 'uz') || '%'
+          OR lower($1) LIKE '%' || lower(name ->> 'ru') || '%'
+          OR lower($1) LIKE '%' || lower(name ->> 'en') || '%'
+          OR lower(name::text) LIKE '%' || lower($1) || '%'
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [probe],
+    );
+    if (matchingRegions[0]) {
+      return matchingRegions[0].id;
+    }
+
+    const fallbackRegions = await this.pg.query<{ id: string }>(
+      `SELECT id::text FROM regions ORDER BY created_at ASC LIMIT 1`,
+    );
+    if (fallbackRegions[0]) {
+      return fallbackRegions[0].id;
+    }
+
+    throw new BadRequestException({
+      code: 'REGION_NOT_FOUND',
+      message: 'Region topilmadi',
+    });
   }
 
   private async assertOrganization(id: string) {
@@ -2622,4 +4138,28 @@ function localizedTextFromMap(
     ru: value?.ru ?? value?.uz ?? fallback,
     en: value?.en ?? value?.uz ?? fallback,
   };
+}
+
+function isCityNotFound(error: unknown): boolean {
+  if (!(error instanceof BadRequestException)) {
+    return false;
+  }
+
+  const response = error.getResponse();
+  if (!response || typeof response !== 'object') {
+    return false;
+  }
+
+  return (response as { code?: unknown }).code === 'CITY_NOT_FOUND';
+}
+
+function slugifyLoose(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'city';
 }

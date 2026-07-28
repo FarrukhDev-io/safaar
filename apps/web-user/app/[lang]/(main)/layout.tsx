@@ -28,7 +28,7 @@ export default async function MainLayout({
 
   return (
     <>
-      <PromoBar config={promoConfig} fallbackText={common.promo} locale={locale} />
+      <PromoBar config={promoConfig} locale={locale} />
       <SiteHeader locale={locale} dict={common} authed={!!session} />
       <div className="flex flex-1 flex-col bg-slate-100/60 dark:bg-slate-950">{children}</div>
       <SiteFooter locale={locale} dict={common} />

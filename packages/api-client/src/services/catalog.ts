@@ -1,5 +1,6 @@
 import { rawApi } from "../client";
 import { camelizeKeys } from "../case";
+import { tiyinToSum } from "../money";
 import type { Locale, CityOption, AmenityOption } from "../types";
 
 export interface PopularCityView {
@@ -19,7 +20,50 @@ export interface PartnerShowcaseView {
   sortOrder: number;
 }
 
+export interface AttractionCatalogView {
+  id: string;
+  name: string;
+  cityName: string;
+  categoryKey: string;
+  categoryDefault: string;
+  description: string;
+  rating: number;
+  imageUrl: string;
+  bestTimeToVisit: string;
+}
+
+export interface RestaurantCatalogView {
+  id: string;
+  name: string;
+  cityName: string;
+  address: string;
+  cuisine: string;
+  rating: number;
+  reviewsCount: number;
+  averageCheckSum: number;
+  workingHours: string;
+  imageUrl: string;
+  phone: string;
+}
+
+export interface TransportCatalogView {
+  id: string;
+  name: string;
+  cityName: string;
+  categoryKey: string;
+  categoryDefault: string;
+  seats: number;
+  hasDriver: boolean;
+  fuelType: string;
+  transmission: string;
+  pricePerDaySum: number;
+  rating: number;
+  imageUrl: string;
+  phone: string;
+}
+
 type Localized = Partial<Record<Locale, string>> & Record<string, string>;
+type LocalizedValue = Localized | string | undefined;
 
 interface RawCatalogItem {
   id: string;
@@ -43,8 +87,51 @@ interface RawPartnerShowcase {
   sortOrder?: number;
 }
 
-function pickLocale(value: Localized | undefined, locale: Locale): string {
+interface RawAttraction {
+  id: string;
+  name?: LocalizedValue;
+  cityName?: LocalizedValue;
+  categoryKey?: string;
+  categoryDefault?: string;
+  description?: LocalizedValue;
+  rating?: number;
+  imageUrl?: string;
+  bestTimeToVisit?: LocalizedValue;
+}
+
+interface RawRestaurant {
+  id: string;
+  name?: LocalizedValue;
+  cityName?: LocalizedValue;
+  address?: string;
+  cuisine?: string;
+  rating?: number;
+  reviewsCount?: number;
+  averageCheck?: number;
+  workingHours?: string;
+  imageUrl?: string;
+  phone?: string;
+}
+
+interface RawTransport {
+  id: string;
+  name?: string;
+  cityName?: LocalizedValue;
+  categoryKey?: string;
+  categoryDefault?: string;
+  seats?: number;
+  hasDriver?: boolean;
+  fuelType?: string;
+  transmission?: string;
+  pricePerDay?: number;
+  rating?: number;
+  imageUrl?: string;
+  phone?: string;
+}
+
+function pickLocale(value: LocalizedValue, locale: Locale): string {
   if (!value) return "";
+  if (typeof value === "string") return value;
   return value[locale] ?? value.uz ?? Object.values(value)[0] ?? "";
 }
 
@@ -97,6 +184,66 @@ export const catalogService = {
       logoUrl: item.logoUrl ?? "",
       type: item.type ?? "",
       sortOrder: item.sortOrder ?? 0,
+    }));
+  },
+
+  async getAttractions(locale: Locale): Promise<AttractionCatalogView[]> {
+    const raw = await rawApi.get<unknown>("/catalog/attractions", {
+      next: { revalidate: 3600 },
+    } as any);
+    const items = camelizeKeys<RawAttraction[]>(raw);
+    return (items ?? []).map((item) => ({
+      id: item.id,
+      name: pickLocale(item.name, locale),
+      cityName: pickLocale(item.cityName, locale),
+      categoryKey: item.categoryKey ?? "",
+      categoryDefault: item.categoryDefault ?? "",
+      description: pickLocale(item.description, locale),
+      rating: Number(item.rating ?? 0),
+      imageUrl: item.imageUrl ?? "",
+      bestTimeToVisit: pickLocale(item.bestTimeToVisit, locale),
+    }));
+  },
+
+  async getRestaurants(locale: Locale): Promise<RestaurantCatalogView[]> {
+    const raw = await rawApi.get<unknown>("/catalog/restaurants", {
+      next: { revalidate: 3600 },
+    } as any);
+    const items = camelizeKeys<RawRestaurant[]>(raw);
+    return (items ?? []).map((item) => ({
+      id: item.id,
+      name: pickLocale(item.name, locale),
+      cityName: pickLocale(item.cityName, locale),
+      address: item.address ?? "",
+      cuisine: item.cuisine ?? "",
+      rating: Number(item.rating ?? 0),
+      reviewsCount: Number(item.reviewsCount ?? 0),
+      averageCheckSum: tiyinToSum(item.averageCheck ?? 0),
+      workingHours: item.workingHours ?? "",
+      imageUrl: item.imageUrl ?? "",
+      phone: item.phone ?? "",
+    }));
+  },
+
+  async getTransports(locale: Locale): Promise<TransportCatalogView[]> {
+    const raw = await rawApi.get<unknown>("/catalog/transports", {
+      next: { revalidate: 3600 },
+    } as any);
+    const items = camelizeKeys<RawTransport[]>(raw);
+    return (items ?? []).map((item) => ({
+      id: item.id,
+      name: item.name ?? "",
+      cityName: pickLocale(item.cityName, locale),
+      categoryKey: item.categoryKey ?? "",
+      categoryDefault: item.categoryDefault ?? "",
+      seats: Number(item.seats ?? 0),
+      hasDriver: Boolean(item.hasDriver),
+      fuelType: item.fuelType ?? "",
+      transmission: item.transmission ?? "",
+      pricePerDaySum: tiyinToSum(item.pricePerDay ?? 0),
+      rating: Number(item.rating ?? 0),
+      imageUrl: item.imageUrl ?? "",
+      phone: item.phone ?? "",
     }));
   },
 };

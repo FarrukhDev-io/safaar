@@ -118,7 +118,7 @@ function ThemeCard({ theme }: { theme: ThemeConfig }) {
         >
           Mehmonxona va transport — bir joyda
         </p>
-        {/* Search bar mockup */}
+        {/* Search bar preview */}
         <div
           className="mt-4 flex items-center gap-2 rounded-xl border px-4 py-3"
           style={{ backgroundColor: theme.bg, borderColor: theme.primaryLight }}

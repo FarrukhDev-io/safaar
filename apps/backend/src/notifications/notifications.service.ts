@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Role } from '@safaar/types';
 import { randomUUID } from 'node:crypto';
@@ -10,17 +11,10 @@ import { PostgresService } from '../infrastructure/postgres.service';
 
 @Injectable()
 export class NotificationsService {
-  private readonly pushTokens: Array<Record<string, unknown>> = [];
-
   constructor(private readonly pg: PostgresService) {}
 
   async list(actor: RequestActor | undefined) {
-    const currentActor: RequestActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
     const ownerType = this.ownerType(currentActor);
 
     const notifications = await this.pg.query(
@@ -34,12 +28,7 @@ export class NotificationsService {
   }
 
   async read(actor: RequestActor | undefined, id: string) {
-    const currentActor: RequestActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
 
     const [notification] = await this.pg.query(
       'SELECT * FROM notifications WHERE id = $1',
@@ -69,12 +58,7 @@ export class NotificationsService {
   }
 
   async readAll(actor: RequestActor | undefined) {
-    const currentActor: RequestActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
     const ownerType = this.ownerType(currentActor);
 
     const now = new Date().toISOString();
@@ -87,46 +71,50 @@ export class NotificationsService {
     return { owner_id: currentActor.id, read_all: true };
   }
 
-  pushToken(actor: RequestActor | undefined, body: Record<string, unknown>) {
-    const currentActor: RequestActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
-
-    const token = {
-      id: randomUUID(),
-      owner_id: currentActor.id,
-      owner_type: this.ownerType(currentActor),
-      token: String(body.token ?? ''),
-      platform: String(body.platform ?? 'web'),
-      created_at: new Date().toISOString(),
-    };
-    this.pushTokens.unshift(token);
+  async pushToken(
+    actor: RequestActor | undefined,
+    body: Record<string, unknown>,
+  ) {
+    const currentActor = this.requireActor(actor);
+    const now = new Date().toISOString();
+    const tokenId = randomUUID();
+    const [token] = await this.pg.query(
+      `INSERT INTO push_tokens (id, owner_id, owner_type, token, platform, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        tokenId,
+        currentActor.id,
+        this.ownerType(currentActor),
+        String(body.token ?? ''),
+        String(body.platform ?? 'web'),
+        now,
+      ],
+    );
     return token;
   }
 
-  deletePushToken(actor: RequestActor | undefined, id: string) {
-    const currentActor: RequestActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
-
-    const idx = this.pushTokens.findIndex((item) => item['id'] === id);
-    if (idx === -1) {
+  async deletePushToken(actor: RequestActor | undefined, id: string) {
+    const currentActor = this.requireActor(actor);
+    const [token] = await this.pg.query(
+      `UPDATE push_tokens
+       SET deleted_at = $1
+       WHERE id = $2 AND owner_id = $3 AND owner_type = $4 AND deleted_at IS NULL
+       RETURNING *`,
+      [
+        new Date().toISOString(),
+        id,
+        currentActor.id,
+        this.ownerType(currentActor),
+      ],
+    );
+    if (!token) {
       throw new NotFoundException({
         code: 'PUSH_TOKEN_NOT_FOUND',
         message: 'Push token topilmadi',
       });
     }
 
-    const token = this.pushTokens[idx];
-    this.assertOwner(currentActor, token['owner_id'], token['owner_type']);
-
-    token['deleted_at'] = new Date().toISOString();
     return { id, deleted: true };
   }
 
@@ -151,5 +139,15 @@ export class NotificationsService {
 
   private ownerType(actor: RequestActor): string {
     return actor.actorType === 'partner' ? 'partner' : actor.actorType;
+  }
+
+  private requireActor(actor: RequestActor | undefined): RequestActor {
+    if (!actor) {
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+    return actor;
   }
 }

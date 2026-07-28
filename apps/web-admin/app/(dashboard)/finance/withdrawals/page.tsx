@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MockApi } from "@/lib/api/mock-api";
+import { AdminApi } from "@/lib/api/admin-api";
 import type { WithdrawalRequest } from "@/types/admin";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
@@ -22,18 +22,20 @@ export default function WithdrawalsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    MockApi.getWithdrawals().then((res) => {
+    AdminApi.getWithdrawals().then((res) => {
       setData(res);
       setLoading(false);
     });
   }, []);
 
-  const handleApprove = (id: string) => {
-    setData((prev) => prev.map((d) => d.id === id ? { ...d, status: "approved" } : d));
+  const handleApprove = async (id: string) => {
+    const updated = await AdminApi.approveWithdrawal(id);
+    setData((prev) => prev.map((d) => d.id === id ? updated : d));
   };
 
-  const handleReject = (id: string) => {
-    setData((prev) => prev.map((d) => d.id === id ? { ...d, status: "rejected" } : d));
+  const handleReject = async (id: string) => {
+    const updated = await AdminApi.rejectWithdrawal(id);
+    setData((prev) => prev.map((d) => d.id === id ? updated : d));
   };
 
   const columns: Column<WithdrawalRequest>[] = [

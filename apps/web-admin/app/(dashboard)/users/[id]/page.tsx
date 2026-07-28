@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -14,19 +14,37 @@ import {
 } from "lucide-react";
 
 import { useRouter } from "next/navigation";
-import { useAdminStore } from "@/lib/store";
 import { toast } from "sonner";
+import { AdminApi } from "@/lib/api/admin-api";
+import type { AdminHotelBooking, AdminManagedUser } from "@/types/admin";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  
-  const users = useAdminStore((s) => s.users);
-  const updateUserStatus = useAdminStore((s) => s.updateUserStatus);
-  const setUsers = useAdminStore((s) => s.setUsers);
-  const hotelBookings = useAdminStore((s) => s.hotelBookings);
-  
-  const user = users.find((u) => u.id === id);
+  const [user, setUser] = useState<AdminManagedUser | null>(null);
+  const [userBookings, setUserBookings] = useState<AdminHotelBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadUser() {
+      const [userData, bookings] = await Promise.all([
+        AdminApi.getUser(id),
+        AdminApi.getUserBookings(id),
+      ]);
+      setUser(userData);
+      setUserBookings(bookings.slice(0, 5));
+    }
+
+    loadUser().finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -39,22 +57,15 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     );
   }
 
-  const userBookings = hotelBookings
-    .filter(b => b.customerName === user.fullName || b.customerPhone === user.phone)
-    .slice(0, 5)
-    .map((b) => ({
-      ...b,
-      customerName: user.fullName,
-    }));
-
-  const handleStatusChange = (status: "active" | "blocked" | "unverified") => {
-    updateUserStatus(id, status);
+  const handleStatusChange = async (status: "active" | "blocked" | "unverified") => {
+    const updated = await AdminApi.updateUserStatus(id, status);
+    setUser(updated);
     toast.success("Foydalanuvchi holati yangilandi!");
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm("Rostdan ham ushbu foydalanuvchini o'chirmoqchimisiz?")) {
-      setUsers(users.filter((u) => u.id !== id));
+      await AdminApi.deleteUser(id);
       toast.success("Foydalanuvchi o'chirildi!");
       router.push("/users");
     }

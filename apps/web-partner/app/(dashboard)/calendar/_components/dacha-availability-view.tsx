@@ -1,16 +1,16 @@
 "use client";
 
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { BookingStatus } from "@safaar/types";
 import { Button } from "../../../_components/ui/button";
 import { PageHeader } from "../../../_components/layout/page-header";
 import { WalkInDialog, type WalkInInitial } from "../../../_components/domain/walk-in-dialog";
 import { useReservations } from "../../../_hooks/use-reservations";
-import { DACHA_UNIT_ROOM_ID, useDataStore } from "../../../_stores/data-store";
+import { useRooms } from "../../../_hooks/use-rooms";
 import { getPartnerLabels } from "../../../_lib/utils/partner-labels";
 import { useAuthStore } from "../../../_stores/auth-store";
-import { TODAY_ISO } from "../../../_lib/mocks/data";
+import { TODAY_ISO } from "../../../_lib/utils/date";
 import { cn } from "../../../_lib/utils/cn";
 
 const WEEKDAY_LABEL = ["Yak", "Du", "Se", "Cho", "Pa", "Ju", "Sha"];
@@ -26,18 +26,13 @@ function addDays(iso: string, days: number): string {
 export function DachaAvailabilityView() {
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
-  const listingName = useDataStore((s) => s.listing.name);
-  const ensureSingleUnitRoom = useDataStore((s) => s.ensureSingleUnitRoom);
-  const room = useDataStore((s) => s.rooms.find((r) => r.id === DACHA_UNIT_ROOM_ID));
+  const { data: rooms } = useRooms();
+  const room = rooms[0];
   const { data: reservations } = useReservations();
 
   const [startOffset, setStartOffset] = useState(0);
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkInInitial, setWalkInInitial] = useState<WalkInInitial>({});
-
-  useEffect(() => {
-    if (!room) ensureSingleUnitRoom(listingName || "Dacha");
-  }, [room, listingName, ensureSingleUnitRoom]);
 
   const startDate = addDays(TODAY_ISO, startOffset);
   const days = useMemo(

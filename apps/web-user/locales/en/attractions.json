@@ -10,7 +10,5 @@
     "unesco": "UNESCO Heritage",
     "nature": "Nature & Leisure"
   },
-  "bestTime": "Best time:",
-  "moreInfo": "Details",
-  "comingSoon": "Detailed guide for {name} coming soon!"
+  "bestTime": "Best time:"
 }

@@ -29,10 +29,10 @@ export default async function AccountBonusesPage({
     );
   }
 
-  const bonuses: BonusView | null = await api.users.getBonuses({ token: session.accessToken }).catch(() => null);
+  const bonuses: BonusView = await api.users.getBonuses({ token: session.accessToken });
 
-  const balanceSum = bonuses?.balanceSum ?? 0;
-  const entries = bonuses?.entries ?? [];
+  const balanceSum = bonuses.balanceSum;
+  const entries = bonuses.entries;
 
   function formatDate(value: string): string {
     const ts = Date.parse(value);

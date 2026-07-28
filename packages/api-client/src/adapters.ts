@@ -11,6 +11,8 @@ import type {
   BonusEntryView,
   FavoriteView,
   ReviewView,
+  SupportMessageView,
+  SupportTicketView,
 } from "./types";
 
 /* ───────────────────────── Locale Helpers ───────────────────────── */
@@ -118,6 +120,8 @@ function toHotelBase(raw: RawHotel, locale: Locale): HotelListItem {
     reviewsCount: raw.reviewsCount ?? 0,
     minPriceSum: tiyinToSum(raw.minPrice ?? 0),
     imageUrl: raw.images?.[0],
+    latitude: raw.latitude,
+    longitude: raw.longitude,
   };
 }
 
@@ -236,13 +240,77 @@ interface RawReview {
   body?: string;
   status?: string;
   createdAt?: string;
+  firstName?: string;
+  lastName?: string;
+  authorName?: string;
+  avatarUrl?: string;
+  photos?: unknown;
+  isVerifiedGuest?: boolean;
 }
 
 export function toReviewView(raw: RawReview): ReviewView {
+  const authorName =
+    raw.authorName ??
+    [raw.firstName, raw.lastName].filter(Boolean).join(" ").trim() ??
+    undefined;
+  const photos = Array.isArray(raw.photos)
+    ? raw.photos.filter((photo): photo is string => typeof photo === "string")
+    : undefined;
+
   return {
     id: raw.id ?? "",
     rating: typeof raw.rating === "number" ? raw.rating : 0,
     body: raw.body ?? "",
     createdAt: raw.createdAt ?? "",
+    ...(authorName ? { authorName } : {}),
+    ...(raw.avatarUrl ? { avatarUrl: raw.avatarUrl } : {}),
+    ...(photos && photos.length > 0 ? { photos } : {}),
+    ...(raw.isVerifiedGuest === true ? { isVerifiedGuest: true } : {}),
+  };
+}
+
+/* ───────────────────────── Support Adapter ───────────────────────── */
+
+interface RawSupportMessage {
+  id?: string;
+  ticketId?: string;
+  senderType?: string;
+  senderId?: string;
+  body?: string;
+  createdAt?: string;
+}
+
+interface RawSupportTicket {
+  id?: string;
+  subject?: string;
+  priority?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  messages?: RawSupportMessage[];
+}
+
+export function toSupportMessageView(
+  raw: RawSupportMessage,
+): SupportMessageView {
+  return {
+    id: raw.id ?? "",
+    ticketId: raw.ticketId ?? "",
+    senderType: raw.senderType ?? "",
+    senderId: raw.senderId ?? "",
+    body: raw.body ?? "",
+    createdAt: raw.createdAt ?? "",
+  };
+}
+
+export function toSupportTicketView(raw: RawSupportTicket): SupportTicketView {
+  return {
+    id: raw.id ?? "",
+    subject: raw.subject ?? "",
+    priority: raw.priority ?? "medium",
+    status: raw.status ?? "open",
+    createdAt: raw.createdAt ?? "",
+    updatedAt: raw.updatedAt ?? "",
+    messages: (raw.messages ?? []).map(toSupportMessageView),
   };
 }

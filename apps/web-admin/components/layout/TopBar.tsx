@@ -1,18 +1,19 @@
 "use client";
 
-import { Bell, LogOut, User, Check, Trash2 } from "lucide-react";
+import { Bell, LogOut, User, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { useAuthStore } from "@/lib/store/auth";
 import { useNotificationsStore } from "@/lib/store/notifications";
+import { AdminApi } from "@/lib/api/admin-api";
 import { formatDistanceToNow } from "date-fns";
 import { uz } from "date-fns/locale";
 
 export default function TopBar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const { items: notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotificationsStore();
+  const { items: notifications, unreadCount, setNotifications, markAsRead, markAllAsRead } = useNotificationsStore();
   
   const [showProfile, setShowProfile] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -28,6 +29,29 @@ export default function TopBar() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadNotifications = () => {
+      AdminApi.getNotifications()
+        .then((nextNotifications) => {
+          if (!cancelled) setNotifications(nextNotifications);
+        })
+        .catch((error) => {
+          console.error("Failed to load admin notifications", error);
+        });
+    };
+
+    const initialTimeoutId = window.setTimeout(loadNotifications, 0);
+    const intervalId = window.setInterval(loadNotifications, 30_000);
+    window.addEventListener("focus", loadNotifications);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(initialTimeoutId);
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", loadNotifications);
+    };
+  }, [setNotifications]);
 
   const handleLogout = () => {
     logout();
@@ -73,6 +97,16 @@ export default function TopBar() {
 
   const pageInfo = getPageInfo();
 
+  const handleMarkAsRead = async (id: string) => {
+    await AdminApi.markNotificationRead(id);
+    markAsRead(id);
+  };
+
+  const handleMarkAllAsRead = async () => {
+    await AdminApi.markAllNotificationsRead();
+    markAllAsRead();
+  };
+
   return (
     <header className="h-16 bg-white border-b border-[var(--border)] flex items-center justify-between px-6 shrink-0 sticky top-0 z-20">
       {/* Left section: Page Title */}
@@ -103,11 +137,8 @@ export default function TopBar() {
               <div className="px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
                 <p className="text-sm font-semibold text-[var(--text-primary)]">Bildirishnomalar</p>
                 <div className="flex gap-2">
-                  <button onClick={markAllAsRead} className="text-xs text-[var(--primary)] hover:underline cursor-pointer" title="Barchasini o'qildi qilish">
+                  <button onClick={() => void handleMarkAllAsRead()} className="text-xs text-[var(--primary)] hover:underline cursor-pointer" title="Barchasini o'qildi qilish">
                     <Check size={14} />
-                  </button>
-                  <button onClick={clearAll} className="text-xs text-[var(--danger)] hover:underline cursor-pointer" title="Tozalash">
-                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -119,7 +150,7 @@ export default function TopBar() {
                     <div 
                       key={n.id} 
                       className={`px-4 py-3 border-b border-[var(--border)] last:border-0 cursor-pointer hover:bg-slate-50 transition-colors ${!n.isRead ? 'bg-blue-50/50' : ''}`}
-                      onClick={() => markAsRead(n.id)}
+                      onClick={() => void handleMarkAsRead(n.id)}
                     >
                       <div className="flex justify-between items-start mb-1">
                         <p className="text-sm font-medium text-[var(--text-primary)]">{n.title}</p>

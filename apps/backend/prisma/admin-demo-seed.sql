@@ -13,41 +13,41 @@ values
 on conflict (id) do update
 set name = excluded.name, updated_at = now();
 
-insert into cities (id, region_id, name, slug, sort_order, created_at, updated_at)
+insert into cities (id, region_id, name, slug, image_url, sort_order, created_at, updated_at)
 values
-  ('00000000-0000-1002-0000-000000000001', '00000000-0000-1001-0000-000000000001', '{"uz":"Toshkent","ru":"Ташкент","en":"Tashkent"}', 'toshkent', 1, now(), now()),
-  ('00000000-0000-1002-0000-000000000002', '00000000-0000-1001-0000-000000000002', '{"uz":"Samarqand","ru":"Самарканд","en":"Samarkand"}', 'samarqand', 2, now(), now()),
-  ('00000000-0000-1002-0000-000000000003', '00000000-0000-1001-0000-000000000003', '{"uz":"Buxoro","ru":"Бухара","en":"Bukhara"}', 'buxoro', 3, now(), now()),
-  ('00000000-0000-1002-0000-000000000004', '00000000-0000-1001-0000-000000000004', '{"uz":"Xiva","ru":"Хива","en":"Khiva"}', 'xiva', 4, now(), now()),
-  ('00000000-0000-1002-0000-000000000005', '00000000-0000-1001-0000-000000000005', '{"uz":"Farg''ona","ru":"Фергана","en":"Fergana"}', 'fargona', 5, now(), now()),
-  ('00000000-0000-1002-0000-000000000006', '00000000-0000-1001-0000-000000000006', '{"uz":"Namangan","ru":"Наманган","en":"Namangan"}', 'namangan', 6, now(), now()),
-  ('00000000-0000-1002-0000-000000000007', '00000000-0000-1001-0000-000000000001', '{"uz":"Charvak","ru":"Чарвак","en":"Charvak"}', 'charvak', 7, now(), now()),
-  ('00000000-0000-1002-0000-000000000008', '00000000-0000-1001-0000-000000000001', '{"uz":"Chimgan","ru":"Чимган","en":"Chimgan"}', 'chimgan', 8, now(), now()),
-  ('00000000-0000-1002-0000-000000000009', '00000000-0000-1001-0000-000000000007', '{"uz":"Zaamin","ru":"Заамин","en":"Zaamin"}', 'zaamin', 9, now(), now()),
-  ('00000000-0000-1002-0000-00000000000a', '00000000-0000-1001-0000-000000000008', '{"uz":"Nukus","ru":"Нукус","en":"Nukus"}', 'nukus', 10, now(), now())
+  ('00000000-0000-1002-0000-000000000001', '00000000-0000-1001-0000-000000000001', '{"uz":"Toshkent","ru":"Ташкент","en":"Tashkent"}', 'toshkent', '/Tashkent-city-skyline.jpeg', 1, now(), now()),
+  ('00000000-0000-1002-0000-000000000002', '00000000-0000-1001-0000-000000000002', '{"uz":"Samarqand","ru":"Самарканд","en":"Samarkand"}', 'samarqand', '/Samarkand-Registan-cinematic.jpeg', 2, now(), now()),
+  ('00000000-0000-1002-0000-000000000003', '00000000-0000-1001-0000-000000000003', '{"uz":"Buxoro","ru":"Бухара","en":"Bukhara"}', 'buxoro', '/Bukhara-old-city-golden-hour.jpeg', 3, now(), now()),
+  ('00000000-0000-1002-0000-000000000004', '00000000-0000-1001-0000-000000000004', '{"uz":"Xiva","ru":"Хива","en":"Khiva"}', 'xiva', '/Khiva-Ichan-Kala-aerial.jpeg', 4, now(), now()),
+  ('00000000-0000-1002-0000-000000000005', '00000000-0000-1001-0000-000000000005', '{"uz":"Farg''ona","ru":"Фергана","en":"Fergana"}', 'fargona', '/Uzbekistan-travel.jpeg', 5, now(), now()),
+  ('00000000-0000-1002-0000-000000000006', '00000000-0000-1001-0000-000000000006', '{"uz":"Namangan","ru":"Наманган","en":"Namangan"}', 'namangan', '/Uzbekistan-travel.jpeg', 6, now(), now()),
+  ('00000000-0000-1002-0000-000000000007', '00000000-0000-1001-0000-000000000001', '{"uz":"Charvak","ru":"Чарвак","en":"Charvak"}', 'charvak', '/Charvak-Lake-drone.jpeg', 7, now(), now()),
+  ('00000000-0000-1002-0000-000000000008', '00000000-0000-1001-0000-000000000001', '{"uz":"Chimgan","ru":"Чимган","en":"Chimgan"}', 'chimgan', '/Chimgan-mountains-landscape.jpeg', 8, now(), now()),
+  ('00000000-0000-1002-0000-000000000009', '00000000-0000-1001-0000-000000000007', '{"uz":"Zaamin","ru":"Заамин","en":"Zaamin"}', 'zaamin', '/Zaamin.jpeg', 9, now(), now()),
+  ('00000000-0000-1002-0000-00000000000a', '00000000-0000-1001-0000-000000000008', '{"uz":"Nukus","ru":"Нукус","en":"Nukus"}', 'nukus', '/Uzbekistan-travel.jpeg', 10, now(), now())
 on conflict (id) do update
-set region_id = excluded.region_id, name = excluded.name, slug = excluded.slug, sort_order = excluded.sort_order, updated_at = now();
+set region_id = excluded.region_id, name = excluded.name, slug = excluded.slug, image_url = excluded.image_url, sort_order = excluded.sort_order, updated_at = now();
 
 insert into amenities (id, code, name, created_at, updated_at)
 values
   -- Internet va texnika
   ('00000000-0000-1003-0000-000000000001', 'wifi', '{"uz":"Bepul Wi-Fi","ru":"Бесплатный Wi-Fi","en":"Free Wi-Fi"}', now(), now()),
-  ('00000000-0000-1003-0000-000000000002', 'wifi_public', '{"uz":"Umumiy joylarda Wi-Fi","ru":"Wi-Fi в общественных зонах","en":"Public area Wi-Fi"}', now(), now()),
-  ('00000000-0000-1003-0000-000000000003', 'workspace', '{"uz":"Ish stoli","ru":"Рабочий стол","en":"Workspace"}', now(), now()),
-  ('00000000-0000-1003-0000-000000000004', 'tv', '{"uz":"Televizor","ru":"Телевизор","en":"TV"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000021', 'wifi_public', '{"uz":"Umumiy joylarda Wi-Fi","ru":"Wi-Fi в общественных зонах","en":"Public area Wi-Fi"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000022', 'workspace', '{"uz":"Ish stoli","ru":"Рабочий стол","en":"Workspace"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000006', 'tv', '{"uz":"Televizor","ru":"Телевизор","en":"TV"}', now(), now()),
   -- Ovqat va ichimlik
-  ('00000000-0000-1003-0000-000000000005', 'breakfast', '{"uz":"Nonushta","ru":"Завтрак","en":"Breakfast"}', now(), now()),
-  ('00000000-0000-1003-0000-000000000006', 'restaurant', '{"uz":"Restoran","ru":"Ресторан","en":"Restaurant"}', now(), now()),
-  ('00000000-0000-1003-0000-000000000007', 'bar', '{"uz":"Bar","ru":"Бар","en":"Bar"}', now(), now()),
-  ('00000000-0000-1003-0000-000000000008', 'minibar', '{"uz":"Mini-bar","ru":"Мини-бар","en":"Mini-bar"}', now(), now()),
-  ('00000000-0000-1003-0000-000000000009', 'room_service', '{"uz":"Xonaga xizmat (24/7)","ru":"Обслуживание в номер (24/7)","en":"Room service (24/7)"}', now(), now()),
-  ('00000000-0000-1003-0000-00000000000a', 'kitchen', '{"uz":"Umumiy oshxona","ru":"Общая кухня","en":"Shared kitchen"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000004', 'breakfast', '{"uz":"Nonushta","ru":"Завтрак","en":"Breakfast"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000023', 'restaurant', '{"uz":"Restoran","ru":"Ресторан","en":"Restaurant"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000024', 'bar', '{"uz":"Bar","ru":"Бар","en":"Bar"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000025', 'minibar', '{"uz":"Mini-bar","ru":"Мини-бар","en":"Mini-bar"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000026', 'room_service', '{"uz":"Xonaga xizmat (24/7)","ru":"Обслуживание в номер (24/7)","en":"Room service (24/7)"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000027', 'kitchen', '{"uz":"Umumiy oshxona","ru":"Общая кухня","en":"Shared kitchen"}', now(), now()),
   -- Sog'lomlashtirish
-  ('00000000-0000-1003-0000-00000000000b', 'pool', '{"uz":"Hovuz","ru":"Бассейн","en":"Pool"}', now(), now()),
-  ('00000000-0000-1003-0000-00000000000c', 'gym', '{"uz":"Fitness zal","ru":"Фитнес зал","en":"Gym"}', now(), now()),
-  ('00000000-0000-1003-0000-00000000000d', 'spa', '{"uz":"Spa","ru":"Спа","en":"Spa"}', now(), now()),
-  ('00000000-0000-1003-0000-00000000000e', 'sauna', '{"uz":"Sauna","ru":"Сауна","en":"Sauna"}', now(), now()),
-  ('00000000-0000-1003-0000-00000000000f', 'jacuzzi', '{"uz":"Jakuzi","ru":"Джакузи","en":"Jacuzzi"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000002', 'pool', '{"uz":"Hovuz","ru":"Бассейн","en":"Pool"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000028', 'gym', '{"uz":"Fitness zal","ru":"Фитнес зал","en":"Gym"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000029', 'spa', '{"uz":"Spa","ru":"Спа","en":"Spa"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000030', 'sauna', '{"uz":"Sauna","ru":"Сауна","en":"Sauna"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000031', 'jacuzzi', '{"uz":"Jakuzi","ru":"Джакузи","en":"Jacuzzi"}', now(), now()),
   -- Xizmatlar
   ('00000000-0000-1003-0000-000000000010', 'reception_24', '{"uz":"24/7 resepsiyon","ru":"Ресепшн 24/7","en":"24/7 reception"}', now(), now()),
   ('00000000-0000-1003-0000-000000000011', 'concierge', '{"uz":"Konsyerj","ru":"Консьерж","en":"Concierge"}', now(), now()),
@@ -56,11 +56,11 @@ values
   ('00000000-0000-1003-0000-000000000014', 'car_rental', '{"uz":"Avtomobil ijarasi","ru":"Прокат автомобилей","en":"Car rental"}', now(), now()),
   ('00000000-0000-1003-0000-000000000015', 'tour_desk', '{"uz":"Ekskursiya byurosi","ru":"Туристическое бюро","en":"Tour desk"}', now(), now()),
   -- Umumiy
-  ('00000000-0000-1003-0000-000000000016', 'parking', '{"uz":"Bepul parking","ru":"Бесплатная парковка","en":"Free parking"}', now(), now()),
+  ('00000000-0000-1003-0000-000000000003', 'parking', '{"uz":"Bepul parking","ru":"Бесплатная парковка","en":"Free parking"}', now(), now()),
   ('00000000-0000-1003-0000-000000000017', 'elevator', '{"uz":"Lift","ru":"Лифт","en":"Elevator"}', now(), now()),
   ('00000000-0000-1003-0000-000000000018', 'ac', '{"uz":"Konditsioner","ru":"Кондиционер","en":"Air conditioning"}', now(), now()),
   ('00000000-0000-1003-0000-000000000019', 'heating', '{"uz":"Isitish tizimi","ru":"Отопление","en":"Heating"}', now(), now()),
-  ('00000000-0000-1003-0000-00000000001a', 'garden', '{"uz":"Bog'","ru":"Сад","en":"Garden"}', now(), now()),
+  ('00000000-0000-1003-0000-00000000001a', 'garden', '{"uz":"Bog''","ru":"Сад","en":"Garden"}', now(), now()),
   ('00000000-0000-1003-0000-00000000001b', 'terrace', '{"uz":"Terrasa","ru":"Терраса","en":"Terrace"}', now(), now()),
   -- Xavfsizlik va qulaylik
   ('00000000-0000-1003-0000-00000000001c', 'safe', '{"uz":"Seyf","ru":"Сейф","en":"Safe"}', now(), now()),
@@ -71,13 +71,21 @@ values
 on conflict (code) do update
 set name = excluded.name, updated_at = now();
 
-insert into room_types (id, code, name, created_at, updated_at)
+insert into room_types (id, code, name, description, image_url, bed_type, size_sqm, base_price, capacity, amenities, created_at, updated_at)
 values
-  ('00000000-0000-1004-0000-000000000001', 'standard', '{"uz":"Standart","ru":"Стандарт","en":"Standard"}', now(), now()),
-  ('00000000-0000-1004-0000-000000000002', 'deluxe', '{"uz":"Deluxe","ru":"Делюкс","en":"Deluxe"}', now(), now()),
-  ('00000000-0000-1004-0000-000000000003', 'suite', '{"uz":"Suite","ru":"Люкс","en":"Suite"}', now(), now())
+  ('00000000-0000-1004-0000-000000000001', 'standard', '{"uz":"Standart","ru":"Стандарт","en":"Standard"}', 'Qulay standart xona', '/hotel-uzbekistan.jpeg', 'queen', 24, 650000, 2, '["wifi","tv","ac"]', now(), now()),
+  ('00000000-0000-1004-0000-000000000002', 'deluxe', '{"uz":"Deluxe","ru":"Делюкс","en":"Deluxe"}', 'Keng deluxe xona', '/hilton-hostel.jpeg', 'king', 32, 820000, 3, '["wifi","tv","ac","minibar"]', now(), now()),
+  ('00000000-0000-1004-0000-000000000003', 'suite', '{"uz":"Suite","ru":"Люкс","en":"Suite"}', 'Premium suite xona', '/experiment-hotel-picture.jpeg', 'king', 48, 1450000, 4, '["wifi","tv","ac","minibar","workspace"]', now(), now())
 on conflict (code) do update
-set name = excluded.name, updated_at = now();
+set name = excluded.name,
+    description = excluded.description,
+    image_url = excluded.image_url,
+    bed_type = excluded.bed_type,
+    size_sqm = excluded.size_sqm,
+    base_price = excluded.base_price,
+    capacity = excluded.capacity,
+    amenities = excluded.amenities,
+    updated_at = now();
 
 insert into cancellation_policies (id, name, rules, refundable_until_hours, created_at, updated_at)
 values (
@@ -113,6 +121,28 @@ set first_name = excluded.first_name,
     phone_verified_at = excluded.phone_verified_at,
     last_login_at = excluded.last_login_at,
     updated_at = now();
+
+insert into user_notification_preferences (user_id, sms, email, push, in_app, updated_at)
+values
+  ('00000000-0000-2001-0000-000000000001', true, true, true, true, now()),
+  ('00000000-0000-2001-0000-000000000002', true, true, false, true, now()),
+  ('00000000-0000-2001-0000-000000000006', true, false, true, true, now())
+on conflict (user_id) do update
+set sms = excluded.sms,
+    email = excluded.email,
+    push = excluded.push,
+    in_app = excluded.in_app,
+    updated_at = now();
+
+insert into user_bonus_ledger (id, user_id, amount, reason, created_at)
+values
+  ('00000000-0000-2002-0000-000000000001', '00000000-0000-2001-0000-000000000001', 75000, 'Bron uchun bonus', now() - interval '4 days'),
+  ('00000000-0000-2002-0000-000000000002', '00000000-0000-2001-0000-000000000002', 125000, 'Promo aksiya bonusi', now() - interval '8 days'),
+  ('00000000-0000-2002-0000-000000000003', '00000000-0000-2001-0000-000000000006', 30000, 'Avtobus bron bonusi', now() - interval '1 day')
+on conflict (id) do update
+set amount = excluded.amount,
+    reason = excluded.reason,
+    created_at = excluded.created_at;
 
 insert into admin_users (id, email, password_hash, full_name, role, status, created_at, updated_at)
 values
@@ -165,6 +195,19 @@ set password_hash = excluded.password_hash,
     status = excluded.status,
     updated_at = now();
 
+update partner_organizations
+set logo_url = case tax_id
+    when 'DEMO-HOTEL-001' then '/hotel-uzbekistan.jpeg'
+    when 'DEMO-HOTEL-002' then '/hilton-hostel.jpeg'
+    when 'DEMO-HOTEL-003' then '/Bukhara-old-city-golden-hour.jpeg'
+    when 'DEMO-BUS-001' then '/Uzbekistan-travel.jpeg'
+    when 'DEMO-BUS-002' then '/Tashkent-city-skyline.jpeg'
+    else logo_url
+  end,
+  showcase = tax_id in ('DEMO-HOTEL-001', 'DEMO-HOTEL-002', 'DEMO-HOTEL-003', 'DEMO-BUS-001', 'DEMO-BUS-002'),
+  updated_at = now()
+where tax_id like 'DEMO-%';
+
 insert into hotels (
   id, partner_organization_id, slug, city_id, address, latitude, longitude,
   stars, rating_average, reviews_count, status, check_in_time, check_out_time,
@@ -186,6 +229,17 @@ set partner_organization_id = excluded.partner_organization_id,
     status = excluded.status,
     updated_at = now();
 
+update hotels
+set featured = true,
+    nearby_places = case slug
+      when 'grand-samarkand-hotel' then '[{"name":"Registon maydoni","distance":"550 m"},{"name":"Siyob bozori","distance":"1.4 km"},{"name":"Bibixonim masjidi","distance":"1.1 km"}]'::jsonb
+      when 'hilton-tashkent' then '[{"name":"Amir Temur xiyoboni","distance":"850 m"},{"name":"Mustaqillik maydoni","distance":"1.8 km"},{"name":"Toshkent City","distance":"2.6 km"}]'::jsonb
+      when 'buxoro-palace' then '[{"name":"Lyabi Hovuz","distance":"700 m"},{"name":"Ark qalasi","distance":"1.3 km"},{"name":"Kalon minorasi","distance":"1 km"}]'::jsonb
+      else nearby_places
+    end,
+    updated_at = now()
+where slug in ('grand-samarkand-hotel', 'hilton-tashkent', 'buxoro-palace');
+
 insert into hotel_translations (id, hotel_id, language, name, description, created_at, updated_at)
 values
   ('00000000-0000-4002-0000-000000000001', '00000000-0000-4001-0000-000000000001', 'uz', 'Grand Samarkand Hotel', 'Registon yaqinidagi 5 yulduzli demo mehmonxona.', now(), now()),
@@ -194,38 +248,70 @@ values
 on conflict (hotel_id, language) do update
 set name = excluded.name, description = excluded.description, updated_at = now();
 
+insert into media_files (
+  id, owner_type, owner_id, bucket, object_key, url, mime_type, size,
+  visibility, caption, category, sort_order, is_cover, created_at, deleted_at
+)
+values
+  ('00000000-0000-4006-0000-000000000001', 'hotel', '00000000-0000-4001-0000-000000000001', 'public', 'demo/hotels/grand-samarkand-cover.jpeg', '/hotel-uzbekistan.jpeg', 'image/jpeg', 180000, 'public', 'Grand Samarkand cover', 'gallery', 1, true, now(), null),
+  ('00000000-0000-4006-0000-000000000002', 'hotel', '00000000-0000-4001-0000-000000000001', 'public', 'demo/hotels/grand-samarkand-gallery.jpeg', '/Samarkand-Registan-cinematic.jpeg', 'image/jpeg', 180000, 'public', 'Grand Samarkand gallery', 'gallery', 2, false, now(), null),
+  ('00000000-0000-4006-0000-000000000003', 'hotel', '00000000-0000-4001-0000-000000000002', 'public', 'demo/hotels/hilton-tashkent-cover.jpeg', '/hilton-hostel.jpeg', 'image/jpeg', 180000, 'public', 'Hilton Tashkent cover', 'gallery', 1, true, now(), null),
+  ('00000000-0000-4006-0000-000000000004', 'hotel', '00000000-0000-4001-0000-000000000002', 'public', 'demo/hotels/hilton-tashkent-gallery.jpeg', '/Tashkent-skyline-night.jpeg', 'image/jpeg', 180000, 'public', 'Hilton Tashkent gallery', 'gallery', 2, false, now(), null),
+  ('00000000-0000-4006-0000-000000000005', 'hotel', '00000000-0000-4001-0000-000000000003', 'public', 'demo/hotels/buxoro-palace-cover.jpeg', '/Bukhara-old-city-golden-hour.jpeg', 'image/jpeg', 180000, 'public', 'Buxoro Palace cover', 'gallery', 1, true, now(), null),
+  ('00000000-0000-4006-0000-000000000006', 'hotel', '00000000-0000-4001-0000-000000000003', 'public', 'demo/hotels/buxoro-palace-gallery.jpeg', '/registan-back-tour.jpg', 'image/jpeg', 180000, 'public', 'Buxoro Palace gallery', 'gallery', 2, false, now(), null)
+on conflict (id) do update
+set owner_type = excluded.owner_type,
+    owner_id = excluded.owner_id,
+    bucket = excluded.bucket,
+    object_key = excluded.object_key,
+    url = excluded.url,
+    mime_type = excluded.mime_type,
+    size = excluded.size,
+    visibility = excluded.visibility,
+    caption = excluded.caption,
+    category = excluded.category,
+    sort_order = excluded.sort_order,
+    is_cover = excluded.is_cover,
+    deleted_at = null;
+
 insert into hotel_amenities (hotel_id, amenity_id)
 select hotel_id, amenity_id
 from (values
   -- hotel 1: wifi + pool + breakfast
   ('00000000-0000-4001-0000-000000000001'::uuid, '00000000-0000-1003-0000-000000000001'::uuid),
-  ('00000000-0000-4001-0000-000000000001'::uuid, '00000000-0000-1003-0000-00000000000b'::uuid),
-  ('00000000-0000-4001-0000-000000000001'::uuid, '00000000-0000-1003-0000-000000000005'::uuid),
+  ('00000000-0000-4001-0000-000000000001'::uuid, '00000000-0000-1003-0000-000000000002'::uuid),
+  ('00000000-0000-4001-0000-000000000001'::uuid, '00000000-0000-1003-0000-000000000004'::uuid),
   -- hotel 2: wifi + parking
   ('00000000-0000-4001-0000-000000000002'::uuid, '00000000-0000-1003-0000-000000000001'::uuid),
-  ('00000000-0000-4001-0000-000000000002'::uuid, '00000000-0000-1003-0000-000000000016'::uuid),
+  ('00000000-0000-4001-0000-000000000002'::uuid, '00000000-0000-1003-0000-000000000003'::uuid),
   -- hotel 3: wifi + breakfast
   ('00000000-0000-4001-0000-000000000003'::uuid, '00000000-0000-1003-0000-000000000001'::uuid),
-  ('00000000-0000-4001-0000-000000000003'::uuid, '00000000-0000-1003-0000-000000000005'::uuid)
+  ('00000000-0000-4001-0000-000000000003'::uuid, '00000000-0000-1003-0000-000000000004'::uuid)
 ) as links(hotel_id, amenity_id)
 on conflict (hotel_id, amenity_id) do nothing;
 
 insert into hotel_rooms (
-  id, hotel_id, room_type_id, code, base_occupancy, max_adults, max_children,
-  total_inventory, base_price, status, created_at, updated_at
+  id, hotel_id, room_type_id, code, floor, base_occupancy, max_adults, max_children,
+  total_inventory, base_price, status, housekeeping_status, is_listed, created_at, updated_at
 )
 values
-  ('00000000-0000-4003-0000-000000000001', '00000000-0000-4001-0000-000000000001', '00000000-0000-1004-0000-000000000001', 'STD-1', 2, 2, 1, 12, 650000, 'active', now(), now()),
-  ('00000000-0000-4003-0000-000000000002', '00000000-0000-4001-0000-000000000001', '00000000-0000-1004-0000-000000000002', 'DLX-1', 2, 3, 1, 8, 820000, 'active', now(), now()),
-  ('00000000-0000-4003-0000-000000000003', '00000000-0000-4001-0000-000000000002', '00000000-0000-1004-0000-000000000001', 'STD-2', 2, 2, 1, 15, 980000, 'active', now(), now()),
-  ('00000000-0000-4003-0000-000000000004', '00000000-0000-4001-0000-000000000002', '00000000-0000-1004-0000-000000000003', 'STE-2', 2, 4, 2, 5, 1450000, 'active', now(), now()),
-  ('00000000-0000-4003-0000-000000000005', '00000000-0000-4001-0000-000000000003', '00000000-0000-1004-0000-000000000001', 'STD-3', 2, 2, 1, 10, 520000, 'active', now(), now()),
-  ('00000000-0000-4003-0000-000000000006', '00000000-0000-4001-0000-000000000003', '00000000-0000-1004-0000-000000000002', 'DLX-3', 2, 3, 1, 6, 710000, 'active', now(), now())
+  ('00000000-0000-4003-0000-000000000001', '00000000-0000-4001-0000-000000000001', '00000000-0000-1004-0000-000000000001', 'STD-1', 1, 2, 2, 1, 12, 650000, 'active', 'VACANT_CLEAN', true, now(), now()),
+  ('00000000-0000-4003-0000-000000000002', '00000000-0000-4001-0000-000000000001', '00000000-0000-1004-0000-000000000002', 'DLX-1', 2, 2, 3, 1, 8, 820000, 'active', 'VACANT_CLEAN', true, now(), now()),
+  ('00000000-0000-4003-0000-000000000003', '00000000-0000-4001-0000-000000000002', '00000000-0000-1004-0000-000000000001', 'STD-2', 3, 2, 2, 1, 15, 980000, 'active', 'VACANT_DIRTY', true, now(), now()),
+  ('00000000-0000-4003-0000-000000000004', '00000000-0000-4001-0000-000000000002', '00000000-0000-1004-0000-000000000003', 'STE-2', 5, 2, 4, 2, 5, 1450000, 'active', 'OCCUPIED_CLEAN', true, now(), now()),
+  ('00000000-0000-4003-0000-000000000005', '00000000-0000-4001-0000-000000000003', '00000000-0000-1004-0000-000000000001', 'STD-3', 1, 2, 2, 1, 10, 520000, 'active', 'VACANT_CLEAN', true, now(), now()),
+  ('00000000-0000-4003-0000-000000000006', '00000000-0000-4001-0000-000000000003', '00000000-0000-1004-0000-000000000002', 'DLX-3', 2, 2, 3, 1, 6, 710000, 'active', 'OUT_OF_SERVICE', false, now(), now())
 on conflict (hotel_id, code) do update
 set room_type_id = excluded.room_type_id,
+    floor = excluded.floor,
+    base_occupancy = excluded.base_occupancy,
+    max_adults = excluded.max_adults,
+    max_children = excluded.max_children,
     total_inventory = excluded.total_inventory,
     base_price = excluded.base_price,
     status = excluded.status,
+    housekeeping_status = excluded.housekeeping_status,
+    is_listed = excluded.is_listed,
     updated_at = now();
 
 insert into hotel_room_translations (id, room_id, language, name, description, created_at, updated_at)
@@ -238,6 +324,26 @@ values
   ('00000000-0000-4004-0000-000000000006', '00000000-0000-4003-0000-000000000006', 'uz', 'Deluxe', 'Buxoro deluxe xona.', now(), now())
 on conflict (room_id, language) do update
 set name = excluded.name, description = excluded.description, updated_at = now();
+
+insert into room_beds (id, room_id, label, status, is_listed, nightly_price, created_at, updated_at)
+values
+  ('00000000-0000-4007-0000-000000000001', '00000000-0000-4003-0000-000000000001', '101-A', 'VACANT_CLEAN', true, 650000, now(), now()),
+  ('00000000-0000-4007-0000-000000000002', '00000000-0000-4003-0000-000000000001', '101-B', 'VACANT_CLEAN', true, 650000, now(), now()),
+  ('00000000-0000-4007-0000-000000000003', '00000000-0000-4003-0000-000000000002', '201-A', 'RESERVED', true, 820000, now(), now()),
+  ('00000000-0000-4007-0000-000000000004', '00000000-0000-4003-0000-000000000002', '201-B', 'VACANT_CLEAN', true, 820000, now(), now()),
+  ('00000000-0000-4007-0000-000000000005', '00000000-0000-4003-0000-000000000003', '301-A', 'VACANT_DIRTY', true, 980000, now(), now()),
+  ('00000000-0000-4007-0000-000000000006', '00000000-0000-4003-0000-000000000003', '301-B', 'VACANT_CLEAN', true, 980000, now(), now()),
+  ('00000000-0000-4007-0000-000000000007', '00000000-0000-4003-0000-000000000004', '501-A', 'OCCUPIED_CLEAN', true, 1450000, now(), now()),
+  ('00000000-0000-4007-0000-000000000008', '00000000-0000-4003-0000-000000000005', '102-A', 'VACANT_CLEAN', true, 520000, now(), now()),
+  ('00000000-0000-4007-0000-000000000009', '00000000-0000-4003-0000-000000000006', '202-A', 'OUT_OF_SERVICE', false, 710000, now(), now())
+on conflict (room_id, label) do update
+set status = excluded.status,
+    is_listed = excluded.is_listed,
+    nightly_price = excluded.nightly_price,
+    updated_at = now();
+
+delete from room_inventory
+where id::text like '00000000-0000-4005-0000-%';
 
 insert into room_inventory (id, room_id, date, total_count, held_count, booked_count, closed, version)
 select
@@ -435,6 +541,14 @@ set organization_id = excluded.organization_id,
     status = excluded.status,
     updated_at = now();
 
+insert into favorites (id, user_id, target_type, target_id, created_at)
+values
+  ('00000000-0000-7008-0000-000000000001', '00000000-0000-2001-0000-000000000001', 'hotel', '00000000-0000-4001-0000-000000000001', now() - interval '6 days'),
+  ('00000000-0000-7008-0000-000000000002', '00000000-0000-2001-0000-000000000001', 'hotel', '00000000-0000-4001-0000-000000000002', now() - interval '2 days'),
+  ('00000000-0000-7008-0000-000000000003', '00000000-0000-2001-0000-000000000002', 'hotel', '00000000-0000-4001-0000-000000000003', now() - interval '9 days')
+on conflict (user_id, target_type, target_id) do update
+set created_at = excluded.created_at;
+
 insert into reviews (id, user_id, booking_id, target_type, target_id, rating, body, status, created_at, updated_at)
 values
   ('00000000-0000-7001-0000-000000000001', '00000000-0000-2001-0000-000000000001', '00000000-0000-6001-0000-000000000001', 'hotel', '00000000-0000-4001-0000-000000000001', 5, 'Joylashuv juda qulay.', 'published', now() - interval '4 days', now()),
@@ -446,13 +560,17 @@ set rating = excluded.rating,
     status = excluded.status,
     updated_at = now();
 
-insert into support_tickets (id, user_id, subject, priority, status, created_at, updated_at)
+insert into support_tickets (id, user_id, actor_type, actor_id, subject, priority, status, created_at, updated_at)
 values
-  ('00000000-0000-7003-0000-000000000001', '00000000-0000-2001-0000-000000000001', 'Tolov otmadi', 'high', 'open', now() - interval '2 hours', now()),
-  ('00000000-0000-7003-0000-000000000002', '00000000-0000-2001-0000-000000000002', 'Bronni bekor qilish', 'low', 'closed', now() - interval '3 days', now()),
-  ('00000000-0000-7003-0000-000000000003', '00000000-0000-2001-0000-000000000003', 'Xona malumoti mos kelmadi', 'medium', 'in_progress', now() - interval '1 day', now())
+  ('00000000-0000-7003-0000-000000000001', '00000000-0000-2001-0000-000000000001', 'user', '00000000-0000-2001-0000-000000000001', 'Tolov otmadi', 'high', 'open', now() - interval '2 hours', now()),
+  ('00000000-0000-7003-0000-000000000002', '00000000-0000-2001-0000-000000000002', 'user', '00000000-0000-2001-0000-000000000002', 'Bronni bekor qilish', 'low', 'closed', now() - interval '3 days', now()),
+  ('00000000-0000-7003-0000-000000000003', '00000000-0000-2001-0000-000000000003', 'user', '00000000-0000-2001-0000-000000000003', 'Xona malumoti mos kelmadi', 'medium', 'in_progress', now() - interval '1 day', now()),
+  ('00000000-0000-7003-0000-000000000004', null, 'partner', '00000000-0000-3001-0000-000000000001', 'Xona inventari bo''yicha savol', 'medium', 'open', now() - interval '3 hours', now())
 on conflict (id) do update
-set subject = excluded.subject,
+set user_id = excluded.user_id,
+    actor_type = excluded.actor_type,
+    actor_id = excluded.actor_id,
+    subject = excluded.subject,
     priority = excluded.priority,
     status = excluded.status,
     updated_at = now();
@@ -462,7 +580,9 @@ values
   ('00000000-0000-7004-0000-000000000001', '00000000-0000-7003-0000-000000000001', 'user', '00000000-0000-2001-0000-000000000001', 'Payme orqali tolov qildim, lekin bron tasdiqlanmadi.', now() - interval '2 hours'),
   ('00000000-0000-7004-0000-000000000002', '00000000-0000-7003-0000-000000000001', 'admin', '00000000-0000-1006-0000-000000000001', 'Chekni tekshiryapmiz, tez orada javob beramiz.', now() - interval '90 minutes'),
   ('00000000-0000-7004-0000-000000000003', '00000000-0000-7003-0000-000000000002', 'user', '00000000-0000-2001-0000-000000000002', 'Bronni bekor qilmoqchiman.', now() - interval '3 days'),
-  ('00000000-0000-7004-0000-000000000004', '00000000-0000-7003-0000-000000000002', 'admin', '00000000-0000-1006-0000-000000000001', 'Bron bekor qilindi.', now() - interval '2 days')
+  ('00000000-0000-7004-0000-000000000004', '00000000-0000-7003-0000-000000000002', 'admin', '00000000-0000-1006-0000-000000000001', 'Bron bekor qilindi.', now() - interval '2 days'),
+  ('00000000-0000-7004-0000-000000000005', '00000000-0000-7003-0000-000000000004', 'partner', '00000000-0000-3002-0000-000000000001', 'Deluxe xonadagi 201-A yotoq statusini tekshirishingizni so''raymiz.', now() - interval '3 hours'),
+  ('00000000-0000-7004-0000-000000000006', '00000000-0000-7003-0000-000000000004', 'admin', '00000000-0000-1006-0000-000000000001', 'So''rovingiz qabul qilindi, inventory jurnali tekshirilyapti.', now() - interval '2 hours')
 on conflict (id) do update
 set sender_type = excluded.sender_type,
     body = excluded.body,
@@ -470,12 +590,180 @@ set sender_type = excluded.sender_type,
 
 insert into cms_entries (id, type, slug, title, body, status, metadata, published_at, created_at, updated_at)
 values
-  ('00000000-0000-7005-0000-000000000001', 'banner', 'summer-discount', '{"uz":"Yozgi tatil uchun 20% chegirma"}', '{"uz":"Yozgi promo banner."}', 'published', '{"imageUrl":"/images/banners/summer.jpg","link":"/offers/summer","order":1}', now() - interval '3 days', now(), now()),
-  ('00000000-0000-7005-0000-000000000002', 'banner', 'samarkand-bus', '{"uz":"Samarqandga avtobus qatnovi"}', '{"uz":"Samarqand yo nalishi banner."}', 'published', '{"imageUrl":"/images/banners/samarkand.jpg","link":"/buses/samarkand","order":2}', now() - interval '2 days', now(), now()),
+  ('00000000-0000-7005-0000-000000000001', 'banner', 'summer-discount', '{"uz":"Yozgi tatil uchun 20% chegirma"}', '{"uz":"Yozgi promo banner."}', 'published', '{"imageUrl":"/Uzbekistan-travel.jpeg","link":"/uz/hotels","order":1}', now() - interval '3 days', now(), now()),
+  ('00000000-0000-7005-0000-000000000002', 'banner', 'samarkand-bus', '{"uz":"Samarqandga avtobus qatnovi"}', '{"uz":"Samarqand yo nalishi banner."}', 'published', '{"imageUrl":"/Samarkand-Registan-cinematic.jpeg","link":"/uz/transport","order":2}', now() - interval '2 days', now(), now()),
   ('00000000-0000-7005-0000-000000000003', 'news', 'yangi-mehmonxonalar-iyun', '{"uz":"Yangi mehmonxonalar qoshildi"}', '{"uz":"Platformaga yangi hamkor mehmonxonalar qoshildi."}', 'published', '{"category":"news"}', now() - interval '2 days', now(), now()),
   ('00000000-0000-7005-0000-000000000004', 'page', 'about', '{"uz":"Biz haqimizda"}', '{"uz":"UzBron haqida demo sahifa."}', 'published', '{"menu":"footer"}', now() - interval '100 days', now(), now()),
   ('00000000-0000-7005-0000-000000000005', 'promo', 'summer20', '{"uz":"SUMMER20"}', '{"uz":"20 foiz chegirma promo kodi."}', 'published', '{"discountType":"percent","discountValue":20,"usageLimit":100,"usedCount":45}', now() - interval '1 day', now(), now()),
   ('00000000-0000-7005-0000-000000000006', 'promo', 'welcome50', '{"uz":"WELCOME50"}', '{"uz":"50000 som chegirma promo kodi."}', 'published', '{"discountType":"fixed","discountValue":50000,"usageLimit":500,"usedCount":82}', now() - interval '1 day', now(), now())
+on conflict (type, slug) do update
+set title = excluded.title,
+    body = excluded.body,
+    status = excluded.status,
+    metadata = excluded.metadata,
+    published_at = excluded.published_at,
+    updated_at = now();
+
+insert into cms_entries (id, type, slug, title, body, status, metadata, published_at, created_at, updated_at)
+values
+  (
+    '00000000-0000-7005-0000-000000000007',
+    'offer',
+    'samarkand-plaza-deal',
+    '{"uz":"Grand Samarkand Hotel","ru":"Grand Samarkand Hotel","en":"Grand Samarkand Hotel"}',
+    '{"uz":"Registon yaqinidagi 5 yulduzli mehmonxona uchun maxsus demo taklif.","ru":"Специальное демо-предложение для 5-звездочного отеля рядом с Регистаном.","en":"Special demo offer for a 5-star hotel near Registan."}',
+    'published',
+    jsonb_build_object(
+      'hotel_id', '00000000-0000-4001-0000-000000000001',
+      'slug', 'grand-samarkand-hotel',
+      'city_name', jsonb_build_object('uz', 'Samarqand', 'ru', 'Самарканд', 'en', 'Samarkand'),
+      'image_url', '/hotel-uzbekistan.jpeg',
+      'old_price', 900000,
+      'new_price', 650000,
+      'discount_percent', 28,
+      'ends_at', (now() + interval '14 days')::text,
+      'order', 1
+    ),
+    now() - interval '3 days',
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-7005-0000-000000000008',
+    'offer',
+    'hilton-tashkent-deal',
+    '{"uz":"Hilton Tashkent","ru":"Hilton Tashkent","en":"Hilton Tashkent"}',
+    '{"uz":"Toshkent markazidagi premium mehmonxona uchun demo chegirma.","ru":"Демо-скидка для премиального отеля в центре Ташкента.","en":"Demo discount for a premium hotel in central Tashkent."}',
+    'published',
+    jsonb_build_object(
+      'hotel_id', '00000000-0000-4001-0000-000000000002',
+      'slug', 'hilton-tashkent',
+      'city_name', jsonb_build_object('uz', 'Toshkent', 'ru', 'Ташкент', 'en', 'Tashkent'),
+      'image_url', '/hilton-hostel.jpeg',
+      'old_price', 1250000,
+      'new_price', 980000,
+      'discount_percent', 22,
+      'ends_at', (now() + interval '10 days')::text,
+      'order', 2
+    ),
+    now() - interval '2 days',
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-7005-0000-000000000009',
+    'offer',
+    'buxoro-palace-deal',
+    '{"uz":"Buxoro Palace","ru":"Buxoro Palace","en":"Buxoro Palace"}',
+    '{"uz":"Buxoro markazidagi oilaviy mehmonxona uchun demo taklif.","ru":"Демо-предложение для семейного отеля в центре Бухары.","en":"Demo offer for a family hotel in central Bukhara."}',
+    'published',
+    jsonb_build_object(
+      'hotel_id', '00000000-0000-4001-0000-000000000003',
+      'slug', 'buxoro-palace',
+      'city_name', jsonb_build_object('uz', 'Buxoro', 'ru', 'Бухара', 'en', 'Bukhara'),
+      'image_url', '/Bukhara-old-city-golden-hour.jpeg',
+      'old_price', 710000,
+      'new_price', 520000,
+      'discount_percent', 27,
+      'ends_at', (now() + interval '7 days')::text,
+      'order', 3
+    ),
+    now() - interval '1 day',
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-7005-0000-000000000010',
+    'attraction',
+    'registon',
+    '{"uz":"Registon maydoni","ru":"Площадь Регистан","en":"Registan Square"}',
+    '{"uz":"Samarqand markazidagi tarixiy ansambl.","ru":"Исторический ансамбль в центре Самарканда.","en":"Historic ensemble in central Samarkand."}',
+    'published',
+    '{"city_name":{"uz":"Samarqand","ru":"Самарканд","en":"Samarkand"},"category_key":"unesco","category_default":"UNESCO Merosi","rating":4.9,"latitude":39.6542,"longitude":66.9750,"image_url":"/Samarkand-Registan-cinematic.jpeg","best_time_to_visit":{"uz":"Mart-may, sentabr-oktabr","ru":"Март-май, сентябрь-октябрь","en":"March-May, September-October"},"order":1}',
+    now() - interval '6 days',
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-7005-0000-000000000011',
+    'attraction',
+    'charvak-lake',
+    '{"uz":"Chorvoq suv ombori","ru":"Чарвакское водохранилище","en":"Charvak Lake"}',
+    '{"uz":"Tog''lar orasidagi dam olish maskani.","ru":"Зона отдыха среди гор.","en":"A mountain getaway by the water."}',
+    'published',
+    '{"city_name":{"uz":"Charvak","ru":"Чарвак","en":"Charvak"},"category_key":"nature","category_default":"Tabiat & Hordiq","rating":4.7,"latitude":41.6369,"longitude":69.9392,"image_url":"/Charvak-Lake-drone.jpeg","best_time_to_visit":{"uz":"May-sentabr","ru":"Май-сентябрь","en":"May-September"},"order":2}',
+    now() - interval '5 days',
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-7005-0000-000000000012',
+    'attraction',
+    'ichan-kala',
+    '{"uz":"Ichan-Qal''a","ru":"Ичан-Кала","en":"Itchan Kala"}',
+    '{"uz":"Xivadagi qadimiy shahriston.","ru":"Древний город-крепость в Хиве.","en":"Ancient walled inner town in Khiva."}',
+    'published',
+    '{"city_name":{"uz":"Xiva","ru":"Хива","en":"Khiva"},"category_key":"historical","category_default":"Tarixiy Obida","rating":4.8,"latitude":41.3783,"longitude":60.3639,"image_url":"/Khiva-Ichan-Kala-aerial.jpeg","best_time_to_visit":{"uz":"Aprel-may, sentabr","ru":"Апрель-май, сентябрь","en":"April-May, September"},"order":3}',
+    now() - interval '4 days',
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-7005-0000-000000000013',
+    'restaurant',
+    'osh-markazi-toshkent',
+    '{"uz":"Osh Markazi","ru":"Центр плова","en":"Osh Markazi"}',
+    '{"uz":"Toshkentcha osh va milliy taomlar.","ru":"Ташкентский плов и национальная кухня.","en":"Tashkent plov and national dishes."}',
+    'published',
+    '{"city_name":{"uz":"Toshkent","ru":"Ташкент","en":"Tashkent"},"address":"Toshkent, Beshyog''och ko''chasi 12","cuisine":"Milliy taomlar","rating":4.6,"reviews_count":84,"average_check":120000,"latitude":41.3111,"longitude":69.2797,"working_hours":"10:00-22:00","image_url":"/Uzbekistan-travel.jpeg","phone":"+998901234501","order":1}',
+    now() - interval '4 days',
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-7005-0000-000000000014',
+    'restaurant',
+    'registon-terrace',
+    '{"uz":"Registon Terrace","ru":"Registon Terrace","en":"Registan Terrace"}',
+    '{"uz":"Samarqand markazida oilaviy restoran.","ru":"Семейный ресторан в центре Самарканда.","en":"Family restaurant in central Samarkand."}',
+    'published',
+    '{"city_name":{"uz":"Samarqand","ru":"Самарканд","en":"Samarkand"},"address":"Samarqand, Registon ko''chasi 5","cuisine":"Milliy va yevropa","rating":4.7,"reviews_count":56,"average_check":150000,"latitude":39.6554,"longitude":66.9746,"working_hours":"09:00-23:00","image_url":"/registan-back-tour.jpg","phone":"+998901234502","order":2}',
+    now() - interval '3 days',
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-7005-0000-000000000015',
+    'restaurant',
+    'buxoro-caravan',
+    '{"uz":"Buxoro Caravan","ru":"Bukhara Caravan","en":"Bukhara Caravan"}',
+    '{"uz":"Buxorocha taomlar va choyxona muhiti.","ru":"Бухарские блюда и атмосфера чайханы.","en":"Bukhara dishes and teahouse atmosphere."}',
+    'published',
+    '{"city_name":{"uz":"Buxoro","ru":"Бухара","en":"Bukhara"},"address":"Buxoro, Lyabi Hovuz 3","cuisine":"Buxoro taomlari","rating":4.5,"reviews_count":41,"average_check":135000,"latitude":39.7747,"longitude":64.4286,"working_hours":"10:00-23:00","image_url":"/Bukhara-old-city-golden-hour.jpeg","phone":"+998901234503","order":3}',
+    now() - interval '2 days',
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-7005-0000-000000000016',
+    'promo_bar',
+    'demo-summer-promo',
+    '{"uz":"Demo yozgi takliflar faol","ru":"Демо летние предложения активны","en":"Demo summer offers are active"}',
+    null,
+    'published',
+    jsonb_build_object(
+      'text', jsonb_build_object('uz', 'Tanlangan mehmonxonalarda demo chegirmalar mavjud', 'ru', 'Демо-скидки доступны в выбранных отелях', 'en', 'Demo discounts are available at selected hotels'),
+      'badge', jsonb_build_object('uz', 'Demo', 'ru', 'Demo', 'en', 'Demo'),
+      'link', '/uz/hotels',
+      'link_text', jsonb_build_object('uz', 'Ko''rish', 'ru', 'Смотреть', 'en', 'View'),
+      'ends_at', (now() + interval '21 days')::text,
+      'is_active', true,
+      'is_dismissible', true
+    ),
+    now(),
+    now(),
+    now()
+  )
 on conflict (type, slug) do update
 set title = excluded.title,
     body = excluded.body,

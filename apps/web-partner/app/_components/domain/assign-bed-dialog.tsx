@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
+import { useBeds } from "../../_hooks/use-beds";
 import { useRooms } from "../../_hooks/use-rooms";
 import { useAssignRoom } from "../../_hooks/use-reservations";
 import { useDataStore } from "../../_stores/data-store";
@@ -21,8 +22,8 @@ interface Props {
 
 export function AssignBedDialog({ open, onClose, reservation, onAssigned }: Props) {
   const { data: rooms } = useRooms();
+  useBeds();
   const beds = useDataStore((s) => s.beds);
-  const assignBed = useDataStore((s) => s.assignBed);
   const assignRoom = useAssignRoom();
   const [selected, setSelected] = useState<{ room: Room; bed: Bed } | null>(null);
 
@@ -60,10 +61,13 @@ export function AssignBedDialog({ open, onClose, reservation, onAssigned }: Prop
   const handleConfirm = () => {
     if (!reservation || !selected) return;
     assignRoom.mutate(
-      { id: reservation.id, roomNumber: selected.room.number },
+      {
+        id: reservation.id,
+        roomNumber: selected.room.number,
+        bedId: selected.bed.id,
+      },
       {
         onSuccess: () => {
-          assignBed(reservation.id, selected.bed.id);
           toast.success(`${selected.room.number} · ${selected.bed.label} tayinlandi.`);
           onAssigned?.(selected.room.number);
           setSelected(null);

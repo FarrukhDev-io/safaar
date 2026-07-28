@@ -1,10 +1,14 @@
-import type { BookingStatus } from "@safaar/types";
+import type { BookingStatus } from '@safaar/types';
 
 /* ────────────────────────────────────────────
    Admin User
    ──────────────────────────────────────────── */
 
-export type AdminRole = "SUPER_ADMIN" | "MODERATOR" | "FINANCE_ADMIN" | "CONTENT_ADMIN";
+export type AdminRole =
+  | 'SUPER_ADMIN'
+  | 'MODERATOR'
+  | 'FINANCE_ADMIN'
+  | 'CONTENT_ADMIN';
 
 export interface AdminUser {
   id: string;
@@ -40,7 +44,7 @@ export interface AdminListing {
     cancellationPolicy?: string;
   };
   roomsCount?: number;
-  status: "under_review" | "published" | "rejected";
+  status: 'draft' | 'under_review' | 'published' | 'rejected';
   submittedAt: string;
 }
 
@@ -76,7 +80,13 @@ export interface ServiceDistribution {
 
 export interface ActivityLogItem {
   id: string;
-  type: "user_registered" | "partner_request" | "booking_created" | "booking_cancelled" | "payment_request" | "complaint";
+  type:
+    | 'user_registered'
+    | 'partner_request'
+    | 'booking_created'
+    | 'booking_cancelled'
+    | 'payment_request'
+    | 'complaint';
   message: string;
   timestamp: string;
   icon: string;
@@ -93,7 +103,7 @@ export interface QuickAction {
    Users
    ──────────────────────────────────────────── */
 
-export type UserStatus = "active" | "blocked" | "unverified";
+export type UserStatus = 'active' | 'blocked' | 'unverified';
 
 export interface AdminManagedUser {
   id: string;
@@ -110,7 +120,7 @@ export interface AdminManagedUser {
 
 export interface UserBookingHistory {
   id: string;
-  serviceType: "hotel" | "bus";
+  serviceType: 'hotel' | 'bus';
   serviceName: string;
   date: string;
   amount: number;
@@ -119,19 +129,36 @@ export interface UserBookingHistory {
 
 export interface UserPayment {
   id: string;
-  method: "click" | "payme" | "uzcard" | "humo";
+  method: 'click' | 'payme' | 'uzcard' | 'humo';
   amount: number;
   date: string;
-  type: "payment" | "refund";
+  type: 'payment' | 'refund';
 }
 
 /* ────────────────────────────────────────────
    Partners
    ──────────────────────────────────────────── */
 
-export type PartnerType = "hotel" | "bus" | "hostel" | "guesthouse" | "motel" | "dacha";
-export type PartnerRequestStatus = "new" | "reviewing" | "approved" | "rejected" | "submitted";
-export type PartnerStatus = "active" | "suspended" | "blocked";
+export type PartnerType =
+  | 'hotel'
+  | 'bus'
+  | 'hostel'
+  | 'guesthouse'
+  | 'motel'
+  | 'dacha'
+  | 'restaurant';
+export type PartnerRequestStatus =
+  | 'new'
+  | 'reviewing'
+  | 'approved'
+  | 'rejected'
+  | 'submitted';
+export type PartnerStatus =
+  | 'active'
+  | 'suspended'
+  | 'blocked'
+  | 'reviewing'
+  | 'rejected';
 
 export interface Partner {
   id: string;
@@ -171,7 +198,7 @@ export interface PartnerRequest {
 
 export interface PartnerDocument {
   name: string;
-  type: "license" | "tax_certificate" | "passport";
+  type: 'license' | 'tax_certificate' | 'passport';
   url: string;
 }
 
@@ -179,10 +206,11 @@ export interface PartnerDocument {
    Bookings (Admin view)
    ──────────────────────────────────────────── */
 
-export type PaymentMethod = "click" | "payme" | "uzcard" | "humo";
+export type PaymentMethod = 'click' | 'payme' | 'uzcard' | 'humo';
 
 export interface AdminHotelBooking {
   id: string;
+  partnerId?: string;
   customerName: string;
   customerPhone: string;
   hotelName: string;
@@ -201,6 +229,7 @@ export interface AdminHotelBooking {
 
 export interface AdminBusBooking {
   id: string;
+  partnerId?: string;
   customerName: string;
   customerPhone: string;
   companyName: string;
@@ -223,7 +252,7 @@ export interface BookingStatusHistory {
 
 export interface BookingDetail {
   id: string;
-  serviceType: "hotel" | "bus";
+  serviceType: 'hotel' | 'bus';
   status: BookingStatus;
   createdAt: string;
 
@@ -265,7 +294,7 @@ export interface BookingDetail {
    Finance
    ──────────────────────────────────────────── */
 
-export type WithdrawalStatus = "pending" | "approved" | "rejected";
+export type WithdrawalStatus = 'pending' | 'approved' | 'rejected';
 
 export interface WithdrawalRequest {
   id: string;
@@ -302,9 +331,9 @@ export interface CmsBanner {
 export interface CmsArticle {
   id: string;
   title: string;
-  type: "news" | "offer" | "page";
+  type: 'news' | 'offer' | 'page';
   slug: string;
-  status: "published" | "draft";
+  status: 'published' | 'draft';
   publishedAt: string;
 }
 
@@ -323,7 +352,7 @@ export interface CatalogAmenity {
   id: string;
   name: string;
   icon: string;
-  type: "hotel" | "room";
+  type: 'hotel' | 'room';
   isActive: boolean;
 }
 
@@ -334,7 +363,7 @@ export interface CatalogAmenity {
 export interface PromoCode {
   id: string;
   code: string;
-  discountType: "percent" | "fixed";
+  discountType: 'percent' | 'fixed';
   discountValue: number;
   usageLimit: number;
   usedCount: number;
@@ -346,13 +375,13 @@ export interface PromoCode {
    Support
    ──────────────────────────────────────────── */
 
-export type TicketStatus = "open" | "in_progress" | "closed";
+export type TicketStatus = 'open' | 'in_progress' | 'closed';
 
 export interface TicketMessage {
   id: string;
   ticketId: string;
   senderName: string;
-  senderRole: "admin" | "customer";
+  senderRole: 'admin' | 'customer';
   message: string;
   createdAt: string;
 }
@@ -361,9 +390,15 @@ export interface SupportTicket {
   id: string;
   subject: string;
   customerName: string;
-  customerType: "user" | "partner";
+  customerType: 'user' | 'partner';
+  contactName?: string;
+  businessName?: string;
+  hotelName?: string;
+  companyName?: string;
+  taxId?: string;
+  partnerId?: string;
   status: TicketStatus;
-  priority: "low" | "medium" | "high";
+  priority: 'low' | 'medium' | 'high';
   assignee?: string;
   createdAt: string;
 }

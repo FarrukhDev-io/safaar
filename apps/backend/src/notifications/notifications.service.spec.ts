@@ -12,7 +12,7 @@ describe('NotificationsService ownership', () => {
     role: Role.PARTNER,
     roles: [Role.PARTNER],
     organizationId: '00000000-0000-0000-0000-000000000002',
-    sessionId: 'demo-session-id',
+    sessionId: 'test-session-id',
   };
 
   beforeEach(() => {

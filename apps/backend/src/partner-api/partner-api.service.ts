@@ -3,10 +3,10 @@ import { BookingStatus } from '@safaar/types';
 import { PostgresService } from '../infrastructure/postgres.service';
 import {
   hashSecret,
+  hmacSha256,
   partnerApiPepper,
   timingSafeEqualString,
 } from '../auth/security';
-import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class PartnerApiService {
@@ -90,11 +90,18 @@ export class PartnerApiService {
 
   async webhookTest(apiKey: string | undefined, body: Record<string, unknown>) {
     await this.organizationId(apiKey); // validate key
+    const event = String(body.event ?? 'booking.created');
+    const deliveredAt = new Date().toISOString();
+    const payload = JSON.stringify({
+      event,
+      body,
+      delivered_at: deliveredAt,
+    });
     return {
-      event: body.event ?? 'booking.created',
-      signature: 'mock-signature',
+      event,
+      signature: hmacSha256(payload, partnerApiPepper()),
       delivered: true,
-      delivered_at: new Date().toISOString(),
+      delivered_at: deliveredAt,
     };
   }
 

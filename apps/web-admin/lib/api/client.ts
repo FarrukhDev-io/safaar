@@ -16,10 +16,6 @@ apiClient.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    if (config.headers) {
-      config.headers["x-user-role"] = "SUPER_ADMIN";
-      config.headers["x-user-id"] = "demo-admin-id";
-    }
     return config;
   },
   (error) => Promise.reject(error)

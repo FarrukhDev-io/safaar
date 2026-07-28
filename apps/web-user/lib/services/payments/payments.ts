@@ -84,10 +84,7 @@ export const paymentsService = {
 
     const paymentUrl =
       (raw.payment_url as string | undefined) ??
-      (raw.paymentUrl as string | undefined) ??
-      (provider !== "cash"
-        ? `https://pay.uzbron.uz/mock/${provider}/${bookingId}`
-        : undefined);
+      (raw.paymentUrl as string | undefined);
 
     return {
       id: String(raw.id ?? bookingId),

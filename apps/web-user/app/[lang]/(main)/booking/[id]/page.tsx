@@ -1,9 +1,14 @@
 import { notFound, redirect } from "next/navigation";
-import { CheckCircle2, AlertTriangle, CreditCard, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CreditCard,
+  ShieldCheck,
+} from "lucide-react";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
-import { api } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
 import { formatSum } from "@/lib/money";
 import { BackButton } from "@/components/ui/BackButton";
 import { RetryPaymentForm } from "./_components/RetryPaymentForm";
@@ -15,6 +20,17 @@ type SearchParams = Record<string, string | string[] | undefined>;
 
 function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+async function getBookingOrNull(id: string, token: string) {
+  try {
+    return await api.bookings.getBooking(id, { token });
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.statusCode === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export default async function BookingDetailPage({
@@ -33,7 +49,6 @@ export default async function BookingDetailPage({
   const statusQuery = one(sp.status);
   const providerQuery = one(sp.provider);
 
-  // Parallelize session and dictionary fetching
   const [dict, session] = await Promise.all([
     getDictionary(locale, "booking"),
     getSession(),
@@ -43,8 +58,9 @@ export default async function BookingDetailPage({
     redirect(`/${locale}/login?next=${encodeURIComponent(`/${locale}/booking/${id}`)}`);
   }
 
-  const booking: BookingView | null = await api.bookings.getBooking(id, { token: session.accessToken }).catch(
-    () => null
+  const booking: BookingView | null = await getBookingOrNull(
+    id,
+    session.accessToken,
   );
 
   if (!booking) {
@@ -69,47 +85,49 @@ export default async function BookingDetailPage({
     payment?.status === "paid";
 
   const isFailed = paymentQuery === "failed" || payment?.status === "failed";
-  const isAwaitingCash = paymentQuery === "cash" || payment?.status === "awaiting_cash";
+  const isAwaitingCash =
+    paymentQuery === "cash" || payment?.status === "awaiting_cash";
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
       <BackButton className="fixed left-4 top-16 z-50 md:left-8 md:top-20" />
 
-      {/* Header Banner depending on payment/booking status */}
       {isConfirmed ? (
         <div className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/40">
           <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <CheckCircle2 className="h-7 w-7 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <h1 className="text-xl font-extrabold tracking-tight text-emerald-950 dark:text-emerald-100 sm:text-2xl">
-              🎉 Broningiz muvaffaqiyatli tasdiqlandi!
+              Broningiz muvaffaqiyatli tasdiqlandi!
             </h1>
           </div>
           <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-            Tafsilotlar va vaucher ma'lumotlari shaxsiy kabinetingizda saqlanti.
+            Tafsilotlar va vaucher ma'lumotlari shaxsiy kabinetingizda saqlanadi.
           </p>
         </div>
       ) : isFailed ? (
         <div className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50/80 p-6 shadow-sm dark:border-red-900/50 dark:bg-red-950/40">
           <div className="flex items-center gap-3">
-            <AlertTriangle className="h-7 w-7 text-red-600 dark:text-red-400 shrink-0" />
+            <AlertTriangle className="h-7 w-7 shrink-0 text-red-600 dark:text-red-400" />
             <h1 className="text-xl font-extrabold tracking-tight text-red-950 dark:text-red-100 sm:text-2xl">
-              ⚠️ To'lov tranzaksiyasi amalga oshmadi
+              To'lov tranzaksiyasi amalga oshmadi
             </h1>
           </div>
           <p className="text-sm font-medium text-red-800 dark:text-red-300">
-            Tranzaksiya bekor qilindi yoki xatolik yuz berdi. Quyida to'lov usulini qayta tanlab urinib ko'rishingiz mumkin.
+            Tranzaksiya bekor qilindi yoki xatolik yuz berdi. Quyida to'lov
+            usulini qayta tanlab urinib ko'rishingiz mumkin.
           </p>
         </div>
       ) : isAwaitingCash ? (
         <div className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 p-6 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40">
           <div className="flex items-center gap-3">
-            <ShieldCheck className="h-7 w-7 text-amber-600 dark:text-amber-400 shrink-0" />
+            <ShieldCheck className="h-7 w-7 shrink-0 text-amber-600 dark:text-amber-400" />
             <h1 className="text-xl font-extrabold tracking-tight text-amber-950 dark:text-amber-100 sm:text-2xl">
               Joyida to'lash usuli tanlandi
             </h1>
           </div>
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-            Joyingiz band qilindi! To'lov mehmonxonaga kelganda qabulxonada amalga oshiriladi.
+            Joyingiz band qilindi. To'lov mehmonxonaga kelganda qabulxonada
+            amalga oshiriladi.
           </p>
         </div>
       ) : (
@@ -118,11 +136,13 @@ export default async function BookingDetailPage({
         </h1>
       )}
 
-      {/* Receipt & Order Details Card */}
-      <section aria-label="Receipt Summary" className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <section
+        aria-label="Receipt Summary"
+        className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+      >
         <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Kvitansiya Xulosasi (Receipt Summary)
+            Kvitansiya xulosasi
           </span>
           <span className="rounded-full bg-primary-100 px-3 py-1 text-xs font-bold text-primary-800 dark:bg-primary-950 dark:text-primary-300">
             {statusLabel}
@@ -131,11 +151,13 @@ export default async function BookingDetailPage({
 
         <Row label={dict.number} value={booking.bookingNumber || id} />
 
-        <Row label="Yaratilgan sana">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            {booking.createdAt ? new Date(booking.createdAt).toLocaleString(locale) : "Bugun"}
-          </span>
-        </Row>
+        {booking.createdAt && (
+          <Row label="Yaratilgan sana">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {new Date(booking.createdAt).toLocaleString(locale)}
+            </span>
+          </Row>
+        )}
 
         <Row label={dict.total} value={formatSum(booking.totalSum)} />
 
@@ -149,17 +171,17 @@ export default async function BookingDetailPage({
         )}
       </section>
 
-      {/* Payment Action Section / Retry Payment Selector */}
       {(!isConfirmed && !isAwaitingCash) || isFailed ? (
         <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary-600 dark:text-primary-400" />
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              To'lov Usulini Tanlang
+              To'lov usulini tanlang
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Payme, Click, Uzcard/Humo yoki Joyida to'lash usullari orqali to'lovni zudlik bilan amalga oshiring.
+            Payme, Click, Uzcard/Humo yoki joyida to'lash usullari orqali to'lovni
+            amalga oshiring.
           </p>
 
           <RetryPaymentForm
@@ -170,7 +192,6 @@ export default async function BookingDetailPage({
         </section>
       ) : null}
 
-      {/* Footer Navigation Buttons */}
       <BookingActions
         locale={locale}
         isConfirmed={isConfirmed}
@@ -198,7 +219,11 @@ function Row({
   return (
     <div className="flex items-center justify-between gap-4 py-1">
       <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>
-      {children ?? <span className="font-semibold text-slate-900 dark:text-white">{value}</span>}
+      {children ?? (
+        <span className="font-semibold text-slate-900 dark:text-white">
+          {value}
+        </span>
+      )}
     </div>
   );
 }

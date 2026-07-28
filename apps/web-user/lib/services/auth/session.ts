@@ -5,10 +5,8 @@
  * serverda oladi — token/sessiyani o'qiy olishi kerak. localStorage faqat
  * brauzerda, shuning uchun cookie eng to'g'ri yo'l.
  *
- * ⚠️ Dev auth: backend `RolesGuard` hozircha `x-user-role` / `x-user-id`
- * headerlarini o'qiydi (JWT keyin ulanadi). Shuning uchun himoyalangan
- * so'rovlarda `devAuthHeaders` yuboriladi. Backend JWT qo'shganda — bu yerni
- * `Authorization: Bearer` ga o'zgartiramiz, qolgan kod tegmaydi.
+ * Himoyalangan so'rovlarda backend real JWT access tokenni
+ * `Authorization: Bearer` headeridan o'qiydi.
  */
 import "server-only";
 import { cookies } from "next/headers";

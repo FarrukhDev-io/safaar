@@ -1,5 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
+
+type CatalogQuery = Record<string, string | string[] | undefined>;
 
 @Controller('catalog')
 export class CatalogController {
@@ -43,5 +45,40 @@ export class CatalogController {
   @Get('partners-showcase')
   partnersShowcase() {
     return this.catalogService.partnersShowcase();
+  }
+
+  @Get('attractions')
+  attractions(@Query() query: CatalogQuery) {
+    return this.catalogService.attractions(query);
+  }
+
+  @Get('restaurants')
+  restaurants(@Query() query: CatalogQuery) {
+    return this.catalogService.restaurants(query);
+  }
+
+  @Get('transports')
+  transports() {
+    return this.catalogService.transports();
+  }
+}
+
+@Controller('attractions')
+export class AttractionsController {
+  constructor(private readonly catalogService: CatalogService) {}
+
+  @Get()
+  findAll(@Query() query: CatalogQuery) {
+    return this.catalogService.attractions(query);
+  }
+}
+
+@Controller('restaurants')
+export class RestaurantsController {
+  constructor(private readonly catalogService: CatalogService) {}
+
+  @Get()
+  findAll(@Query() query: CatalogQuery) {
+    return this.catalogService.restaurants(query);
   }
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
-import { mockHotelBookings } from "@/lib/mock-data";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { PARTNER_STATUS_MAP, BOOKING_STATUS_MAP } from "@/lib/constants";
 import {
@@ -14,16 +13,38 @@ import {
   Hotel, Bus, Star, CalendarCheck, CreditCard, Pencil, MessageCircle, Home, Bed, Trees
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAdminStore } from "@/lib/store";
 import { toast } from "sonner";
 import { PartnerTypeDisplay } from "@/components/ui/PartnerTypeDisplay";
+import { AdminApi } from "@/lib/api/admin-api";
+import type { AdminHotelBooking, Partner } from "@/types/admin";
 
 export default function PartnerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const partners = useAdminStore((s) => s.partners);
-  const updatePartnerStatus = useAdminStore((s) => s.updatePartnerStatus);
-  const partner = partners.find((p) => p.id === id);
+  const [partner, setPartner] = useState<Partner | null>(null);
+  const [partnerBookings, setPartnerBookings] = useState<AdminHotelBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadPartner() {
+      const [partnerData, bookings] = await Promise.all([
+        AdminApi.getPartner(id),
+        AdminApi.getBookings(),
+      ]);
+      setPartner(partnerData);
+      setPartnerBookings(bookings.filter((booking) => booking.partnerId === id).slice(0, 8));
+    }
+
+    loadPartner().finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!partner) {
     return (
@@ -36,17 +57,15 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const partnerBookings = mockHotelBookings.slice(0, 8);
-
-  const handleStatusChange = (status: "active" | "suspended" | "blocked") => {
-    updatePartnerStatus(id, status);
+  const handleStatusChange = async (status: "active" | "suspended" | "blocked") => {
+    const updated = await AdminApi.updatePartnerStatus(id, status);
+    setPartner(updated);
     toast.success("Hamkor holati yangilandi!");
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm("Rostdan ham ushbu hamkorni o'chirmoqchimisiz?")) {
-      const setPartners = useAdminStore.getState().setPartners;
-      setPartners(useAdminStore.getState().partners.filter((p) => p.id !== id));
+      await AdminApi.deletePartner(id);
       toast.success("Hamkor o'chirildi!");
       router.push("/partners/list");
     }

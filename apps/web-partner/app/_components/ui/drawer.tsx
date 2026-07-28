@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "../../_hooks/use-body-scroll-lock";
 import { useMounted } from "../../_hooks/use-mounted";
 import { cn } from "../../_lib/utils/cn";
 
@@ -40,6 +41,7 @@ export function Drawer({
   footer,
 }: DrawerProps) {
   const mounted = useMounted();
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (!open) return;
@@ -47,11 +49,8 @@ export function Drawer({
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
     };
   }, [open, onClose]);
 

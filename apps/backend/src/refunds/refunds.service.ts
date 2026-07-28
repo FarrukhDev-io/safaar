@@ -2,25 +2,29 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
 import { PostgresService } from '../infrastructure/postgres.service';
+
+interface RefundBookingRow {
+  id: string;
+  user_id: string;
+  total_amount: string | number;
+  currency: string;
+}
+
+type RefundRow = Record<string, unknown>;
 
 @Injectable()
 export class RefundsService {
   constructor(private readonly pg: PostgresService) {}
 
   async create(actor: RequestActor | undefined, body: Record<string, unknown>) {
-    const currentActor: RequestActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
     const bookingId = String(body.booking_id ?? '');
-    const [booking] = await this.pg.query(
+    const [booking] = await this.pg.query<RefundBookingRow>(
       'SELECT * FROM bookings WHERE id = $1',
       [bookingId],
     );
@@ -37,7 +41,7 @@ export class RefundsService {
       });
     }
 
-    const [existing] = await this.pg.query(
+    const [existing] = await this.pg.query<RefundRow>(
       "SELECT * FROM refunds WHERE booking_id = $1 AND user_id = $2 AND status != 'rejected'",
       [bookingId, currentActor.id],
     );
@@ -78,13 +82,8 @@ export class RefundsService {
   }
 
   async findOne(actor: RequestActor | undefined, id: string) {
-    const currentActor: RequestActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
-    const [refund] = await this.pg.query(
+    const currentActor = this.requireActor(actor);
+    const [refund] = await this.pg.query<RefundRow>(
       'SELECT * FROM refunds WHERE id = $1',
       [id],
     );
@@ -107,14 +106,19 @@ export class RefundsService {
   }
 
   async mine(actor: RequestActor | undefined) {
-    const currentActor: RequestActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
     return this.pg.query('SELECT * FROM refunds WHERE user_id = $1', [
       currentActor.id,
     ]);
+  }
+
+  private requireActor(actor: RequestActor | undefined): RequestActor {
+    if (!actor) {
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+    return actor;
   }
 }

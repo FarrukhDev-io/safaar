@@ -37,6 +37,7 @@ import {
   useCheckIn,
   useCheckOut,
 } from "../../../_hooks/use-reservations";
+import { useBeds } from "../../../_hooks/use-beds";
 import {
   formatDate,
   formatMoney,
@@ -52,6 +53,7 @@ export function ReservationDetailView({ id }: { id: string }) {
   const rejectReservation = useRejectReservation();
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
+  useBeds();
   const beds = useDataStore((s) => s.beds);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);

@@ -1,36 +1,48 @@
-import { Hotel, Bus, Home, Bed, Trees, MapPin } from "lucide-react";
-import React from "react";
+import { Hotel, Bus, Home, Bed, Trees, MapPin, Utensils } from 'lucide-react';
+import React from 'react';
 
-export type ExtendedPartnerType = "hotel" | "bus" | "hostel" | "guesthouse" | "motel" | "dacha" | string;
+export type ExtendedPartnerType =
+  | 'hotel'
+  | 'bus'
+  | 'hostel'
+  | 'guesthouse'
+  | 'motel'
+  | 'dacha'
+  | 'restaurant'
+  | string;
 
 export function PartnerTypeDisplay({ type }: { type: ExtendedPartnerType }) {
   let icon = <MapPin size={14} className="text-[var(--text-muted)]" />;
   let label = type;
 
   switch (type) {
-    case "hotel":
+    case 'hotel':
       icon = <Hotel size={14} className="text-[var(--primary)]" />;
-      label = "Mehmonxona";
+      label = 'Mehmonxona';
       break;
-    case "hostel":
+    case 'hostel':
       icon = <Bed size={14} className="text-[var(--warning)]" />;
-      label = "Yotoqxona (Hostel)";
+      label = 'Yotoqxona (Hostel)';
       break;
-    case "guesthouse":
+    case 'guesthouse':
       icon = <Home size={14} className="text-[var(--success)]" />;
-      label = "Mehmon uyi";
+      label = 'Mehmon uyi';
       break;
-    case "motel":
+    case 'motel':
       icon = <Hotel size={14} className="text-[var(--accent)]" />;
-      label = "Motel";
+      label = 'Motel';
       break;
-    case "dacha":
+    case 'dacha':
       icon = <Trees size={14} className="text-[var(--primary)]" />;
-      label = "Dacha";
+      label = 'Dacha';
       break;
-    case "bus":
+    case 'bus':
       icon = <Bus size={14} className="text-[var(--info)]" />;
-      label = "Avtobus";
+      label = 'Avtobus';
+      break;
+    case 'restaurant':
+      icon = <Utensils size={14} className="text-[var(--accent)]" />;
+      label = 'Restoran';
       break;
     default:
       label = type ? type.charAt(0).toUpperCase() + type.slice(1) : "Noma'lum";

@@ -13,15 +13,54 @@ export interface OtpState {
   error?: string;
 }
 
+export interface LoginState {
+  error?: string;
+}
+
+export async function loginAction(
+  _prev: LoginState,
+  formData: FormData,
+): Promise<LoginState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const rawLocale = String(formData.get("locale") ?? defaultLocale);
+  const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
+  const next = String(formData.get("next") ?? "");
+
+  if (!email) return { error: "EMAIL_REQUIRED" };
+  if (!password) return { error: "PASSWORD_REQUIRED" };
+
+  try {
+    const result = await api.auth.login(email, password);
+    await setSession({
+      userId: result.user.id,
+      role: Role.USER,
+      email: result.user.email,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
+  } catch (error) {
+    return {
+      error:
+        error instanceof ApiRequestError
+          ? error.code || error.message
+          : "ERROR",
+    };
+  }
+
+  const target = next.startsWith("/") ? next : `/${locale}`;
+  redirect(target);
+}
+
 export async function requestOtpAction(
   _prev: OtpState,
   formData: FormData,
 ): Promise<OtpState> {
-  const phone = String(formData.get("phone") ?? "").trim();
-  if (!phone) return { ok: false, error: "PHONE_REQUIRED" };
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { ok: false, error: "EMAIL_REQUIRED" };
 
   try {
-    const result = await api.auth.sendOtp(phone);
+    const result = await api.auth.sendEmailOtp(email);
     return { ok: true, devCode: result.devCode };
   } catch (error) {
     return {
@@ -42,6 +81,7 @@ export async function verifyOtpAction(
   _prev: VerifyState,
   formData: FormData,
 ): Promise<VerifyState> {
+  const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const code = String(formData.get("code") ?? "").trim();
   const rawLocale = String(formData.get("locale") ?? defaultLocale);
@@ -49,11 +89,10 @@ export async function verifyOtpAction(
   const next = String(formData.get("next") ?? "");
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
   try {
-    const result = await api.auth.verifyOtp(phone, code);
+    const result = await api.auth.verifyEmailOtp(email, code);
     await setSession({
       userId: result.user.id,
       role: Role.USER,
@@ -69,12 +108,14 @@ export async function verifyOtpAction(
         const session = await getSession();
         if (!session) return { error: "SESSION_EXPIRED" };
 
+        if (!password) return { error: "PASSWORD_REQUIRED" };
         const passwordError = validatePassword(password);
         if (passwordError) return { error: passwordError };
 
         await api.auth.completeProfile(session.accessToken, {
           firstName,
           lastName: lastName || undefined,
+          phone: phone || undefined,
           email: email || undefined,
           password: password || undefined,
         });
@@ -101,12 +142,123 @@ export interface CompleteProfileState {
   ok?: boolean;
 }
 
+export interface PasswordResetRequestState {
+  ok: boolean;
+  email?: string;
+  challengeId?: string;
+  error?: string;
+}
+
+export async function requestPasswordResetAction(
+  _prev: PasswordResetRequestState,
+  formData: FormData,
+): Promise<PasswordResetRequestState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { ok: false, error: "EMAIL_REQUIRED" };
+
+  try {
+    const result = await api.auth.forgotPassword(email);
+    return {
+      ok: true,
+      email,
+      challengeId: result.challengeId,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof ApiRequestError
+          ? error.code || error.message
+          : "ERROR",
+    };
+  }
+}
+
+export interface PasswordResetCodeState {
+  verified: boolean;
+  email?: string;
+  resetToken?: string;
+  error?: string;
+}
+
+export async function verifyPasswordResetCodeAction(
+  _prev: PasswordResetCodeState,
+  formData: FormData,
+): Promise<PasswordResetCodeState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const code = String(formData.get("code") ?? "").trim();
+  const challengeId = String(formData.get("challengeId") ?? "").trim();
+
+  if (!email) return { verified: false, error: "EMAIL_REQUIRED" };
+  if (!code) return { verified: false, error: "CODE_REQUIRED" };
+
+  try {
+    const result = await api.auth.verifyResetCode(
+      email,
+      code,
+      challengeId || undefined,
+    );
+    return {
+      verified: result.verified,
+      email,
+      resetToken: result.resetToken,
+    };
+  } catch (error) {
+    return {
+      verified: false,
+      error:
+        error instanceof ApiRequestError
+          ? error.code || error.message
+          : "ERROR",
+    };
+  }
+}
+
+export interface PasswordResetState {
+  ok: boolean;
+  error?: string;
+}
+
+export async function resetPasswordAction(
+  _prev: PasswordResetState,
+  formData: FormData,
+): Promise<PasswordResetState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const resetToken = String(formData.get("resetToken") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (!email) return { ok: false, error: "EMAIL_REQUIRED" };
+  if (!resetToken) return { ok: false, error: "RESET_TOKEN_REQUIRED" };
+  if (!password) return { ok: false, error: "PASSWORD_REQUIRED" };
+  if (password !== confirmPassword) {
+    return { ok: false, error: "PASSWORD_MISMATCH" };
+  }
+
+  const passwordError = validatePassword(password);
+  if (passwordError) return { ok: false, error: passwordError };
+
+  try {
+    await api.auth.resetPassword(email, password, resetToken);
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof ApiRequestError
+          ? error.code || error.message
+          : "ERROR",
+    };
+  }
+}
+
 export async function completeProfileAction(
   _prev: CompleteProfileState,
   formData: FormData,
 ): Promise<CompleteProfileState> {
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const rawLocale = String(formData.get("locale") ?? defaultLocale);
   const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
@@ -118,9 +270,12 @@ export async function completeProfileAction(
   if (!email) {
     return { error: "EMAIL_REQUIRED" };
   }
+  if (!password) {
+    return { error: "PASSWORD_REQUIRED" };
+  }
 
   const passwordError = validatePassword(password);
-  if (password && passwordError) {
+  if (passwordError) {
     return { error: passwordError };
   }
 
@@ -131,6 +286,7 @@ export async function completeProfileAction(
     await api.auth.completeProfile(session.accessToken, {
       firstName,
       lastName: lastName || undefined,
+      phone: phone || undefined,
       email,
       password: password || undefined,
     });
@@ -145,7 +301,6 @@ export async function completeProfileAction(
 }
 
 function validatePassword(password: string): string | null {
-  if (!password) return null; // ixtiyoriy
   if (password.length < 8) return "PASSWORD_TOO_SHORT";
   if (!/[A-Z]/.test(password)) return "PASSWORD_NO_UPPERCASE";
   if (!/[a-z]/.test(password)) return "PASSWORD_NO_LOWERCASE";

@@ -17,8 +17,12 @@ import { EmptyState } from "../../../_components/ui/empty-state";
 import { Input } from "../../../_components/ui/input";
 import { Label } from "../../../_components/ui/label";
 import { Tooltip } from "../../../_components/ui/tooltip";
-import { useListing } from "../../../_hooks/use-listing";
-import { useDataStore } from "../../../_stores/data-store";
+import {
+  useAddListingPhoto,
+  useDeleteListingPhoto,
+  useListing,
+  useUpdateListingPhoto,
+} from "../../../_hooks/use-listing";
 import { PhotoCategory } from "../../../_lib/domain/listing";
 import { cn } from "../../../_lib/utils/cn";
 
@@ -42,12 +46,34 @@ export function PhotosEditor({
   onClose: () => void;
 }) {
   const { data } = useListing();
-  const removePhoto = useDataStore((s) => s.removePhoto);
-  const setCoverPhoto = useDataStore((s) => s.setCoverPhoto);
-  const reorderPhoto = useDataStore((s) => s.reorderPhoto);
+  const deletePhoto = useDeleteListingPhoto();
+  const updatePhoto = useUpdateListingPhoto();
   const [addOpen, setAddOpen] = useState(false);
 
   const sortedPhotos = [...data.photos].sort((a, b) => a.order - b.order);
+  const busy = deletePhoto.isPending || updatePhoto.isPending;
+  const handleReorder = async (photoId: string, direction: "up" | "down") => {
+    const idx = sortedPhotos.findIndex((photo) => photo.id === photoId);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= sortedPhotos.length) return;
+    const reordered = [...sortedPhotos];
+    [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]];
+    try {
+      await Promise.all(
+        reordered.map((photo, order) =>
+          updatePhoto.mutateAsync({
+            imageId: photo.id,
+            values: { sortOrder: order, isCover: photo.isCover },
+          }),
+        ),
+      );
+      toast.success("Tartib saqlandi");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Tartibni saqlab bo'lmadi",
+      );
+    }
+  };
 
   return (
     <>
@@ -122,8 +148,8 @@ export function PhotosEditor({
                     <Tooltip content="Yuqoriga">
                       <button
                         type="button"
-                        onClick={() => reorderPhoto(photo.id, "up")}
-                        disabled={idx === 0}
+                        onClick={() => void handleReorder(photo.id, "up")}
+                        disabled={idx === 0 || busy}
                         aria-label="Yuqoriga"
                         className="rounded-md bg-white/90 p-1.5 text-zinc-800 backdrop-blur transition-colors hover:bg-white disabled:opacity-40"
                       >
@@ -133,8 +159,8 @@ export function PhotosEditor({
                     <Tooltip content="Pastga">
                       <button
                         type="button"
-                        onClick={() => reorderPhoto(photo.id, "down")}
-                        disabled={idx === sortedPhotos.length - 1}
+                        onClick={() => void handleReorder(photo.id, "down")}
+                        disabled={idx === sortedPhotos.length - 1 || busy}
                         aria-label="Pastga"
                         className="rounded-md bg-white/90 p-1.5 text-zinc-800 backdrop-blur transition-colors hover:bg-white disabled:opacity-40"
                       >
@@ -146,8 +172,20 @@ export function PhotosEditor({
                         <button
                           type="button"
                           onClick={() => {
-                            setCoverPhoto(photo.id);
-                            toast.success("Asosiy rasm o'zgartirildi");
+                            updatePhoto.mutate(
+                              { imageId: photo.id, values: { isCover: true } },
+                              {
+                                onSuccess: () =>
+                                  toast.success("Asosiy rasm o'zgartirildi"),
+                                onError: (error) => {
+                                  toast.error(
+                                    error instanceof Error
+                                      ? error.message
+                                      : "Asosiy rasmni saqlab bo'lmadi",
+                                  );
+                                },
+                              },
+                            );
                           }}
                           aria-label="Asosiy qilish"
                           className="rounded-md bg-white/90 p-1.5 text-amber-600 backdrop-blur transition-colors hover:bg-white"
@@ -160,9 +198,18 @@ export function PhotosEditor({
                       <button
                         type="button"
                         onClick={() => {
-                          removePhoto(photo.id);
-                          toast.success("Rasm o'chirildi");
+                          deletePhoto.mutate(photo.id, {
+                            onSuccess: () => toast.success("Rasm o'chirildi"),
+                            onError: (error) => {
+                              toast.error(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Rasmni o'chirib bo'lmadi",
+                              );
+                            },
+                          });
                         }}
+                        disabled={busy}
                         aria-label="O'chirish"
                         className="rounded-md bg-white/90 p-1.5 text-red-600 backdrop-blur transition-colors hover:bg-white"
                       >
@@ -189,27 +236,37 @@ function AddPhotoDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const addPhoto = useDataStore((s) => s.addPhoto);
-  const [url, setUrl] = useState("");
+  const addPhoto = useAddListingPhoto();
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [caption, setCaption] = useState("");
   const [category, setCategory] = useState<PhotoCategory>(PhotoCategory.FACADE);
 
   const reset = () => {
-    setUrl("");
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setFile(null);
+    setPreviewUrl("");
     setCaption("");
     setCategory(PhotoCategory.FACADE);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) {
-      toast.error("Rasm URL manzilini kiriting");
+    if (!file) {
+      toast.error("Rasm tanlang");
       return;
     }
-    addPhoto({ url: url.trim(), caption: caption.trim() || undefined, category });
-    toast.success("Rasm qo'shildi");
-    reset();
-    onClose();
+    try {
+      await addPhoto.mutateAsync({
+        file,
+        draft: { url: "", caption: caption.trim() || undefined, category },
+      });
+      toast.success("Rasm qo'shildi");
+      reset();
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Rasm qo'shib bo'lmadi");
+    }
   };
 
   return (
@@ -236,11 +293,12 @@ function AddPhotoDialog({
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const url = URL.createObjectURL(file);
-                  setUrl(url);
+                  if (previewUrl) URL.revokeObjectURL(previewUrl);
+                  setFile(file);
+                  setPreviewUrl(URL.createObjectURL(file));
                 }
               }}
-              required={!url}
+              required={!file}
             />
           </label>
         </div>
@@ -270,11 +328,11 @@ function AddPhotoDialog({
           />
         </div>
 
-        {url && (
+        {previewUrl && (
           <div className="rounded-card border border-[var(--border)] p-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={url}
+              src={previewUrl}
               alt="preview"
               className="max-h-40 w-full rounded object-cover"
               onError={(e) => {
@@ -288,7 +346,9 @@ function AddPhotoDialog({
           <Button type="button" variant="outline" onClick={onClose}>
             Bekor
           </Button>
-          <Button type="submit">Qo'shish</Button>
+          <Button type="submit" disabled={addPhoto.isPending}>
+            Qo'shish
+          </Button>
         </div>
       </form>
     </Dialog>

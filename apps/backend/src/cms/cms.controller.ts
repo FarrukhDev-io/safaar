@@ -15,6 +15,11 @@ export class CmsController {
     return this.cmsService.collection('offers');
   }
 
+  @Get('cms/promo-bar')
+  promoBar() {
+    return this.cmsService.promoBar();
+  }
+
   @Get('cms/news')
   news() {
     return this.cmsService.collection('news');

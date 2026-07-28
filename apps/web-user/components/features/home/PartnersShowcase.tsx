@@ -1,26 +1,13 @@
 import Image from "next/image";
 import { api } from "@/lib/api";
 import type { HomeDict } from "@/i18n/dictionaries";
-import type { PartnerShowcaseView } from "@safaar/api-client";
-
-const FALLBACK_PARTNERS: PartnerShowcaseView[] = [
-  { id: "p-1", companyName: "Hilton Tashkent City", logoUrl: "", type: "HOTEL_CHAIN", sortOrder: 1 },
-  { id: "p-2", companyName: "Hyatt Regency Tashkent", logoUrl: "", type: "HOTEL_CHAIN", sortOrder: 2 },
-  { id: "p-3", companyName: "Radisson Blu Hotel", logoUrl: "", type: "HOTEL_CHAIN", sortOrder: 3 },
-  { id: "p-4", companyName: "Wyndham Tashkent", logoUrl: "", type: "HOTEL_CHAIN", sortOrder: 4 },
-  { id: "p-5", companyName: "Orient Star Khiva", logoUrl: "", type: "BOUTIQUE", sortOrder: 5 },
-  { id: "p-6", companyName: "Zaamin Resort & Spa", logoUrl: "", type: "RESORT", sortOrder: 6 },
-  { id: "p-7", companyName: "Charvak Avenue", logoUrl: "", type: "DACHA_COMPLEX", sortOrder: 7 },
-  { id: "p-8", companyName: "Safaar Express Bus", logoUrl: "", type: "TRANSPORT", sortOrder: 8 },
-];
 
 export async function PartnersShowcase({
   dict,
 }: {
   dict: HomeDict["partners"];
 }) {
-  const fromApi = await api.catalog.getPartnersShowcase().catch(() => []);
-  const partners = fromApi.length > 0 ? fromApi : FALLBACK_PARTNERS;
+  const partners = await api.catalog.getPartnersShowcase();
 
   if (!partners || partners.length === 0) return null;
 

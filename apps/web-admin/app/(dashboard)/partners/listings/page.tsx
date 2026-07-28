@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { AdminListing } from "@/types/admin";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
@@ -8,6 +9,7 @@ import Tabs from "@/components/ui/Tabs";
 import { Eye } from "lucide-react";
 import { useAdminStore } from "@/lib/store";
 import Link from "next/link";
+import { AdminApi } from "@/lib/api/admin-api";
 
 const LISTING_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   under_review: { label: "Ko'rib chiqilmoqda", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
@@ -17,6 +19,14 @@ const LISTING_STATUS_MAP: Record<string, { label: string; color: string; bg: str
 
 export default function PartnerListingsPage() {
   const listings = useAdminStore((s) => s.listings);
+  const setListings = useAdminStore((s) => s.setListings);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    AdminApi.getListings()
+      .then((items) => setListings(items))
+      .finally(() => setLoading(false));
+  }, [setListings]);
 
   const columns: Column<AdminListing>[] = [
     { key: "id", label: "ID", render: (row) => <span className="text-[var(--text-muted)]">{row.id}</span> },
@@ -101,6 +111,14 @@ export default function PartnerListingsPage() {
       ),
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6 animate-fade-in">

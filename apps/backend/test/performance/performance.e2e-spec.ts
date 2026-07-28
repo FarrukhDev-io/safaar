@@ -3,28 +3,43 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../../src/app.module';
+import { signJwt } from '../../src/auth/security';
+import { authSessionStore } from '../../src/auth/session-store';
+import { PostgresService } from '../../src/infrastructure/postgres.service';
+import { Role } from '@safaar/types';
 
 describe('Backend performance smoke (e2e)', () => {
   let app: INestApplication<App>;
+  let sessionSpy: jest.SpiedFunction<typeof authSessionStore.isActive>;
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
     process.env.DATABASE_URL = '';
     process.env.REDIS_URL = '';
     process.env.QUEUE_REDIS_URL = '';
-    process.env.ENABLE_DEMO_AUTH = 'true';
-    process.env.ENABLE_IN_MEMORY_DATA = 'true';
     process.env.CACHE_ENABLED = 'true';
+    process.env.JWT_ACCESS_SECRET = 'test-access-secret-with-32-characters';
+    process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-with-32-characters';
+    sessionSpy = jest
+      .spyOn(authSessionStore, 'isActive')
+      .mockResolvedValue(true);
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PostgresService)
+      .useValue({
+        query: jest.fn().mockResolvedValue([]),
+        transaction: jest.fn(),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
   });
 
   afterAll(async () => {
+    sessionSpy.mockRestore();
     await app.close();
   });
 
@@ -36,10 +51,7 @@ describe('Backend performance smoke (e2e)', () => {
   });
 
   it('keeps admin dashboard/list endpoints under the local smoke threshold', async () => {
-    const adminHeaders = {
-      'x-user-role': 'SUPER_ADMIN',
-      'x-user-id': 'demo-admin-id',
-    };
+    const adminHeaders = adminAuthHeaders();
 
     await expectEndpoint('/admin/dashboard/overview', 1000, adminHeaders);
     await expectEndpoint('/admin/users?limit=2', 1000, adminHeaders);
@@ -69,8 +81,7 @@ describe('Backend performance smoke (e2e)', () => {
 
     const users = await request(app.getHttpServer())
       .get('/admin/users?limit=2')
-      .set('x-user-role', 'SUPER_ADMIN')
-      .set('x-user-id', 'demo-admin-id');
+      .set(adminAuthHeaders());
     const usersBody: unknown = users.body;
     expect(users.status).toBe(200);
     expect(Array.isArray(usersBody)).toBe(true);
@@ -100,6 +111,21 @@ describe('Backend performance smoke (e2e)', () => {
     expect(max).toBeLessThan(thresholdMs);
   }
 });
+
+function adminAuthHeaders(): Record<string, string> {
+  const token = signJwt(
+    {
+      sub: '00000000-0000-0000-0000-000000000001',
+      actor_type: 'admin',
+      role: Role.SUPER_ADMIN,
+      roles: [Role.SUPER_ADMIN],
+      session_id: 'performance-admin-session',
+      jti: `performance-admin-${Date.now()}`,
+    },
+    'access',
+  );
+  return { authorization: `Bearer ${token}` };
+}
 
 function hasItems(value: unknown): value is { items: unknown[] } {
   return (

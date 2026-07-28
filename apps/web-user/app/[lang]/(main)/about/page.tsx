@@ -3,13 +3,6 @@ import { notFound } from "next/navigation";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { Card, CardBody } from "@/components/ui/Card";
-import { Building2, Handshake, Headphones } from "lucide-react";
-
-const STAT_VALUES = {
-  cities: "14+",
-  partners: "120+",
-  support: "24/7",
-} as const;
 
 export async function generateMetadata({
   params,
@@ -34,12 +27,6 @@ export default async function AboutPage({
   const dict = await getDictionary(locale, "static");
   const { about } = dict;
 
-  const stats = [
-    { value: STAT_VALUES.cities, label: about.stats.cities, icon: Building2 },
-    { value: STAT_VALUES.partners, label: about.stats.partners, icon: Handshake },
-    { value: STAT_VALUES.support, label: about.stats.support, icon: Headphones },
-  ];
-
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-6 py-12">
       {/* Hero */}
@@ -58,28 +45,6 @@ export default async function AboutPage({
         <p className="max-w-3xl text-slate-600 dark:text-slate-400">
           {about.mission}
         </p>
-      </section>
-
-      {/* Statistika */}
-      <section className="grid gap-4 sm:grid-cols-3">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="text-center">
-              <CardBody className="flex flex-col items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <span className="text-3xl font-extrabold tracking-tight text-primary-600 dark:text-primary-400">
-                  {stat.value}
-                </span>
-                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  {stat.label}
-                </span>
-              </CardBody>
-            </Card>
-          );
-        })}
       </section>
 
       {/* Qadriyatlar */}

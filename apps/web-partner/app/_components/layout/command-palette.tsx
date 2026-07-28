@@ -9,6 +9,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "../../_hooks/use-body-scroll-lock";
 import { useMounted } from "../../_hooks/use-mounted";
 import { useReservations } from "../../_hooks/use-reservations";
 import { useGuests } from "../../_hooks/use-guests";
@@ -53,14 +54,11 @@ export function CommandPalette() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 10);
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = prev;
-      };
     }
   }, [open]);
 

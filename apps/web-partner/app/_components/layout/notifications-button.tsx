@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BookingStatus } from "@safaar/types";
 import { useReservations } from "../../_hooks/use-reservations";
-import { TODAY_ISO } from "../../_lib/mocks/data";
+import { TODAY_ISO } from "../../_lib/utils/date";
 import { formatDate, formatPhone } from "../../_lib/utils/format";
 import { Tooltip } from "../ui/tooltip";
 

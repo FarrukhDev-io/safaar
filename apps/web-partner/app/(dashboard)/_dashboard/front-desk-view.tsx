@@ -26,10 +26,17 @@ import { CheckInDialog } from "../../_components/domain/check-in-dialog";
 import { SourceBadge } from "../../_components/domain/source-badge";
 import { WalkInDialog } from "../../_components/domain/walk-in-dialog";
 import { PageHeader } from "../../_components/layout/page-header";
-import { useReservations } from "../../_hooks/use-reservations";
+import { useBeds } from "../../_hooks/use-beds";
+import {
+  useCheckIn,
+  useCheckOut,
+  useConfirmReservation,
+  useRejectReservation,
+  useReservations,
+} from "../../_hooks/use-reservations";
 import { useDataStore } from "../../_stores/data-store";
 import { useAuthStore } from "../../_stores/auth-store";
-import { TODAY_ISO } from "../../_lib/mocks/data";
+import { TODAY_ISO } from "../../_lib/utils/date";
 import { formatDate, formatMoney } from "../../_lib/utils/format";
 import { cn } from "../../_lib/utils/cn";
 import { getPartnerLabels } from "../../_lib/utils/partner-labels";
@@ -81,11 +88,11 @@ export function FrontDeskView() {
   const user = useAuthStore((s) => s.user);
   const partnerType = user?.partnerType ?? "hotel";
   const labels = getPartnerLabels(partnerType);
-
-  const checkIn = useDataStore((s) => s.checkIn);
-  const checkOut = useDataStore((s) => s.checkOut);
-  const confirmReservation = useDataStore((s) => s.confirmReservation);
-  const rejectReservation = useDataStore((s) => s.rejectReservation);
+  const checkIn = useCheckIn();
+  const checkOut = useCheckOut();
+  const confirmReservation = useConfirmReservation();
+  const rejectReservation = useRejectReservation();
+  useBeds();
 
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [confirmReject, setConfirmReject] = useState<{
@@ -149,13 +156,25 @@ export function FrontDeskView() {
   };
 
   const handleCheckOut = (reservation: ReservationView) => {
-    checkOut(reservation.id);
-    toast.success(`${labels.checkOutLabel}: ${reservation.guest.fullName}`);
+    checkOut.mutate(reservation.id, {
+      onSuccess: () => {
+        toast.success(`${labels.checkOutLabel}: ${reservation.guest.fullName}`);
+      },
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : "Xato yuz berdi");
+      },
+    });
   };
 
   const handleConfirm = (reservation: ReservationView) => {
-    confirmReservation(reservation.id);
-    toast.success(`${labels.reservationLabel} tasdiqlandi: ${reservation.id}`);
+    confirmReservation.mutate(reservation.id, {
+      onSuccess: () => {
+        toast.success(`${labels.reservationLabel} tasdiqlandi: ${reservation.id}`);
+      },
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : "Xato yuz berdi");
+      },
+    });
   };
 
   return (
@@ -315,10 +334,18 @@ export function FrontDeskView() {
         reservation={assignReservation}
         onAssigned={() => {
           if (assignReservation) {
-            checkIn(assignReservation.id);
-            toast.success(
-              `${labels.checkInLabel}: ${assignReservation.guest.fullName}`,
-            );
+            checkIn.mutate(assignReservation.id, {
+              onSuccess: () => {
+                toast.success(
+                  `${labels.checkInLabel}: ${assignReservation.guest.fullName}`,
+                );
+              },
+              onError: (error) => {
+                toast.error(
+                  error instanceof Error ? error.message : "Xato yuz berdi",
+                );
+              },
+            });
           }
         }}
       />
@@ -328,8 +355,21 @@ export function FrontDeskView() {
         onClose={() => setConfirmReject(null)}
         onConfirm={() => {
           if (!confirmReject) return;
-          rejectReservation(confirmReject.id);
-          toast.success(`${labels.reservationLabel} rad etildi: ${confirmReject.id}`);
+          rejectReservation.mutate(
+            { id: confirmReject.id, reason: "partner_rejected" },
+            {
+              onSuccess: () => {
+                toast.success(
+                  `${labels.reservationLabel} rad etildi: ${confirmReject.id}`,
+                );
+              },
+              onError: (error) => {
+                toast.error(
+                  error instanceof Error ? error.message : "Xato yuz berdi",
+                );
+              },
+            },
+          );
         }}
         title={`${labels.reservationLabel} rad etilsinmi?`}
         description={

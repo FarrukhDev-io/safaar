@@ -1,27 +1,46 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import type { ReactNode } from "react";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Building2, CheckCircle2 } from "lucide-react";
-import { Button } from "../../_components/ui/button";
-import { Input } from "../../_components/ui/input";
-import { Label } from "../../_components/ui/label";
-import { access } from "../../_lib/api";
-import { isValidPhone, maskPhone, normalizePhone } from "../../_lib/utils/phone";
+import Link from 'next/link';
+import type { ReactNode } from 'react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { ArrowLeft, Building2, CheckCircle2 } from 'lucide-react';
+import { Button } from '../../_components/ui/button';
+import { Input } from '../../_components/ui/input';
+import { Label } from '../../_components/ui/label';
+import { access } from '../../_lib/api';
+import {
+  isValidPhone,
+  maskPhone,
+  normalizePhone,
+} from '../../_lib/utils/phone';
 
 const schema = z.object({
-  type: z.enum(["hotel", "bus", "hostel", "guesthouse", "motel", "dacha", "restaurant"]),
-  companyName: z.string().min(2, "Obyekt/Kompaniya nomini kiriting"),
+  type: z.enum([
+    'hotel',
+    'bus',
+    'hostel',
+    'guesthouse',
+    'motel',
+    'dacha',
+    'restaurant',
+  ]),
+  companyName: z.string().min(2, 'Obyekt/Kompaniya nomini kiriting'),
   contactPerson: z.string().min(2, "Mas'ul shaxsni kiriting"),
-  phone: z.string().min(1, "Telefon raqamni kiriting").refine(isValidPhone, "Telefon noto'g'ri formatda"),
+  phone: z
+    .string()
+    .min(1, 'Telefon raqamni kiriting')
+    .refine(isValidPhone, "Telefon noto'g'ri formatda"),
   email: z.string().email("Email noto'g'ri"),
-  city: z.string().min(2, "Shaharni kiriting"),
-  address: z.string().min(5, "Manzilni kiriting"),
-  taxId: z.string().min(9, "STIR 9 ta raqamdan iborat bo'lishi kerak").max(9, "STIR 9 ta raqamdan iborat bo'lishi kerak").regex(/^\d{9}$/, "Faqat raqamlar kiriting"),
+  city: z.string().min(2, 'Shaharni kiriting'),
+  address: z.string().min(5, 'Manzilni kiriting'),
+  taxId: z
+    .string()
+    .min(9, "STIR 9 ta raqamdan iborat bo'lishi kerak")
+    .max(9, "STIR 9 ta raqamdan iborat bo'lishi kerak")
+    .regex(/^\d{9}$/, 'Faqat raqamlar kiriting'),
   note: z.string().optional(),
 });
 
@@ -29,39 +48,45 @@ type FormValues = z.infer<typeof schema>;
 
 export default function RegisterPage() {
   const [submitted, setSubmitted] = useState<{ id: string } | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      type: "hotel",
-      companyName: "",
-      contactPerson: "",
-      phone: "+998 ",
-      email: "",
-      city: "",
-      address: "",
-      taxId: "",
-      note: "",
+      type: 'hotel',
+      companyName: '',
+      contactPerson: '',
+      phone: '+998 ',
+      email: '',
+      city: '',
+      address: '',
+      taxId: '',
+      note: '',
     },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
-    setError("");
+    setError('');
     try {
       const result = await access.submitPartnerApplication({
         ...values,
-        type: values.type as any,
         phone: normalizePhone(values.phone),
       });
       setSubmitted({ id: result.item.id });
     } catch (cause: any) {
       if (cause?.payload?.fields) {
         for (const [field, message] of Object.entries(cause.payload.fields)) {
-          form.setError(field as any, { type: "server", message: message as string });
+          form.setError(field as any, {
+            type: 'server',
+            message: message as string,
+          });
         }
-        setError(cause.payload.message || "Iltimos formadagi xatoliklarni to'g'irlang");
+        setError(
+          cause.payload.message || "Iltimos formadagi xatoliklarni to'g'irlang",
+        );
       } else {
-        setError(cause instanceof Error ? cause.message : "Ariza yuborishda xatolik");
+        setError(
+          cause instanceof Error ? cause.message : 'Ariza yuborishda xatolik',
+        );
       }
     }
   });
@@ -73,13 +98,18 @@ export default function RegisterPage() {
           <CheckCircle2 className="h-7 w-7" aria-hidden />
         </div>
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Ariza yuborildi</h2>
+          <h2 className="text-xl font-semibold tracking-tight">
+            Ariza yuborildi
+          </h2>
           <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-            Arizangiz web-admin paneliga tushdi. Admin tasdiqlagandan keyin shu telefon raqam bilan tizimga kira olasiz.
+            Arizangiz web-admin paneliga tushdi. Admin tasdiqlagandan keyin shu
+            email bilan tizimga kira olasiz.
           </p>
         </div>
         <Link href="/login">
-          <Button className="w-full" size="lg">Login sahifasiga o'tish</Button>
+          <Button className="w-full" size="lg">
+            Login sahifasiga o'tish
+          </Button>
         </Link>
       </div>
     );
@@ -97,7 +127,9 @@ export default function RegisterPage() {
         </Link>
         <div className="flex items-center gap-2">
           <Building2 className="h-5 w-5 text-brand-700" aria-hidden />
-          <h2 className="text-xl font-semibold tracking-tight">Hamkorlik arizasi</h2>
+          <h2 className="text-xl font-semibold tracking-tight">
+            Hamkorlik arizasi
+          </h2>
         </div>
         <p className="text-sm text-[var(--muted-foreground)]">
           Ma'lumotlarni yuboring. Admin tasdiqlagandan keyin kabinet ochiladi.
@@ -106,7 +138,7 @@ export default function RegisterPage() {
 
       <Field label="Obyekt turi" error={form.formState.errors.type?.message}>
         <select
-          {...form.register("type")}
+          {...form.register('type')}
           className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm shadow-sm transition-all focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200"
         >
           <option value="hotel">Mehmonxona</option>
@@ -115,19 +147,30 @@ export default function RegisterPage() {
           <option value="motel">Motel</option>
           <option value="dacha">Dacha</option>
           <option value="restaurant">Restoran</option>
-          <option value="bus" disabled>Transport (Tez kunda)</option>
+          <option value="bus" disabled>
+            Transport (Tez kunda)
+          </option>
         </select>
       </Field>
-      <Field label="Obyekt yoki Kompaniya nomi" error={form.formState.errors.companyName?.message}>
-        <Input {...form.register("companyName")} placeholder="Grand Samarkand Hotel" />
+      <Field
+        label="Obyekt yoki Kompaniya nomi"
+        error={form.formState.errors.companyName?.message}
+      >
+        <Input
+          {...form.register('companyName')}
+          placeholder="Grand Samarkand Hotel"
+        />
       </Field>
-      <Field label="Mas'ul shaxs" error={form.formState.errors.contactPerson?.message}>
-        <Input {...form.register("contactPerson")} placeholder="Ali Valiyev" />
+      <Field
+        label="Mas'ul shaxs"
+        error={form.formState.errors.contactPerson?.message}
+      >
+        <Input {...form.register('contactPerson')} placeholder="Ali Valiyev" />
       </Field>
       <Field label="Telefon" error={form.formState.errors.phone?.message}>
         <Input
           type="tel"
-          {...form.register("phone", {
+          {...form.register('phone', {
             onChange: (e) => {
               e.target.value = maskPhone(e.target.value);
             },
@@ -135,25 +178,43 @@ export default function RegisterPage() {
         />
       </Field>
       <Field label="Email" error={form.formState.errors.email?.message}>
-        <Input type="email" {...form.register("email")} placeholder="hotel@example.com" />
+        <Input
+          type="email"
+          {...form.register('email')}
+          placeholder="hotel@example.com"
+        />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Shahar" error={form.formState.errors.city?.message}>
-          <Input {...form.register("city")} placeholder="Samarqand" />
+          <Input {...form.register('city')} placeholder="Samarqand" />
         </Field>
         <Field label="STIR" error={form.formState.errors.taxId?.message}>
-          <Input {...form.register("taxId")} placeholder="123456789" />
+          <Input
+            inputMode="numeric"
+            maxLength={9}
+            {...form.register('taxId', {
+              onChange: (e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 9);
+              },
+            })}
+            placeholder="123456789"
+          />
         </Field>
       </div>
       <Field label="Manzil" error={form.formState.errors.address?.message}>
-        <Input {...form.register("address")} placeholder="Registon ko'chasi 10" />
+        <Input
+          {...form.register('address')}
+          placeholder="Registon ko'chasi 10"
+        />
       </Field>
       <Field label="Izoh" error={form.formState.errors.note?.message}>
-        <Input {...form.register("note")} placeholder="Qo'shimcha ma'lumot" />
+        <Input {...form.register('note')} placeholder="Qo'shimcha ma'lumot" />
       </Field>
 
       {error ? (
-        <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+        <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
       ) : null}
 
       <Button type="submit" size="lg" loading={form.formState.isSubmitting}>

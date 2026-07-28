@@ -2,13 +2,8 @@
 
 import { StatCard } from "@/components/ui/Card";
 import Card from "@/components/ui/Card";
-import {
-  dashboardStats,
-  serviceDistribution,
-  recentActivities,
-  quickActions,
-} from "@/lib/mock-data";
-import { timeAgo } from "@/lib/utils";
+import { AdminApi } from "@/lib/api/admin-api";
+import { formatPrice, timeAgo } from "@/lib/utils";
 import {
   Users, Building2, CalendarCheck, Wallet, TrendingUp, XCircle,
   UserPlus, CalendarPlus, Building, AlertTriangle, ArrowRight,
@@ -17,6 +12,7 @@ import {
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
+import type { ActivityLogItem, DashboardStat, QuickAction, ServiceDistribution } from "@/types/admin";
 
 const STAT_ICONS: Record<string, ReactNode> = {
   Users: <Users size={20} />,
@@ -46,15 +42,98 @@ const ACTIVITY_COLORS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState({
+    totalUsers: 0,
+    totalPartners: 0,
+    totalBookings: 0,
+    revenue: 0,
+  });
+  const [recentActivities, setRecentActivities] = useState<ActivityLogItem[]>([]);
+  const [serviceDistribution, setServiceDistribution] = useState<ServiceDistribution[]>([]);
+  const [quickActions, setQuickActions] = useState<QuickAction[]>([]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
+    async function loadDashboard() {
+      const [overviewData, activities, summary, hotelBookings, busBookings] = await Promise.all([
+        AdminApi.getDashboardStats(),
+        AdminApi.getActivity(),
+        AdminApi.getNotificationSummary(),
+        AdminApi.getBookings(),
+        AdminApi.getBusBookings(),
+      ]);
+      const totalServiceBookings = hotelBookings.length + busBookings.length;
+
+      setOverview(overviewData);
+      setRecentActivities(activities);
+      setQuickActions([
+        {
+          label: "Yangi hamkor arizalari",
+          count: summary.partnerRequests,
+          color: "#9B59B6",
+          href: "/partners/requests",
+        },
+        {
+          label: "Ochiq support murojaatlari",
+          count: summary.supportOpen,
+          color: "#E74C3C",
+          href: "/support",
+        },
+      ]);
+      setServiceDistribution(
+        totalServiceBookings > 0
+          ? [
+              {
+                name: "Mehmonxona",
+                value: Math.round((hotelBookings.length / totalServiceBookings) * 100),
+                color: "#1E3A5F",
+              },
+              {
+                name: "Avtobus",
+                value: Math.round((busBookings.length / totalServiceBookings) * 100),
+                color: "#2ECC71",
+              },
+            ]
+          : [],
+      );
+    }
+
+    loadDashboard().finally(() => setLoading(false));
   }, []);
 
-  if (!mounted) {
-    return null; // Prevent hydration mismatch
+  const dashboardStats: DashboardStat[] = [
+    {
+      label: "Foydalanuvchilar",
+      value: String(overview.totalUsers),
+      icon: "Users",
+      color: "#3498DB",
+    },
+    {
+      label: "Hamkorlar",
+      value: String(overview.totalPartners),
+      icon: "Building2",
+      color: "#9B59B6",
+    },
+    {
+      label: "Bronlar",
+      value: String(overview.totalBookings),
+      icon: "CalendarCheck",
+      color: "#2ECC71",
+    },
+    {
+      label: "Daromad",
+      value: formatPrice(overview.revenue),
+      icon: "Wallet",
+      color: "#F39C12",
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -97,7 +176,11 @@ export default function DashboardPage() {
           </div>
           
           <div className="flex flex-col gap-2 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
-            {recentActivities.map((activity) => (
+            {recentActivities.length === 0 ? (
+              <div className="p-6 text-center text-sm text-[var(--text-muted)]">
+                Harakatlar topilmadi
+              </div>
+            ) : recentActivities.map((activity) => (
               <div
                 key={activity.id}
                 className="flex items-start gap-4 p-3 rounded-xl border border-[var(--border)] hover:border-[var(--primary)]/20 hover:shadow-md transition-all bg-white"
@@ -161,7 +244,11 @@ export default function DashboardPage() {
               Xizmatlar ulushi
             </h3>
             <div className="flex flex-col gap-5">
-              {serviceDistribution.map((service) => (
+              {serviceDistribution.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)]">
+                  Xizmatlar bo'yicha bron ma'lumoti topilmadi
+                </p>
+              ) : serviceDistribution.map((service) => (
                 <div key={service.name}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-[var(--text-secondary)]">{service.name}</span>

@@ -3,8 +3,6 @@
 export const SLOT_STEP_MINUTES = 30;
 /** Har bir restoran broni standart bo'yicha nechta daqiqa davom etadi (stol band hisoblanadi). */
 export const DEFAULT_SLOT_DURATION_MINUTES = 90;
-const FALLBACK_OPEN = "09:00";
-const FALLBACK_CLOSE = "23:00";
 
 export function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
@@ -21,11 +19,10 @@ export function toHHMM(minutes: number): string {
 
 /** Ochilish/yopilish vaqtidan `SLOT_STEP_MINUTES` qadamli slotlar ro'yxatini yaratadi. */
 export function buildTimeSlots(openTime: string, closeTime: string): string[] {
-  let start = toMinutes(openTime);
-  let end = toMinutes(closeTime);
+  const start = toMinutes(openTime);
+  const end = toMinutes(closeTime);
   if (!(end > start)) {
-    start = toMinutes(FALLBACK_OPEN);
-    end = toMinutes(FALLBACK_CLOSE);
+    return [];
   }
   const slots: string[] = [];
   for (let t = start; t < end; t += SLOT_STEP_MINUTES) {

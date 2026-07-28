@@ -97,8 +97,8 @@ self.addEventListener("push", (event) => {
   let payload = {
     title: "Safaar — Bron Bildirishnomasi",
     body: "Sizning broningiz holati muvaffaqiyatli yangilandi.",
-    icon: "/Samarkand-Registan-cinematic.jpeg",
-    badge: "/file.svg",
+    icon: "/globe.svg",
+    badge: "/globe.svg",
     url: "/uz/account/bookings",
   };
 
@@ -113,8 +113,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: payload.body,
-    icon: payload.icon || "/Samarkand-Registan-cinematic.jpeg",
-    badge: payload.badge || "/file.svg",
+    icon: payload.icon || "/globe.svg",
+    badge: payload.badge || "/globe.svg",
     data: {
       url: payload.url || "/uz/account/bookings",
     },

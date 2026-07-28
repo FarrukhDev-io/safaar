@@ -33,7 +33,7 @@ export default async function AccountBookingsPage({
     );
   }
 
-  const bookings: BookingView[] = await api.users.getMyBookings({ token: session.accessToken }).catch(() => []);
+  const bookings: BookingView[] = await api.users.getMyBookings({ token: session.accessToken });
 
   if (bookings.length === 0) {
     return (

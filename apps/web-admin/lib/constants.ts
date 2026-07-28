@@ -42,9 +42,8 @@ export const SIDEBAR_ITEMS: NavItem[] = [
     label: "Hamkorlar",
     href: "/partners",
     icon: "Building2",
-    badge: 5,
     children: [
-      { label: "Arizalar", href: "/partners/requests", icon: "FileText", badge: 5 },
+      { label: "Arizalar", href: "/partners/requests", icon: "FileText" },
       { label: "Ro'yxat", href: "/partners/list", icon: "List" },
       { label: "E'lonlar", href: "/partners/listings", icon: "Megaphone" },
     ],
@@ -94,7 +93,6 @@ export const SIDEBAR_ITEMS: NavItem[] = [
     label: "Yordam",
     href: "/support",
     icon: "MessageCircle",
-    badge: 12,
   },
   {
     label: "Sozlamalar",

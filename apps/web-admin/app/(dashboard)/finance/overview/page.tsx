@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MockApi } from "@/lib/api/mock-api";
+import { AdminApi } from "@/lib/api/admin-api";
 import { Wallet, ArrowDownToLine, FileSpreadsheet, TrendingUp, Download } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
@@ -12,11 +12,17 @@ interface DashboardStats {
 
 export default function FinanceOverviewPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    MockApi.getDashboardStats().then((data) => {
+    Promise.all([AdminApi.getDashboardStats(), AdminApi.getWithdrawals()]).then(([data, withdrawals]) => {
       setStats(data);
+      setPendingWithdrawals(
+        withdrawals
+          .filter((withdrawal) => withdrawal.status === "pending")
+          .reduce((sum, withdrawal) => sum + withdrawal.amount, 0),
+      );
       setLoading(false);
     });
   }, []);
@@ -68,7 +74,7 @@ export default function FinanceOverviewPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-[var(--text-secondary)]">Kutilayotgan to'lovlar</p>
-              <h3 className="text-2xl font-bold text-[var(--text-primary)] mt-1">{formatPrice(25100000)}</h3>
+              <h3 className="text-2xl font-bold text-[var(--text-primary)] mt-1">{formatPrice(pendingWithdrawals)}</h3>
             </div>
           </div>
         </div>
@@ -80,7 +86,7 @@ export default function FinanceOverviewPage() {
           <h2 className="text-lg font-bold text-[var(--text-primary)]">Daromadlar grafigi</h2>
         </div>
         <div className="h-64 flex items-center justify-center border-2 border-dashed border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]">
-          <p className="text-[var(--text-muted)] text-sm font-medium">Recharts orqali grafik chiziladi (Tez orada)</p>
+          <p className="text-[var(--text-muted)] text-sm font-medium">Daromad grafigi uchun backend ma'lumoti topilmadi</p>
         </div>
       </div>
     </div>

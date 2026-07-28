@@ -7,6 +7,7 @@ import { Drawer } from "../../../../_components/ui/drawer";
 import { EmptyState } from "../../../../_components/ui/empty-state";
 import { RoomStatusBadge } from "../../../../_components/domain/room-status-badge";
 import { useDataStore } from "../../../../_stores/data-store";
+import { useCreateBed, useDeleteBed, useUpdateBed } from "../../../../_hooks/use-beds";
 import { RoomStatus, type Room } from "../../../../_lib/domain/types";
 
 interface Props {
@@ -18,41 +19,53 @@ interface Props {
 /** Dormitory xonasi ichidagi alohida yotoqlarni boshqarish (faqat hostel). */
 export function BedManagementDialog({ open, onClose, room }: Props) {
   const beds = useDataStore((s) => s.beds);
-  const addBed = useDataStore((s) => s.addBed);
-  const updateBed = useDataStore((s) => s.updateBed);
-  const deleteBed = useDataStore((s) => s.deleteBed);
+  const createBed = useCreateBed();
+  const updateBed = useUpdateBed();
+  const deleteBed = useDeleteBed();
 
   const roomBeds = room
     ? beds.filter((b) => b.roomId === room.id).sort((a, b) => a.label.localeCompare(b.label))
     : [];
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!room) return;
-    const result = addBed({
-      roomId: room.id,
-      label: `${roomBeds.length + 1}-o'rin`,
-    });
-    if (!result.ok) {
-      toast.error(result.reason ?? "Qo'shib bo'lmadi");
-      return;
+    try {
+      await createBed.mutateAsync({
+        roomId: room.id,
+        label: `${roomBeds.length + 1}-o'rin`,
+      });
+      toast.success("Yotoq qo'shildi");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Qo'shib bo'lmadi",
+      );
     }
-    toast.success("Yotoq qo'shildi");
   };
 
-  const handleToggleListed = (bedId: string, isListed: boolean) => {
-    const result = updateBed(bedId, { isListed: !isListed });
-    if (!result.ok) toast.error(result.reason ?? "O'zgartirib bo'lmadi");
+  const handleToggleListed = async (bedId: string, isListed: boolean) => {
+    try {
+      await updateBed.mutateAsync({ id: bedId, values: { isListed: !isListed } });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "O'zgartirib bo'lmadi",
+      );
+    }
   };
 
-  const handleDelete = (bedId: string, label: string) => {
+  const handleDelete = async (bedId: string, label: string) => {
     if (!confirm(`Rostdan ham ${label} ni o'chirmoqchimisiz?`)) return;
-    const result = deleteBed(bedId);
-    if (!result.ok) {
-      toast.error(result.reason ?? "O'chirib bo'lmadi");
-      return;
+    try {
+      await deleteBed.mutateAsync(bedId);
+      toast.success(`${label} o'chirildi`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "O'chirib bo'lmadi",
+      );
     }
-    toast.success(`${label} o'chirildi`);
   };
+
+  const submitting =
+    createBed.isPending || updateBed.isPending || deleteBed.isPending;
 
   return (
     <Drawer
@@ -66,7 +79,7 @@ export function BedManagementDialog({ open, onClose, room }: Props) {
           <Button variant="outline" onClick={onClose}>
             Yopish
           </Button>
-          <Button onClick={handleAdd}>
+          <Button onClick={handleAdd} disabled={submitting}>
             <Plus className="h-4 w-4" aria-hidden />
             Yotoq qo'shish
           </Button>
@@ -79,7 +92,7 @@ export function BedManagementDialog({ open, onClose, room }: Props) {
           title="Hozircha yotoq yo'q"
           description="Bu dormitory xonaga birinchi yotoqni qo'shing."
           action={
-            <Button onClick={handleAdd}>
+            <Button onClick={handleAdd} disabled={submitting}>
               <Plus className="h-4 w-4" aria-hidden />
               Birinchi yotoqni qo'shish
             </Button>
@@ -105,6 +118,7 @@ export function BedManagementDialog({ open, onClose, room }: Props) {
                     type="checkbox"
                     className="h-3.5 w-3.5 rounded border-[var(--border)] accent-brand-700"
                     checked={bed.isListed}
+                    disabled={submitting}
                     onChange={() => handleToggleListed(bed.id, bed.isListed)}
                   />
                   Sotuvda
@@ -112,7 +126,7 @@ export function BedManagementDialog({ open, onClose, room }: Props) {
                 <button
                   type="button"
                   onClick={() => handleDelete(bed.id, bed.label)}
-                  disabled={bed.status === RoomStatus.OCCUPIED}
+                  disabled={submitting || bed.status === RoomStatus.OCCUPIED}
                   aria-label={`${bed.label} ni o'chirish`}
                   className="rounded-md p-1.5 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-red-950/30"
                 >

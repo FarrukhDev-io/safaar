@@ -1,6 +1,6 @@
 "use client";
 
-import { MockApi } from "@/lib/api/mock-api";
+import { AdminApi } from "@/lib/api/admin-api";
 import { CmsArticleManager } from "../_components/cms-article-manager";
 
 export default function CmsPagesPage() {
@@ -10,7 +10,7 @@ export default function CmsPagesPage() {
       title="Statik sahifalar"
       addLabel="Sahifa qo'shish"
       emptyMessage="Sahifalar topilmadi"
-      loadItems={MockApi.getCmsPages}
+      loadItems={AdminApi.getCmsPages}
     />
   );
 }

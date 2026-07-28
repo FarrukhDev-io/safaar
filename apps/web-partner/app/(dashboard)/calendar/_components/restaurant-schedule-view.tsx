@@ -15,7 +15,7 @@ import { useListing } from "../../../_hooks/use-listing";
 import { useAuthStore } from "../../../_stores/auth-store";
 import { cn } from "../../../_lib/utils/cn";
 import { formatMoney } from "../../../_lib/utils/format";
-import { TODAY_ISO } from "../../../_lib/mocks/data";
+import { TODAY_ISO } from "../../../_lib/utils/date";
 import { getPartnerLabels } from "../../../_lib/utils/partner-labels";
 import {
   DEFAULT_SLOT_DURATION_MINUTES,

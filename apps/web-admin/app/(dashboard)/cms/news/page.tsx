@@ -1,6 +1,6 @@
 "use client";
 
-import { MockApi } from "@/lib/api/mock-api";
+import { AdminApi } from "@/lib/api/admin-api";
 import { CmsArticleManager } from "../_components/cms-article-manager";
 
 export default function CmsNewsPage() {
@@ -10,7 +10,7 @@ export default function CmsNewsPage() {
       title="Yangiliklar"
       addLabel="Yangilik qo'shish"
       emptyMessage="Yangiliklar topilmadi"
-      loadItems={MockApi.getCmsNews}
+      loadItems={AdminApi.getCmsNews}
     />
   );
 }

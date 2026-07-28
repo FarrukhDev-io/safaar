@@ -28,7 +28,7 @@ import { useRoomTypes } from "../../_hooks/use-room-types";
 import { useDataStore } from "../../_stores/data-store";
 import { useAuthStore } from "../../_stores/auth-store";
 import { getPartnerLabels, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
-import { TODAY_ISO } from "../../_lib/mocks/data";
+import { TODAY_ISO } from "../../_lib/utils/date";
 import { cn } from "../../_lib/utils/cn";
 
 type TimeRange = "7days" | "30days" | "year";

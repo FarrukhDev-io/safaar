@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MockApi } from "@/lib/api/mock-api";
+import { AdminApi } from "@/lib/api/admin-api";
 import type { CatalogRegion, CatalogAmenity } from "@/types/admin";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
@@ -15,7 +15,7 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([MockApi.getRegions(), MockApi.getAmenities()]).then(([reg, amen]) => {
+    Promise.all([AdminApi.getRegions(), AdminApi.getAmenities()]).then(([reg, amen]) => {
       setRegions(reg);
       setAmenities(amen);
       setLoading(false);

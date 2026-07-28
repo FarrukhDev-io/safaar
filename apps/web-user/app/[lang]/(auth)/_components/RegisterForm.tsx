@@ -42,9 +42,10 @@ export function RegisterForm({
   dict: AuthDict;
 }) {
   const searchParams = useSearchParams();
+  const emailFromQuery = searchParams.get("email") || "";
   const phoneFromQuery = searchParams.get("phone") || "";
-  const [phone, setPhone] = useState(phoneFromQuery || "+998");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(emailFromQuery);
+  const [phone, setPhone] = useState(phoneFromQuery);
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const strength = useMemo(() => passwordStrength(password), [password]);
@@ -68,11 +69,16 @@ export function RegisterForm({
   const errorMsg = otpState.error || verifyState.error || profileState.error;
 
   const passwordErrorMap: Record<string, string> = {
+    PASSWORD_REQUIRED: dict.passwordRequired,
     PASSWORD_TOO_SHORT: dict.passwordTooShort,
     PASSWORD_NO_UPPERCASE: dict.passwordNoUppercase,
     PASSWORD_NO_LOWERCASE: dict.passwordNoLowercase,
     PASSWORD_NO_NUMBER: dict.passwordNoNumber,
     PASSWORD_NO_SPECIAL: dict.passwordNoSpecial,
+  };
+  const formErrorMap: Record<string, string> = {
+    FIRST_NAME_REQUIRED: dict.firstNameRequired,
+    EMAIL_REQUIRED: dict.emailRequired,
   };
 
   return (
@@ -83,27 +89,28 @@ export function RegisterForm({
       </header>
 
       <form action={action} className="flex flex-col gap-4">
-        {/* Telefon + Send code */}
+        {/* Email + Send code */}
         <div className="flex items-end gap-2">
           <label className="flex flex-1 flex-col gap-1.5">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.phone}</span>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
             <Input
-              name="phone"
-              type="tel"
-              autoComplete="tel"
+              name="email"
+              type="email"
+              autoComplete="email"
               required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder={dict.phonePlaceholder}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={dict.emailPlaceholder}
             />
           </label>
           <Button
-            type="button"
+            type="submit"
             variant="secondary"
             size="md"
             loading={sending}
             disabled={otpState.ok && !otpState.error}
             formAction={requestAction}
+            formNoValidate
             className="rounded-xl border border-slate-300 bg-slate-100 font-bold text-slate-900 shadow-2xs hover:bg-slate-200 hover:border-slate-400"
           >
             {otpState.ok ? dict.codeSent : dict.sendCode}
@@ -111,7 +118,7 @@ export function RegisterForm({
         </div>
 
         {otpState.error && (
-          <p className="-mt-2 text-sm font-bold text-red-600">{otpState.error === "PHONE_REQUIRED" ? dict.phoneRequired : dict.error}</p>
+          <p className="-mt-2 text-sm font-bold text-red-600">{otpState.error === "EMAIL_REQUIRED" ? dict.emailRequired : dict.error}</p>
         )}
 
         {otpState.devCode && (
@@ -156,14 +163,14 @@ export function RegisterForm({
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
+          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.phoneOptional}</span>
           <Input
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder={dict.emailPlaceholder}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            placeholder={dict.phonePlaceholder}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
           />
         </label>
 
@@ -175,6 +182,7 @@ export function RegisterForm({
               name="password"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
+              required
               placeholder={dict.passwordPlaceholder}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -224,12 +232,7 @@ export function RegisterForm({
 
         {errorMsg && (
           <p className="text-sm font-bold text-red-600">
-            {passwordErrorMap[errorMsg] ||
-              (profileState.error === "FIRST_NAME_REQUIRED"
-                ? dict.firstNameRequired
-                : profileState.error === "EMAIL_REQUIRED"
-                  ? dict.emailRequired
-                  : dict.error)}
+            {passwordErrorMap[errorMsg] || formErrorMap[errorMsg] || dict.error}
           </p>
         )}
 

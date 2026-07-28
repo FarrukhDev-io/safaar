@@ -1,17 +1,15 @@
-import { Info } from "lucide-react";
-import Link from "next/link";
-import { LoginForm } from "./login-form";
-import { Button } from "../../_components/ui/button";
+import { Info } from 'lucide-react';
+import Link from 'next/link';
+import { LoginForm } from './login-form';
+import { Button } from '../../_components/ui/button';
 
 export default function LoginPage() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold tracking-tight">
-          Tizimga kirish
-        </h2>
+        <h2 className="text-xl font-semibold tracking-tight">Tizimga kirish</h2>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Admin tasdiqlagan telefon raqam bilan kabinetga kiring.
+          Emailingizni kiriting — tasdiqlash kodini yuboramiz.
         </p>
       </div>
 

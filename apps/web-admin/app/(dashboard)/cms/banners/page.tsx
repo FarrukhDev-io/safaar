@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import type { CmsBanner } from "@/types/admin";
 import DataTable from "@/components/ui/DataTable";
@@ -11,11 +11,11 @@ import Modal from "@/components/ui/Modal";
 import { Plus, Edit2, Trash2, Power } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminStore } from "@/lib/store";
+import { AdminApi } from "@/lib/api/admin-api";
 
 function hasRenderableImage(value: string) {
   if (!value) return false;
-  if (value.startsWith("/images/banners/")) return false;
-  return value.startsWith("http") || value.startsWith("blob:") || value.startsWith("data:");
+  return value.startsWith("http://") || value.startsWith("https://");
 }
 
 function BannerImage({
@@ -49,10 +49,8 @@ function BannerImage({
 
 export default function CmsBannersPage() {
   const banners = useAdminStore((s) => s.cmsBanners);
-  const addBanner = useAdminStore((s) => s.addBanner);
-  const updateBanner = useAdminStore((s) => s.updateBanner);
-  const deleteBanner = useAdminStore((s) => s.deleteBanner);
-  const toggleBannerStatus = useAdminStore((s) => s.toggleBannerStatus);
+  const setCmsBanners = useAdminStore((s) => s.setCmsBanners);
+  const [loading, setLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<CmsBanner | null>(null);
@@ -64,6 +62,12 @@ export default function CmsBannersPage() {
     order: 1,
     isActive: true,
   });
+
+  useEffect(() => {
+    AdminApi.getCmsBanners()
+      .then((items) => setCmsBanners(items))
+      .finally(() => setLoading(false));
+  }, [setCmsBanners]);
 
   const openNewModal = () => {
     setFormData({ title: "", link: "", imageUrl: "", order: banners.length + 1, isActive: true });
@@ -83,25 +87,33 @@ export default function CmsBannersPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.title || !formData.link || !formData.imageUrl) {
       toast.error("Iltimos barcha maydonlarni to'ldiring");
       return;
     }
 
     if (editingBanner) {
-      updateBanner(editingBanner.id, formData);
+      const updated = await AdminApi.updateCmsBanner(editingBanner.id, formData);
+      setCmsBanners(banners.map((banner) => banner.id === updated.id ? updated : banner));
       toast.success("Banner muvaffaqiyatli saqlandi!");
     } else {
-      addBanner(formData);
+      const created = await AdminApi.createCmsBanner(formData);
+      setCmsBanners([...banners, created].sort((a, b) => a.order - b.order));
       toast.success("Yangi banner qo'shildi!");
     }
     setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleToggle = async (banner: CmsBanner) => {
+    const updated = await AdminApi.setCmsBannerActive(banner.id, !banner.isActive);
+    setCmsBanners(banners.map((item) => item.id === updated.id ? updated : item));
+  };
+
+  const handleDelete = async (id: string) => {
     if (confirm("Rostdan ham ushbu bannerni o'chirmoqchimisiz?")) {
-      deleteBanner(id);
+      await AdminApi.deleteCmsBanner(id);
+      setCmsBanners(banners.filter((banner) => banner.id !== id));
       toast.success("Banner o'chirildi");
     }
   };
@@ -125,7 +137,7 @@ export default function CmsBannersPage() {
       label: "",
       render: (row) => (
         <div className="flex justify-end gap-2">
-          <button onClick={() => toggleBannerStatus(row.id)} title={row.isActive ? "Nofaol qilish" : "Faol qilish"} className={`w-8 h-8 rounded flex items-center justify-center transition-colors ${row.isActive ? "text-[var(--warning)] hover:bg-[var(--warning)]/10" : "text-[var(--success)] hover:bg-[var(--success)]/10"}`}>
+          <button onClick={() => handleToggle(row)} title={row.isActive ? "Nofaol qilish" : "Faol qilish"} className={`w-8 h-8 rounded flex items-center justify-center transition-colors ${row.isActive ? "text-[var(--warning)] hover:bg-[var(--warning)]/10" : "text-[var(--success)] hover:bg-[var(--success)]/10"}`}>
             <Power size={14} />
           </button>
           <button onClick={() => openEditModal(row)} className="w-8 h-8 rounded flex items-center justify-center text-[var(--primary)] hover:bg-[var(--primary)]/10">
@@ -146,7 +158,13 @@ export default function CmsBannersPage() {
           <Button size="sm" icon={<Plus size={14} />} onClick={openNewModal}>Yangi Banner</Button>
         </div>
         
-        <DataTable columns={columns} data={banners} keyField="id" emptyMessage="Bannerlar topilmadi" />
+        {loading ? (
+          <div className="flex justify-center p-12">
+            <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <DataTable columns={columns} data={banners} keyField="id" emptyMessage="Bannerlar topilmadi" />
+        )}
       </div>
 
       <Modal
@@ -167,31 +185,12 @@ export default function CmsBannersPage() {
             value={formData.title} 
             onChange={(e) => setFormData({ ...formData, title: e.target.value })} 
           />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-[var(--text-primary)]">Rasm (Qurilmadan yuklash)</label>
-            <label className="group relative flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--bg-tertiary)] transition-colors hover:border-[var(--primary)] hover:bg-[var(--bg-secondary)] overflow-hidden">
-              {formData.imageUrl ? (
-                <BannerImage src={formData.imageUrl} title={formData.title} className="transition-opacity group-hover:opacity-80" />
-              ) : (
-                <div className="flex flex-col items-center gap-2 text-[var(--text-muted)]">
-                  <span className="text-2xl opacity-50">+</span>
-                  <span className="text-xs font-medium">Rasm tanlash uchun bosing</span>
-                </div>
-              )}
-              <input 
-                type="file" 
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    setFormData({ ...formData, imageUrl: url });
-                  }
-                }}
-              />
-            </label>
-          </div>
+          <Input
+            label="Rasm URL"
+            placeholder="https://cdn.safaar.uz/banners/..."
+            value={formData.imageUrl}
+            onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+          />
           <Input 
             label="Yo'naltirish havolasi (Link)" 
             placeholder="/hotels?discount=true" 

@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Role } from '@safaar/types';
 import { randomUUID } from 'node:crypto';
@@ -16,22 +17,13 @@ export class SupportService {
     private readonly events: EventsService,
   ) {}
 
-  private defaultActor(): RequestActor {
-    return {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
-  }
-
   async create(actor: RequestActor | undefined, body: Record<string, unknown>) {
-    const a = actor ?? this.defaultActor();
+    const a = this.requireActor(actor);
     const now = new Date().toISOString();
     const id = randomUUID();
     const actorType = a.actorType === 'partner' ? 'partner' : 'user';
     const userId = actorType === 'user' ? a.id : null;
-    const actorId = a.id;
+    const actorId = actorType === 'partner' ? (a.organizationId ?? a.id) : a.id;
 
     const [ticket] = await this.pg.query(
       `INSERT INTO support_tickets (id, user_id, actor_type, actor_id, subject, priority, status, created_at, updated_at)
@@ -43,7 +35,7 @@ export class SupportService {
         actorType,
         actorId,
         String(body.subject ?? ''),
-        String(body.priority ?? 'normal'),
+        String(body.priority ?? 'medium'),
         'open',
         now,
         now,
@@ -55,13 +47,17 @@ export class SupportService {
   }
 
   async list(actor: RequestActor | undefined) {
-    const a = actor ?? this.defaultActor();
+    const a = this.requireActor(actor);
     const isPartner = a.actorType === 'partner';
 
     if (isPartner) {
       const tickets = await this.pg.query(
-        'SELECT * FROM support_tickets WHERE actor_id = $1 AND actor_type = $2 ORDER BY created_at DESC',
-        [a.id, 'partner'],
+        `SELECT *
+         FROM support_tickets
+         WHERE actor_type = 'partner'
+           AND actor_id = ANY($1::uuid[])
+         ORDER BY created_at DESC`,
+        [[a.id, a.organizationId].filter(Boolean)],
       );
       return tickets;
     }
@@ -93,7 +89,7 @@ export class SupportService {
     body: Record<string, unknown>,
   ) {
     await this.assertTicket(actor, id);
-    const a = actor ?? this.defaultActor();
+    const a = this.requireActor(actor);
     const now = new Date().toISOString();
     const messageId = randomUUID();
 
@@ -141,7 +137,7 @@ export class SupportService {
   }
 
   private async assertTicket(actor: RequestActor | undefined, id: string) {
-    const a = actor ?? this.defaultActor();
+    const a = this.requireActor(actor);
 
     const [ticket] = await this.pg.query(
       'SELECT * FROM support_tickets WHERE id = $1',
@@ -166,7 +162,11 @@ export class SupportService {
     }
 
     // Partner ownership check
-    if (ticket.actor_type === 'partner' && ticket.actor_id === a.id) {
+    const partnerActorIds = [a.id, a.organizationId].filter(Boolean);
+    if (
+      ticket.actor_type === 'partner' &&
+      partnerActorIds.includes(String(ticket.actor_id))
+    ) {
       return ticket;
     }
 
@@ -174,5 +174,15 @@ export class SupportService {
       code: 'SUPPORT_FORBIDDEN',
       message: 'Bu ticket sizga tegishli emas',
     });
+  }
+
+  private requireActor(actor: RequestActor | undefined): RequestActor {
+    if (!actor) {
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+    return actor;
   }
 }

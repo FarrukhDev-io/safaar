@@ -5,12 +5,16 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { Role } from '@safaar/types';
 import { CurrentActor, type RequestActor } from '../common/actor';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
+import type { UploadedFile as UploadedFilePayload } from '../uploads/uploads.service';
 import { ReviewsService } from './reviews.service';
 
 @Controller('reviews')
@@ -25,6 +29,18 @@ export class ReviewsController {
     @Body() body: Record<string, unknown>,
   ) {
     return this.reviewsService.create(actor, body);
+  }
+
+  @Post('photos')
+  @UseInterceptors(
+    FilesInterceptor('photos', 5, { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  @Roles(Role.USER)
+  photos(
+    @CurrentActor() actor: RequestActor | undefined,
+    @UploadedFiles() files?: UploadedFilePayload[],
+  ) {
+    return this.reviewsService.photos(actor, files ?? []);
   }
 
   @Patch(':id')

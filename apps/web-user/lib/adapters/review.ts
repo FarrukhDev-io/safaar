@@ -14,13 +14,30 @@ interface RawReview {
   body?: string;
   status?: string;
   createdAt?: string;
+  firstName?: string;
+  lastName?: string;
+  authorName?: string;
+  avatarUrl?: string;
+  photos?: unknown;
+  isVerifiedGuest?: boolean;
 }
 
 export function toReviewView(raw: RawReview): ReviewView {
+  const authorName =
+    raw.authorName ??
+    [raw.firstName, raw.lastName].filter(Boolean).join(" ").trim();
+  const photos = Array.isArray(raw.photos)
+    ? raw.photos.filter((photo): photo is string => typeof photo === "string")
+    : undefined;
+
   return {
     id: raw.id ?? "",
     rating: typeof raw.rating === "number" ? raw.rating : 0,
     body: raw.body ?? "",
     createdAt: raw.createdAt ?? "",
+    ...(authorName ? { authorName } : {}),
+    ...(raw.avatarUrl ? { avatarUrl: raw.avatarUrl } : {}),
+    ...(photos && photos.length > 0 ? { photos } : {}),
+    ...(raw.isVerifiedGuest === true ? { isVerifiedGuest: true } : {}),
   };
 }

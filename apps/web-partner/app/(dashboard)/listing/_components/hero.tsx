@@ -12,8 +12,8 @@ import { cn } from "../../../_lib/utils/cn";
 import {
   useListing,
   useListingCompleteness,
+  useUpdateListingStatus,
 } from "../../../_hooks/use-listing";
-import { useDataStore } from "../../../_stores/data-store";
 
 interface HeroProps {
   onPreview: () => void;
@@ -24,7 +24,7 @@ const SECTIONS = 5;
 export function Hero({ onPreview }: HeroProps) {
   const { data: listing } = useListing();
   const { complete, missing } = useListingCompleteness();
-  const setStatus = useDataStore((s) => s.setListingStatus);
+  const updateStatus = useUpdateListingStatus();
 
   const info = LISTING_STATUS_INFO[listing.status];
   const cover = listing.photos.find((p) => p.isCover) ?? listing.photos[0];
@@ -51,13 +51,22 @@ export function Hero({ onPreview }: HeroProps) {
 
   const handlePrimary = () => {
     if (listing.status === ListingStatus.PUBLISHED) {
-      setStatus(ListingStatus.HIDDEN);
-      toast.success("E'lon yashirildi");
+      updateStatus.mutate(ListingStatus.HIDDEN, {
+        onSuccess: () => toast.success("E'lon yashirildi"),
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "Xato yuz berdi");
+        },
+      });
       return;
     }
     if (listing.status === ListingStatus.HIDDEN) {
-      setStatus(ListingStatus.PUBLISHED);
-      toast.success("E'lon qayta nashr qilindi");
+      updateStatus.mutate(ListingStatus.UNDER_REVIEW, {
+        onSuccess: () =>
+          toast.success("E'lon qayta ko'rib chiqishga yuborildi"),
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "Xato yuz berdi");
+        },
+      });
       return;
     }
     // DRAFT yoki UNDER_REVIEW
@@ -67,9 +76,14 @@ export function Hero({ onPreview }: HeroProps) {
       });
       return;
     }
-    setStatus(ListingStatus.UNDER_REVIEW);
-    toast.success("Ko'rib chiqishga yuborildi", {
-      description: "Admin 1-3 kun ichida tekshiradi.",
+    updateStatus.mutate(ListingStatus.UNDER_REVIEW, {
+      onSuccess: () =>
+        toast.success("Ko'rib chiqishga yuborildi", {
+          description: "Admin tekshirgandan keyin nashr qilinadi.",
+        }),
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : "Xato yuz berdi");
+      },
     });
   };
 
@@ -158,7 +172,7 @@ export function Hero({ onPreview }: HeroProps) {
                 <Button
                   size="sm"
                   onClick={handlePrimary}
-                  disabled={!complete}
+                  disabled={!complete || updateStatus.isPending}
                 >
                   {listing.status === ListingStatus.UNDER_REVIEW ? (
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

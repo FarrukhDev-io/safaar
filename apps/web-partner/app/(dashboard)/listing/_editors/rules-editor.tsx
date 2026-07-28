@@ -12,8 +12,10 @@ import { EmptyState } from "../../../_components/ui/empty-state";
 import { Input } from "../../../_components/ui/input";
 import { Label } from "../../../_components/ui/label";
 import { Tooltip } from "../../../_components/ui/tooltip";
-import { useListing } from "../../../_hooks/use-listing";
-import { useDataStore } from "../../../_stores/data-store";
+import {
+  useListing,
+  useUpdateListingRules,
+} from "../../../_hooks/use-listing";
 import { useAuthStore } from "../../../_stores/auth-store";
 import { getPartnerLabels, isRestaurant } from "../../../_lib/utils/partner-labels";
 import {
@@ -42,9 +44,7 @@ export function RulesEditor({
   onClose: () => void;
 }) {
   const { data } = useListing();
-  const update = useDataStore((s) => s.updateListingRules);
-  const addFee = useDataStore((s) => s.addExtraFee);
-  const removeFee = useDataStore((s) => s.removeExtraFee);
+  const update = useUpdateListingRules();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const restaurant = isRestaurant(partnerType);
@@ -64,10 +64,16 @@ export function RulesEditor({
   const petsAllowed = watched.petsAllowed ?? data.petsAllowed;
   const childrenAllowed = watched.childrenAllowed ?? data.childrenAllowed;
 
-  const onSave = form.handleSubmit((v) => {
-    update(v);
-    toast.success("Uy qoidalari saqlandi");
-    onClose();
+  const onSave = form.handleSubmit(async (v) => {
+    try {
+      await update.mutateAsync({ ...v, extraFees: data.extraFees });
+      toast.success("Uy qoidalari saqlandi");
+      onClose();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Qoidalarni saqlab bo'lmadi",
+      );
+    }
   });
 
   return (
@@ -82,7 +88,10 @@ export function RulesEditor({
           <Button variant="outline" onClick={onClose}>
             Bekor
           </Button>
-          <Button onClick={onSave} disabled={!form.formState.isDirty}>
+          <Button
+            onClick={onSave}
+            disabled={!form.formState.isDirty || update.isPending}
+          >
             Saqlash
           </Button>
         </>
@@ -200,12 +209,43 @@ export function RulesEditor({
             fees={data.extraFees}
             restaurant={restaurant}
             onAdd={(fee) => {
-              addFee(fee);
-              toast.success("Qo'shildi");
+              update.mutate(
+                {
+                  ...form.getValues(),
+                  extraFees: [
+                    ...data.extraFees,
+                    { ...fee, id: crypto.randomUUID() },
+                  ],
+                },
+                {
+                  onSuccess: () => toast.success("Qo'shildi"),
+                  onError: (error) => {
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : "To'lovni saqlab bo'lmadi",
+                    );
+                  },
+                },
+              );
             }}
             onRemove={(id) => {
-              removeFee(id);
-              toast.success("O'chirildi");
+              update.mutate(
+                {
+                  ...form.getValues(),
+                  extraFees: data.extraFees.filter((fee) => fee.id !== id),
+                },
+                {
+                  onSuccess: () => toast.success("O'chirildi"),
+                  onError: (error) => {
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : "To'lovni o'chirib bo'lmadi",
+                    );
+                  },
+                },
+              );
             }}
           />
         </section>
