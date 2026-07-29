@@ -19,7 +19,7 @@ describe('AdminService frontend action endpoints', () => {
     actorType: 'admin',
     role: Role.SUPER_ADMIN,
     roles: [Role.SUPER_ADMIN],
-    sessionId: 'demo-session-id',
+    sessionId: 'test-session-id',
   };
 
   beforeEach(() => {

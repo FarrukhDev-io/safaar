@@ -61,6 +61,11 @@ export class CompleteProfileDto {
   @IsString()
   last_name?: string;
 
+  @ApiPropertyOptional({ example: '+998901234567' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
   @ApiPropertyOptional({ example: 'user@uzbron.uz' })
   @IsOptional()
   @IsEmail()
@@ -124,7 +129,29 @@ export class UserForgotPasswordDto {
   email!: string;
 }
 
-export class UserResetPasswordDto extends VerifyEmailOtpRequestDto {
+export class UserVerifyResetCodeDto extends VerifyEmailOtpRequestDto {}
+
+export class UserResetPasswordDto {
+  @ApiProperty({ example: 'user@uzbron.uz' })
+  @IsEmail()
+  email!: string;
+
+  @ApiPropertyOptional({ example: '482913' })
+  @IsOptional()
+  @IsString()
+  @Length(6, 6)
+  code?: string;
+
+  @ApiPropertyOptional({ example: 'otp-challenge-id' })
+  @IsOptional()
+  @IsString()
+  challenge_id?: string;
+
+  @ApiPropertyOptional({ example: 'one-time-reset-token' })
+  @IsOptional()
+  @IsString()
+  reset_token?: string;
+
   @ApiProperty({ example: 'N3wP@ssw0rd!' })
   @IsString()
   @IsNotEmpty()

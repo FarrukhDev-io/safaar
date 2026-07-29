@@ -23,6 +23,11 @@ enum UserStatus {
 enum PartnerOrganizationType {
   hotel
   bus
+  hostel
+  guesthouse
+  motel
+  dacha
+  restaurant
   mixed
 }
 
@@ -114,6 +119,11 @@ enum ReviewStatus {
   pending_review
 }
 
+enum ChatRoomStatus {
+  OPEN
+  RESOLVED
+}
+
 model User {
   id                String        @id @default(uuid()) @db.Uuid
   firstName         String?       @map("first_name") @db.VarChar(100)
@@ -126,6 +136,7 @@ model User {
   phoneVerifiedAt   DateTime?     @map("phone_verified_at") @db.Timestamptz
   emailVerifiedAt   DateTime?     @map("email_verified_at") @db.Timestamptz
   lastLoginAt       DateTime?     @map("last_login_at") @db.Timestamptz
+  avatarMediaId     String?       @map("avatar_media_id") @db.Uuid
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz
@@ -136,7 +147,12 @@ model User {
   favorites      Favorite[]
   reviews        Review[]
   notifications  Notification[]
+  notificationPreference UserNotificationPreference?
+  bonusLedger    UserBonusLedgerEntry[]
+  deletionRequests UserDeletionRequest[]
   supportTickets SupportTicket[]
+  chatRooms      ChatRoom[]
+  analyticsEvents AnalyticsEvent[]
 
   @@index([status, createdAt])
   @@index([deletedAt, createdAt])
@@ -198,6 +214,45 @@ model OtpChallenge {
   @@map("otp_challenges")
 }
 
+model UserNotificationPreference {
+  userId    String   @id @map("user_id") @db.Uuid
+  sms       Boolean  @default(true)
+  email     Boolean  @default(true)
+  push      Boolean  @default(true)
+  inApp     Boolean  @default(true) @map("in_app")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preferences")
+}
+
+model UserBonusLedgerEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  amount    Decimal  @db.Decimal(18, 2)
+  reason    String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("user_bonus_ledger")
+}
+
+model UserDeletionRequest {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  status    String    @default("requested") @db.VarChar(32)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt DateTime? @map("resolved_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("user_deletion_requests")
+}
+
 model PartnerOrganization {
   id                    String                  @id @default(uuid()) @db.Uuid
   type                  PartnerOrganizationType
@@ -226,6 +281,7 @@ model PartnerOrganization {
   apiKeys       PartnerApiKey[]
   webhooks      PartnerWebhookEndpoint[]
   ledgerEntries PartnerLedgerEntry[]
+  documents     PartnerDocument[]
 
   @@index([status])
   @@index([cityId, status])
@@ -239,6 +295,7 @@ model PartnerUser {
   email          String    @db.VarChar(255)
   passwordHash   String    @map("password_hash") @db.VarChar(255)
   fullName       String?   @map("full_name") @db.VarChar(255)
+  role           String    @default("operator") @db.VarChar(64)
   status         String    @default("active") @db.VarChar(32)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
@@ -249,6 +306,21 @@ model PartnerUser {
   @@unique([organizationId, email])
   @@index([email])
   @@map("partner_users")
+}
+
+model PartnerDocument {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  type           String   @db.VarChar(64)
+  fileId         String?  @map("file_id") @db.Uuid
+  status         String   @default("uploaded") @db.VarChar(32)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization PartnerOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@map("partner_documents")
 }
 
 model AdminUser {
@@ -343,11 +415,18 @@ model Amenity {
 }
 
 model RoomType {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      String   @unique @db.VarChar(80)
-  name      Json
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(80)
+  name        Json
+  description String?
+  imageUrl    String?  @map("image_url")
+  bedType     String?  @map("bed_type") @db.VarChar(80)
+  sizeSqm     Int?     @map("size_sqm")
+  basePrice   Decimal? @map("base_price") @db.Decimal(18, 2)
+  capacity    Int?
+  amenities   Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   rooms HotelRoom[]
 
@@ -396,6 +475,7 @@ model Hotel {
   address               String
   latitude              Decimal?    @db.Decimal(10, 7)
   longitude             Decimal?    @db.Decimal(10, 7)
+  nearbyPlaces          Json        @default("[]") @map("nearby_places")
   stars                 Int
   ratingAverage         Decimal     @default(0) @map("rating_average") @db.Decimal(3, 2)
   reviewsCount          Int         @default(0) @map("reviews_count")
@@ -469,12 +549,15 @@ model HotelRoom {
   hotelId        String     @map("hotel_id") @db.Uuid
   roomTypeId     String     @map("room_type_id") @db.Uuid
   code           String     @db.VarChar(50)
+  floor          Int?
   baseOccupancy  Int        @map("base_occupancy")
   maxAdults      Int        @map("max_adults")
   maxChildren    Int        @map("max_children")
   totalInventory Int        @map("total_inventory")
   basePrice      Decimal    @map("base_price") @db.Decimal(18, 2)
   status         RoomStatus @default(active)
+  housekeepingStatus String @default("VACANT_CLEAN") @map("housekeeping_status") @db.VarChar(32)
+  isListed       Boolean    @default(true) @map("is_listed")
   createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -483,10 +566,28 @@ model HotelRoom {
   translations HotelRoomTranslation[]
   amenities    RoomAmenity[]
   inventory    RoomInventory[]
+  beds         RoomBed[]
 
   @@unique([hotelId, code])
   @@index([hotelId, status])
   @@map("hotel_rooms")
+}
+
+model RoomBed {
+  id          String   @id @default(uuid()) @db.Uuid
+  roomId      String   @map("room_id") @db.Uuid
+  label       String   @db.VarChar(80)
+  status      String   @default("VACANT_CLEAN") @db.VarChar(32)
+  isListed    Boolean  @default(true) @map("is_listed")
+  nightlyPrice Decimal? @map("nightly_price") @db.Decimal(18, 2)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  room HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, label])
+  @@index([roomId, status])
+  @@map("room_beds")
 }
 
 model HotelRoomTranslation {
@@ -636,7 +737,7 @@ model TripSeat {
 model Booking {
   id                          String            @id @default(uuid()) @db.Uuid
   bookingNumber               String            @unique @map("booking_number") @db.VarChar(30)
-  userId                      String            @map("user_id") @db.Uuid
+  userId                      String?           @map("user_id") @db.Uuid
   partnerOrganizationId       String            @map("partner_organization_id") @db.Uuid
   type                        BookingType
   confirmationMode            ConfirmationMode  @map("confirmation_mode")
@@ -665,7 +766,7 @@ model Booking {
   createdAt                   DateTime          @default(now()) @map("created_at") @db.Timestamptz
   updatedAt                   DateTime          @updatedAt @map("updated_at") @db.Timestamptz
 
-  user         User                @relation(fields: [userId], references: [id])
+  user         User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   partner      PartnerOrganization @relation(fields: [partnerOrganizationId], references: [id])
   hotel        Hotel?              @relation(fields: [hotelId], references: [id])
   trip         Trip?               @relation(fields: [tripId], references: [id])
@@ -840,7 +941,12 @@ model Review {
   bookingId String?      @map("booking_id") @db.Uuid
   targetType String      @map("target_type") @db.VarChar(32)
   targetId  String       @map("target_id") @db.Uuid
-  rating    Int
+  rating    Decimal      @db.Decimal(2, 1)
+  cleanliness Decimal?   @db.Decimal(2, 1)
+  staff     Decimal?     @db.Decimal(2, 1)
+  location  Decimal?     @db.Decimal(2, 1)
+  valueForMoney Decimal? @map("value_for_money") @db.Decimal(2, 1)
+  photos    Json         @default("[]")
   body      String?
   status    ReviewStatus @default(published)
   createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz
@@ -869,13 +975,26 @@ model Notification {
   @@map("notifications")
 }
 
+model PushToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  ownerType String    @map("owner_type") @db.VarChar(32)
+  ownerId   String    @map("owner_id") @db.Uuid
+  token     String
+  platform  String    @default("web") @db.VarChar(32)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  @@index([ownerType, ownerId, deletedAt])
+  @@map("push_tokens")
+}
+
 model SupportTicket {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String?   @map("user_id") @db.Uuid
   actorType String    @default("user") @map("actor_type") @db.VarChar(32)
   actorId   String?   @map("actor_id") @db.Uuid
   subject   String
-  priority  String    @default("normal") @db.VarChar(32)
+  priority  String    @default("medium") @db.VarChar(32)
   status    String    @default("open") @db.VarChar(32)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
@@ -904,6 +1023,52 @@ model SupportMessage {
   @@map("support_messages")
 }
 
+model ChatRoom {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  status    ChatRoomStatus @default(OPEN)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("chat_rooms")
+}
+
+model ChatMessage {
+  id         String    @id @default(uuid()) @db.Uuid
+  roomId     String    @map("room_id") @db.Uuid
+  senderId   String    @map("sender_id") @db.Uuid
+  senderType String    @map("sender_type") @db.VarChar(32)
+  text       String
+  readAt     DateTime? @map("read_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@index([senderId, createdAt])
+  @@map("chat_messages")
+}
+
+model CurrencyRate {
+  id            String    @id @default(uuid()) @db.Uuid
+  code          String    @db.Char(3)
+  base          String    @default("UZS") @db.Char(3)
+  rate          Decimal   @db.Decimal(18, 6)
+  source        String    @default("cbu.uz") @db.VarChar(80)
+  effectiveDate DateTime? @map("effective_date") @db.Date
+  fetchedAt     DateTime  @default(now()) @map("fetched_at") @db.Timestamptz
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([code, fetchedAt])
+  @@index([effectiveDate])
+  @@map("currency_rates")
+}
+
 model PartnerApiKey {
   id             String    @id @default(uuid()) @db.Uuid
   organizationId String    @map("organization_id") @db.Uuid
@@ -912,10 +1077,12 @@ model PartnerApiKey {
   secretHash     String    @map("secret_hash") @db.VarChar(255)
   scopes         String[]
   ipAllowlist    String[]  @map("ip_allowlist")
+  status         String    @default("active") @db.VarChar(32)
   lastUsedAt     DateTime? @map("last_used_at") @db.Timestamptz
   expiresAt      DateTime? @map("expires_at") @db.Timestamptz
   revokedAt      DateTime? @map("revoked_at") @db.Timestamptz
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   organization PartnerOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -934,9 +1101,29 @@ model PartnerWebhookEndpoint {
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   organization PartnerOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   PartnerWebhookDelivery[]
 
   @@index([organizationId, status])
   @@map("partner_webhook_endpoints")
+}
+
+model PartnerWebhookDelivery {
+  id             String    @id @default(uuid()) @db.Uuid
+  endpointId     String    @map("endpoint_id") @db.Uuid
+  eventType      String    @map("event_type") @db.VarChar(80)
+  status         String    @default("queued") @db.VarChar(32)
+  payload        Json?
+  responseStatus Int?      @map("response_status")
+  responseBody   String?   @map("response_body")
+  attemptedAt    DateTime? @map("attempted_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  endpoint PartnerWebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@index([status, createdAt])
+  @@map("partner_webhook_deliveries")
 }
 
 model AuditLog {
@@ -987,6 +1174,8 @@ model CmsEntry {
   body      Json?
   status    String    @default("draft") @db.VarChar(32)
   metadata  Json?
+  latitude  Decimal?  @db.Decimal(10, 7)
+  longitude Decimal?  @db.Decimal(10, 7)
   publishedAt DateTime? @map("published_at") @db.Timestamptz
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
@@ -994,8 +1183,28 @@ model CmsEntry {
   @@unique([type, slug])
   @@index([type, status])
   @@index([type, status, createdAt])
+  @@index([type, latitude, longitude])
   @@index([publishedAt])
   @@map("cms_entries")
+}
+
+model AnalyticsEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String?   @map("user_id") @db.Uuid
+  sessionId   String?   @map("session_id") @db.VarChar(120)
+  eventName   String    @map("event_name") @db.VarChar(120)
+  params      Json      @default("{}")
+  occurredAt  DateTime  @map("occurred_at") @db.Timestamptz
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz
+  userAgent   String?   @map("user_agent")
+  ip          String?   @db.VarChar(80)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventName, occurredAt])
+  @@index([userId, occurredAt])
+  @@index([sessionId, occurredAt])
+  @@map("analytics_events")
 }
 
 model OutboxEvent {

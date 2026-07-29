@@ -3,7 +3,9 @@ export interface Paginated<T> {
   items: T[];
   total: number;
   page: number;
-  pageSize: number;
+  pageSize?: number;
+  limit?: number;
+  total_pages?: number;
 }
 
 export interface ApiSuccess<T> {

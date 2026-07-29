@@ -55,15 +55,19 @@ export class PartnersController {
 
   @Patch('team/:id')
   updateTeamMember(
+    @CurrentActor() actor: RequestActor | undefined,
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
   ) {
-    return this.partnersService.updateTeamMember(id, body);
+    return this.partnersService.updateTeamMember(actor, id, body);
   }
 
   @Delete('team/:id')
-  deleteTeamMember(@Param('id') id: string) {
-    return this.partnersService.deleteTeamMember(id);
+  deleteTeamMember(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.partnersService.deleteTeamMember(actor, id);
   }
 
   @Get('documents')
@@ -153,6 +157,16 @@ export class PartnersController {
     return this.partnersService.deleteHotelImage(actor, id, imageId);
   }
 
+  @Patch('hotels/:id/images/:imageId')
+  updateHotelImage(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Param('imageId') imageId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.updateHotelImage(actor, id, imageId, body);
+  }
+
   @Get('hotels/:id/rooms')
   rooms(
     @CurrentActor() actor: RequestActor | undefined,
@@ -232,6 +246,62 @@ export class PartnersController {
     @Param('roomId') roomId: string,
   ) {
     return this.partnersService.deleteRoom(actor, id, roomId);
+  }
+
+  @Get('hotels/:id/beds')
+  beds(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.partnersService.beds(actor, id);
+  }
+
+  @Get('hotels/:id/rooms/:roomId/beds')
+  roomBeds(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Param('roomId') roomId: string,
+  ) {
+    return this.partnersService.roomBeds(actor, id, roomId);
+  }
+
+  @Post('hotels/:id/rooms/:roomId/beds')
+  createBed(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Param('roomId') roomId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.createBed(actor, id, roomId, body);
+  }
+
+  @Post('hotels/:id/rooms/:roomId/beds/generate')
+  generateBeds(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Param('roomId') roomId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.generateBeds(actor, id, roomId, body);
+  }
+
+  @Patch('hotels/:id/beds/:bedId')
+  updateBed(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Param('bedId') bedId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.updateBed(actor, id, bedId, body);
+  }
+
+  @Delete('hotels/:id/beds/:bedId')
+  deleteBed(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Param('bedId') bedId: string,
+  ) {
+    return this.partnersService.deleteBed(actor, id, bedId);
   }
 
   @Get('hotels/:id/inventory')
@@ -314,66 +384,97 @@ export class PartnersController {
   }
 
   @Get('vehicles')
-  vehicles() {
-    return this.partnersService.vehicles();
+  vehicles(@CurrentActor() actor: RequestActor | undefined) {
+    return this.partnersService.vehicles(actor);
   }
 
   @Post('vehicles')
-  createVehicle(@Body() body: Record<string, unknown>) {
-    return this.partnersService.createVehicle(body);
+  createVehicle(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.createVehicle(actor, body);
   }
 
   @Patch('vehicles/:id')
   updateVehicle(
+    @CurrentActor() actor: RequestActor | undefined,
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
   ) {
-    return this.partnersService.updateVehicle(id, body);
+    return this.partnersService.updateVehicle(actor, id, body);
   }
 
   @Post('vehicles/:id/seat-layout')
-  seatLayout(@Param('id') id: string, @Body() body: Record<string, unknown>) {
-    return this.partnersService.seatLayout(id, body);
+  seatLayout(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.seatLayout(actor, id, body);
   }
 
   @Get('routes')
-  routes() {
-    return this.partnersService.routes();
+  routes(@CurrentActor() actor: RequestActor | undefined) {
+    return this.partnersService.routes(actor);
   }
 
   @Post('routes')
-  createRoute(@Body() body: Record<string, unknown>) {
-    return this.partnersService.createRoute(body);
+  createRoute(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.createRoute(actor, body);
   }
 
   @Patch('routes/:id')
-  updateRoute(@Param('id') id: string, @Body() body: Record<string, unknown>) {
-    return this.partnersService.updateRoute(id, body);
+  updateRoute(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.updateRoute(actor, id, body);
   }
 
   @Get('trips')
-  trips(@Query() query: Record<string, string | undefined>) {
-    return this.partnersService.trips(query);
+  trips(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Query() query: Record<string, string | undefined>,
+  ) {
+    return this.partnersService.trips(actor, query);
   }
 
   @Post('trips')
-  createTrip(@Body() body: Record<string, unknown>) {
-    return this.partnersService.createTrip(body);
+  createTrip(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.createTrip(actor, body);
   }
 
   @Patch('trips/:id')
-  updateTrip(@Param('id') id: string, @Body() body: Record<string, unknown>) {
-    return this.partnersService.updateTrip(id, body);
+  updateTrip(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.updateTrip(actor, id, body);
   }
 
   @Post('trips/:id/cancel')
-  cancelTrip(@Param('id') id: string) {
-    return this.partnersService.cancelTrip(id);
+  cancelTrip(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.partnersService.cancelTrip(actor, id);
   }
 
   @Get('trips/:id/seats')
-  tripSeats(@Param('id') id: string) {
-    return this.partnersService.tripSeats(id);
+  tripSeats(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.partnersService.tripSeats(actor, id);
   }
 
   @Get('bookings')
@@ -522,8 +623,11 @@ export class PartnersController {
   }
 
   @Get('finance/documents/:id/download')
-  financeDocumentDownload(@Param('id') id: string) {
-    return this.partnersService.financeDocumentDownload(id);
+  financeDocumentDownload(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.partnersService.financeDocumentDownload(actor, id);
   }
 
   @Get('api-keys')
@@ -594,7 +698,10 @@ export class PartnersController {
   }
 
   @Post('webhooks/deliveries/:deliveryId/retry')
-  retryWebhookDelivery(@Param('deliveryId') deliveryId: string) {
-    return this.partnersService.retryWebhookDelivery(deliveryId);
+  retryWebhookDelivery(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('deliveryId') deliveryId: string,
+  ) {
+    return this.partnersService.retryWebhookDelivery(actor, deliveryId);
   }
 }

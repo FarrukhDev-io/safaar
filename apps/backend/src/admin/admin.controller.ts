@@ -71,10 +71,11 @@ export class AdminController {
   @Post('users/:id/bonus-adjustment')
   @Permissions(Permission.FinanceWrite)
   bonusAdjustment(
+    @CurrentActor() actor: RequestActor | undefined,
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
   ) {
-    return this.adminService.bonusAdjustment(id, body);
+    return this.adminService.bonusAdjustment(id, body, actor);
   }
 
   @Get('users/:id/bookings')
@@ -468,6 +469,12 @@ export class AdminController {
   @Post('cms/:resource/:id/unpublish')
   cmsUnpublish(@Param('resource') resource: string, @Param('id') id: string) {
     return this.adminService.cmsAction(resource, id, 'unpublish');
+  }
+
+  @Post('cms/:resource/:id/archive')
+  @Permissions(Permission.CmsWrite)
+  cmsArchive(@Param('resource') resource: string, @Param('id') id: string) {
+    return this.adminService.cmsAction(resource, id, 'archive');
   }
 
   @Post('cms/:resource/:id/reorder')

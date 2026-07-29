@@ -1,121 +1,86 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Role } from '@safaar/types';
 import { hmacSha256 } from '../../src/auth/security';
-import { AuthService } from '../../src/auth/auth.service';
 import { buildActorFromHeaders } from '../../src/common/actor';
-import { BookingsService } from '../../src/bookings/bookings.service';
-import { InMemoryDbService } from '../../src/infrastructure/in-memory-db.service';
 import { PartnerApiService } from '../../src/partner-api/partner-api.service';
 import { PartnersService } from '../../src/partners/partners.service';
 import { PaymentsService } from '../../src/payments/payments.service';
 import { UsersService } from '../../src/users/users.service';
+import type { PostgresService } from '../../src/infrastructure/postgres.service';
+import type { JobQueueService } from '../../src/infrastructure/job-queue.service';
 
 const userActor = {
-  id: 'user-a',
+  id: '00000000-0000-2001-0000-000000000001',
   actorType: 'user' as const,
   role: Role.USER,
   roles: [Role.USER],
 };
 
 describe('Security regression tests', () => {
+  const originalEnv = { ...process.env };
+
   beforeEach(() => {
-    process.env.ENABLE_DEMO_AUTH = 'true';
-    process.env.ENABLE_IN_MEMORY_DATA = 'true';
-    process.env.ENABLE_MOCK_PAYMENTS = 'true';
     process.env.JWT_ACCESS_SECRET = 'test-access-secret-with-32-characters';
     process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-with-32-characters';
     process.env.PAYMENT_WEBHOOK_SECRET = 'test-payment-secret-with-32-chars';
     process.env.PARTNER_API_KEY_PEPPER = 'test-partner-pepper-with-32-chars';
   });
 
-  it('rejects client-controlled role headers unless demo auth is explicitly allowed', () => {
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it('rejects client-controlled role headers', () => {
     const actor = buildActorFromHeaders({
-      'x-user-role': 'SUPER_ADMIN',
-      'x-user-id': 'attacker-controlled-id',
+      'x-client-role': 'SUPER_ADMIN',
+      'x-client-id': 'attacker-controlled-id',
     });
 
     expect(actor).toBeUndefined();
   });
 
-  it('rejects forged mock bearer tokens by default', () => {
+  it('rejects forged bearer tokens', () => {
     const actor = buildActorFromHeaders({
-      authorization:
-        'Bearer mock-access.attacker-controlled-id.SUPER_ADMIN.any',
+      authorization: 'Bearer forged.attacker-controlled-id.SUPER_ADMIN.any',
     });
 
     expect(actor).toBeUndefined();
   });
 
-  it('issues real JWTs and rotates refresh tokens', () => {
-    const db = new InMemoryDbService();
-    const auth = new AuthService(db, {
-      tryQuery: () => Promise.resolve(null),
-    });
-    const otp = auth.sendUserOtp('+998901234567');
-    const login = auth.verifyUserOtp({
-      phone: '+998901234567',
-      challenge_id: otp.challenge_id,
-      code: otp.dev_code ?? '',
-    });
+  it('prevents /me booking lookup across users', async () => {
+    const pg = postgresMock();
+    pg.query.mockResolvedValueOnce([]);
+    const users = new UsersService(
+      pg as unknown as PostgresService,
+      jobsMock() as unknown as JobQueueService,
+    );
 
-    expect(login.accessToken.split('.')).toHaveLength(3);
-    const actor = buildActorFromHeaders({
-      authorization: `Bearer ${login.accessToken}`,
-    });
-    expect(actor).toMatchObject({ id: 'demo-user-id', role: Role.USER });
-
-    const rotated = auth.refresh({ refresh_token: login.refreshToken });
-    expect(rotated.refreshToken).not.toEqual(login.refreshToken);
-    expect(() => auth.refresh({ refresh_token: login.refreshToken })).toThrow(
-      UnauthorizedException,
+    await expect(
+      users.booking(userActor, 'other-user-booking'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(pg.query).toHaveBeenCalledWith(
+      'SELECT * FROM bookings WHERE id = $1 AND user_id = $2',
+      ['other-user-booking', userActor.id],
     );
   });
 
-  it('prevents /me booking lookup across users', () => {
-    const db = new InMemoryDbService();
-    const bookings = new BookingsService(db);
-    const users = new UsersService(db);
-    const { booking } = bookings.createHotel(userActor, {
-      hotel_id: 'hotel-samarkand-plaza',
-      room_id: 'room-standard-1',
-      check_in: '2026-07-10',
-      check_out: '2026-07-11',
-    });
-
-    expect(() =>
-      users.booking(
-        {
-          id: 'user-b',
-          actorType: 'user',
-          role: Role.USER,
-          roles: [Role.USER],
-        },
-        booking.id,
-      ),
-    ).toThrow(ForbiddenException);
-  });
-
-  it('requires signed, idempotent payment webhooks', () => {
-    const db = new InMemoryDbService();
-    const bookings = new BookingsService(db);
-    const payments = new PaymentsService(db);
-    const { booking } = bookings.createHotel(userActor, {
-      hotel_id: 'hotel-samarkand-plaza',
-      room_id: 'room-standard-1',
-      check_in: '2026-07-10',
-      check_out: '2026-07-11',
-    });
-
+  it('requires signed, idempotent payment webhooks', async () => {
+    const pg = postgresMock();
+    const payments = new PaymentsService(pg as unknown as PostgresService);
     const body = {
-      booking_id: booking.id,
+      booking_id: 'booking-1',
       transaction_id: 'audit-test-transaction',
-      amount: booking.total_amount,
+      amount: 650000,
       currency: 'UZS',
     };
 
-    expect(() => payments.providerWebhook('click', 'complete', body)).toThrow(
-      UnauthorizedException,
-    );
+    await expect(
+      payments.providerWebhook('click', 'complete', body),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
 
     const eventKey = 'click:complete:audit-test-transaction';
     const canonical = `click.complete.${eventKey}.${stableStringify(body)}`;
@@ -123,11 +88,31 @@ describe('Security regression tests', () => {
       canonical,
       process.env.PAYMENT_WEBHOOK_SECRET ?? '',
     );
-    const first = payments.providerWebhook('click', 'complete', body, {
-      'x-uzbron-mock-signature': signature,
+    const payment = {
+      id: 'payment-1',
+      booking_id: 'booking-1',
+      amount: '650000',
+      currency: 'UZS',
+      status: 'pending',
+    };
+    pg.query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([payment])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          payment_id: 'payment-1',
+          processed_at: '2026-07-25T00:00:00.000Z',
+        },
+      ])
+      .mockResolvedValueOnce([{ ...payment, status: 'paid' }]);
+
+    const first = await payments.providerWebhook('click', 'complete', body, {
+      'x-uzbron-signature': signature,
     });
-    const second = payments.providerWebhook('click', 'complete', body, {
-      'x-uzbron-mock-signature': signature,
+    const second = await payments.providerWebhook('click', 'complete', body, {
+      'x-uzbron-signature': signature,
     });
 
     expect(first).toMatchObject({
@@ -138,36 +123,72 @@ describe('Security regression tests', () => {
     expect(second).toMatchObject({ accepted: true, duplicate: true });
   });
 
-  it('does not fall back to the demo organization for invalid partner API keys', () => {
-    const db = new InMemoryDbService();
-    const partnerApi = new PartnerApiService(db);
+  it('does not fall back to another organization for invalid partner API keys', async () => {
+    const pg = postgresMock();
+    pg.query.mockResolvedValueOnce([]);
+    const partnerApi = new PartnerApiService(pg as unknown as PostgresService);
 
-    expect(() => partnerApi.bookings('definitely-not-a-valid-api-key')).toThrow(
-      ForbiddenException,
-    );
+    await expect(
+      partnerApi.bookings('definitely-not-a-valid-api-key'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('stores only partner API key hashes and accepts the one-time full key', () => {
-    const db = new InMemoryDbService();
-    const partners = new PartnersService(db);
-    const partnerApi = new PartnerApiService(db);
-    const result = partners.createApiKey(
+  it('stores only partner API key hashes and accepts the one-time full key', async () => {
+    const pg = postgresMock();
+    pg.query.mockResolvedValue([]);
+    const partners = new PartnersService(
+      pg as unknown as PostgresService,
+      jobsMock() as unknown as JobQueueService,
+    );
+    const result = await partners.createApiKey(
       {
-        id: 'demo-partner-user-id',
+        id: '00000000-0000-3001-0000-000000000001',
         actorType: 'partner',
         role: Role.PARTNER,
         roles: [Role.PARTNER],
-        organizationId: 'demo-partner-org-id',
+        organizationId: '00000000-0000-3001-0000-000000000001',
       },
       { name: 'Regression key' },
     );
 
+    const insertParams = pg.query.mock.calls[0]?.[1] ?? [];
+    const keyPrefix = String(insertParams[3]);
+    const secretHash = String(insertParams[4]);
+
     expect(result).toHaveProperty('api_key');
-    expect(db.partnerApiKeys[0]).not.toHaveProperty('secret');
-    expect(db.partnerApiKeys[0]).toHaveProperty('secret_hash');
-    expect(partnerApi.bookings(String(result.api_key))).toEqual([]);
+    expect(result).not.toHaveProperty('secret');
+    expect(secretHash).not.toEqual(result.api_key);
+
+    pg.query.mockReset();
+    pg.query
+      .mockResolvedValueOnce([
+        {
+          key_prefix: keyPrefix,
+          secret_hash: secretHash,
+          organization_id: '00000000-0000-3001-0000-000000000001',
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const partnerApi = new PartnerApiService(pg as unknown as PostgresService);
+    await expect(partnerApi.bookings(String(result.api_key))).resolves.toEqual(
+      [],
+    );
   });
 });
+
+function postgresMock() {
+  return {
+    query: jest.fn<Promise<Record<string, unknown>[]>, unknown[]>(),
+    transaction: jest.fn(),
+  };
+}
+
+function jobsMock() {
+  return {
+    add: jest.fn().mockResolvedValue(undefined),
+  };
+}
 
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {

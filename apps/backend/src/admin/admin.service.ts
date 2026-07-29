@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { BookingStatus, Role } from '@safaar/types';
+import { BookingStatus } from '@safaar/types';
 import { randomUUID } from 'node:crypto';
 import type { RequestActor } from '../common/actor';
 import {
@@ -226,6 +228,15 @@ function listingCompleteness(
   };
 }
 
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === '23505'
+  );
+}
+
 function normalizeSettingsGroup(group: string): string {
   const normalized = group.trim().toLowerCase();
   if (!/^[a-z0-9_-]{1,80}$/.test(normalized)) {
@@ -238,9 +249,13 @@ function normalizeSettingsGroup(group: string): string {
 }
 
 function adminActorUuid(actor: RequestActor | undefined): string {
-  return actor && isUuid(actor.id)
-    ? actor.id
-    : '00000000-0000-0000-0000-000000000000';
+  if (!actor || !isUuid(actor.id)) {
+    throw new UnauthorizedException({
+      code: 'AUTH_TOKEN_INVALID',
+      message: 'Sessiya topilmadi yoki token yaroqsiz',
+    });
+  }
+  return actor.id;
 }
 
 function normalizeUserStatus(
@@ -300,20 +315,13 @@ export class AdminService {
     actor: RequestActor | undefined,
     meta: Record<string, unknown> = {},
   ): Promise<void> {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'admin',
-      role: Role.SUPER_ADMIN,
-    };
     await this.postgres.query(
       `insert into audit_logs (id, actor_type, actor_id, action, metadata)
        values ($1::uuid, $2, $3::uuid, $4, ($5)::jsonb)`,
       [
         randomUUID(),
-        currentActor.actorType ?? 'admin',
-        isUuid(currentActor.id)
-          ? currentActor.id
-          : '00000000-0000-0000-0000-000000000000',
+        actor?.actorType ?? 'system',
+        actor && isUuid(actor.id) ? actor.id : null,
         action,
         JSON.stringify(meta),
       ],
@@ -412,12 +420,17 @@ export class AdminService {
 
     const partnerId = String(partner.id ?? '');
     const cityId = String(partner.city_id ?? '');
-    const name = String(
-      partner.brand_name ?? partner.legal_name ?? 'Mehmonxona',
-    ).trim();
-    const address =
-      String(partner.address ?? '').trim() || 'Manzil kiritilmagan';
-    const description = `${name} mehmonxonasi.`;
+    const name = String(partner.brand_name ?? partner.legal_name ?? '').trim();
+    const address = String(partner.address ?? '').trim();
+    const description = '';
+
+    if (!name || !address) {
+      throw new BadRequestException({
+        code: 'PARTNER_LISTING_DATA_REQUIRED',
+        message:
+          'Hamkor arizasida obyekt nomi va manzil to‘liq bo‘lishi kerak.',
+      });
+    }
 
     if (!cityId) {
       throw new BadRequestException({
@@ -482,13 +495,13 @@ export class AdminService {
               $3,
               $4::uuid,
               $5,
-              3,
+              0,
               0,
               0,
               'published',
               false,
-              '14:00',
-              '12:00',
+              null,
+              null,
               now(),
               now()
             )
@@ -1024,11 +1037,65 @@ export class AdminService {
     return rows[0];
   }
 
-  async bonusAdjustment(id: string, body: Record<string, unknown>) {
-    const user = await this.user(id);
+  async bonusAdjustment(
+    id: string,
+    body: Record<string, unknown>,
+    actor?: RequestActor,
+  ) {
+    if (!isUuid(id)) {
+      throw new NotFoundException({
+        code: 'USER_NOT_FOUND',
+        message: 'User topilmadi',
+      });
+    }
     const amount = Number(body.amount ?? 0);
-    const currentBalance = numberValue(user['bonus_balance']);
-    return { user_id: id, amount, balance: currentBalance + amount };
+    if (!Number.isFinite(amount) || amount === 0) {
+      throw new BadRequestException({
+        code: 'BONUS_AMOUNT_INVALID',
+        message: 'Bonus summasi noto‘g‘ri',
+      });
+    }
+    const reason = String(body.reason ?? 'Admin bonus adjustment');
+    const now = new Date().toISOString();
+
+    const result = await this.postgres.transaction(async (transaction) => {
+      const rows = await transaction.query<DbRow>(
+        `update users
+         set bonus_balance = bonus_balance + $1,
+             updated_at = $2
+         where id = $3::uuid and deleted_at is null
+         returning id::text, bonus_balance::float8`,
+        [amount, now, id],
+      );
+      const user = rows[0];
+      if (!user) {
+        throw new NotFoundException({
+          code: 'USER_NOT_FOUND',
+          message: 'User topilmadi',
+        });
+      }
+
+      await transaction.query(
+        `insert into user_bonus_ledger (id, user_id, amount, reason, created_at)
+         values ($1::uuid, $2::uuid, $3, $4, $5)`,
+        [randomUUID(), id, amount, reason, now],
+      );
+
+      return {
+        user_id: id,
+        amount,
+        balance: Number(user['bonus_balance'] ?? 0),
+        reason,
+      };
+    });
+
+    await this.audit('user.bonus_adjustment', actor, {
+      user_id: id,
+      amount,
+      reason,
+    });
+    this.invalidateAdminCache();
+    return result;
   }
 
   async userBookings(id: string, query: QueryLike = {}) {
@@ -1137,11 +1204,7 @@ export class AdminService {
     type: string,
     format: 'csv' | 'xlsx' | 'pdf',
   ) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'admin',
-      role: Role.SUPER_ADMIN,
-    };
+    const currentActor = this.requireActor(actor);
 
     const rows = await this.rows(
       `insert into export_jobs (owner_type, owner_id, type, format, status)
@@ -1157,6 +1220,16 @@ export class AdminService {
       { idempotencyKey: `export:${currentActor.id}:${type}:${format}` },
     );
     return job;
+  }
+
+  private requireActor(actor: RequestActor | undefined): RequestActor {
+    if (!actor) {
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+    return actor;
   }
 
   async partners(query: QueryLike = {}) {
@@ -2620,6 +2693,7 @@ export class AdminService {
           updated_at
         from cms_entries
         where type = any($1::text[])
+          and status <> 'archived'
         order by coalesce((metadata ->> 'order')::int, 9999), created_at desc
         ${this.limitClause(query)}
       `,
@@ -2756,22 +2830,42 @@ export class AdminService {
 
   async promoCreate(body: Record<string, unknown>) {
     const code = String(body.code ?? 'UZBRON10').toUpperCase();
-    const rows = await this.rows(
-      `insert into cms_entries (type, slug, title, body, status, metadata)
-       values ('promo', $1, ($2)::jsonb, '{}'::jsonb, 'active', ($3)::jsonb)
-       returning id::text, type, slug, title, metadata, status, created_at, updated_at`,
-      [
-        code.toLowerCase().replace(/\s+/g, '-'),
-        JSON.stringify({ uz: code }),
-        JSON.stringify({
-          discountType: body.discountType ?? 'percentage',
-          discountValue: Number(body.discountValue ?? 10),
-          usageLimit: Number(body.usageLimit ?? 100),
-          usedCount: 0,
-          ...(body.metadata as Record<string, unknown> | undefined),
-        }),
-      ],
-    );
+    const validUntilRaw = body.validUntil ?? body.valid_until;
+    const validUntilDate = validUntilRaw ? new Date(String(validUntilRaw)) : null;
+    // `published_at` promo uchun "amal qilish muddati" o'rnida ishlatiladi —
+    // qo'yilmasa, ro'yxat so'rovi created_at + 30 kunni standart qiladi.
+    const validUntil =
+      validUntilDate && !Number.isNaN(validUntilDate.getTime())
+        ? validUntilDate.toISOString()
+        : null;
+    let rows: DbRow[];
+    try {
+      rows = await this.rows(
+        `insert into cms_entries (id, type, slug, title, body, status, metadata, published_at, updated_at)
+         values (gen_random_uuid(), 'promo', $1, ($2)::jsonb, '{}'::jsonb, 'active', ($3)::jsonb, $4, now())
+         returning id::text, type, slug, title, metadata, status, published_at, created_at, updated_at`,
+        [
+          code.toLowerCase().replace(/\s+/g, '-'),
+          JSON.stringify({ uz: code }),
+          JSON.stringify({
+            discountType: body.discountType ?? 'percentage',
+            discountValue: Number(body.discountValue ?? 10),
+            usageLimit: Number(body.usageLimit ?? 100),
+            usedCount: 0,
+            ...(body.metadata as Record<string, unknown> | undefined),
+          }),
+          validUntil,
+        ],
+      );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException({
+          code: 'PROMO_CODE_EXISTS',
+          message: `"${code}" promo-kodi allaqachon mavjud. Boshqa nom tanlang.`,
+        });
+      }
+      throw error;
+    }
 
     void this.cache.delByPattern('cms:*');
     this.invalidateAdminCache();
@@ -2793,16 +2887,59 @@ export class AdminService {
         st.priority,
         st.status,
         case
-          when st.actor_type = 'partner' then coalesce(po.brand_name, po.legal_name, 'Hamkor')
-          else concat_ws(' ', u.first_name, u.last_name)
+          when st.actor_type = 'partner' then coalesce(
+            nullif(trim(pu.full_name), ''),
+            nullif(trim(partner_contact.full_name), ''),
+            po.legal_name,
+            po.brand_name,
+            'Hamkor'
+          )
+          else coalesce(
+            nullif(trim(concat_ws(' ', u.first_name, u.last_name)), ''),
+            u.email,
+            u.phone,
+            'Mijoz'
+          )
         end as customer_name,
         st.actor_type as customer_type,
+        po.id::text as partner_organization_id,
+        coalesce(hotel_listing.name, bus_listing.name, po.brand_name, po.legal_name) as business_name,
+        coalesce(hotel_listing.name, po.brand_name, po.legal_name) as hotel_name,
+        coalesce(bus_listing.name, po.brand_name, po.legal_name) as company_name,
+        po.tax_id,
         st.created_at,
         st.updated_at
       from support_tickets st
       left join users u on u.id = st.user_id
       left join partner_users pu on pu.id = st.actor_id and st.actor_type = 'partner'
-      left join partner_organizations po on po.id = pu.organization_id
+      left join partner_organizations po
+        on st.actor_type = 'partner'
+       and (po.id = st.actor_id or po.id = pu.organization_id)
+      left join lateral (
+        select pu2.full_name
+        from partner_users pu2
+        where pu2.organization_id = po.id
+          and pu2.deleted_at is null
+        order by case when pu2.status = 'active' then 0 else 1 end, pu2.created_at asc
+        limit 1
+      ) partner_contact on true
+      left join lateral (
+        select ht.name
+        from hotels h
+        left join hotel_translations ht on ht.hotel_id = h.id and ht.language = 'uz'
+        where h.partner_organization_id = po.id
+          and h.deleted_at is null
+        order by case when h.status = 'published' then 0 when h.status = 'pending_review' then 1 else 2 end,
+                 h.created_at desc
+        limit 1
+      ) hotel_listing on true
+      left join lateral (
+        select bc.name
+        from bus_companies bc
+        where bc.partner_organization_id = po.id
+        order by case when bc.status = 'active' then 0 else 1 end, bc.created_at desc
+        limit 1
+      ) bus_listing on true
       order by st.created_at desc
       ${this.limitClause(query)}
     `);
@@ -2827,16 +2964,59 @@ export class AdminService {
           st.priority,
           st.status,
           case
-            when st.actor_type = 'partner' then coalesce(po.brand_name, po.legal_name, 'Hamkor')
-            else concat_ws(' ', u.first_name, u.last_name)
+            when st.actor_type = 'partner' then coalesce(
+              nullif(trim(pu.full_name), ''),
+              nullif(trim(partner_contact.full_name), ''),
+              po.legal_name,
+              po.brand_name,
+              'Hamkor'
+            )
+            else coalesce(
+              nullif(trim(concat_ws(' ', u.first_name, u.last_name)), ''),
+              u.email,
+              u.phone,
+              'Mijoz'
+            )
           end as customer_name,
           st.actor_type as customer_type,
+          po.id::text as partner_organization_id,
+          coalesce(hotel_listing.name, bus_listing.name, po.brand_name, po.legal_name) as business_name,
+          coalesce(hotel_listing.name, po.brand_name, po.legal_name) as hotel_name,
+          coalesce(bus_listing.name, po.brand_name, po.legal_name) as company_name,
+          po.tax_id,
           st.created_at,
           st.updated_at
         from support_tickets st
         left join users u on u.id = st.user_id
         left join partner_users pu on pu.id = st.actor_id and st.actor_type = 'partner'
-        left join partner_organizations po on po.id = pu.organization_id
+        left join partner_organizations po
+          on st.actor_type = 'partner'
+         and (po.id = st.actor_id or po.id = pu.organization_id)
+        left join lateral (
+          select pu2.full_name
+          from partner_users pu2
+          where pu2.organization_id = po.id
+            and pu2.deleted_at is null
+          order by case when pu2.status = 'active' then 0 else 1 end, pu2.created_at asc
+          limit 1
+        ) partner_contact on true
+        left join lateral (
+          select ht.name
+          from hotels h
+          left join hotel_translations ht on ht.hotel_id = h.id and ht.language = 'uz'
+          where h.partner_organization_id = po.id
+            and h.deleted_at is null
+          order by case when h.status = 'published' then 0 when h.status = 'pending_review' then 1 else 2 end,
+                   h.created_at desc
+          limit 1
+        ) hotel_listing on true
+        left join lateral (
+          select bc.name
+          from bus_companies bc
+          where bc.partner_organization_id = po.id
+          order by case when bc.status = 'active' then 0 else 1 end, bc.created_at desc
+          limit 1
+        ) bus_listing on true
         where st.id = $1::uuid
       `,
       [id],

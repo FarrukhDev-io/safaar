@@ -33,6 +33,7 @@ import {
   UserForgotPasswordDto,
   UserLoginDto,
   UserResetPasswordDto,
+  UserVerifyResetCodeDto,
   Verify2faDto,
   VerifyEmailOtpRequestDto,
   VerifyOtpRequestDto,
@@ -98,12 +99,22 @@ export class AuthController {
     return this.authService.userForgotPassword(body.email);
   }
 
+  @Post('user/verify-reset-code')
+  userVerifyResetCode(@Body() body: UserVerifyResetCodeDto) {
+    return this.authService.userVerifyPasswordResetCode({
+      email: body.email,
+      code: body.code,
+      challenge_id: body.challenge_id,
+    });
+  }
+
   @Post('user/reset-password')
   userResetPassword(@Body() body: UserResetPasswordDto) {
     return this.authService.userResetPassword({
       email: body.email,
       code: body.code,
       challenge_id: body.challenge_id,
+      reset_token: body.reset_token,
       password: body.password,
     });
   }

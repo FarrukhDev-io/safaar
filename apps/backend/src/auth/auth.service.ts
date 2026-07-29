@@ -23,7 +23,7 @@ import { EmailService } from '../infrastructure/email.service';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { otpStore, type OtpPurpose } from './otp-store';
 import { authSessionStore } from './session-store';
-import { demoAuthEnabled, signJwt, verifyJwt } from './security';
+import { signJwt, verifyJwt } from './security';
 import { createTotpSetup, verifyTotpCode, type TotpSetup } from './totp';
 
 type DbRow = Record<string, unknown>;
@@ -79,6 +79,10 @@ interface OAuthExchangeContext {
   userId: string;
 }
 
+interface PasswordResetContext {
+  email: string;
+}
+
 interface OAuthProfile {
   providerUserId: string;
   email: string;
@@ -103,7 +107,11 @@ export class AuthService {
   ) {}
 
   sendUserOtp(phone: string) {
-    return this.createOtpChallenge(this.normalizePhone(phone), 'user_login');
+    void phone;
+    throw new ServiceUnavailableException({
+      code: 'SMS_PROVIDER_NOT_CONFIGURED',
+      message: 'SMS provayder ulanmagan',
+    });
   }
 
   async sendUserEmailOtp(email: string) {
@@ -116,7 +124,7 @@ export class AuthService {
     }
 
     const response = this.createOtpChallenge(normalizedEmail, 'user_login');
-    const code = otpStore.getDevCode(response.challenge_id);
+    const code = otpStore.getDeliveryCode(response.challenge_id);
     const message = {
       to: normalizedEmail,
       subject: 'Safaar kirish kodi',
@@ -141,7 +149,11 @@ export class AuthService {
   }
 
   sendPartnerOtp(phone: string) {
-    return this.createOtpChallenge(this.normalizePhone(phone), 'partner_login');
+    void phone;
+    throw new ServiceUnavailableException({
+      code: 'SMS_PROVIDER_NOT_CONFIGURED',
+      message: 'SMS provayder ulanmagan',
+    });
   }
 
   async sendPartnerEmailOtp(email: string) {
@@ -152,8 +164,7 @@ export class AuthService {
 
     await this.assertApprovedPartnerEmail(normalizedEmail);
     const response = this.createOtpChallenge(normalizedEmail, 'partner_login');
-    const code =
-      response.dev_code ?? otpStore.getDevCode(response.challenge_id);
+    const code = otpStore.getDeliveryCode(response.challenge_id);
 
     const message = {
       to: normalizedEmail,
@@ -332,16 +343,11 @@ export class AuthService {
     actor: RequestActor | undefined,
     body: Record<string, unknown>,
   ) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor, 'user');
 
     const rows = await this.pg.query<DbRow>(
       `SELECT id::text, phone, status, preferred_language, bonus_balance,
-              first_name, last_name, email, created_at, updated_at
+              first_name, last_name, email, password_hash, created_at, updated_at
        FROM users
        WHERE id = $1
        LIMIT 1`,
@@ -361,6 +367,11 @@ export class AuthService {
     const lastName = String(
       body.last_name ?? body.lastName ?? rows[0]['last_name'] ?? '',
     );
+    const phoneInput = body.phone ?? body.phone_number ?? body.phoneNumber;
+    const phoneDigits = String(phoneInput ?? '').replace(/\D/g, '');
+    const phone = phoneDigits
+      ? this.normalizePhone(String(phoneInput))
+      : rows[0]['phone'];
     const email = body.email
       ? String(body.email).toLowerCase()
       : rows[0]['email'];
@@ -374,18 +385,57 @@ export class AuthService {
       : rows[0]['password_hash'];
     const now = new Date().toISOString();
 
+    if (
+      phoneDigits &&
+      !(
+        phoneDigits.length === 9 ||
+        (phoneDigits.startsWith('998') && phoneDigits.length === 12)
+      )
+    ) {
+      throw new BadRequestException({
+        code: 'PHONE_INVALID',
+        message: "To'g'ri telefon raqam kiriting",
+      });
+    }
+
+    if (phone) {
+      const existingPhone = await this.pg.query<DbRow>(
+        `SELECT id::text
+         FROM users
+         WHERE phone = $1 AND id <> $2
+         LIMIT 1`,
+        [phone, currentActor.id],
+      );
+      if (existingPhone.length > 0) {
+        throw new BadRequestException({
+          code: 'PHONE_ALREADY_EXISTS',
+          message: 'Bu telefon raqami boshqa foydalanuvchiga biriktirilgan',
+        });
+      }
+    }
+
     await this.pg.query(
       `UPDATE users
-       SET first_name = $1, last_name = $2, email = $3, preferred_language = $4,
-           password_hash = $5, updated_at = $6
-       WHERE id = $7`,
-      [firstName, lastName, email, preferredLanguage, passwordHash, now, currentActor.id],
+       SET first_name = $1, last_name = $2, phone = $3, email = $4,
+           preferred_language = $5, password_hash = $6, updated_at = $7
+       WHERE id = $8`,
+      [
+        firstName,
+        lastName,
+        phone,
+        email,
+        preferredLanguage,
+        passwordHash,
+        now,
+        currentActor.id,
+      ],
     );
 
     return {
       ...rows[0],
       first_name: firstName,
       last_name: lastName,
+      phone,
       email,
       preferred_language: preferredLanguage,
       updated_at: now,
@@ -474,23 +524,12 @@ export class AuthService {
 
     const profile = await this.fetchOAuthProfile(provider, authorizationCode);
 
-    const existingUserId = await this.findExistingOAuthUser(
-      provider,
-      profile.providerUserId,
-      profile.email,
-    );
-    if (!existingUserId) {
-      throw new UnauthorizedException({
-        code: 'OAUTH_USER_NOT_REGISTERED',
-        message:
-          'Bu hisob ro\u2019yxatdan o\u2019tmagan. Avval ro\u2019yxatdan o\u2019ting.',
-      });
-    }
+    const userId = await this.upsertOAuthUser(provider, profile);
 
     const exchangeCode = randomBytes(32).toString('base64url');
     await this.cache.set<OAuthExchangeContext>(
       this.oauthExchangeKey(exchangeCode),
-      { userId: existingUserId },
+      { userId },
       60,
     );
 
@@ -534,71 +573,16 @@ export class AuthService {
     };
   }
 
-  async oauthToken(provider: OAuthProvider, body: Record<string, unknown>) {
-    if (!demoAuthEnabled()) {
-      throw new ServiceUnavailableException({
-        code: 'OAUTH_PROVIDER_NOT_CONFIGURED',
-        message: `${provider} OAuth provider rasmiy verifikatsiyasi ulanmagan`,
-      });
-    }
-
-    const providerUserId = String(
-      body.provider_user_id ?? body.sub ?? `${provider}-demo-id`,
-    );
-
-    const rows = await this.pg.query<DbRow>(
-      `SELECT id::text, phone, status, preferred_language, bonus_balance,
-              first_name, last_name, email, created_at, updated_at
-       FROM users
-       LIMIT 1`,
-    );
-    const user = rows[0];
-    if (!user) {
-      throw new UnauthorizedException({
-        code: 'USER_NOT_FOUND',
-        message: 'Demo foydalanuvchi topilmadi',
-      });
-    }
-    const now = new Date().toISOString();
-    const socialRows = await this.pg.query<DbRow>(
-      `INSERT INTO user_social_accounts
-         (id, user_id, provider, provider_user_id, provider_email,
-          email_verified, created_at, updated_at)
-       VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $7)
-       ON CONFLICT (provider, provider_user_id) DO UPDATE
-       SET provider_email = EXCLUDED.provider_email,
-           email_verified = EXCLUDED.email_verified,
-           updated_at = EXCLUDED.updated_at
-       RETURNING id::text, user_id::text, provider, provider_user_id,
-                 provider_email, email_verified, created_at, updated_at`,
-      [
-        randomUUID(),
-        String(user['id']),
-        provider,
-        providerUserId,
-        body.email ? String(body.email).toLowerCase() : user['email'],
-        Boolean(body.email_verified ?? true),
-        now,
-      ],
-    );
-    return {
-      ...(await this.issueTokens({
-        actorId: String(user['id']),
-        actorType: 'user',
-        role: Role.USER,
-      })),
-      user,
-      social_account: socialRows[0],
-    };
+  oauthToken(provider: OAuthProvider, body: Record<string, unknown>) {
+    void body;
+    throw new ServiceUnavailableException({
+      code: 'OAUTH_PROVIDER_NOT_CONFIGURED',
+      message: `${provider} OAuth provider rasmiy token verifikatsiyasi ulanmagan`,
+    });
   }
 
   async socialAccounts(actor: RequestActor | undefined) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor, 'user');
     return this.pg.query<DbRow>(
       `SELECT id::text, user_id::text, provider, provider_user_id,
               provider_email, email_verified, created_at, updated_at
@@ -610,12 +594,7 @@ export class AuthService {
   }
 
   async unlinkSocialAccount(actor: RequestActor | undefined, id: string) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor, 'user');
     const rows = await this.pg.query<DbRow>(
       `DELETE FROM user_social_accounts
        WHERE id = $1::uuid AND user_id = $2::uuid
@@ -740,12 +719,9 @@ export class AuthService {
       return { sent: true };
     }
 
-    const response = this.createOtpChallenge(
-      normalizedEmail,
-      'password_reset',
-    );
+    const response = this.createOtpChallenge(normalizedEmail, 'password_reset');
 
-    const code = otpStore.getDevCode(response.challenge_id);
+    const code = otpStore.getDeliveryCode(response.challenge_id);
     const message = {
       to: normalizedEmail,
       subject: 'Safaar parolni tiklash kodi',
@@ -769,9 +745,47 @@ export class AuthService {
 
   async userResetPassword(body: {
     email: string;
+    code?: string;
+    challenge_id?: string;
+    reset_token?: string;
+    password: string;
+  }) {
+    const email = body.reset_token
+      ? await this.consumePasswordResetToken(body.reset_token)
+      : this.normalizeEmail(body.email);
+    if (!this.isValidEmail(email)) {
+      throw new BadRequestException({
+        code: 'EMAIL_INVALID',
+        message: "To'g'ri email manzil kiriting",
+      });
+    }
+
+    if (!body.reset_token) {
+      this.consumeOtp({
+        challengeId: body.challenge_id,
+        phone: email,
+        purpose: 'password_reset',
+        code: String(body.code ?? ''),
+      });
+    }
+
+    const hash = await argon2.hash(String(body.password));
+    const now = new Date().toISOString();
+
+    await this.pg.query(
+      `UPDATE users
+       SET password_hash = $2, updated_at = $3
+       WHERE lower(email) = lower($1) AND deleted_at IS NULL`,
+      [email, hash, now],
+    );
+
+    return { reset: true };
+  }
+
+  async userVerifyPasswordResetCode(body: {
+    email: string;
     code: string;
     challenge_id?: string;
-    password: string;
   }) {
     const email = this.normalizeEmail(body.email);
     if (!this.isValidEmail(email)) {
@@ -788,17 +802,18 @@ export class AuthService {
       code: body.code,
     });
 
-    const hash = await argon2.hash(String(body.password));
-    const now = new Date().toISOString();
-
-    await this.pg.query(
-      `UPDATE users
-       SET password_hash = $2, updated_at = $3
-       WHERE lower(email) = lower($1) AND deleted_at IS NULL`,
-      [email, hash, now],
+    const resetToken = randomBytes(32).toString('base64url');
+    await this.cache.set<PasswordResetContext>(
+      this.passwordResetKey(resetToken),
+      { email },
+      10 * 60,
     );
 
-    return { reset: true };
+    return {
+      verified: true,
+      reset_token: resetToken,
+      expires_in_seconds: 10 * 60,
+    };
   }
 
   async partnerPhoneLogin(body: Record<string, unknown>) {
@@ -816,7 +831,7 @@ export class AuthService {
       throw this.invalidCredentials();
     }
 
-    return this.issuePartnerTokensByEmail(email);
+    return this.sendPartnerEmailOtp(email);
   }
 
   async adminLogin(body: Record<string, unknown>) {
@@ -895,12 +910,7 @@ export class AuthService {
   }
 
   async admin2faSetup(actor: RequestActor | undefined) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'admin',
-      role: Role.ADMIN,
-      roles: [Role.ADMIN],
-    };
+    const currentActor = this.requireActor(actor, 'admin');
 
     const rows = await this.pg.query<DbRow>(
       `SELECT id::text, email, password_hash, full_name, role, status,
@@ -938,12 +948,7 @@ export class AuthService {
     actor: RequestActor | undefined,
     body: Record<string, unknown>,
   ) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'admin',
-      role: Role.ADMIN,
-      roles: [Role.ADMIN],
-    };
+    const currentActor = this.requireActor(actor, 'admin');
     const setupId = String(body.setup_id ?? '');
     const code = String(body.code ?? '');
     const pending = this.pendingTotpSetups.get(setupId);
@@ -996,12 +1001,7 @@ export class AuthService {
   }
 
   async admin2faDisable(actor: RequestActor | undefined) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'admin',
-      role: Role.ADMIN,
-      roles: [Role.ADMIN],
-    };
+    const currentActor = this.requireActor(actor, 'admin');
 
     const rows = await this.pg.query<DbRow>(
       `SELECT id::text
@@ -1091,12 +1091,7 @@ export class AuthService {
   }
 
   async logout(actor: RequestActor | undefined) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
     if (currentActor.sessionId) {
       await authSessionStore.revokeSession(currentActor.sessionId);
     }
@@ -1104,23 +1099,13 @@ export class AuthService {
   }
 
   async logoutAll(actor: RequestActor | undefined) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
     const revoked = await authSessionStore.revokeActor(currentActor.id);
     return { actor_id: currentActor.id, revoked_sessions: revoked };
   }
 
   async sessions(actor: RequestActor | undefined) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
     const sessionList = await authSessionStore.listForActor(currentActor.id);
     return sessionList.map((session) => ({
       id: session.id,
@@ -1136,12 +1121,7 @@ export class AuthService {
   }
 
   async revokeSession(actor: RequestActor | undefined, id: string) {
-    const currentActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
     const session = await authSessionStore.get(id);
 
     if (!session || session.actorId !== currentActor.id) {
@@ -1163,17 +1143,12 @@ export class AuthService {
         challenge_id: string;
         expires_in_seconds: number;
         resend_after_seconds: number;
-        dev_code?: string;
       } = {
         sent: true,
         challenge_id: challenge.id,
         expires_in_seconds: 300,
         resend_after_seconds: 60,
       };
-
-      if (demoAuthEnabled()) {
-        response.dev_code = otpStore.getDevCode(challenge.id);
-      }
 
       return response;
     } catch (error) {
@@ -1185,6 +1160,19 @@ export class AuthService {
       }
       throw error;
     }
+  }
+
+  private requireActor(
+    actor: RequestActor | undefined,
+    actorType?: RequestActor['actorType'],
+  ): RequestActor {
+    if (!actor || (actorType && actor.actorType !== actorType)) {
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+    return actor;
   }
 
   private consumeOtp(input: {
@@ -1262,7 +1250,7 @@ export class AuthService {
     const rows = await this.pg.query<DbRow>(
       `
         select pu.id::text, pu.organization_id::text, pu.email, pu.password_hash,
-               pu.full_name, pu.status, pu.created_at, pu.updated_at
+               pu.full_name, pu.role, pu.status, pu.created_at, pu.updated_at
         from partner_users pu
         where lower(pu.email) = lower($1)
         limit 1
@@ -1280,7 +1268,7 @@ export class AuthService {
           ? String(rows[0]['full_name'])
           : undefined,
         status: String(rows[0]['status']),
-        role: 'owner',
+        role: String(rows[0]['role'] ?? 'owner'),
         created_at: String(rows[0]['created_at']),
         updated_at: String(rows[0]['updated_at']),
       };
@@ -1302,7 +1290,7 @@ export class AuthService {
           po.status::text as organization_status,
           pu.id::text as user_id,
           pu.status::text as user_status,
-          'owner'::text as partner_role
+          COALESCE(pu.role, 'owner')::text as partner_role
         from partner_organizations po
         left join partner_users pu
           on pu.organization_id = po.id
@@ -1355,7 +1343,7 @@ export class AuthService {
           po.status::text as organization_status,
           pu.id::text as user_id,
           pu.status::text as user_status,
-          'owner'::text as partner_role
+          COALESCE(pu.role, 'owner')::text as partner_role
         from partner_organizations po
         left join partner_users pu
           on pu.organization_id = po.id
@@ -1671,7 +1659,7 @@ export class AuthService {
        LIMIT 1`,
       [provider, providerUserId],
     );
-    if (linked[0]) {
+    if (linked?.[0]) {
       return String(linked[0]['user_id']);
     }
 
@@ -1682,13 +1670,12 @@ export class AuthService {
        LIMIT 1`,
       [email],
     );
-    return userRows[0] ? String(userRows[0]['id']) : null;
+    return userRows?.[0] ? String(userRows[0]['id']) : null;
   }
 
   private async upsertOAuthUser(
     provider: OAuthProvider,
     profile: OAuthProfile,
-    locale: 'uz' | 'ru' | 'en',
   ): Promise<string> {
     const now = new Date().toISOString();
     return this.pg.transaction(async (transaction) => {
@@ -1729,34 +1716,19 @@ export class AuthService {
          LIMIT 1`,
         [profile.email],
       );
-      let userId: string;
-      if (userRows[0]) {
-        if (userRows[0]['status'] !== 'active') {
-          throw new UnauthorizedException({
-            code: 'USER_NOT_ACTIVE',
-            message: 'Foydalanuvchi hisobi faol emas',
-          });
-        }
-        userId = String(userRows[0]['id']);
-      } else {
-        userId = randomUUID();
-        await transaction.query(
-          `INSERT INTO users
-             (id, phone, email, status, preferred_language, bonus_balance,
-              first_name, last_name, email_verified_at, last_login_at,
-              created_at, updated_at)
-           VALUES ($1::uuid, null, $2, 'active', $3::"Language", 0,
-                   $4, $5, $6, $6, $6, $6)`,
-          [
-            userId,
-            profile.email,
-            locale,
-            profile.firstName ?? null,
-            profile.lastName ?? null,
-            now,
-          ],
-        );
+      if (!userRows[0]) {
+        throw new UnauthorizedException({
+          code: 'OAUTH_ACCOUNT_NOT_REGISTERED',
+          message: "Bu Google akkaunt ro'yxatdan o'tmagan",
+        });
       }
+      if (userRows[0]['status'] !== 'active') {
+        throw new UnauthorizedException({
+          code: 'USER_NOT_ACTIVE',
+          message: 'Foydalanuvchi hisobi faol emas',
+        });
+      }
+      const userId = String(userRows[0]['id']);
 
       const providerRows = await transaction.query<DbRow>(
         `SELECT provider_user_id
@@ -1845,6 +1817,25 @@ export class AuthService {
 
   private oauthExchangeKey(code: string): string {
     return `auth:oauth:exchange:${this.opaqueCodeHash(code)}`;
+  }
+
+  private passwordResetKey(token: string): string {
+    return `auth:password-reset:${this.opaqueCodeHash(token)}`;
+  }
+
+  private async consumePasswordResetToken(token: string): Promise<string> {
+    const context = token
+      ? await this.cache.take<PasswordResetContext>(
+          this.passwordResetKey(token),
+        )
+      : undefined;
+    if (!context?.email) {
+      throw new UnauthorizedException({
+        code: 'PASSWORD_RESET_TOKEN_INVALID',
+        message: 'Parol tiklash sessiyasi yaroqsiz yoki muddati tugagan',
+      });
+    }
+    return context.email;
   }
 
   private opaqueCodeHash(value: string): string {

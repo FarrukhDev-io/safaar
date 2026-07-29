@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 
 interface ErrorBody {
@@ -56,7 +57,17 @@ function normalizeError(exception: unknown): {
 
 @Catch()
 export class HttpErrorFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpErrorFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
+    if (!(exception instanceof HttpException)) {
+      // Kutilmagan (nazoratsiz) xatolar — sabab bilinmasa production'da
+      // debug qilib bo'lmaydi, shuning uchun to'liq stack trace logga
+      // yoziladi.
+      this.logger.error(
+        exception instanceof Error ? exception.stack : exception,
+      );
+    }
     const context = host.switchToHttp();
     const response = context.getResponse<{
       status: (code: number) => { json: (body: unknown) => void };

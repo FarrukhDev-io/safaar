@@ -12,12 +12,35 @@ import type { RequestActor } from '../common/actor';
 import { PostgresService } from '../infrastructure/postgres.service';
 import {
   hmacSha256,
-  mockPaymentsEnabled,
   paymentWebhookSecret,
   timingSafeEqualString,
 } from '../auth/security';
 
 type HeaderMap = Record<string, string | string[] | undefined>;
+
+interface BookingVisibilityRow {
+  id: string;
+  user_id: string;
+  partner_organization_id: string;
+  total_amount: string | number;
+  currency: string;
+}
+
+export interface PaymentRow {
+  id: string;
+  booking_id: string;
+  amount: string | number;
+  currency: string;
+  status?: string;
+  provider_reference?: string | null;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
+interface PaymentEventRow {
+  payment_id?: string | null;
+  processed_at?: string;
+}
 
 @Injectable()
 export class PaymentsService {
@@ -25,7 +48,7 @@ export class PaymentsService {
 
   async payment(actor: RequestActor | undefined, bookingId: string) {
     await this.assertBookingVisible(actor, bookingId);
-    const [payment] = await this.pg.query(
+    const [payment] = await this.pg.query<PaymentRow>(
       'SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1',
       [bookingId],
     );
@@ -79,31 +102,23 @@ export class PaymentsService {
     body: Record<string, unknown>,
     headers: HeaderMap = {},
   ) {
-    if (!mockPaymentsEnabled()) {
-      throw new ServiceUnavailableException({
-        code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
-        message: 'Payment provider rasmiy webhook integratsiyasi ulanmagan',
-      });
-    }
-
+    const secret = this.requiredWebhookSecret();
     const eventKey = this.eventKey(provider, event, body);
-    this.verifySignature(provider, event, eventKey, body, headers);
+    this.verifySignature(provider, event, eventKey, body, headers, secret);
 
-    const payloadHash = hmacSha256(
-      this.stableStringify(body),
-      paymentWebhookSecret() ?? 'uzbron-development-payment-secret',
-    );
+    const payloadHash = hmacSha256(this.stableStringify(body), secret);
 
-    const [existingEvent] = await this.pg.query(
+    const [existingEvent] = await this.pg.query<PaymentEventRow>(
       'SELECT * FROM payment_events WHERE event_key = $1',
       [eventKey],
     );
     if (existingEvent) {
       const payment = existingEvent.payment_id
         ? (
-            await this.pg.query('SELECT * FROM payments WHERE id = $1', [
-              existingEvent.payment_id,
-            ])
+            await this.pg.query<PaymentRow>(
+              'SELECT * FROM payments WHERE id = $1',
+              [existingEvent.payment_id],
+            )
           )[0]
         : undefined;
       return {
@@ -119,12 +134,13 @@ export class PaymentsService {
     const bookingId = String(
       body.booking_id ?? body.bookingId ?? body.account ?? '',
     );
-    const [payment] = bookingId
-      ? await this.pg.query(
+    const paymentRows = bookingId
+      ? await this.pg.query<PaymentRow>(
           'SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1',
           [bookingId],
         )
       : [];
+    const [payment] = paymentRows;
 
     if (!payment) {
       throw new NotFoundException({
@@ -181,7 +197,7 @@ export class PaymentsService {
     actor: RequestActor | undefined,
     bookingId: string,
   ) {
-    const [booking] = await this.pg.query(
+    const [booking] = await this.pg.query<BookingVisibilityRow>(
       'SELECT * FROM bookings WHERE id = $1',
       [bookingId],
     );
@@ -219,13 +235,10 @@ export class PaymentsService {
     eventKey: string,
     body: Record<string, unknown>,
     headers: HeaderMap,
+    secret: string,
   ) {
-    const secret =
-      paymentWebhookSecret() ?? 'uzbron-development-payment-secret';
     const signature = this.firstHeader(
-      headers['x-uzbron-mock-signature'] ??
-        headers['x-uzbron-signature'] ??
-        headers['x-signature'],
+      headers['x-uzbron-signature'] ?? headers['x-signature'],
     );
     if (!signature) {
       throw new UnauthorizedException({
@@ -241,6 +254,17 @@ export class PaymentsService {
         message: 'Webhook signature noto\u2018g\u2018ri',
       });
     }
+  }
+
+  private requiredWebhookSecret(): string {
+    const secret = paymentWebhookSecret();
+    if (!secret) {
+      throw new ServiceUnavailableException({
+        code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+        message: 'Payment provider rasmiy webhook integratsiyasi ulanmagan',
+      });
+    }
+    return secret;
   }
 
   private eventKey(

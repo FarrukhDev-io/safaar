@@ -6,6 +6,7 @@ import {
 } from '../common/pagination';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { PostgresService } from '../infrastructure/postgres.service';
+import { parseGeoBounds } from '../common/geo-bounds';
 
 @Injectable()
 export class HotelsService {
@@ -46,6 +47,26 @@ export class HotelsService {
     if (query.min_rating) {
       conditions.push(`h.rating_average >= $${paramIndex++}`);
       params.push(Number(query.min_rating));
+    }
+
+    const bounds = parseGeoBounds(query.bounds);
+    if (bounds) {
+      conditions.push(
+        `h.latitude IS NOT NULL AND h.longitude IS NOT NULL AND h.latitude BETWEEN $${paramIndex++} AND $${paramIndex++}`,
+      );
+      params.push(bounds.south, bounds.north);
+
+      if (bounds.west <= bounds.east) {
+        conditions.push(
+          `h.longitude BETWEEN $${paramIndex++} AND $${paramIndex++}`,
+        );
+        params.push(bounds.west, bounds.east);
+      } else {
+        conditions.push(
+          `(h.longitude >= $${paramIndex++} OR h.longitude <= $${paramIndex++})`,
+        );
+        params.push(bounds.west, bounds.east);
+      }
     }
 
     const rows = await this.pg.query(
@@ -244,7 +265,11 @@ export class HotelsService {
 
   async reviews(id: string) {
     return this.pg.query(
-      `SELECT r.*, u.first_name, u.last_name
+      `SELECT r.id::text, r.user_id::text, r.booking_id::text,
+         r.target_type, r.target_id::text, r.rating::float8,
+         r.cleanliness::float8, r.staff::float8, r.location::float8,
+         r.value_for_money::float8, r.photos, r.body, r.status::text,
+         r.created_at, r.updated_at, u.first_name, u.last_name
        FROM reviews r
        LEFT JOIN users u ON u.id = r.user_id
        WHERE r.target_type = 'hotel' AND r.target_id = $1 AND r.status = 'published'

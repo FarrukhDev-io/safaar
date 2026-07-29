@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Role } from '@safaar/types';
 import { randomUUID } from 'node:crypto';
@@ -38,13 +39,8 @@ export class ExportsService {
       `UPDATE export_jobs
        SET status = $1, download_key = $2, updated_at = $3
        WHERE id = $4
-       RETURNING *`,
-      [
-        'ready',
-        `https://api.uzbron.uz/v1/exports/${id}/mock-download`,
-        now,
-        id,
-      ],
+      RETURNING *`,
+      ['ready', `${this.publicOrigin()}/exports/${id}/download`, now, id],
     );
 
     return job;
@@ -66,12 +62,7 @@ export class ExportsService {
   }
 
   private async assertJob(actor: RequestActor | undefined, id: string) {
-    const currentActor: RequestActor = actor ?? {
-      id: '00000000-0000-0000-0000-000000000000',
-      actorType: 'user',
-      role: Role.USER,
-      roles: [Role.USER],
-    };
+    const currentActor = this.requireActor(actor);
 
     const [job] = await this.pg.query(
       'SELECT * FROM export_jobs WHERE id = $1',
@@ -97,5 +88,22 @@ export class ExportsService {
     }
 
     return job;
+  }
+
+  private requireActor(actor: RequestActor | undefined): RequestActor {
+    if (!actor) {
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+    return actor;
+  }
+
+  private publicOrigin(): string {
+    return (
+      process.env.PUBLIC_API_ORIGIN ??
+      `http://localhost:${process.env.PORT ?? '4000'}`
+    ).replace(/\/$/, '');
   }
 }

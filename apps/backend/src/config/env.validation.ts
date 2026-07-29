@@ -17,9 +17,6 @@ interface EnvironmentConfig {
   OTP_PEPPER?: string;
   PARTNER_API_KEY_PEPPER?: string;
   PAYMENT_WEBHOOK_SECRET?: string;
-  ENABLE_DEMO_AUTH: string;
-  ENABLE_IN_MEMORY_DATA: string;
-  ENABLE_MOCK_PAYMENTS: string;
   DB_CONNECTION_TIMEOUT_MS: number;
   DB_QUERY_TIMEOUT_MS: number;
   DB_QUERY_ATTEMPTS: number;
@@ -54,7 +51,6 @@ export function validateEnv(
 ): EnvironmentConfig {
   const nodeEnv = String(config.NODE_ENV ?? 'development');
   const production = nodeEnv === 'production';
-  const hasDatabaseUrl = Boolean(config.DATABASE_URL);
 
   if (production) {
     for (const key of [
@@ -84,16 +80,6 @@ export function validateEnv(
       const value = String(config[key] ?? '');
       if (value.length < 32 || value.toLowerCase().includes('change_me')) {
         throw new Error(`${key} production uchun kuchli qiymat bo'lishi kerak`);
-      }
-    }
-
-    for (const key of [
-      'ENABLE_DEMO_AUTH',
-      'ENABLE_IN_MEMORY_DATA',
-      'ENABLE_MOCK_PAYMENTS',
-    ]) {
-      if (String(config[key] ?? 'false').toLowerCase() === 'true') {
-        throw new Error(`${key} production muhitida true bo'lishi mumkin emas`);
       }
     }
 
@@ -137,11 +123,6 @@ export function validateEnv(
     PAYMENT_WEBHOOK_SECRET: config.PAYMENT_WEBHOOK_SECRET
       ? String(config.PAYMENT_WEBHOOK_SECRET)
       : undefined,
-    ENABLE_DEMO_AUTH: String(config.ENABLE_DEMO_AUTH ?? !production),
-    ENABLE_IN_MEMORY_DATA: String(
-      config.ENABLE_IN_MEMORY_DATA ?? (!hasDatabaseUrl && !production),
-    ),
-    ENABLE_MOCK_PAYMENTS: String(config.ENABLE_MOCK_PAYMENTS ?? !production),
     DB_CONNECTION_TIMEOUT_MS: toNumber(
       config.DB_CONNECTION_TIMEOUT_MS,
       production ? 8000 : 5000,

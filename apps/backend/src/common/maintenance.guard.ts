@@ -5,7 +5,6 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Role } from '@safaar/types';
-import { demoAuthEnabled } from '../auth/security';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { buildActorFromHeaders, type RequestWithActor } from './actor';
@@ -23,6 +22,10 @@ const alwaysAllowedPrefixes = [
   '/settings/public',
   '/admin',
   '/auth/admin',
+  // Ro'yxatdan o'tish va kirish (OTP, parol, complete-profile, social login)
+  // texnik xizmat rejimida ham ishlashi kerak.
+  '/auth/user',
+  '/auth/oauth',
   '/webhooks',
 ];
 
@@ -35,6 +38,8 @@ const adminRoles = new Set<Role>([
   Role.SUPER_ADMIN,
 ]);
 
+const readOnlyMethods = new Set(['GET', 'HEAD']);
+
 @Injectable()
 export class MaintenanceGuard implements CanActivate {
   constructor(
@@ -43,9 +48,20 @@ export class MaintenanceGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<RequestLike>();
+    if (context.getType() !== 'http') {
+      // Chat kabi WebSocket oqimlari texnik xizmat rejimida ham ishlashi
+      // kerak; ruxsat tekshiruvi ChatGateway/ChatService darajasida
+      // bajariladi, HTTP-ga xos bu guard ularga taalluqli emas.
+      return true;
+    }
 
-    if (request.method === 'OPTIONS') {
+    const request = context.switchToHttp().getRequest<RequestLike>();
+    const method = (request.method ?? 'GET').toUpperCase();
+
+    if (method === 'OPTIONS' || readOnlyMethods.has(method)) {
+      // Texnik xizmat rejimida ham foydalanuvchilar/hamkorlar saytni
+      // faqat ko'rishi (GET/HEAD) mumkin bo'lishi kerak — bloklanadigan
+      // narsa faqat amallar (yozish so'rovlari).
       return true;
     }
 
@@ -89,11 +105,7 @@ export class MaintenanceGuard implements CanActivate {
 }
 
 function isAdminActor(request: RequestLike): boolean {
-  const actor =
-    request.user ??
-    buildActorFromHeaders(request.headers, {
-      allowDemoAuth: demoAuthEnabled(),
-    });
+  const actor = request.user ?? buildActorFromHeaders(request.headers);
 
   return Boolean(actor?.roles?.some((role) => adminRoles.has(role)));
 }

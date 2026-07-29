@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { PostgresService } from './../src/infrastructure/postgres.service';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -10,7 +11,13 @@ describe('AppController (e2e)', () => {
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PostgresService)
+      .useValue({
+        query: jest.fn().mockResolvedValue([]),
+        transaction: jest.fn(),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.listen(0, '127.0.0.1');

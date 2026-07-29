@@ -28,6 +28,19 @@ async function bootstrap() {
   app.use('/uploads', expressStatic(uploadRoot));
   app.use(json({ limit: '1mb' }));
   app.use(urlencoded({ extended: true, limit: '1mb' }));
+  app.use(
+    (
+      _request: unknown,
+      response: { setHeader: (name: string, value: string) => void },
+      next: () => void,
+    ) => {
+      // API javoblari brauzer/oraliq keshda saqlanmasin — masalan, admin
+      // panel sozlamalarini (texnik xizmat rejimi kabi) yangilagandan
+      // keyin eski qiymat keshdan "qaytib qolishi" mumkin edi.
+      response.setHeader('Cache-Control', 'no-store');
+      next();
+    },
+  );
   app.enableCors({
     origin: corsOriginsFromEnv(config.get<string>('CORS_ORIGINS')),
     credentials: true,
@@ -62,10 +75,6 @@ async function bootstrap() {
       .setDescription('UzBron.uz user, partner and admin backend API')
       .setVersion('1.0')
       .addBearerAuth()
-      .addApiKey(
-        { type: 'apiKey', name: 'x-user-role', in: 'header' },
-        'dev-role',
-      )
       .addApiKey(
         { type: 'apiKey', name: 'x-api-key', in: 'header' },
         'partner-api-key',

@@ -26,6 +26,9 @@ import { PromosModule } from './promos/promos.module';
 import { PartnerApiModule } from './partner-api/partner-api.module';
 import { StatsModule } from './stats/stats.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { CurrencyModule } from './currency/currency.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { ChatModule } from './chat/chat.module';
 import { validateEnv } from './config/env.validation';
 import { MaintenanceGuard } from './common/maintenance.guard';
 
@@ -66,8 +69,11 @@ import { MaintenanceGuard } from './common/maintenance.guard';
     PromosModule,
     PartnerApiModule,
     StatsModule,
+    CurrencyModule,
+    AnalyticsModule,
     AdminModule,
     RealtimeModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [

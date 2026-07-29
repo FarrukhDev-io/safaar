@@ -22,7 +22,7 @@ const maxPerHour = 8;
 class OtpStore {
   private readonly challenges = new Map<string, OtpChallenge>();
   private readonly phoneRate = new Map<string, number[]>();
-  private readonly testCodes = new Map<string, string>();
+  private readonly deliveryCodes = new Map<string, string>();
 
   create(phone: string, purpose: OtpPurpose): OtpChallenge {
     this.assertRateLimit(phone);
@@ -39,7 +39,7 @@ class OtpStore {
     };
 
     this.challenges.set(challenge.id, challenge);
-    this.testCodes.set(challenge.id, code);
+    this.deliveryCodes.set(challenge.id, code);
     return challenge;
   }
 
@@ -68,11 +68,11 @@ class OtpStore {
     }
 
     this.challenges.delete(challenge.id);
-    this.testCodes.delete(challenge.id);
+    this.deliveryCodes.delete(challenge.id);
   }
 
-  getDevCode(challengeId: string): string | undefined {
-    return this.testCodes.get(challengeId);
+  getDeliveryCode(challengeId: string): string | undefined {
+    return this.deliveryCodes.get(challengeId);
   }
 
   private findChallenge(input: {

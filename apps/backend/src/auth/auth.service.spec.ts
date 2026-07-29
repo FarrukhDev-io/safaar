@@ -34,7 +34,6 @@ describe('AuthService email and OAuth', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
-    process.env.ENABLE_DEMO_AUTH = 'true';
     process.env.GOOGLE_CLIENT_ID = 'google-client';
     process.env.GOOGLE_CLIENT_SECRET = 'google-secret';
     process.env.GOOGLE_CALLBACK_URL =
@@ -223,5 +222,54 @@ describe('AuthService email and OAuth', () => {
       { userId: '00000000-0000-4000-8000-000000000001' },
       60,
     );
+  });
+
+  it('rejects a Google callback when the email is not registered', async () => {
+    cache.take.mockResolvedValueOnce({
+      provider: 'google',
+      locale: 'uz',
+      next: '',
+    });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: 'provider-token' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            sub: 'google-new-user',
+            email: 'new-user@example.com',
+            email_verified: true,
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    const transaction = {
+      query: jest.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    await expect(
+      service.oauthCallback(
+        'google',
+        { state: 'valid-state', code: 'provider-code' },
+        'valid-state',
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'OAUTH_ACCOUNT_NOT_REGISTERED',
+      },
+    });
+    expect(cache.set).not.toHaveBeenCalled();
   });
 });

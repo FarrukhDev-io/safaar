@@ -155,6 +155,26 @@ export class AppCacheService implements OnModuleDestroy {
     }
   }
 
+  async healthStatus(): Promise<
+    'disabled' | 'memory' | 'ready' | 'unavailable'
+  > {
+    if (!this.enabled) {
+      return 'disabled';
+    }
+
+    if (!this.redis) {
+      return 'memory';
+    }
+
+    try {
+      await this.ensureRedisConnected();
+      await this.redis.ping();
+      return 'ready';
+    } catch {
+      return 'unavailable';
+    }
+  }
+
   async onModuleDestroy() {
     if (!this.redis) {
       return;

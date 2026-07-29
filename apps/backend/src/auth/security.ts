@@ -37,28 +37,12 @@ const minProductionSecretLength = 32;
 const defaultIssuer = 'uzbron-api';
 const defaultAudience = 'uzbron-clients';
 
-export function boolFromEnv(value: unknown, fallback = false): boolean {
-  if (value === undefined || value === null || value === '') {
-    return fallback;
-  }
-
-  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
-}
-
 export function nodeEnv(): string {
   return String(process.env.NODE_ENV ?? 'development');
 }
 
 export function isProduction(): boolean {
   return nodeEnv() === 'production';
-}
-
-export function demoAuthEnabled(): boolean {
-  return boolFromEnv(process.env.ENABLE_DEMO_AUTH, false);
-}
-
-export function mockPaymentsEnabled(): boolean {
-  return boolFromEnv(process.env.ENABLE_MOCK_PAYMENTS, !isProduction());
 }
 
 export function jwtSecurityConfig(): JwtSecurityConfig {

@@ -18,7 +18,7 @@ describe('PartnersService frontend action endpoints', () => {
     role: Role.PARTNER,
     roles: [Role.PARTNER],
     organizationId: '00000000-0000-0000-0000-000000000002',
-    sessionId: 'demo-session-id',
+    sessionId: 'test-session-id',
   };
   const hotelId = '00000000-0000-0000-0000-000000000003';
   const hotelRow = {
@@ -99,12 +99,21 @@ describe('PartnersService frontend action endpoints', () => {
         },
       ])
       .mockResolvedValueOnce([hotelRow])
+      .mockResolvedValueOnce([
+        {
+          id: '00000000-0000-0000-0000-000000000004',
+          base_price: 90000000,
+          capacity: 2,
+        },
+      ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     const roomType = await service.createRoomType(actor, hotelId, {
       name: 'Deluxe',
+      basePrice: 90000000,
+      capacity: 2,
     });
     const bulk = await service.createRoomsBulk(actor, hotelId, {
       roomTypeId: roomType.id,

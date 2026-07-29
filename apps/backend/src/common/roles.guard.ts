@@ -9,7 +9,6 @@ import { Reflector } from '@nestjs/core';
 import { Role } from '@safaar/types';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { authSessionStore } from '../auth/session-store';
-import { demoAuthEnabled } from '../auth/security';
 import { PERMISSIONS_KEY } from './permissions.decorator';
 import { actorHasPermissions } from './permissions';
 import { ROLES_KEY } from './roles.decorator';
@@ -23,8 +22,7 @@ import {
  * Rol asosidagi himoya (RBAC).
  *
  * Rol va permission asosidagi himoya (RBAC).
- * Real JWT access token asosiy manba. Dev header/mock tokenlar faqat
- * ENABLE_DEMO_AUTH=true bo'lganda qabul qilinadi.
+ * Real JWT access token asosiy manba.
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -51,11 +49,7 @@ export class RolesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<RequestWithActor>();
-    const user =
-      request.user ??
-      buildActorFromHeaders(request.headers, {
-        allowDemoAuth: demoAuthEnabled(),
-      });
+    const user = request.user ?? buildActorFromHeaders(request.headers);
 
     if (user) {
       request.user = user;
@@ -89,7 +83,7 @@ export class RolesGuard implements CanActivate {
   }
 
   private async assertSessionActive(actor: RequestActor) {
-    if (!actor.sessionId || actor.sessionId === 'demo-session-id') {
+    if (!actor.sessionId) {
       return;
     }
 
