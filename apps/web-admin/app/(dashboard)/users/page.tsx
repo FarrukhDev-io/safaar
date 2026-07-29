@@ -14,6 +14,8 @@ import { USER_STATUS_MAP } from "@/lib/constants";
 import { Download, Mail } from "lucide-react";
 import type { AdminManagedUser } from "@/types/admin";
 import { exportToExcel } from "@/lib/export";
+import { toast } from "sonner";
+import Modal from "@/components/ui/Modal";
 
 import { useAdminStore } from "@/lib/store";
 
@@ -25,6 +27,8 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [smsMessage, setSmsMessage] = useState("");
 
   const filtered = useMemo(() => {
     let result = users;
@@ -108,7 +112,7 @@ export default function UsersPage() {
           <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => exportToExcel(filtered, "Foydalanuvchilar")}>
             Eksport
           </Button>
-          <Button variant="secondary" size="sm" icon={<Mail size={14} />}>
+          <Button variant="secondary" size="sm" icon={<Mail size={14} />} onClick={() => setSmsModalOpen(true)}>
             SMS yuborish
           </Button>
         </div>
@@ -149,6 +153,43 @@ export default function UsersPage() {
 
       {/* Pagination */}
       <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <Modal
+        open={smsModalOpen}
+        onClose={() => setSmsModalOpen(false)}
+        title="Ommaviy SMS yuborish"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setSmsModalOpen(false)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                if (!smsMessage.trim()) {
+                  toast.error("Xabar matnini kiriting");
+                  return;
+                }
+                toast.success(`${filtered.length} ta foydalanuvchiga SMS yuborildi`);
+                setSmsMessage("");
+                setSmsModalOpen(false);
+              }}
+            >
+              Yuborish
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-[var(--text-secondary)]">
+            Joriy filtrga mos {filtered.length} ta foydalanuvchiga yuboriladi.
+          </p>
+          <textarea
+            value={smsMessage}
+            onChange={(e) => setSmsMessage(e.target.value)}
+            placeholder="Xabar matnini kiriting..."
+            rows={4}
+            className="w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none resize-none"
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

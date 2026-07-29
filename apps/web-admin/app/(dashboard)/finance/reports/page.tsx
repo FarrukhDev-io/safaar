@@ -8,6 +8,7 @@ import type { Column } from "@/components/ui/DataTable";
 import { formatDate, formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import { Download } from "lucide-react";
+import { exportToExcel } from "@/lib/export";
 
 export default function FinanceReportsPage() {
   const [data, setData] = useState<FinanceReport[]>([]);
@@ -30,9 +31,16 @@ export default function FinanceReportsPage() {
     {
       key: "actions",
       label: "",
-      render: () => (
+      render: (row) => (
         <div className="flex justify-end">
-          <Button variant="secondary" size="sm" icon={<Download size={14} />}>Yuklash</Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download size={14} />}
+            onClick={() => exportToExcel([row], row.title)}
+          >
+            Yuklash
+          </Button>
         </div>
       ),
     },

@@ -167,7 +167,13 @@ export default function TopBar() {
                 <p className="text-xs text-[var(--text-muted)]">{displayEmail}</p>
               </div>
               <div className="py-1">
-                <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer">
+                <button
+                  onClick={() => {
+                    setShowProfile(false);
+                    router.push("/settings");
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
+                >
                   <User size={16} />
                   Profil sozlamalari
                 </button>

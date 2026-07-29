@@ -1,11 +1,13 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
+import Modal from "@/components/ui/Modal";
+import Input from "@/components/ui/Input";
 import { formatDate, formatPrice, formatDateTime } from "@/lib/utils";
 import { USER_STATUS_MAP, BOOKING_STATUS_MAP } from "@/lib/constants";
 import {
@@ -24,8 +26,14 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const users = useAdminStore((s) => s.users);
   const updateUserStatus = useAdminStore((s) => s.updateUserStatus);
   const setUsers = useAdminStore((s) => s.setUsers);
+  const addUserBonus = useAdminStore((s) => s.addUserBonus);
   const hotelBookings = useAdminStore((s) => s.hotelBookings);
-  
+
+  const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [smsMessage, setSmsMessage] = useState("");
+  const [bonusModalOpen, setBonusModalOpen] = useState(false);
+  const [bonusAmount, setBonusAmount] = useState("");
+
   const user = users.find((u) => u.id === id);
 
   if (!user) {
@@ -99,13 +107,15 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                 Faollashtirish
               </Button>
             )}
-            <Button variant="secondary" size="sm" icon={<MessageSquare size={14} />}>
+            <Button variant="secondary" size="sm" icon={<MessageSquare size={14} />} onClick={() => setSmsModalOpen(true)}>
               SMS
             </Button>
-            <Button variant="secondary" size="sm" icon={<Mail size={14} />}>
-              Email
-            </Button>
-            <Button variant="secondary" size="sm" icon={<Gift size={14} />}>
+            <a href={`mailto:${user.email}`}>
+              <Button variant="secondary" size="sm" icon={<Mail size={14} />}>
+                Email
+              </Button>
+            </a>
+            <Button variant="secondary" size="sm" icon={<Gift size={14} />} onClick={() => setBonusModalOpen(true)}>
               Bonus berish
             </Button>
             <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={handleDelete}>
@@ -202,6 +212,72 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           },
         ]}
       />
+
+      <Modal
+        open={smsModalOpen}
+        onClose={() => setSmsModalOpen(false)}
+        title={`SMS yuborish — ${user.fullName}`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setSmsModalOpen(false)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                if (!smsMessage.trim()) {
+                  toast.error("Xabar matnini kiriting");
+                  return;
+                }
+                toast.success(`SMS yuborildi: ${user.phone}`);
+                setSmsMessage("");
+                setSmsModalOpen(false);
+              }}
+            >
+              Yuborish
+            </Button>
+          </>
+        }
+      >
+        <textarea
+          value={smsMessage}
+          onChange={(e) => setSmsMessage(e.target.value)}
+          placeholder="Xabar matnini kiriting..."
+          rows={4}
+          className="w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none resize-none"
+        />
+      </Modal>
+
+      <Modal
+        open={bonusModalOpen}
+        onClose={() => setBonusModalOpen(false)}
+        title={`Bonus berish — ${user.fullName}`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setBonusModalOpen(false)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                const amount = parseInt(bonusAmount, 10);
+                if (!amount || amount <= 0) {
+                  toast.error("To'g'ri summa kiriting");
+                  return;
+                }
+                addUserBonus(id, amount);
+                toast.success(`${formatPrice(amount)} bonus qo'shildi`);
+                setBonusAmount("");
+                setBonusModalOpen(false);
+              }}
+            >
+              Berish
+            </Button>
+          </>
+        }
+      >
+        <Input
+          type="number"
+          label="Bonus summasi (so'm)"
+          placeholder="50000"
+          value={bonusAmount}
+          onChange={(e) => setBonusAmount(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 }

@@ -5,12 +5,16 @@ import { History, Search } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 import Badge from "@/components/ui/Badge";
 import Pagination from "@/components/ui/Pagination";
+import { formatDateTime } from "@/lib/utils";
 
+// Qattiq yozilgan (statik) sanalar — `new Date()`/`Date.now()` ishlatilmaydi,
+// chunki server va klient bu kodni turli lahzalarda bajaradi va natijada
+// bir xil bo'lmagan vaqt qiymatlari React hydration mismatchiga olib kelardi.
 const mockLogs = [
-  { id: "1", user: "Super Admin", action: "Partnerni tasdiqlash", target: "Hilton Hotel", date: new Date().toISOString(), ip: "192.168.1.100" },
-  { id: "2", user: "Moderator Ali", action: "Foydalanuvchini bloklash", target: "User #12345", date: new Date(Date.now() - 3600000).toISOString(), ip: "10.0.0.15" },
-  { id: "3", user: "Moliya Admini", action: "Komissiya o'zgartirildi", target: "Global Sozlamalar", date: new Date(Date.now() - 7200000).toISOString(), ip: "192.168.1.102" },
-  { id: "4", user: "Super Admin", action: "Tizimga kirish", target: "Auth", date: new Date(Date.now() - 86400000).toISOString(), ip: "192.168.1.100" },
+  { id: "1", user: "Super Admin", action: "Partnerni tasdiqlash", target: "Hilton Hotel", date: "2026-07-29T10:00:00.000Z", ip: "192.168.1.100" },
+  { id: "2", user: "Moderator Ali", action: "Foydalanuvchini bloklash", target: "User #12345", date: "2026-07-29T09:00:00.000Z", ip: "10.0.0.15" },
+  { id: "3", user: "Moliya Admini", action: "Komissiya o'zgartirildi", target: "Global Sozlamalar", date: "2026-07-29T08:00:00.000Z", ip: "192.168.1.102" },
+  { id: "4", user: "Super Admin", action: "Tizimga kirish", target: "Auth", date: "2026-07-28T10:00:00.000Z", ip: "192.168.1.100" },
 ];
 
 type AuditLog = (typeof mockLogs)[number];
@@ -19,12 +23,18 @@ export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
 
+  const filteredLogs = mockLogs.filter((log) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [log.user, log.action, log.target].join(" ").toLowerCase().includes(q);
+  });
+
   const columns = [
     { key: "user", label: "Foydalanuvchi" },
     { key: "action", label: "Harakat" },
     { key: "target", label: "Obyekt" },
     { key: "ip", label: "IP Manzil", render: (row: AuditLog) => <span className="font-mono text-xs">{row.ip}</span> },
-    { key: "date", label: "Sana", render: (row: AuditLog) => new Date(row.date).toLocaleString("uz-UZ") },
+    { key: "date", label: "Sana", render: (row: AuditLog) => formatDateTime(row.date) },
   ];
 
   return (
@@ -60,8 +70,9 @@ export default function AuditLogsPage() {
         <div className="flex-1 overflow-auto">
           <DataTable
             columns={columns}
-            data={mockLogs}
+            data={filteredLogs}
             keyField="id"
+            emptyMessage="Qidiruv bo'yicha hech narsa topilmadi"
           />
         </div>
 
