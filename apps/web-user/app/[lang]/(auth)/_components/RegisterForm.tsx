@@ -136,7 +136,7 @@ export function RegisterForm({
                 />
               </label>
               <Button
-                type="button"
+                type="submit"
                 variant="secondary"
                 size="md"
                 loading={sending}
