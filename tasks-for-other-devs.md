@@ -1,159 +1,59 @@
 # Safaar Backend Dev — Topshiriqlar va Texnik Talablar (Tasks for Other Devs)
 
-Bu faylda frontend (`web-user`) ishlab chiqish davomida backend uchun aniqlangan talablar va kelgusi integratsiyalar ro'yxatga olingan.
+Bu faylda frontend (`web-user`) ishlab chiqish davomida backend uchun aniqlangan talablar, integratsiyalar va ularning bajarilish holatlari ro'yxatga olingan.
 
 ---
 
-## 1. Geo-Location & Geo-Bounds API (Xarita va Koordinatalar Integratsiyasi)
+## 1. Geo-Location & Geo-Bounds API (Xarita va Koordinatalar Integratsiyasi) — Bajarilgan ✅
 
 ### 🎯 Maqsad
 `/hotels`, `/restaurants` va `/attractions` kataloglarida foydalanuvchilar ob'ektlarni interaktiv xaritada ko'rishlari hamda xaritani siljitganda (pan/zoom) joriy ekranga mos ob'ektlarni geo-bound filtrlar orqali olish.
 
-### 📋 Backend Talablari:
-
-1. **Database Schema Update (Prisma / PostgreSQL):**
-   `Hotel`, `Restaurant`, `Attraction` modellariga quyidagi maydonlarni qo'shish:
-   - `latitude`: `Float` (masalan: `41.2995`)
-   - `longitude`: `Float` (masalan: `69.2401`)
-   - (Ixtiyoriy/Tavsiya): PostgreSQL PostGIS kengaytmasi yordamida `GEOMETRY(Point, 4326)` spatial indeksi.
-
-2. **Geo-Bounding Box Search Filter:**
-   Quyidagi API endpointlariga `bounds` query parametrini qo'shish:
-   - `GET /v1/hotels?bounds=sw_lat,sw_lng,ne_lat,ne_lng`
-   - `GET /v1/restaurants?bounds=sw_lat,sw_lng,ne_lat,ne_lng`
-   - `GET /v1/attractions?bounds=sw_lat,sw_lng,ne_lat,ne_lng`
-
-   **SQL Query Filtering Logic:**
-   ```sql
-   SELECT * FROM hotels
-   WHERE latitude BETWEEN $1::numeric AND $3::numeric
-     AND longitude BETWEEN $2::numeric AND $4::numeric;
-   ```
-
-3. **Response DTO Contracts:**
-   Barcha katalog response ob'ektlariga `latitude` hamda `longitude` maydonlarini qo'shish:
-   ```json
-   {
-     "id": "hotel-uuid",
-     "name": "Hyatt Regency Tashkent",
-     "latitude": 41.3145,
-     "longitude": 69.2798,
-     "minPriceSum": 1800000
-   }
-   ```
+### 📋 Tasdiqlovchi Backend Kodlari va Joylashuvi:
+- **Geo-Bounds parsing helper:** [apps/backend/src/common/geo-bounds.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/common/geo-bounds.ts)
+- **Hotels query parameters & geo-filtering:** [apps/backend/src/hotels/hotels.service.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/hotels/hotels.service.ts) (bounds query handler va SQL shartlari yozilgan)
+- **Catalog items (Restaurants & Attractions) geo-bounds filtering:** [apps/backend/src/catalog/catalog.service.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/catalog/catalog.service.ts) (`boundsConditions` funksiyasi va SQL generatori)
 
 ---
 
-## 2. Multi-Currency System & Dynamic Exchange Rates API (Markaziy Bank Integratsiyasi)
+## 2. Multi-Currency System & Dynamic Exchange Rates API (Markaziy Bank Integratsiyasi) — Bajarilgan ✅
 
 ### 🎯 Maqsad
 Xalqaro turistlar uchun O'zbekiston Markaziy Banki (cbu.uz API) real vaqt rejimidagi valyuta kurslari bo'yicha `USD`, `EUR`, `RUB` narxlarini avtomatik dinamik konvertatsiya qilish.
 
-### 📋 Backend Talablari:
-
-1. **Exchange Rates Endpoint:**
-   - `GET /v1/currency/rates`
-   - Public endpoint (avtorizatsiyasiz ochiq).
-
-2. **CBU.uz Integration & Cron Caching:**
-   - Har kuni soat 09:00 da `https://cbu.uz/uz/arkhiv-kursov-valyut/json/` rasmiy API'sidan `USD`, `EUR`, `RUB` kurslarini olish.
-   - Olingan valyuta kurslarini Redis yoki PostgreSQL `currency_rates` jadvalida keshlab borish.
-
-3. **Response DTO Format:**
-   ```json
-   {
-     "base": "UZS",
-     "updatedAt": "2026-07-25T09:00:00.000Z",
-     "rates": {
-       "UZS": 1,
-       "USD": 12650,
-       "EUR": 13800,
-       "RUB": 140
-     }
-   }
-   ```
+### 📋 Tasdiqlovchi Backend Kodlari va Joylashuvi:
+- **Exchange Rates Controller:** [apps/backend/src/currency/currency.controller.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/currency/currency.controller.ts) (`GET /currency/rates` endpoint)
+- **Currency Exchange Service:** [apps/backend/src/currency/currency.service.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/currency/currency.service.ts) (CBU integratsiyasi va kesh/cron logikasi)
 
 ---
 
-## 3. Real-time Live Support Chat WebSockets Gateway (`/ws/chat`)
+## 3. Real-time Live Support Chat WebSockets Gateway (`/ws/chat`) — Bajarilgan ✅
 
 ### 🎯 Maqsad
 Foydalanuvchilar (`web-user`) va Qo'llab-quvvatlash operatorlari (`web-admin` / `web-partner`) o'rtasida real vaqt rejimidagi (Real-time WebSockets) muloqotni hamda chat tarixini DB da saqlashni yo'lga qo'yish.
 
-### 📋 Backend Talablari:
-
-1. **NestJS WebSockets Gateway (`@nestjs/websockets` / Socket.io / WsAdapter):**
-   - Gateway Namespace: `/ws/chat`
-   - WebSocket Auth Handshake: `Authorization: Bearer <token>` or query parameter `token`.
-
-2. **Events Contract:**
-   - `client:join_room` -> `{ roomId: string }`
-   - `client:send_message` -> `{ roomId: string, text: string }`
-   - `server:receive_message` -> `{ id: string, senderId: string, senderType: 'user' | 'operator', text: string, createdAt: string }`
-   - `server:typing_status` -> `{ roomId: string, isTyping: boolean }`
-
-3. **Database Schema Update (Prisma / PostgreSQL):**
-   - `ChatRoom`: `id`, `userId`, `status` (`OPEN` | `RESOLVED`), `createdAt`
-   - `ChatMessage`: `id`, `roomId`, `senderId`, `senderType`, `text`, `readAt`, `createdAt`
+### 📋 Tasdiqlovchi Backend Kodlari va Joylashuvi:
+- **WebSocket Chat Gateway:** [apps/backend/src/chat/chat.gateway.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/chat/chat.gateway.ts) (`ChatGateway` Socket.io va xonalar boshqaruvi)
+- **WebSocket Chat Services:** [apps/backend/src/chat/chat.service.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/chat/chat.service.ts)
 
 ---
 
-## 4. Photo Reviews, 4 Rating Criteria & S3 File Upload API
+## 4. Photo Reviews, 4 Rating Criteria & S3 File Upload API — Bajarilgan ✅
 
 ### 🎯 Maqsad
 Foydalanuvchilar tomonidan mehmonxonalar uchun 4 ta mezon bo'yicha baholash (`Cleanliness`, `Staff`, `Location`, `ValueForMoney`), rasmlar yuklash (Multipart File Upload) va verified booking tekshiruvidan o'tgan holda sharh qoldirish.
 
-### 📋 Backend Talablari:
-
-1. **Photo Upload Endpoint (`POST /v1/reviews/photos`):**
-   - Accept: `multipart/form-data` (max 5 photos per request, max 10MB per file).
-   - Storage: AWS S3 / MinIO / Cloudinary.
-   - Response: `{ "urls": ["https://s3.safaar.uz/reviews/photo-1.jpg"] }`
-
-2. **Create Review Endpoint (`POST /v1/reviews`):**
-   - Body DTO:
-     ```json
-     {
-       "targetId": "hotel-uuid",
-       "targetType": "hotel",
-       "rating": 4.9,
-       "cleanliness": 5,
-       "staff": 5,
-       "location": 5,
-       "valueForMoney": 4.5,
-       "body": "Juda ham ajoyib mehmonxona...",
-       "photos": ["https://s3.safaar.uz/reviews/photo-1.jpg"]
-     }
-     ```
-
-3. **Verified Guest Booking Check Guard:**
-   - Sharh qoldirishdan oldin foydalanuvchi ushbu mehmonxonada kamida 1 marta tasdiqlangan (`CONFIRMED` / `CHECKED_OUT`) bron holatiga ega ekanligini bazadan tekshirish.
+### 📋 Tasdiqlovchi Backend Kodlari va Joylashuvi:
+- **Reviews REST API Controller:** [apps/backend/src/reviews/reviews.controller.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/reviews/reviews.controller.ts) (`POST /reviews` va verified check logikasi)
+- **Reviews Operations Service:** [apps/backend/src/reviews/reviews.service.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/reviews/reviews.service.ts)
 
 ---
 
-## 5. Business Intelligence & Analytics Event Ingestion API (`POST /v1/analytics/events`)
+## 5. Business Intelligence & Analytics Event Ingestion API (`POST /v1/analytics/events`) — Bajarilgan ✅
 
 ### 🎯 Maqsad
 Platformaning umumiy bron qilish konversiyasini (Conversion Rate), eng ommabop qidiruv yo'nalishlarini (Popular Destinations) va to'lov tizimlari ulushini (Payment Method Shares) tahlil qilish uchun Custom Analytics Ingestion logikasini qurish.
 
-### 📋 Backend Talablari:
-
-1. **Event Ingestion Endpoint:**
-   - `POST /v1/analytics/events`
-   - Public / Session-aware endpoint (foydalanuvchi sessiyasi bo'lsa `userId` ni bog'lash).
-   - Body DTO:
-     ```json
-     {
-       "eventName": "booking_completed",
-       "params": {
-         "bookingId": "bk-12345",
-         "totalSum": 2500000,
-         "paymentMethod": "payme"
-       },
-       "timestamp": "2026-07-25T15:15:00.000Z"
-     }
-     ```
-
-2. **Analytics Dashboard API (`GET /v1/admin/analytics/dashboard`):**
-   - Super Admin dashboardi uchun Conversion Funnel statistikalarini qaytarish:
-     - `search_performed` -> `hotel_viewed` -> `booking_started` -> `booking_completed`
+### 📋 Tasdiqlovchi Backend Kodlari va Joylashuvi:
+- **Analytics Events Controller:** [apps/backend/src/analytics/analytics.controller.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/analytics/analytics.controller.ts) (`POST /analytics/events` ingestion API)
+- **Analytics Ingestion Service:** [apps/backend/src/analytics/analytics.service.ts](file:///home/farrukh/Frontend/safaar/apps/backend/src/analytics/analytics.service.ts)
