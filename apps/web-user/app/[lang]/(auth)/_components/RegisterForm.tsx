@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useMemo } from "react";
+import { useActionState, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -47,6 +47,19 @@ export function RegisterForm({
   const [email, setEmail] = useState(emailFromQuery || "");
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
+
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  }, []);
+
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  }, []);
+
+  const toggleShowPassword = useCallback(() => {
+    setShowPassword((v) => !v);
+  }, []);
+
   const strength = useMemo(() => passwordStrength(password), [password]);
 
   const [otpState, requestAction, sending] = useActionState<OtpState, FormData>(
@@ -68,15 +81,15 @@ export function RegisterForm({
 
   const errorMsg = otpState.error || verifyState.error || profileState.error;
 
-  const passwordErrorMap: Record<string, string> = {
+  const passwordErrorMap = useMemo((): Record<string, string> => ({
     PASSWORD_TOO_SHORT: dict.passwordTooShort,
     PASSWORD_NO_UPPERCASE: dict.passwordNoUppercase,
     PASSWORD_NO_LOWERCASE: dict.passwordNoLowercase,
     PASSWORD_NO_NUMBER: dict.passwordNoNumber,
     PASSWORD_NO_SPECIAL: dict.passwordNoSpecial,
-  };
+  }), [dict]);
 
-  const getErrorMessage = (err: string) => {
+  const getErrorMessage = useCallback((err: string) => {
     if (passwordErrorMap[err]) return passwordErrorMap[err];
     switch (err) {
       case "EMAIL_REQUIRED":
@@ -92,7 +105,7 @@ export function RegisterForm({
       default:
         return dict.error;
     }
-  };
+  }, [dict, passwordErrorMap]);
 
   return (
     <AuthSplitLayout locale={locale} dict={dict}>
@@ -118,7 +131,7 @@ export function RegisterForm({
                   autoComplete="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   placeholder={dict.emailPlaceholder}
                 />
               </label>
@@ -191,12 +204,12 @@ export function RegisterForm({
                   autoComplete="new-password"
                   placeholder={dict.passwordPlaceholder}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   className="pr-10"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
+                  onClick={toggleShowPassword}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
                   aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"}
                 >

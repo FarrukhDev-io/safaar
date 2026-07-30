@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useActionState, useState } from "react";
+import { useEffect, useActionState, useState, useCallback } from "react";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { AuthDict } from "@/i18n/dictionaries";
@@ -62,6 +62,10 @@ export function LoginForm({
   dict: AuthDict;
 }) {
   const [email, setEmail] = useState("");
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  }, []);
+
   const [otpState, requestAction, sending] = useActionState<OtpState, FormData>(
     requestOtpAction,
     { ok: false },
@@ -95,7 +99,7 @@ export function LoginForm({
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
               placeholder={dict.emailPlaceholder}
             />
           </label>
