@@ -170,24 +170,24 @@ export function LoginForm({
       {/* Social login */}
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-300" />
+          <div className="w-full border-t border-slate-200" />
         </div>
         <div className="relative flex justify-center text-xs uppercase font-extrabold tracking-wider">
-          <span className="bg-slate-50 px-2.5 text-slate-700">{dict.or}</span>
+          <span className="bg-white px-2.5 text-slate-500">{dict.or}</span>
         </div>
       </div>
 
       <div className="flex flex-col gap-3">
         <a
           href={`${API_URL}/auth/google?redirect=${encodeURIComponent(`/${locale}/auth/social-callback?next=${next}`)}`}
-          className="flex items-center justify-center gap-3 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98]"
+          className="flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-350 hover:bg-slate-100/50 active:scale-[0.98]"
         >
           <GoogleIcon />
           {dict.googleLogin}
         </a>
         <a
           href={`${API_URL}/auth/facebook?redirect=${encodeURIComponent(`/${locale}/auth/social-callback?next=${next}`)}`}
-          className="flex items-center justify-center gap-3 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98]"
+          className="flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-350 hover:bg-slate-100/50 active:scale-[0.98]"
         >
           <FacebookIcon />
           {dict.facebookLogin}

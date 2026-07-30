@@ -37,14 +37,14 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
       </div>
 
       {/* Right panel: Auth form */}
-      <div className="flex flex-1 flex-col justify-center items-center px-4 py-12 lg:w-1/2 lg:px-12 relative pt-24 lg:pt-12">
+      <div className="flex flex-1 flex-col justify-center items-center px-4 py-12 lg:w-1/2 lg:px-12 relative pt-24 lg:pt-12 bg-slate-50">
         {/* Actions header (Back button + Locale switcher) */}
         <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-20">
           <BackButton />
           <LocaleSwitcher current={locale} light />
         </div>
         
-        <div className="w-full max-w-md space-y-6 bg-slate-50 dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="w-full max-w-md space-y-6 bg-white p-8 rounded-2xl shadow-sm border border-slate-200/80">
           {children}
         </div>
       </div>
