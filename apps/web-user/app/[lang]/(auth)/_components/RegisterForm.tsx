@@ -42,9 +42,8 @@ export function RegisterForm({
   dict: AuthDict;
 }) {
   const searchParams = useSearchParams();
-  const phoneFromQuery = searchParams.get("phone") || "";
-  const [phone, setPhone] = useState(phoneFromQuery || "+998");
-  const [email, setEmail] = useState("");
+  const emailFromQuery = searchParams.get("email") || "";
+  const [email, setEmail] = useState(emailFromQuery || "");
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const strength = useMemo(() => passwordStrength(password), [password]);
@@ -83,18 +82,18 @@ export function RegisterForm({
       </header>
 
       <form action={action} className="flex flex-col gap-4">
-        {/* Telefon + Send code */}
+        {/* Email + Send code */}
         <div className="flex items-end gap-2">
           <label className="flex flex-1 flex-col gap-1.5">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.phone}</span>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
             <Input
-              name="phone"
-              type="tel"
-              autoComplete="tel"
+              name="email"
+              type="email"
+              autoComplete="email"
               required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder={dict.phonePlaceholder}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={dict.emailPlaceholder}
             />
           </label>
           <Button
@@ -111,7 +110,7 @@ export function RegisterForm({
         </div>
 
         {otpState.error && (
-          <p className="-mt-2 text-sm font-bold text-red-600">{otpState.error === "PHONE_REQUIRED" ? dict.phoneRequired : dict.error}</p>
+          <p className="-mt-2 text-sm font-bold text-red-600">{otpState.error === "EMAIL_REQUIRED" ? dict.emailRequired : dict.error}</p>
         )}
 
         {otpState.devCode && (
@@ -152,18 +151,6 @@ export function RegisterForm({
           <Input
             name="lastName"
             placeholder={dict.lastNamePlaceholder}
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
-          <Input
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder={dict.emailPlaceholder}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
           />
         </label>
 
