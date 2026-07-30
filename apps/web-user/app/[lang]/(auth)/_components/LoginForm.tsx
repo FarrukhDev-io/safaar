@@ -101,10 +101,14 @@ export function LoginForm({
           </label>
           {otpState.error && (
             <p className="text-sm font-bold text-red-600">
-              {otpState.error === "EMAIL_REQUIRED" ? dict.emailRequired : dict.error}
+              {otpState.error === "EMAIL_REQUIRED"
+                ? dict.emailRequired
+                : otpState.error === "EMAIL_INVALID"
+                  ? dict.emailInvalid
+                  : dict.error}
             </p>
           )}
-          <Button type="submit" size="lg" loading={sending} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+          <Button type="submit" size="lg" loading={sending}>
             {dict.sendCode}
           </Button>
 
@@ -148,10 +152,16 @@ export function LoginForm({
           </label>
 
           {verifyState.error && (
-            <p className="text-sm font-bold text-red-600">{dict.error}</p>
+            <p className="text-sm font-bold text-red-600">
+              {verifyState.error === "OTP_INVALID"
+                ? dict.otpInvalid
+                : verifyState.error === "OTP_EXPIRED"
+                  ? dict.otpExpired
+                  : dict.error}
+            </p>
           )}
 
-          <Button type="submit" size="lg" loading={verifying} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+          <Button type="submit" size="lg" loading={verifying}>
             {dict.verify}
           </Button>
         </form>

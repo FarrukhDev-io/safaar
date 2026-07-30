@@ -3,6 +3,7 @@
 import { useActionState, useState, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { AuthDict } from "@/i18n/dictionaries";
 import {
@@ -61,7 +62,8 @@ export function RegisterForm({
     FormData
   >(completeProfileAction, {});
 
-  const action = verifyState.needsProfile ? profileAction : verifyAction;
+  const isStep2 = verifyState.needsProfile;
+  const action = isStep2 ? profileAction : verifyAction;
   const loading = sending || verifying || saving;
 
   const errorMsg = otpState.error || verifyState.error || profileState.error;
@@ -74,154 +76,173 @@ export function RegisterForm({
     PASSWORD_NO_SPECIAL: dict.passwordNoSpecial,
   };
 
+  const getErrorMessage = (err: string) => {
+    if (passwordErrorMap[err]) return passwordErrorMap[err];
+    switch (err) {
+      case "EMAIL_REQUIRED":
+        return dict.emailRequired;
+      case "EMAIL_INVALID":
+        return dict.emailInvalid;
+      case "FIRST_NAME_REQUIRED":
+        return dict.firstNameRequired;
+      case "OTP_INVALID":
+        return dict.otpInvalid;
+      case "OTP_EXPIRED":
+        return dict.otpExpired;
+      default:
+        return dict.error;
+    }
+  };
+
   return (
     <AuthSplitLayout locale={locale} dict={dict}>
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-black tracking-tight text-slate-900">{dict.registerTitle}</h1>
-        <p className="text-sm font-bold text-slate-700">{dict.registerSubtitle}</p>
+        <h1 className="text-2xl font-black tracking-tight text-slate-900">
+          {isStep2 ? dict.completeProfileTitle : dict.registerTitle}
+        </h1>
+        <p className="text-sm font-bold text-slate-700">
+          {isStep2 ? dict.completeProfileSubtitle : dict.registerSubtitle}
+        </p>
       </header>
 
       <form action={action} className="flex flex-col gap-4">
-        {/* Email + Send code */}
-        <div className="flex items-end gap-2">
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
-            <Input
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={dict.emailPlaceholder}
-            />
-          </label>
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            loading={sending}
-            disabled={otpState.ok && !otpState.error}
-            formAction={requestAction}
-            className="rounded-xl border border-slate-300 bg-slate-100 font-bold text-slate-900 shadow-2xs hover:bg-slate-200 hover:border-slate-400"
-          >
-            {otpState.ok ? dict.codeSent : dict.sendCode}
-          </Button>
-        </div>
-
-        {otpState.error && (
-          <p className="-mt-2 text-sm font-bold text-red-600">{otpState.error === "EMAIL_REQUIRED" ? dict.emailRequired : dict.error}</p>
-        )}
-
-        {otpState.devCode && (
-          <p className="rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-900">
-            {dict.devCode}: <strong>{otpState.devCode}</strong>
-          </p>
-        )}
-
-        {/* OTP input */}
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.code}</span>
-          <Input
-            name="code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            required
-            maxLength={6}
-            placeholder="••••••"
-          />
-        </label>
-
-        <hr className="border-slate-300" />
-
-        {/* Profile fields */}
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
-            {dict.firstName} <span className="text-red-500">*</span>
-          </span>
-          <Input
-            name="firstName"
-            required
-            placeholder={dict.firstNamePlaceholder}
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.lastName}</span>
-          <Input
-            name="lastName"
-            placeholder={dict.lastNamePlaceholder}
-          />
-        </label>
-
-        {/* Password */}
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.password}</span>
-          <div className="relative">
-            <Input
-              name="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="new-password"
-              placeholder={dict.passwordPlaceholder}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500 hover:text-slate-700 font-bold"
-              aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"}
-            >
-              {showPassword ? "🙈" : "👁"}
-            </button>
-          </div>
-        </label>
-
-        {password && (
-          <div className="flex flex-col gap-1">
-            <div className="flex gap-1">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className={`h-1.5 flex-1 rounded-full transition-colors ${
-                    i <= strength.level ? strength.color : "bg-slate-200"
-                  }`}
+        {!isStep2 ? (
+          <>
+            {/* Step 1: Email Entry & Code Request */}
+            <div className="flex items-end gap-2">
+              <label className="flex flex-1 flex-col gap-1.5">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
+                <Input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={dict.emailPlaceholder}
                 />
-              ))}
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                loading={sending}
+                disabled={otpState.ok && !otpState.error}
+                formAction={requestAction}
+              >
+                {otpState.ok ? dict.codeSent : dict.sendCode}
+              </Button>
             </div>
-            <p className="text-xs font-bold text-slate-700">{strength.label}</p>
-          </div>
+
+            {otpState.devCode && (
+              <p className="rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-900">
+                {dict.devCode}: <strong>{otpState.devCode}</strong>
+              </p>
+            )}
+
+            {/* OTP input appears when code is sent */}
+            {otpState.ok && (
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.code}</span>
+                <Input
+                  name="code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  required
+                  maxLength={6}
+                  placeholder="••••••"
+                />
+              </label>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Step 2: Complete Profile Fields */}
+            <input type="hidden" name="email" value={email} />
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="next" value={next} />
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                {dict.firstName} <span className="text-red-500">*</span>
+              </span>
+              <Input
+                name="firstName"
+                required
+                placeholder={dict.firstNamePlaceholder}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.lastName}</span>
+              <Input
+                name="lastName"
+                placeholder={dict.lastNamePlaceholder}
+              />
+            </label>
+
+            {/* Password */}
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.password}</span>
+              <div className="relative">
+                <Input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  placeholder={dict.passwordPlaceholder}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                  aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+            </label>
+
+            {password && (
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-1">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className={`h-1.5 flex-1 rounded-full transition-colors ${
+                        i <= strength.level ? strength.color : "bg-slate-200"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs font-bold text-slate-700">{strength.label}</p>
+              </div>
+            )}
+
+            {/* Password requirements checklist */}
+            <div className="rounded-xl border border-slate-300 bg-slate-50 p-3.5 text-xs text-slate-700">
+              <p className="mb-1 font-extrabold uppercase tracking-wider text-slate-800">{dict.passwordRequirements}</p>
+              <ul className="list-inside list-disc space-y-0.5 font-bold">
+                <li className={password.length >= 8 ? "text-green-700 font-extrabold" : ""}>{dict.passwordMinChars}</li>
+                <li className={/[A-Z]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordUppercase}</li>
+                <li className={/[a-z]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordLowercase}</li>
+                <li className={/[0-9]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordNumber}</li>
+                <li className={/[^A-Za-z0-9]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordSpecial}</li>
+              </ul>
+            </div>
+          </>
         )}
-
-        {/* Password requirements checklist */}
-        <div className="rounded-xl border border-slate-300 bg-slate-50 p-3.5 text-xs text-slate-700">
-          <p className="mb-1 font-extrabold uppercase tracking-wider text-slate-800">{dict.passwordRequirements}</p>
-          <ul className="list-inside list-disc space-y-0.5 font-bold">
-            <li className={password.length >= 8 ? "text-green-700 font-extrabold" : ""}>{dict.passwordMinChars}</li>
-            <li className={/[A-Z]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordUppercase}</li>
-            <li className={/[a-z]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordLowercase}</li>
-            <li className={/[0-9]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordNumber}</li>
-            <li className={/[^A-Za-z0-9]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordSpecial}</li>
-          </ul>
-        </div>
-
-        <input type="hidden" name="locale" value={locale} />
-        <input type="hidden" name="next" value={next} />
 
         {errorMsg && (
           <p className="text-sm font-bold text-red-600">
-            {passwordErrorMap[errorMsg] ||
-              (profileState.error === "FIRST_NAME_REQUIRED"
-                ? dict.firstNameRequired
-                : profileState.error === "EMAIL_REQUIRED"
-                  ? dict.emailRequired
-                  : dict.error)}
+            {getErrorMessage(errorMsg)}
           </p>
         )}
 
-        <Button type="submit" size="lg" loading={loading} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
-          {dict.verifyAndRegister}
+        <Button type="submit" size="lg" loading={loading}>
+          {isStep2 ? dict.save : (otpState.ok ? dict.verifyAndRegister : dict.sendCode)}
         </Button>
 
         <p className="text-center text-sm font-bold text-slate-700">
