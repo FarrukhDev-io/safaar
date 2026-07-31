@@ -18,7 +18,8 @@
     "rating": "4.8★",
     "ratingLabel": "средний рейтинг",
     "support": "24/7",
-    "supportLabel": "поддержка"
+    "supportLabel": "поддержка",
+    "paymentMethodsLabel": "Способы оплаты:"
   },
   "featured": {
     "title": "Популярные предложения",

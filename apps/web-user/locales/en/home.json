@@ -18,7 +18,8 @@
     "rating": "4.8★",
     "ratingLabel": "average rating",
     "support": "24/7",
-    "supportLabel": "support"
+    "supportLabel": "support",
+    "paymentMethodsLabel": "Payment methods:"
   },
   "featured": {
     "title": "Featured offers",
