@@ -12,5 +12,9 @@
   },
   "bestTime": "Ziyorat:",
   "moreInfo": "Batafsil",
-  "comingSoon": "{name} bo'yicha ma'lumotlar tez orada kengaytiriladi!"
+  "comingSoon": "{name} bo'yicha ma'lumotlar tez orada kengaytiriladi!",
+  "hoursSuffix": "soat",
+  "fullDay": "Butun kun",
+  "from": "dan",
+  "recommended": "Tavsiya etiladi:"
 }

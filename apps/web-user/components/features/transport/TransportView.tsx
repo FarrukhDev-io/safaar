@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
-import { Car, Users, ArrowRight, PhoneCall, CheckCircle2, X, Filter, ChevronDown, MapPin, User, Phone, Calendar } from "lucide-react";
+import { Car, Users, ArrowRight, PhoneCall, CheckCircle2, X, Filter, ChevronDown, MapPin, User, Phone, Calendar, Star } from "lucide-react";
 import { formatSum } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -11,7 +11,6 @@ import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import { MOCK_TRANSPORTS } from "@/components/catalog/data";
 import type { TransportItem } from "@/components/catalog/types";
-import { BaseCard } from "@/components/ui/BaseCard";
 import { FilterSidebar } from "@/components/ui/FilterSidebar";
 import { FilterGroup } from "@/components/ui/FilterGroup";
 import { ActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilters";
@@ -34,54 +33,105 @@ function TransportCard({
 }) {
   const catLabel = dict.categories?.[item.categoryKey] ?? item.categoryDefault;
 
-  const badge = (
-    <span className="rounded-full bg-slate-950/40 backdrop-blur-md border border-white/20 px-2.5 py-1 text-xs font-medium text-white">
-      {catLabel}
-    </span>
-  );
-
-  const subInfo = (
-    <>
-      <Users className="h-3.5 w-3.5 shrink-0" />
-      {item.seats} {dict.seats}
-      <span className="text-slate-300 dark:text-slate-700">·</span>
-      {item.hasDriver ? dict.driverIncluded : dict.withoutDriver}
-    </>
-  );
-
-  const ratingElement = (
-    <span>
-      {item.transmission ?? "Mexanika"} · {item.cityName}
-    </span>
-  );
-
   return (
-    <BaseCard
-      imageSrc={item.imageUrl}
-      imageAlt={item.name}
-      badge={badge}
-      title={item.name}
-      subInfo={subInfo}
-      rating={ratingElement}
+    <div
       onClick={onBook}
-      footerLeft={
-        <>
-          <span className="text-[10px] font-medium text-slate-400">dan</span>
-          <span className="text-sm font-bold text-slate-900 dark:text-white">
-            {formatSum(item.pricePerDaySum)}
+      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-500/30 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md"
+    >
+      {/* Image Section */}
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+        <Image
+          src={item.imageUrl}
+          alt={item.name}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          quality={85}
+        />
+        {/* Sleek Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 to-transparent" />
+        
+        {/* Category Badge - Glassmorphism */}
+        <div className="absolute left-3.5 top-3.5 z-10">
+          <span className="inline-flex items-center rounded-xl bg-slate-900/65 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md border border-white/10 shadow-xs">
+            {catLabel}
           </span>
-          <span className="text-[10px] text-slate-400">/ {dict.perDay}</span>
-        </>
-      }
-      footerRight={
-        <div
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 dark:border-slate-700 dark:text-slate-300"
-        >
-          {dict.reserve}
-          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
         </div>
-      }
-    />
+
+        {/* Rating Badge */}
+        {item.rating && (
+          <div className="absolute right-3.5 top-3.5 z-10">
+            <span className="inline-flex items-center gap-1 rounded-xl bg-amber-500/95 px-2.5 py-1 text-[11px] font-extrabold text-white backdrop-blur-xs shadow-xs">
+              <Star className="h-3 w-3 fill-white text-white" />
+              {item.rating.toFixed(1)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Details Section */}
+      <div className="flex flex-col flex-1 p-5">
+        {/* Title */}
+        <h3 className="line-clamp-1 text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+          {item.name}
+        </h3>
+
+        {/* City & Route info */}
+        <p className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <MapPin className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+          <span>{item.cityName}</span>
+        </p>
+
+        {/* Specs Grid */}
+        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+          <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 font-semibold text-slate-700 dark:bg-slate-800/40 dark:text-slate-350">
+            <Users className="h-4 w-4 text-blue-500 shrink-0" />
+            <span>{item.seats} {dict.seats}</span>
+          </div>
+          
+          <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 font-semibold text-slate-700 dark:bg-slate-800/40 dark:text-slate-350">
+            <Car className="h-4 w-4 text-blue-500 shrink-0" />
+            <span className="truncate">{item.transmission === "manual" ? (dict.manual || "Mexanika") : (dict.automatic || "Avtomat")}</span>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 font-semibold text-slate-700 dark:bg-slate-800/40 dark:text-slate-350">
+            <svg className="h-4 w-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <span className="truncate">{item.fuelType ?? "Benzin"}</span>
+          </div>
+
+          <div className={`flex items-center gap-2 rounded-xl p-2.5 font-semibold text-xs truncate ${
+            item.hasDriver 
+              ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300"
+              : "bg-amber-50 text-amber-800 dark:bg-amber-950/20 dark:text-amber-300"
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${item.hasDriver ? "bg-emerald-500" : "bg-amber-500"}`} />
+            <span className="truncate">{item.hasDriver ? dict.driverIncluded : dict.withoutDriver}</span>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="mt-5 border-t border-slate-100 dark:border-slate-800/80" />
+        {/* Pricing & CTA */}
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">kunlik ijara</span>
+            <div className="mt-0.5 flex items-baseline gap-1">
+              <span className="text-base font-extrabold text-slate-900 dark:text-white">
+                {formatSum(item.pricePerDaySum)}
+              </span>
+              <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">/ {dict.perDay}</span>
+            </div>
+          </div>
+
+          <div className="inline-flex w-full sm:w-auto min-h-[40px] items-center justify-center gap-1 rounded-xl bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-600 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white group-hover:shadow-md group-hover:shadow-blue-500/20 dark:bg-slate-800 dark:text-blue-400 dark:group-hover:bg-blue-600 dark:group-hover:text-white">
+            <span>{dict.reserve}</span>
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -365,7 +415,7 @@ export function TransportView({ dict }: { dict: CatalogDict["transport"] }) {
                     </h2>
                     <p className="mt-1 flex items-center gap-1 text-xs font-medium text-slate-200">
                       <MapPin className="h-3.5 w-3.5 text-slate-350" />
-                      <span>{selectedItem.cityName} · {selectedItem.transmission ?? "Mexanika"}</span>
+                      <span>{selectedItem.cityName} · {selectedItem.transmission === "manual" ? (dict.manual || "Mexanika") : (dict.automatic || "Avtomat")}</span>
                     </p>
                   </div>
                 </div>
@@ -482,7 +532,7 @@ export function TransportView({ dict }: { dict: CatalogDict["transport"] }) {
 
                   {/* Top part: Booking Reference & Transport */}
                   <div className="flex justify-between items-center text-xs text-slate-400 dark:text-slate-500 mb-3">
-                    <span className="font-medium">Buyurtma ID</span>
+                    <span className="font-medium">{dict.bookingId || "Buyurtma ID"}</span>
                     <span className="font-mono font-bold text-slate-900 dark:text-white bg-slate-200/50 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px]">
                       {bookingRef}
                     </span>
@@ -498,11 +548,11 @@ export function TransportView({ dict }: { dict: CatalogDict["transport"] }) {
                   {/* Structured details grid */}
                   <div className="grid grid-cols-2 gap-y-3.5 gap-x-4 text-left text-xs">
                     <div>
-                      <span className="block text-slate-400 dark:text-slate-500 font-medium">Mijoz</span>
+                      <span className="block text-slate-400 dark:text-slate-500 font-medium">{dict.customer || "Mijoz"}</span>
                       <span className="block font-semibold text-slate-800 dark:text-slate-200 mt-0.5 truncate">{fullName}</span>
                     </div>
                     <div>
-                      <span className="block text-slate-400 dark:text-slate-500 font-medium">Telefon</span>
+                      <span className="block text-slate-400 dark:text-slate-500 font-medium">{dict.phone || "Telefon"}</span>
                       <span className="block font-semibold text-slate-800 dark:text-slate-200 mt-0.5 truncate">{phoneInput}</span>
                     </div>
                     
@@ -510,21 +560,21 @@ export function TransportView({ dict }: { dict: CatalogDict["transport"] }) {
                     <div className="col-span-2 border-t border-dashed border-slate-200 dark:border-slate-800 my-1" />
 
                     <div>
-                      <span className="block text-slate-400 dark:text-slate-500 font-medium">Muddat</span>
+                      <span className="block text-slate-400 dark:text-slate-500 font-medium">{dict.duration || "Muddat"}</span>
                       <span className="block font-semibold text-slate-800 dark:text-slate-200 mt-0.5 flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                        {totalDays} kun
+                        {totalDays} {dict.days || "kun"}
                       </span>
                     </div>
                     <div>
-                      <span className="block text-slate-400 dark:text-slate-500 font-medium">Jami Summa</span>
-                      <span className="block font-bold text-blue-600 dark:text-blue-450 mt-0.5">
+                      <span className="block text-slate-400 dark:text-slate-500 font-medium">{dict.totalSum || "Jami Summa"}</span>
+                      <span className="block font-bold text-blue-600 dark:text-blue-400 mt-0.5">
                         {formatSum(selectedItem.pricePerDaySum * totalDays)}
                       </span>
                     </div>
 
                     <div className="col-span-2 text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-                      <span>Sana: {pickupDate} dan {returnDate} gacha</span>
+                      <span>{dict.dateLabel || "Sana:"} {pickupDate} {dict.from || "dan"} {returnDate} {dict.to || "gacha"}</span>
                     </div>
                   </div>
                 </div>

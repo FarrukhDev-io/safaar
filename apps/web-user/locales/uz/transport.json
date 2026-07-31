@@ -25,5 +25,16 @@
   "callNow": "Hozir qo'ng'iroq qilish",
   "close": "Yopish",
   "reserve": "Ijaraga olish",
-  "comingSoon": "{name} bo'yicha buyurtma tez orada ishga tushadi! Bog'lanish: {phone}"
+  "comingSoon": "{name} bo'yicha buyurtma tez orada ishga tushadi! Bog'lanish: {phone}",
+  "manual": "Mexanika",
+  "automatic": "Avtomat",
+  "from": "dan",
+  "days": "kun",
+  "people": "kishi",
+  "dateLabel": "Sana:",
+  "to": "gacha",
+  "bookingId": "Buyurtma ID",
+  "customer": "Mijoz",
+  "duration": "Muddat",
+  "totalSum": "Jami Summa"
 }

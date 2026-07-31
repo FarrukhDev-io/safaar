@@ -25,5 +25,16 @@
   "callNow": "Позвонить сейчас",
   "close": "Закрыть",
   "reserve": "Забронировать",
-  "comingSoon": "Заказ на {name} скоро запустится! Связь: {phone}"
+  "comingSoon": "Заказ на {name} скоро запустится! Связь: {phone}",
+  "manual": "Механика",
+  "automatic": "Автомат",
+  "from": "от",
+  "days": "дн.",
+  "people": "чел.",
+  "dateLabel": "Дата:",
+  "to": "до",
+  "bookingId": "ID заказа",
+  "customer": "Клиент",
+  "duration": "Срок",
+  "totalSum": "Итоговая сумма"
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import Image from "next/image";
 import {
   MapPin,
   Compass,
-  Clock,
   Star,
   ArrowRight,
   Map as MapIcon,
@@ -13,13 +13,13 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useCurrency } from "@/lib/context/CurrencyContext";
+import type { Locale } from "@/i18n/config";
 import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import { MOCK_ATTRACTIONS } from "@/components/catalog/data";
 import type { AttractionItem } from "@/components/catalog/types";
 import { InteractiveMapView, type MapMarkerItem } from "@/components/features/map/InteractiveMapView";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { BaseCard } from "@/components/ui/BaseCard";
 import { FilterSidebar } from "@/components/ui/FilterSidebar";
 import { FilterGroup } from "@/components/ui/FilterGroup";
 import { ActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilters";
@@ -29,83 +29,135 @@ import { Select, type SelectOption } from "@/components/ui/Select";
 
 export type { AttractionItem };
 
-const DURATION_HINTS: Record<string, string> = {
-  historical: "2–3 soat",
-  unesco: "Butun kun",
-  nature: "4–6 soat",
-  culture: "1–2 soat",
-  entertainment: "2–4 soat",
-};
-
 function AttractionCard({
   item,
   categoryLabel,
+  dict,
+  locale,
   onMoreInfo,
 }: {
   item: AttractionItem;
   categoryLabel: string;
+  dict: CatalogDict["attractions"] & {
+    hoursSuffix?: string;
+    fullDay?: string;
+    from?: string;
+    recommended?: string;
+  };
+  locale: Locale;
   onMoreInfo: () => void;
 }) {
   const { format } = useCurrency();
-  const duration = DURATION_HINTS[item.categoryKey] ?? "2–3 soat";
+  
+  const getDurationText = (category: string) => {
+    switch (category) {
+      case "historical":
+        return `2–3 ${dict.hoursSuffix || "soat"}`;
+      case "unesco":
+        return dict.fullDay || "Butun kun";
+      case "nature":
+        return `4–6 ${dict.hoursSuffix || "soat"}`;
+      case "culture":
+        return `1–2 ${dict.hoursSuffix || "soat"}`;
+      case "entertainment":
+        return `2–4 ${dict.hoursSuffix || "soat"}`;
+      default:
+        return `2–3 ${dict.hoursSuffix || "soat"}`;
+    }
+  };
+  const duration = getDurationText(item.categoryKey);
   const entryPrice = Math.round(item.rating * 60_000);
 
-  const badge = (
-    <span className="rounded-full bg-slate-950/40 backdrop-blur-md border border-white/20 px-2.5 py-1 text-xs font-medium text-white">
-      {categoryLabel}
-    </span>
-  );
-
-  const subInfo = (
-    <>
-      <MapPin className="h-3.5 w-3.5 shrink-0" />
-      {item.cityName}
-      <span className="text-slate-300 dark:text-slate-700">·</span>
-      <Clock className="h-3.5 w-3.5 shrink-0" />
-      {duration}
-    </>
-  );
-
-  const ratingElement = (
-    <>
-      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-      <span className="font-semibold text-slate-700 dark:text-slate-300">
-        {item.rating.toFixed(1)}
-      </span>
-      <span>· 320 ta sharh</span>
-    </>
-  );
-
   return (
-    <BaseCard
-      imageSrc={item.imageUrl}
-      imageAlt={item.name}
-      badge={badge}
-      title={item.name}
-      subInfo={subInfo}
-      rating={ratingElement}
+    <div
       onClick={onMoreInfo}
-      footerLeft={
-        <>
-          <span className="text-[10px] font-medium text-slate-400">dan</span>
-          <span className="text-sm font-bold text-slate-900 dark:text-white">
-            {format(entryPrice)}
+      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-500/30 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md"
+    >
+      {/* Image Section */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+        <Image
+          src={item.imageUrl}
+          alt={item.name}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          quality={85}
+        />
+        {/* Sleek Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 to-transparent" />
+        
+        {/* Category Badge - Glassmorphism */}
+        <div className="absolute left-3.5 top-3.5 z-10">
+          <span className="inline-flex items-center rounded-xl bg-slate-900/65 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md border border-white/10 shadow-xs">
+            {categoryLabel}
           </span>
-        </>
-      }
-      footerRight={
-        <div
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 dark:border-slate-700 dark:text-slate-300"
-        >
-          Batafsil
-          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
         </div>
-      }
-    />
+      </div>
+
+      {/* Details Section */}
+      <div className="flex flex-col flex-1 p-5">
+        {/* Title */}
+        <h3 className="line-clamp-1 text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+          {item.name}
+        </h3>
+
+        {/* Minimalist City, Rating & Reviews Row */}
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-1">
+            <MapPin className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+            <span>{item.cityName}</span>
+          </div>
+          <span className="text-slate-300 dark:text-slate-800">•</span>
+          <div className="flex items-center gap-1 text-amber-500 dark:text-amber-400">
+            <Star className="h-3.5 w-3.5 fill-current" />
+            <span>{item.rating.toFixed(1)}</span>
+          </div>
+          <span className="text-slate-350 dark:text-slate-800">•</span>
+          <span>{duration}</span>
+        </div>
+
+        {/* Description */}
+        <p className="mt-3 line-clamp-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+          {item.description}
+        </p>
+
+        {/* Best time to visit info */}
+        <div className="mt-3.5 rounded-xl bg-slate-50 p-2.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-800/40 dark:text-slate-350 flex items-center gap-1.5">
+          <span className="font-bold text-blue-600 dark:text-blue-400">{dict.recommended || "Tavsiya etiladi:"}</span>
+          <span className="truncate">{item.bestTimeToVisit}</span>
+        </div>
+
+        {/* Divider */}
+        <div className="mt-5 border-t border-slate-100 dark:border-slate-800/80" />
+
+        {/* Pricing & CTA */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              {dict.from ? `${dict.from} (` : ""}{locale === "uz" ? "Kirish narxi" : locale === "ru" ? "Входной билет" : "Entry ticket"}{dict.from ? ")" : ""}
+            </span>
+            <span className="mt-0.5 text-base font-extrabold text-slate-900 dark:text-white">
+              {format(entryPrice)}
+            </span>
+          </div>
+
+          <div className="inline-flex items-center gap-1 text-xs font-bold text-blue-650 dark:text-blue-400 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-300">
+            <span>{dict.moreInfo || "Batafsil"}</span>
+            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-export function AttractionsView({ dict }: { dict: CatalogDict["attractions"] }) {
+export function AttractionsView({
+  dict,
+  locale,
+}: {
+  dict: CatalogDict["attractions"];
+  locale: Locale;
+}) {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
@@ -161,7 +213,7 @@ export function AttractionsView({ dict }: { dict: CatalogDict["attractions"] }) 
         id: a.id,
         name: a.name,
         cityName: a.cityName,
-        priceFormatted: a.categoryDefault ?? "Obida",
+        priceFormatted: (dict.categories as any)?.[a.categoryKey] ?? "Obida",
         rating: a.rating,
         imageUrl: a.imageUrl,
       })),
@@ -222,7 +274,7 @@ export function AttractionsView({ dict }: { dict: CatalogDict["attractions"] }) 
               className="lg:hidden"
             >
               <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <span>Filtrlar</span>
+              <span>{locale === "uz" ? "Filtrlar" : locale === "ru" ? "Фильтры" : "Filters"}</span>
               <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
             </Button>
 

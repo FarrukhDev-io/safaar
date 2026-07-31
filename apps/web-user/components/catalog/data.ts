@@ -58,7 +58,7 @@ export const MOCK_RESTAURANTS: RestaurantItem[] = [
     reviewsCount: 1420,
     averageCheckSum: 65000,
     workingHours: "09:00 – 17:00",
-    imageUrl: "/Tashkent-city-skyline.jpeg",
+    imageUrl: "/besh-qozon.jpg",
     phone: "+998 71 200 01 01",
   },
   {
@@ -71,7 +71,7 @@ export const MOCK_RESTAURANTS: RestaurantItem[] = [
     reviewsCount: 680,
     averageCheckSum: 140000,
     workingHours: "11:00 – 23:00",
-    imageUrl: "/Samarkand-Registan-cinematic.jpeg",
+    imageUrl: "/platan-garden.jpg",
     phone: "+998 66 233 80 80",
   },
   {
@@ -115,7 +115,7 @@ export const MOCK_TRANSPORTS: TransportItem[] = [
     transmission: "Avtomat",
     pricePerDaySum: 350000,
     rating: 4.8,
-    imageUrl: "/Tashkent-city-skyline.jpeg",
+    imageUrl: "/cobalt-car.jpg",
     phone: "+998 90 123 45 67",
   },
   {
@@ -130,7 +130,7 @@ export const MOCK_TRANSPORTS: TransportItem[] = [
     transmission: "Avtomat",
     pricePerDaySum: 850000,
     rating: 4.9,
-    imageUrl: "/Samarkand-Registan-cinematic.jpeg",
+    imageUrl: "/kiak5-car.jpg",
     phone: "+998 90 987 65 43",
   },
   {

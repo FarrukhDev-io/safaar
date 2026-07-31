@@ -25,5 +25,16 @@
   "callNow": "Call Now",
   "close": "Close",
   "reserve": "Book Vehicle",
-  "comingSoon": "Booking for {name} launching soon! Contact: {phone}"
+  "comingSoon": "Booking for {name} launching soon! Contact: {phone}",
+  "manual": "Manual",
+  "automatic": "Automatic",
+  "from": "from",
+  "days": "days",
+  "people": "people",
+  "dateLabel": "Date:",
+  "to": "to",
+  "bookingId": "Booking ID",
+  "customer": "Customer",
+  "duration": "Duration",
+  "totalSum": "Total Amount"
 }

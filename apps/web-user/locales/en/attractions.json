@@ -12,5 +12,9 @@
   },
   "bestTime": "Best time:",
   "moreInfo": "Details",
-  "comingSoon": "Detailed guide for {name} coming soon!"
+  "comingSoon": "Detailed guide for {name} coming soon!",
+  "hoursSuffix": "hours",
+  "fullDay": "Full day",
+  "from": "from",
+  "recommended": "Recommended:"
 }

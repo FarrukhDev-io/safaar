@@ -10,9 +10,16 @@ import { BaseCard } from "@/components/ui/BaseCard";
 export function FeaturedHotelCard({
   hotel,
   locale,
+  dict,
 }: {
   hotel: HotelListItem;
   locale: Locale;
+  dict: {
+    perNight?: string;
+    reviews?: string;
+    excellent?: string;
+    good?: string;
+  };
 }) {
   const { format } = useCurrency();
   const imageUrl = resolveImage(hotel.imageUrl, hotel.id, 500, 380) || "/Hotel-placeholder.jpeg";
@@ -36,7 +43,7 @@ export function FeaturedHotelCard({
 
   const ratingElement = hotel.reviewsCount > 0 ? (
     <span>
-      {hotel.rating >= 4.5 ? "A'lo" : "Yaxshi"} · {hotel.reviewsCount} ta sharh
+      {hotel.rating >= 4.5 ? (dict.excellent || "A'lo") : (dict.good || "Yaxshi")} · {hotel.reviewsCount} {locale === "uz" ? "ta sharh" : (dict.reviews || "reviews")}
     </span>
   ) : undefined;
 
@@ -59,11 +66,11 @@ export function FeaturedHotelCard({
           <span className="text-sm font-bold text-slate-900 dark:text-white">
             {format(hotel.minPriceSum)}
           </span>
-          <span className="text-[10px] text-slate-400">/ kecha</span>
+          <span className="text-[10px] text-slate-400">/ {dict.perNight || "kecha"}</span>
         </>
       }
       footerRight={
-        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-350 dark:hover:bg-slate-800">
           <ArrowRight className="h-3.5 w-3.5" />
         </span>
       }
