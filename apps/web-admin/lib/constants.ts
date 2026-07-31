@@ -54,8 +54,9 @@ export const SIDEBAR_ITEMS: NavItem[] = [
     href: "/bookings",
     icon: "CalendarCheck",
     children: [
-      { label: "Mehmonxona", href: "/bookings/hotels", icon: "Hotel" },
-      { label: "Transport (Tez kunda)", href: "/bookings/buses", icon: "Bus" },
+      { label: "Turar-joy", href: "/bookings/hotels", icon: "Hotel" },
+      { label: "Restoran", href: "/bookings/restaurants", icon: "UtensilsCrossed" },
+      { label: "Transport", href: "/bookings/buses", icon: "Bus" },
     ],
   },
   {
@@ -144,6 +145,14 @@ export const PAYMENT_METHOD_MAP: Record<string, string> = {
   payme: "Payme",
   uzcard: "Uzcard",
   humo: "Humo",
+};
+
+export const ACCOMMODATION_TYPE_MAP: Record<string, string> = {
+  hotel: "Mehmonxona",
+  hostel: "Yotoqxona (Hostel)",
+  guesthouse: "Mehmon uyi",
+  motel: "Motel",
+  dacha: "Dacha",
 };
 
 /* ────────────────────────────────────────────

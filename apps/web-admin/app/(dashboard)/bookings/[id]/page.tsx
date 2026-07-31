@@ -22,8 +22,10 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   
   const hotelBookings = useAdminStore((s) => s.hotelBookings);
   const busBookings = useAdminStore((s) => s.busBookings);
+  const restaurantBookings = useAdminStore((s) => s.restaurantBookings);
   const updateHotelBookingStatus = useAdminStore((s) => s.updateHotelBookingStatus);
   const updateBusBookingStatus = useAdminStore((s) => s.updateBusBookingStatus);
+  const updateRestaurantBookingStatus = useAdminStore((s) => s.updateRestaurantBookingStatus);
   const bookingNotes = useAdminStore((s) => s.bookingNotes);
   const setBookingNote = useAdminStore((s) => s.setBookingNote);
   const [noteDraft, setNoteDraft] = useState(bookingNotes[id] ?? "");
@@ -44,12 +46,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const isHotel = baseBooking.serviceType === "hotel";
   const isRestaurant = baseBooking.serviceType === "restaurant";
 
-  // Find real-time status from store (restoran uchun alohida store hali yo'q —
-  // real backend ulanganda qo'shiladi, hozircha statik statusdan foydalaniladi)
+  // Find real-time status from store
   const storeBooking = isHotel
     ? hotelBookings.find(b => b.id === id)
     : isRestaurant
-      ? undefined
+      ? restaurantBookings.find(b => b.id === id)
       : busBookings.find(b => b.id === id);
 
   const booking = {
@@ -61,7 +62,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     if (confirm("Rostdan ham ushbu bronni bekor qilmoqchimisiz?")) {
       if (isHotel) {
         updateHotelBookingStatus(id, BookingStatus.CANCELLED);
-      } else if (!isRestaurant) {
+      } else if (isRestaurant) {
+        updateRestaurantBookingStatus(id, BookingStatus.CANCELLED);
+      } else {
         updateBusBookingStatus(id, BookingStatus.CANCELLED);
       }
       toast.success("Bron bekor qilindi!");
@@ -78,7 +81,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6">
       {/* Back */}
       <Link
-        href={!isHotel && !isRestaurant ? "/bookings/buses" : "/bookings/hotels"}
+        href={isHotel ? "/bookings/hotels" : isRestaurant ? "/bookings/restaurants" : "/bookings/buses"}
         className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors w-fit"
       >
         <ArrowLeft size={16} />
@@ -113,7 +116,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          {booking.status !== "CANCELLED" && !isRestaurant && (
+          {booking.status !== "CANCELLED" && (
             <Button variant="danger" size="sm" icon={<Ban size={14} />} onClick={handleCancel}>
               Bekor qilish
             </Button>

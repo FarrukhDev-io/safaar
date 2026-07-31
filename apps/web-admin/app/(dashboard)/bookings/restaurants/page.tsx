@@ -9,8 +9,8 @@ import Select from "@/components/ui/Select";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Pagination from "@/components/ui/Pagination";
 import { formatDate, formatPrice } from "@/lib/utils";
-import { ACCOMMODATION_TYPE_MAP, BOOKING_STATUS_MAP, PAYMENT_METHOD_MAP } from "@/lib/constants";
-import type { AdminHotelBooking } from "@/types/admin";
+import { BOOKING_STATUS_MAP, PAYMENT_METHOD_MAP } from "@/lib/constants";
+import type { AdminRestaurantBooking } from "@/types/admin";
 import { Download } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { exportToExcel } from "@/lib/export";
@@ -19,13 +19,12 @@ import { useAdminStore } from "@/lib/store";
 
 const ITEMS_PER_PAGE = 12;
 
-export default function HotelBookingsPage() {
+export default function RestaurantBookingsPage() {
   const router = useRouter();
-  const bookings = useAdminStore((s) => s.hotelBookings);
+  const bookings = useAdminStore((s) => s.restaurantBookings);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
   const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
@@ -37,7 +36,7 @@ export default function HotelBookingsPage() {
           b.id.toLowerCase().includes(q) ||
           b.customerName.toLowerCase().includes(q) ||
           b.customerPhone.includes(q) ||
-          b.hotelName.toLowerCase().includes(q)
+          b.restaurantName.toLowerCase().includes(q)
       );
     }
     if (statusFilter) {
@@ -46,16 +45,13 @@ export default function HotelBookingsPage() {
     if (paymentFilter) {
       result = result.filter((b) => b.paymentMethod === paymentFilter);
     }
-    if (typeFilter) {
-      result = result.filter((b) => b.partnerType === typeFilter);
-    }
     return result;
-  }, [search, statusFilter, paymentFilter, typeFilter, bookings]);
+  }, [search, statusFilter, paymentFilter, bookings]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const columns: Column<AdminHotelBooking>[] = [
+  const columns: Column<AdminRestaurantBooking>[] = [
     {
       key: "id",
       label: "Bron ID",
@@ -73,29 +69,29 @@ export default function HotelBookingsPage() {
       ),
     },
     {
-      key: "hotelName",
-      label: "Turar-joy",
+      key: "restaurantName",
+      label: "Restoran",
       render: (row) => (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{row.hotelName}</span>
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
-              {ACCOMMODATION_TYPE_MAP[row.partnerType] ?? row.partnerType}
-            </span>
-          </div>
-          <span className="text-xs text-[var(--text-muted)]">{row.roomType} · {row.city}</span>
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">{row.restaurantName}</span>
+          <span className="text-xs text-[var(--text-muted)]">{row.tableType}</span>
         </div>
       ),
     },
     {
-      key: "checkIn",
-      label: "Kirish",
-      render: (row) => <span className="text-sm">{formatDate(row.checkIn)}</span>,
+      key: "date",
+      label: "Sana",
+      render: (row) => <span className="text-sm">{formatDate(row.date)}</span>,
     },
     {
-      key: "checkOut",
-      label: "Chiqish",
-      render: (row) => <span className="text-sm">{formatDate(row.checkOut)}</span>,
+      key: "slotTime",
+      label: "Vaqt",
+      render: (row) => <span className="text-sm">{row.slotTime}</span>,
+    },
+    {
+      key: "guests",
+      label: "Kishilar",
+      render: (row) => <span className="text-sm">{row.guests}</span>,
     },
     {
       key: "amount",
@@ -122,8 +118,8 @@ export default function HotelBookingsPage() {
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        
-        <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => exportToExcel(filtered, "Bronlar")}>
+        <div />
+        <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => exportToExcel(filtered, "Restoran_bronlari")}>
           Eksport
         </Button>
       </div>
@@ -133,23 +129,9 @@ export default function HotelBookingsPage() {
         <div className="w-80">
           <Input
             isSearch
-            placeholder="Bron ID, mijoz ismi, telefon yoki mehmonxona..."
+            placeholder="Bron ID, mijoz ismi, telefon yoki restoran..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-        </div>
-        <div className="w-44">
-          <Select
-            placeholder="Barcha turlar"
-            value={typeFilter}
-            onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-            options={[
-              { value: "hotel", label: "Mehmonxona" },
-              { value: "motel", label: "Motel" },
-              { value: "dacha", label: "Dacha" },
-              { value: "hostel", label: "Yotoqxona (Hostel)" },
-              { value: "guesthouse", label: "Mehmon uyi" },
-            ]}
           />
         </div>
         <div className="w-44">

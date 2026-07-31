@@ -7,6 +7,7 @@ import {
   mockUsers,
   mockHotelBookings,
   mockBusBookings,
+  mockRestaurantBookings,
   mockCmsBanners,
   mockListings,
   mockRegions,
@@ -19,6 +20,7 @@ import type {
   AdminManagedUser,
   AdminHotelBooking,
   AdminBusBooking,
+  AdminRestaurantBooking,
   CmsBanner,
   AdminListing,
   CatalogRegion,
@@ -33,6 +35,7 @@ interface AdminState {
   users: AdminManagedUser[];
   hotelBookings: AdminHotelBooking[];
   busBookings: AdminBusBooking[];
+  restaurantBookings: AdminRestaurantBooking[];
   cmsBanners: CmsBanner[];
   listings: AdminListing[];
   regions: CatalogRegion[];
@@ -63,6 +66,8 @@ interface AdminState {
   updateHotelBookingStatus: (id: string, status: BookingStatus) => void;
   setBusBookings: (bookings: AdminBusBooking[]) => void;
   updateBusBookingStatus: (id: string, status: BookingStatus) => void;
+  setRestaurantBookings: (bookings: AdminRestaurantBooking[]) => void;
+  updateRestaurantBookingStatus: (id: string, status: BookingStatus) => void;
 
   // CMS Banners Mutations
   addBanner: (banner: Omit<CmsBanner, "id">) => void;
@@ -95,6 +100,7 @@ export const useAdminStore = create<AdminState>((set) => ({
   users: mockUsers,
   hotelBookings: mockHotelBookings,
   busBookings: mockBusBookings,
+  restaurantBookings: mockRestaurantBookings,
   cmsBanners: mockCmsBanners,
   listings: mockListings,
   regions: mockRegions,
@@ -219,7 +225,16 @@ export const useAdminStore = create<AdminState>((set) => ({
         b.id === id ? { ...b, status } : b
       ),
     })),
-    
+
+  setRestaurantBookings: (restaurantBookings) => set({ restaurantBookings }),
+  updateRestaurantBookingStatus: (id, status) =>
+    set((state) => ({
+      restaurantBookings: state.restaurantBookings.map((b) =>
+        b.id === id ? { ...b, status } : b
+      ),
+    })),
+
+
   // CMS Banners
   addBanner: (banner) =>
     set((state) => {

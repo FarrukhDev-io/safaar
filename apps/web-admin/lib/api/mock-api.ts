@@ -3,6 +3,7 @@ import {
   AdminManagedUser,
   Partner,
   AdminHotelBooking,
+  AccommodationPartnerType,
   PartnerRequest,
   CatalogAmenity,
   CatalogRegion,
@@ -72,6 +73,7 @@ type BackendBooking = {
   customer_phone?: string;
   hotel_name?: string;
   room_type_name?: string;
+  partner_type?: string;
   city?: string;
   check_in?: string;
   check_out?: string;
@@ -157,12 +159,17 @@ function toUser(row: BackendUser): AdminManagedUser {
   };
 }
 
+const ACCOMMODATION_PARTNER_TYPES: AccommodationPartnerType[] = ["hotel", "motel", "hostel", "dacha", "guesthouse"];
+
 function toHotelBooking(row: BackendBooking): AdminHotelBooking {
   return {
     id: row.id,
     customerName: row.customer_name ?? "Mijoz",
     customerPhone: row.customer_phone ?? "",
     hotelName: row.hotel_name ?? "Mehmonxona",
+    partnerType: ACCOMMODATION_PARTNER_TYPES.includes(row.partner_type as AccommodationPartnerType)
+      ? (row.partner_type as AccommodationPartnerType)
+      : "hotel",
     roomType: row.room_type_name ?? "Xona",
     checkIn: row.check_in ?? row.item?.check_in ?? "",
     checkOut: row.check_out ?? row.item?.check_out ?? "",

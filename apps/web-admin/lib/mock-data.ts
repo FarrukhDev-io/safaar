@@ -16,6 +16,8 @@ import type {
   PartnerRequest,
   AdminHotelBooking,
   AdminBusBooking,
+  AdminRestaurantBooking,
+  AccommodationPartnerType,
   BookingDetail,
 } from "@/types/admin";
 
@@ -401,9 +403,18 @@ export const mockTicketMessages: Record<string, import("@/types/admin").TicketMe
    BOOKINGS
    ──────────────────────────────────────────── */
 
-const hotelNames = [
-  "Grand Samarkand Hotel", "Hilton Tashkent", "Buxoro Palace",
-  "City Palace Hotel", "Silk Road Inn", "Registan Plaza",
+const accommodationPartners: { name: string; type: AccommodationPartnerType }[] = [
+  { name: "Grand Samarkand Hotel", type: "hotel" },
+  { name: "Hilton Tashkent", type: "hotel" },
+  { name: "Buxoro Palace", type: "hotel" },
+  { name: "City Palace Hotel", type: "hotel" },
+  { name: "Zarafshon Motel", type: "motel" },
+  { name: "Yo'lovchi Motel", type: "motel" },
+  { name: "Chimyon Tog' Dachasi", type: "dacha" },
+  { name: "Sim-Sim Dacha", type: "dacha" },
+  { name: "Silk Road Hostel", type: "hostel" },
+  { name: "Registan Hostel", type: "hostel" },
+  { name: "Oltin Vodiy Mehmon Uyi", type: "guesthouse" },
 ];
 
 const routes = [
@@ -424,11 +435,14 @@ export const mockHotelBookings: AdminHotelBooking[] = Array.from({ length: 50 },
   const amount = (Math.floor(randHotelBookings() * 800) + 200) * 1000;
   const commissionPct = 0.12 + randHotelBookings() * 0.06;
 
+  const partner = accommodationPartners[i % accommodationPartners.length];
+
   return {
     id: `B-${4500 + i}`,
     customerName: userNames[i % userNames.length],
     customerPhone: `+998 9${i % 10} ${String(100 + i).slice(0, 3)} ${String(20 + i).slice(0, 2)} ${String(40 + i).slice(0, 2)}`,
-    hotelName: hotelNames[i % hotelNames.length],
+    hotelName: partner.name,
+    partnerType: partner.type,
     roomType: roomTypes[i % roomTypes.length],
     checkIn: checkIn.toISOString().split("T")[0],
     checkOut: checkOut.toISOString().split("T")[0],
@@ -467,6 +481,34 @@ export const mockBusBookings: AdminBusBooking[] = Array.from({ length: 30 }, (_,
   };
 });
 
+const restaurantNames = [
+  "Chorsu Milliy Taomlar", "Bibixonim Restorani", "Registon Osh Markazi",
+];
+const tableTypes = ["2 kishilik stol", "4 kishilik stol", "VIP kabina", "Terassa"];
+const slotTimes = ["12:00", "13:30", "15:00", "18:00", "19:30", "21:00"];
+
+const randRestaurantBookings = createSeededRandom(6);
+export const mockRestaurantBookings: AdminRestaurantBooking[] = Array.from({ length: 24 }, (_, i) => {
+  const date = new Date(Date.now() + (i - 12) * 86400000);
+  const amount = (Math.floor(randRestaurantBookings() * 300) + 100) * 1000;
+
+  return {
+    id: `RB-${5000 + i}`,
+    customerName: userNames[(i + 5) % userNames.length],
+    customerPhone: `+998 9${(i + 6) % 10} ${String(300 + i).slice(0, 3)} ${String(40 + i).slice(0, 2)} ${String(70 + i).slice(0, 2)}`,
+    restaurantName: restaurantNames[i % restaurantNames.length],
+    tableType: tableTypes[i % tableTypes.length],
+    date: date.toISOString().split("T")[0],
+    slotTime: slotTimes[i % slotTimes.length],
+    guests: Math.floor(randRestaurantBookings() * 6) + 1,
+    amount,
+    paymentMethod: methods[i % methods.length],
+    commission: Math.floor(amount * 0.1),
+    status: statuses[i % statuses.length],
+    createdAt: new Date(Date.now() - randRestaurantBookings() * 30 * 86400000).toISOString(),
+  };
+});
+
 export function getMockBookingDetail(id: string): BookingDetail | null {
   const isHotel = id.startsWith("B-");
   if (isHotel) {
@@ -488,6 +530,38 @@ export function getMockBookingDetail(id: string): BookingDetail | null {
       checkOut: booking.checkOut,
       nights: booking.nights,
       guests: booking.guests,
+      paymentMethod: booking.paymentMethod,
+      totalAmount: booking.amount,
+      commission: booking.commission,
+      partnerAmount: booking.amount - booking.commission,
+      transactionId: `TXN-${new Date(booking.createdAt).getTime().toString(36).toUpperCase()}-${booking.id}`,
+      paidAt: booking.createdAt,
+      statusHistory: [
+        { status: "Yaratildi", timestamp: booking.createdAt },
+        { status: "To'lov qilindi", timestamp: new Date(new Date(booking.createdAt).getTime() + 300000).toISOString() },
+        { status: "Tasdiqlandi", timestamp: new Date(new Date(booking.createdAt).getTime() + 600000).toISOString() },
+      ],
+    };
+  }
+  const isRestaurant = id.startsWith("RB-");
+  if (isRestaurant) {
+    const booking = mockRestaurantBookings.find((b) => b.id === id);
+    if (!booking) return null;
+    return {
+      id: booking.id,
+      serviceType: "restaurant",
+      status: booking.status,
+      createdAt: booking.createdAt,
+      customerName: booking.customerName,
+      customerPhone: booking.customerPhone,
+      customerEmail: booking.customerName.toLowerCase().replace(/ /g, ".") + "@gmail.com",
+      customerId: "U-" + (1001 + mockRestaurantBookings.indexOf(booking)),
+      hotelName: booking.restaurantName,
+      hotelAddress: "Toshkent, Amir Temur ko'chasi",
+      roomType: booking.tableType,
+      checkIn: booking.date,
+      guests: booking.guests,
+      slotTime: booking.slotTime,
       paymentMethod: booking.paymentMethod,
       totalAmount: booking.amount,
       commission: booking.commission,
