@@ -65,14 +65,13 @@ export async function requestOtpAction(
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof ApiRequestError ? error.message : "ERROR",
+      error: error instanceof Error ? error.message : "ERROR",
     };
   }
 }
 
 export interface VerifyState {
   error?: string;
-  /** Yangi foydalanuvchi bo'lsa — profil to'ldirish uchun redirect kerak. */
   needsProfile?: boolean;
   locale?: string;
 }
@@ -101,9 +100,7 @@ export async function verifyOtpAction(
       refreshToken: result.refreshToken,
     });
 
-    // Yangi foydalanuvchi (firstName yo'q) — profil to'ldirish sahifasiga
     if (!result.user.firstName) {
-      // Agar shu formda profil ma'lumotlari kelgan bo'lsa — darhol completeProfile
       if (firstName) {
         const session = await getSession();
         if (!session) return { error: "SESSION_EXPIRED" };
@@ -129,7 +126,7 @@ export async function verifyOtpAction(
     }
   } catch (error) {
     return {
-      error: error instanceof ApiRequestError ? error.message : "ERROR",
+      error: error instanceof Error ? error.message : "ERROR",
     };
   }
 

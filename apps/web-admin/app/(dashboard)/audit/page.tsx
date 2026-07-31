@@ -6,6 +6,7 @@ import DataTable from "@/components/ui/DataTable";
 import Badge from "@/components/ui/Badge";
 import Pagination from "@/components/ui/Pagination";
 import { AdminApi } from "@/lib/api/admin-api";
+import { formatDateTime } from "@/lib/utils";
 
 interface AuditLog {
   id: string;
@@ -44,7 +45,7 @@ export default function AuditLogsPage() {
     { key: "action", label: "Harakat" },
     { key: "target", label: "Obyekt" },
     { key: "ip", label: "IP Manzil", render: (row: AuditLog) => <span className="font-mono text-xs">{row.ip}</span> },
-    { key: "date", label: "Sana", render: (row: AuditLog) => new Date(row.date).toLocaleString("uz-UZ") },
+    { key: "date", label: "Sana", render: (row: AuditLog) => formatDateTime(row.date) },
   ];
 
   if (loading) {

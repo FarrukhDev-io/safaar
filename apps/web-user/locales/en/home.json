@@ -26,6 +26,8 @@
     "empty": "No offers yet.",
     "perNight": "night",
     "reviews": "review",
+    "excellent": "Excellent",
+    "good": "Good",
     "all": "View all"
   },
   "deals": {

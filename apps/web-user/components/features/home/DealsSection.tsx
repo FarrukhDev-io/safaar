@@ -95,19 +95,38 @@ export function DealsSection({
     const el = ref.current;
     if (!el || deals.length < 3) return;
 
-    timer.current = setInterval(() => {
-      const cardW = el.clientWidth / 2;
-      const maxScroll = el.scrollWidth - el.clientWidth;
-
-      if (el.scrollLeft + cardW >= maxScroll - 4) {
-        el.scrollTo({ left: 0, behavior: "smooth" });
-      } else {
-        el.scrollBy({ left: cardW, behavior: "smooth" });
+    const checkAndInitTimer = () => {
+      if (timer.current) {
+        clearInterval(timer.current);
+        timer.current = null;
       }
-    }, 6000);
+      
+      const isMobile = window.matchMedia("(max-width: 639px)").matches;
+      if (isMobile) {
+        timer.current = setInterval(() => {
+          const cardW = el.clientWidth / 2;
+          const maxScroll = el.scrollWidth - el.clientWidth;
+
+          if (el.scrollLeft + cardW >= maxScroll - 4) {
+            el.scrollTo({ left: 0, behavior: "smooth" });
+          } else {
+            el.scrollBy({ left: cardW, behavior: "smooth" });
+          }
+        }, 6000);
+      }
+    };
+
+    checkAndInitTimer();
+
+    const handleResize = () => {
+      checkAndInitTimer();
+    };
+
+    window.addEventListener("resize", handleResize);
 
     return () => {
       if (timer.current) clearInterval(timer.current);
+      window.removeEventListener("resize", handleResize);
     };
   }, [deals.length]);
 

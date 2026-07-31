@@ -48,18 +48,38 @@ export function FeaturedHotelsCarousel({
     updateScrollButtons();
     el.addEventListener("scroll", updateScrollButtons);
 
-    timer.current = setInterval(() => {
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      if (el.scrollLeft >= maxScroll - 4) {
-        el.scrollTo({ left: 0, behavior: "smooth" });
-      } else {
-        el.scrollBy({ left: el.clientWidth / 2, behavior: "smooth" });
+    const checkAndInitTimer = () => {
+      if (timer.current) {
+        clearInterval(timer.current);
+        timer.current = null;
       }
-    }, 6000);
+      
+      const isMobile = window.matchMedia("(max-width: 768px)").matches;
+      if (isMobile) {
+        timer.current = setInterval(() => {
+          const maxScroll = el.scrollWidth - el.clientWidth;
+          if (el.scrollLeft >= maxScroll - 4) {
+            el.scrollTo({ left: 0, behavior: "smooth" });
+          } else {
+            el.scrollBy({ left: el.clientWidth / 2, behavior: "smooth" });
+          }
+        }, 6000);
+      }
+    };
+
+    checkAndInitTimer();
+
+    const handleResize = () => {
+      updateScrollButtons();
+      checkAndInitTimer();
+    };
+
+    window.addEventListener("resize", handleResize);
 
     return () => {
       if (timer.current) clearInterval(timer.current);
       el.removeEventListener("scroll", updateScrollButtons);
+      window.removeEventListener("resize", handleResize);
     };
   }, [cards.length, updateScrollButtons]);
 
@@ -98,7 +118,6 @@ export function FeaturedHotelsCarousel({
           </Link>
         </div>
       </div>
-
       {/* Mobile: horizontal scroll */}
       <div
         ref={ref}
@@ -109,7 +128,7 @@ export function FeaturedHotelsCarousel({
             key={hotel.id}
             className="w-[calc(50%-0.375rem)] shrink-0 snap-start"
           >
-            <FeaturedHotelCard hotel={hotel} locale={locale} />
+            <FeaturedHotelCard hotel={hotel} locale={locale} dict={dict} />
           </div>
         ))}
       </div>
@@ -117,7 +136,7 @@ export function FeaturedHotelsCarousel({
       {/* Desktop: 4 cards grid */}
       <div className="hidden gap-4 md:grid md:grid-cols-4">
         {cards.map((hotel) => (
-          <FeaturedHotelCard key={hotel.id} hotel={hotel} locale={locale} />
+          <FeaturedHotelCard key={hotel.id} hotel={hotel} locale={locale} dict={dict} />
         ))}
       </div>
     </section>

@@ -84,7 +84,7 @@ export function BaseCard({
               {title}
             </div>
             {subInfo && (
-              <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 overflow-hidden line-clamp-1 truncate select-none">
                 {subInfo}
               </div>
             )}
@@ -96,9 +96,9 @@ export function BaseCard({
           </div>
 
           {(footerLeft || footerRight) && (
-            <div className="mt-auto flex items-center justify-between border-t border-slate-100 px-4 py-3 dark:border-slate-800">
-              <div className="flex flex-col">{footerLeft}</div>
-              {footerRight && <div>{footerRight}</div>}
+            <div className="mt-auto flex flex-col gap-2.5 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+              <div className="flex flex-col w-full sm:w-auto">{footerLeft}</div>
+              {footerRight && <div className="w-full sm:w-auto flex justify-end [&>*]:w-full sm:[&>*]:w-auto">{footerRight}</div>}
             </div>
           )}
         </>

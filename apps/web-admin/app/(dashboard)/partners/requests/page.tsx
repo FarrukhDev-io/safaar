@@ -31,10 +31,12 @@ function isActiveRequest(request: PartnerRequest) {
 
 export default function PartnerRequestsPage() {
   const storeRequests = useAdminStore((s) => s.partnerRequests);
+  const setPartnerRequestNote = useAdminStore((s) => s.setPartnerRequestNote);
   const [selectedRequest, setSelectedRequest] = useState<PartnerRequest | null>(
     null,
   );
   const [decisionId, setDecisionId] = useState<string | null>(null);
+  const [adminNoteDraft, setAdminNoteDraft] = useState("");
 
   const setPartnerRequests = useAdminStore((s) => s.setPartnerRequests);
   useEffect(() => {
@@ -147,7 +149,10 @@ export default function PartnerRequestsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSelectedRequest(req)}
+                    onClick={() => {
+                      setSelectedRequest(req);
+                      setAdminNoteDraft(req.adminNote ?? "");
+                    }}
                   >
                     Ko&apos;rish
                   </Button>
@@ -256,6 +261,31 @@ export default function PartnerRequestsPage() {
                 </Card>
               </div>
             )}
+
+            {/* Admin izohi */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-[var(--text-muted)] uppercase font-semibold tracking-wider">Admin izohi</p>
+                {adminNoteDraft !== (selectedRequest.adminNote ?? "") && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setPartnerRequestNote(selectedRequest.id, adminNoteDraft);
+                      toast.success("Izoh saqlandi");
+                    }}
+                  >
+                    Saqlash
+                  </Button>
+                )}
+              </div>
+              <textarea
+                value={adminNoteDraft}
+                onChange={(e) => setAdminNoteDraft(e.target.value)}
+                placeholder="Ariza yuzasidan ichki izoh qoldiring..."
+                rows={3}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none"
+              />
+            </div>
 
             {/* Quick actions */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--border)]">

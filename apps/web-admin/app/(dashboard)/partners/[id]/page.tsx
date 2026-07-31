@@ -6,6 +6,9 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
+import Modal from "@/components/ui/Modal";
+import Input from "@/components/ui/Input";
+import { useAdminStore } from "@/lib/store";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { PARTNER_STATUS_MAP, BOOKING_STATUS_MAP } from "@/lib/constants";
 import {
@@ -21,9 +24,14 @@ import type { AdminHotelBooking, Partner } from "@/types/admin";
 export default function PartnerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const partnerNotes = useAdminStore((s) => s.partnerNotes);
+  const setPartnerNote = useAdminStore((s) => s.setPartnerNote);
   const [partner, setPartner] = useState<Partner | null>(null);
   const [partnerBookings, setPartnerBookings] = useState<AdminHotelBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commissionModalOpen, setCommissionModalOpen] = useState(false);
+  const [commissionInput, setCommissionInput] = useState("");
+  const [noteDraft, setNoteDraft] = useState(partnerNotes[id] ?? "");
 
   useEffect(() => {
     async function loadPartner() {
@@ -69,6 +77,18 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
       toast.success("Hamkor o'chirildi!");
       router.push("/partners/list");
     }
+  };
+
+  const handleCommissionSave = async () => {
+    const value = parseFloat(commissionInput);
+    if (isNaN(value) || value < 0 || value > 100) {
+      toast.error("0 dan 100 gacha to'g'ri qiymat kiriting");
+      return;
+    }
+    const updated = await AdminApi.updatePartnerCommission(id, value);
+    setPartner(updated);
+    toast.success("Komissiya foizi yangilandi!");
+    setCommissionModalOpen(false);
   };
 
   return (
@@ -128,7 +148,9 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             ) : (
               <Button variant="accent" size="sm" icon={<CheckCircle size={14} />} onClick={() => handleStatusChange("active")}>Faollashtirish</Button>
             )}
-            <Button variant="secondary" size="sm" icon={<Mail size={14} />}>Email</Button>
+            <a href={`mailto:${partner.email}`}>
+              <Button variant="secondary" size="sm" icon={<Mail size={14} />}>Email</Button>
+            </a>
             <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={handleDelete}>O&apos;chirish</Button>
           </div>
         </div>
@@ -150,7 +172,13 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                 {info.value}
               </p>
               {info.highlight && (
-                <button className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors cursor-pointer">
+                <button
+                  onClick={() => {
+                    setCommissionInput(partner.commissionPercent.toString());
+                    setCommissionModalOpen(true);
+                  }}
+                  className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors cursor-pointer"
+                >
                   <Pencil size={12} />
                 </button>
               )}
@@ -237,15 +265,51 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Internal note */}
       <Card padding="md">
-        <div className="flex items-center gap-2 mb-3">
-          <MessageSquare size={16} className="text-[var(--text-muted)]" />
-          <p className="text-sm font-semibold text-[var(--text-primary)]">Ichki izoh</p>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <MessageSquare size={16} className="text-[var(--text-muted)]" />
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Ichki izoh</p>
+          </div>
+          {noteDraft !== (partnerNotes[id] ?? "") && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setPartnerNote(id, noteDraft);
+                toast.success("Izoh saqlandi");
+              }}
+            >
+              Saqlash
+            </Button>
+          )}
         </div>
         <textarea
+          value={noteDraft}
+          onChange={(e) => setNoteDraft(e.target.value)}
           placeholder="Admin izohi yozing (faqat adminlar ko'radi)..."
           className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none h-20"
         />
       </Card>
+
+      <Modal
+        open={commissionModalOpen}
+        onClose={() => setCommissionModalOpen(false)}
+        title="Komissiya foizini o'zgartirish"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setCommissionModalOpen(false)}>Bekor qilish</Button>
+            <Button onClick={handleCommissionSave}>
+              Saqlash
+            </Button>
+          </>
+        }
+      >
+        <Input
+          type="number"
+          label="Komissiya foizi (%)"
+          value={commissionInput}
+          onChange={(e) => setCommissionInput(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 }

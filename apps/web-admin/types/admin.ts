@@ -212,12 +212,18 @@ export interface PartnerDocument {
 
 export type PaymentMethod = 'click' | 'payme' | 'uzcard' | 'humo';
 
+/** Turar-joy turi — hotel/motel/hostel/dacha bir xil "kecha-oralig'i" bron
+ * modelidan foydalanadi, shuning uchun bitta jadvalda birlashtirilgan,
+ * faqat shu maydon orqali farqlanadi. */
+export type AccommodationPartnerType = "hotel" | "motel" | "hostel" | "dacha" | "guesthouse";
+
 export interface AdminHotelBooking {
   id: string;
   partnerId?: string;
   customerName: string;
   customerPhone: string;
   hotelName: string;
+  partnerType: AccommodationPartnerType;
   roomType: string;
   checkIn: string;
   checkOut: string;
@@ -241,6 +247,22 @@ export interface AdminBusBooking {
   departureDate: string;
   departureTime: string;
   seatNumber: string;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  commission: number;
+  status: BookingStatus;
+  createdAt: string;
+}
+
+export interface AdminRestaurantBooking {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  restaurantName: string;
+  tableType: string;
+  date: string;
+  slotTime: string;
+  guests: number;
   amount: number;
   paymentMethod: PaymentMethod;
   commission: number;

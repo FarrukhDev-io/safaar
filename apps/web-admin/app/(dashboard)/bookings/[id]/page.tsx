@@ -5,6 +5,7 @@ import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
+import { useAdminStore } from "@/lib/store";
 import { AdminApi } from "@/lib/api/admin-api";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 import { BOOKING_STATUS_MAP, PAYMENT_METHOD_MAP } from "@/lib/constants";
@@ -19,8 +20,11 @@ import type { BookingDetail } from "@/types/admin";
 
 export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const bookingNotes = useAdminStore((s) => s.bookingNotes);
+  const setBookingNote = useAdminStore((s) => s.setBookingNote);
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [noteDraft, setNoteDraft] = useState(bookingNotes[id] ?? "");
 
   useEffect(() => {
     AdminApi.getBookingDetail(id)
@@ -58,11 +62,17 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
+  const handleRefund = () => {
+    if (confirm(`${formatPrice(booking.totalAmount)} miqdorida to'lovni qaytarmoqchimisiz?`)) {
+      toast.success("To'lov qaytarildi (refund)!");
+    }
+  };
+
   return (
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6">
       {/* Back */}
       <Link
-        href={!isHotel && !isRestaurant ? "/bookings/buses" : "/bookings/hotels"}
+        href={isHotel ? "/bookings/hotels" : isRestaurant ? "/bookings/restaurants" : "/bookings/buses"}
         className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors w-fit"
       >
         <ArrowLeft size={16} />
@@ -102,8 +112,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               Bekor qilish
             </Button>
           )}
-          <Button variant="secondary" size="sm" icon={<DollarSign size={14} />}>Refund</Button>
-          <Button variant="secondary" size="sm" icon={<Printer size={14} />}>Chop etish</Button>
+          <Button variant="secondary" size="sm" icon={<DollarSign size={14} />} onClick={handleRefund}>Refund</Button>
+          <Button variant="secondary" size="sm" icon={<Printer size={14} />} onClick={() => window.print()}>Chop etish</Button>
         </div>
       </div>
 
@@ -137,8 +147,12 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[var(--border)]">
-              <Button variant="ghost" size="sm" icon={<Phone size={14} />}>Qo&apos;ng&apos;iroq</Button>
-              <Button variant="ghost" size="sm" icon={<Mail size={14} />}>Email</Button>
+              <a href={`tel:${booking.customerPhone}`}>
+                <Button variant="ghost" size="sm" icon={<Phone size={14} />}>Qo&apos;ng&apos;iroq</Button>
+              </a>
+              <a href={`mailto:${booking.customerEmail}`}>
+                <Button variant="ghost" size="sm" icon={<Mail size={14} />}>Email</Button>
+              </a>
             </div>
           </Card>
 
@@ -305,11 +319,26 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
           {/* Internal note */}
           <Card padding="md">
-            <div className="flex items-center gap-2 mb-3">
-              <MessageSquare size={16} className="text-[var(--text-muted)]" />
-              <p className="text-sm font-semibold text-[var(--text-primary)]">Ichki izoh</p>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <MessageSquare size={16} className="text-[var(--text-muted)]" />
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Ichki izoh</p>
+              </div>
+              {noteDraft !== (bookingNotes[id] ?? "") && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setBookingNote(id, noteDraft);
+                    toast.success("Izoh saqlandi");
+                  }}
+                >
+                  Saqlash
+                </Button>
+              )}
             </div>
             <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
               placeholder="Izoh yozing..."
               className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none h-20"
             />

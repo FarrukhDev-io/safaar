@@ -63,7 +63,8 @@ export function RegisterForm({
     FormData
   >(completeProfileAction, {});
 
-  const action = verifyState.needsProfile ? profileAction : verifyAction;
+  const isStep2 = verifyState.needsProfile;
+  const action = isStep2 ? profileAction : verifyAction;
   const loading = sending || verifying || saving;
 
   const errorMsg = otpState.error || verifyState.error || profileState.error;
@@ -79,13 +80,19 @@ export function RegisterForm({
   const formErrorMap: Record<string, string> = {
     FIRST_NAME_REQUIRED: dict.firstNameRequired,
     EMAIL_REQUIRED: dict.emailRequired,
+    OTP_INVALID: dict.codeInvalid,
+    OTP_EXPIRED: dict.codeExpired,
   };
 
   return (
     <AuthSplitLayout locale={locale} dict={dict}>
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-black tracking-tight text-slate-900">{dict.registerTitle}</h1>
-        <p className="text-sm font-bold text-slate-700">{dict.registerSubtitle}</p>
+        <h1 className="text-2xl font-black tracking-tight text-slate-900">
+          {isStep2 ? dict.completeProfileTitle : dict.registerTitle}
+        </h1>
+        <p className="text-sm font-bold text-slate-700">
+          {isStep2 ? dict.completeProfileSubtitle : dict.registerSubtitle}
+        </p>
       </header>
 
       <form action={action} className="flex flex-col gap-4">

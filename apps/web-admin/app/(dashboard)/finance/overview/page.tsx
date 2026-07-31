@@ -39,7 +39,7 @@ export default function FinanceOverviewPage() {
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6 animate-fade-in">
       <div className="flex items-center justify-between">
         
-        <Button variant="secondary" size="sm" icon={<Download size={14} />}>PDF Hisobot</Button>
+        <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => window.print()}>PDF Hisobot</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

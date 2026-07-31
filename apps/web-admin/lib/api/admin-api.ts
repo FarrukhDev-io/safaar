@@ -261,6 +261,11 @@ function toHotelBooking(row: ApiRecord): AdminHotelBooking {
     customerName: asString(row.customer_name, 'Mijoz'),
     customerPhone: asString(row.customer_phone),
     hotelName: asString(row.hotel_name, 'Mehmonxona'),
+    partnerType: (['hotel', 'motel', 'hostel', 'dacha', 'guesthouse'] as const).includes(
+      row.partner_type as never,
+    )
+      ? (row.partner_type as AdminHotelBooking['partnerType'])
+      : 'hotel',
     roomType: asString(row.room_type_name, 'Xona'),
     checkIn: asString(row.check_in ?? item.check_in),
     checkOut: asString(row.check_out ?? item.check_out),
@@ -840,6 +845,14 @@ export const AdminApi = {
     return unknownItems(data).map((row) => toHotelBooking(asRecord(row)));
   },
 
+  adjustUserBonus: async (id: string, amount: number, reason?: string): Promise<number> => {
+    const { data } = await apiClient.post(`/admin/users/${id}/bonus-adjustment`, {
+      amount,
+      reason,
+    });
+    return asNumber(asRecord(data).balance);
+  },
+
   // Partners
   getPartners: async (): Promise<Partner[]> => {
     const { data } = await apiClient.get('/admin/partners');
@@ -878,6 +891,13 @@ export const AdminApi = {
   deletePartner: async (id: string) => {
     const { data } = await apiClient.delete(`/admin/partners/${id}`);
     return data;
+  },
+
+  updatePartnerCommission: async (id: string, rate: number) => {
+    const { data } = await apiClient.patch(`/admin/partners/${id}/commission`, {
+      rate,
+    });
+    return toPartner(asRecord(data));
   },
 
   // Bookings
