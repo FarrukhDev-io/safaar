@@ -213,11 +213,11 @@ export function AttractionsView({
         id: a.id,
         name: a.name,
         cityName: a.cityName,
-        priceFormatted: (dict.categories as any)?.[a.categoryKey] ?? "Obida",
+        priceFormatted: (dict.categories as Record<string, string> | undefined)?.[a.categoryKey] ?? "Obida",
         rating: a.rating,
         imageUrl: a.imageUrl,
       })),
-    [filtered]
+    [filtered, dict.categories]
   );
 
   const handleMoreInfo = useCallback(
@@ -384,6 +384,8 @@ export function AttractionsView({
                       item={item}
                       categoryLabel={dict.categories?.[item.categoryKey] ?? item.categoryDefault}
                       onMoreInfo={() => handleMoreInfo(item)}
+                      dict={dict}
+                      locale={locale}
                     />
                   </div>
                 ))}
@@ -407,6 +409,8 @@ export function AttractionsView({
                   item={item}
                   categoryLabel={dict.categories?.[item.categoryKey] ?? item.categoryDefault}
                   onMoreInfo={() => handleMoreInfo(item)}
+                  dict={dict}
+                  locale={locale}
                 />
               ))}
             </div>

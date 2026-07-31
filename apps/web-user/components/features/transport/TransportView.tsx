@@ -7,7 +7,7 @@ import { formatSum } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
-import type { CatalogDict } from "@/i18n/dictionaries";
+import type { TransportDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import { MOCK_TRANSPORTS } from "@/components/catalog/data";
 import type { TransportItem } from "@/components/catalog/types";
@@ -28,7 +28,7 @@ function TransportCard({
   onBook,
 }: {
   item: TransportItem;
-  dict: CatalogDict["transport"];
+  dict: TransportDict;
   onBook: () => void;
 }) {
   const catLabel = dict.categories?.[item.categoryKey] ?? item.categoryDefault;
@@ -135,7 +135,7 @@ function TransportCard({
   );
 }
 
-export function TransportView({ dict }: { dict: CatalogDict["transport"] }) {
+export function TransportView({ dict }: { dict: TransportDict }) {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");

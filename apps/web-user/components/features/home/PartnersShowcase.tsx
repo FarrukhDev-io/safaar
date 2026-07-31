@@ -27,7 +27,7 @@ export async function PartnersShowcase({
   return (
     <section
       aria-labelledby="partners-showcase-heading"
-      className="relative overflow-hidden border-t border-slate-200/80 bg-slate-50/60 py-12 sm:py-16 dark:border-slate-800/80 dark:bg-slate-950/40"
+      className="relative overflow-hidden border-t border-slate-200/80 bg-transparent py-12 sm:py-16 dark:border-slate-800/80"
     >
       <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
         <div className="mx-auto max-w-2xl">
@@ -41,13 +41,13 @@ export async function PartnersShowcase({
             {dict.subtitle}
           </h2>
         </div>
-
+ 
         {/* Logo showcase */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:mt-10 sm:gap-4">
           {partners.map((partner) => (
             <div
               key={partner.id}
-              className="group relative flex items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-xs backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-500/30 hover:bg-white hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80 dark:hover:border-primary-500/40 dark:hover:bg-slate-900"
+              className="group relative flex items-center justify-center rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
             >
               {partner.logoUrl ? (
                 <div className="relative h-7 w-28 sm:h-8">

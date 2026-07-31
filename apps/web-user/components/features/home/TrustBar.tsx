@@ -56,14 +56,14 @@ export function TrustBar({
       ];
 
   return (
-    <section className="border-t border-slate-200/80 bg-slate-50/50 px-4 py-10 sm:px-6 sm:py-14 dark:border-slate-800/80 dark:bg-slate-950/40">
+    <section className="border-t border-slate-200/80 bg-transparent px-4 py-10 sm:px-6 sm:py-14 dark:border-slate-800/80">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-8 sm:flex-row sm:justify-between">
         {/* Statistics */}
         <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-wrap sm:items-center sm:gap-6">
           {statsItems.map((stat) => (
             <div
               key={stat.label}
-              className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-blue-400/80 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+              className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-400/80 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
             >
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
                 {stat.icon}
@@ -85,7 +85,7 @@ export function TrustBar({
           {["Payme ⚡", "Click 🔵", "Uzcard 💳", "Humo 💳"].map((name) => (
             <span
               key={name}
-              className="rounded-full border border-slate-200/80 bg-white px-3.5 py-1.5 text-xs font-extrabold text-slate-800 shadow-2xs transition-all hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+              className="rounded-full border border-slate-200/80 bg-white px-3.5 py-1.5 text-xs font-extrabold text-slate-800 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
             >
               {name}
             </span>
