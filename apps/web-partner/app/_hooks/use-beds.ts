@@ -10,6 +10,8 @@ import { getPrimaryHotel } from "./use-primary-hotel";
 
 export const bedsQueryKey = ["partner", "beds"] as const;
 
+const EMPTY_BEDS: ReturnType<typeof toBed>[] = [];
+
 export function useBeds() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
   const setBeds = useDataStore((s) => s.setBeds);
@@ -26,7 +28,7 @@ export function useBeds() {
     if (query.data) setBeds(query.data);
   }, [query.data, setBeds]);
 
-  return { data: query.data ?? [], isLoading: query.isLoading && !query.data };
+  return { data: query.data ?? EMPTY_BEDS, isLoading: query.isLoading && !query.data };
 }
 
 export function useCreateBed() {

@@ -307,7 +307,7 @@ export function ReportsView() {
                     .sort((a, b) => b.revenue - a.revenue)
                     .slice(0, 5)
                     .map((r, index) => (
-                      <div key={r.name} className="grid grid-cols-[auto_1fr_auto] gap-4 py-3 px-1 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors rounded-md">
+                      <div key={r.id} className="grid grid-cols-[auto_1fr_auto] gap-4 py-3 px-1 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors rounded-md">
                         <span className="text-sm font-mono text-zinc-400 w-6 text-center">{index + 1}</span>
                         <div className="flex flex-col">
                           <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-200">{r.name}</span>

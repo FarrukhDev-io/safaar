@@ -120,4 +120,11 @@ export class EventsService {
       this.emitter.emit(SERVER_EVENTS.HOTEL_MODERATION_CHANGED, event);
     }
   }
+
+  /** Promo-kod yaratildi/tahrirlandi/o'chirildi — barcha ulangan mijozlarga. */
+  promosUpdated() {
+    this.emitter.emit(SERVER_EVENTS.PROMOS_UPDATED, {
+      occurredAt: new Date().toISOString(),
+    });
+  }
 }

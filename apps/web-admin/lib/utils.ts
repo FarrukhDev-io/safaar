@@ -7,6 +7,19 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(" ");
 }
 
+/** Axios xatosidan backend qaytargan haqiqiy xabarni ajratib oladi. */
+export function extractApiErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (error as { response?: { data?: unknown } }).response;
+    const data = response?.data as
+      | { error?: { message?: string }; message?: string }
+      | undefined;
+    const message = data?.error?.message ?? data?.message;
+    if (typeof message === "string" && message) return message;
+  }
+  return fallback;
+}
+
 /**
  * Ming xonalarni bo'shliq bilan ajratish — `toLocaleString("uz-UZ")` ishlatilmaydi,
  * chunki bu server (Node ICU) va brauzer (Chromium ICU) o'rtasida boshqacha

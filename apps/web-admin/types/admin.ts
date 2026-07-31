@@ -46,6 +46,10 @@ export interface AdminListing {
   roomsCount?: number;
   status: 'draft' | 'under_review' | 'published' | 'rejected';
   submittedAt: string;
+  completeness?: {
+    isPublishable: boolean;
+    missingFields: string[];
+  };
 }
 
 /* ────────────────────────────────────────────

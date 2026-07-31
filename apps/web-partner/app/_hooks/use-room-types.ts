@@ -10,6 +10,8 @@ import { getPrimaryHotel } from "./use-primary-hotel";
 
 export const roomTypesQueryKey = ["partner", "room-types"] as const;
 
+const EMPTY_ROOM_TYPES: ReturnType<typeof toRoomType>[] = [];
+
 export function useRoomTypes() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
   const setRoomTypes = useDataStore((s) => s.setRoomTypes);
@@ -27,7 +29,7 @@ export function useRoomTypes() {
     if (query.data) setRoomTypes(query.data);
   }, [query.data, setRoomTypes]);
 
-  return { data: query.data ?? [], isLoading: query.isLoading && !query.data };
+  return { data: query.data ?? EMPTY_ROOM_TYPES, isLoading: query.isLoading && !query.data };
 }
 
 function roomTypeBody(values: RoomTypeDraft) {

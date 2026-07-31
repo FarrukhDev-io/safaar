@@ -71,17 +71,17 @@ export function buildDailyStats(
 export function buildUnitTypeDistribution(
   reservations: ReservationView[],
   roomTypes: RoomType[],
-): Array<{ name: string; bookings: number; revenue: number }> {
+): Array<{ id: string; name: string; bookings: number; revenue: number }> {
   const map = new Map<
     string,
-    { name: string; bookings: number; revenue: number }
+    { id: string; name: string; bookings: number; revenue: number }
   >();
 
   for (const r of reservations) {
     if (!isActive(r)) continue;
     const roomType = roomTypes.find((rt) => rt.id === r.roomTypeId);
     const name = roomType?.name ?? r.roomTypeName;
-    const entry = map.get(r.roomTypeId) ?? { name, bookings: 0, revenue: 0 };
+    const entry = map.get(r.roomTypeId) ?? { id: r.roomTypeId, name, bookings: 0, revenue: 0 };
     entry.bookings += 1;
     entry.revenue += r.totalPrice;
     map.set(r.roomTypeId, entry);

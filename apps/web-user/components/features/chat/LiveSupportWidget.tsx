@@ -10,6 +10,7 @@ import {
   type SupportChatMessage,
   type SupportThreadResult,
 } from "@/lib/services/support/actions";
+import { useRealtimeEvent } from "@/lib/services/realtime/socket-provider";
 
 function formatMessageTime(createdAt: string): string {
   if (!createdAt) return "";
@@ -68,6 +69,15 @@ export function LiveSupportWidget() {
       void loadThread();
     }
   }, [loaded, loading, loadThread, open]);
+
+  // Operator javob yozganda widget'ni sahifani yangilamasdan yangilaydi.
+  useRealtimeEvent(
+    "support.message_created",
+    () => {
+      if (loaded) void loadThread();
+    },
+    [loaded, loadThread],
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

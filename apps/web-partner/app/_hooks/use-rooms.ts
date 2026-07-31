@@ -10,6 +10,8 @@ import { getPrimaryHotel } from "./use-primary-hotel";
 
 export const roomsQueryKey = ["partner", "rooms"] as const;
 
+const EMPTY_ROOMS: ReturnType<typeof toRoom>[] = [];
+
 export function useRooms() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
   const setRooms = useDataStore((s) => s.setRooms);
@@ -28,7 +30,7 @@ export function useRooms() {
     if (query.data) setRooms(query.data);
   }, [query.data, setRooms]);
 
-  return { data: query.data ?? [], isLoading: query.isLoading && !query.data };
+  return { data: query.data ?? EMPTY_ROOMS, isLoading: query.isLoading && !query.data };
 }
 
 function roomBody(values: RoomDraft) {

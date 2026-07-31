@@ -439,6 +439,21 @@ function toListing(row: ApiRecord): AdminListing {
       row.submitted_at ?? row.created_at,
       new Date().toISOString(),
     ),
+    completeness: isRecord(row.completeness)
+      ? {
+          isPublishable: Boolean(
+            row.completeness.is_publishable ?? row.completeness.isPublishable,
+          ),
+          missingFields: Array.isArray(
+            row.completeness.missing_fields ?? row.completeness.missingFields,
+          )
+            ? ((row.completeness.missing_fields ??
+                row.completeness.missingFields) as unknown[]).map((field) =>
+                String(field),
+              )
+            : [],
+        }
+      : undefined,
   };
 }
 
@@ -522,22 +537,97 @@ function toWithdrawal(row: ApiRecord): WithdrawalRequest {
   };
 }
 
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  support_tickets: "Support so'rovi",
+  partner_organizations: 'Hamkor tashkiloti',
+  bookings: 'Bron',
+  users: 'Foydalanuvchi',
+  hotels: 'Mehmonxona',
+  partners: 'Hamkor',
+};
+
+function auditTargetLabel(rawTarget: string): string {
+  if (!rawTarget) return '—';
+  const separatorIndex = rawTarget.indexOf(':');
+  if (separatorIndex === -1) return rawTarget;
+  const entityType = rawTarget.slice(0, separatorIndex);
+  const entityId = rawTarget.slice(separatorIndex + 1);
+  if (!entityType) return entityId;
+  const label = ENTITY_TYPE_LABELS[entityType] ?? entityType;
+  const shortId = entityId.length > 8 ? `…${entityId.slice(-8)}` : entityId;
+  return entityId ? `${label} (${shortId})` : label;
+}
+
 function toAuditLog(row: ApiRecord) {
   const metadata = asRecord(row.metadata);
   return {
     id: asString(row.id),
     user: asString(row.actor_name ?? row.actor_id ?? row.actor_type, 'Admin'),
-    action: asString(row.action),
-    target: asString(
-      metadata.target ?? row.entity_id ?? row.entity_type ?? row.request_id,
+    action: activityMessage(asString(row.action), metadata),
+    target: auditTargetLabel(
+      asString(metadata.target ?? row.entity_id ?? row.entity_type ?? row.request_id),
     ),
     ip: asString(row.ip_address),
     date: asString(row.created_at, new Date().toISOString()),
   };
 }
 
+const SETTINGS_GROUP_LABELS: Record<string, string> = {
+  general: "Umumiy sozlamalar",
+  finance: 'Moliya sozlamalari',
+  notifications: 'Bildirishnoma sozlamalari',
+};
+
+function activityMessage(action: string, metadata: ApiRecord): string {
+  switch (action) {
+    case 'partner.moderation': {
+      const status = asString(metadata.status);
+      const verdict =
+        status === 'approved'
+          ? 'tasdiqlandi'
+          : status === 'rejected'
+            ? 'rad etildi'
+            : status || "ko'rib chiqildi";
+      return `Hamkor arizasi ${verdict}`;
+    }
+    case 'partner.status':
+      return `Hamkor holati o'zgartirildi: ${asString(metadata.status, '—')}`;
+    case 'partner.commission':
+      return "Hamkor komissiya foizi o'zgartirildi";
+    case 'partner.adjustment':
+      return "Hamkor balansiga tuzatish kiritildi";
+    case 'partner.delete':
+      return "Hamkor o'chirildi";
+    case 'settings.update': {
+      const group = asString(metadata.group);
+      return `Sozlamalar yangilandi: ${SETTINGS_GROUP_LABELS[group] ?? (group || 'umumiy')}`;
+    }
+    case 'booking.admin_cancel':
+      return 'Bron administrator tomonidan bekor qilindi';
+    case 'user.admin_delete':
+      return "Foydalanuvchi o'chirildi";
+    case 'user.admin_message':
+      return 'Foydalanuvchiga xabar yuborildi';
+    case 'user.bonus_adjustment':
+      return "Foydalanuvchi bonus balansi o'zgartirildi";
+    case 'partner_request':
+      return 'Yangi hamkor arizasi tushdi';
+    case 'booking_created':
+      return 'Yangi bron yaratildi';
+    case 'booking_cancelled':
+      return 'Bron bekor qilindi';
+    case 'complaint':
+      return 'Yangi shikoyat/murojaat tushdi';
+    case 'user_registered':
+      return "Yangi foydalanuvchi ro'yxatdan o'tdi";
+    default:
+      return action || 'Admin harakati';
+  }
+}
+
 function toActivityLog(row: ApiRecord): ActivityLogItem {
   const action = asString(row.action);
+  const metadata = asRecord(row.metadata);
   const type: ActivityLogItem['type'] = action.includes('partner')
     ? 'partner_request'
     : action.includes('booking') || action.includes('bron')
@@ -565,7 +655,7 @@ function toActivityLog(row: ApiRecord): ActivityLogItem {
   return {
     id: asString(row.id),
     type,
-    message: action || 'Admin harakati',
+    message: activityMessage(action, metadata),
     timestamp: asString(row.created_at, new Date().toISOString()),
     icon,
   };
@@ -1018,9 +1108,31 @@ export const AdminApi = {
     const { data } = await apiClient.get('/catalog/regions');
     return unknownItems(data).map((row) => toRegion(asRecord(row)));
   },
+  createRegion: async (name: string): Promise<CatalogRegion> => {
+    const { data } = await apiClient.post('/admin/catalog/regions', { name });
+    return toRegion(asRecord(data));
+  },
+  updateRegion: async (id: string, name: string): Promise<CatalogRegion> => {
+    const { data } = await apiClient.patch(`/admin/catalog/regions/${id}`, { name });
+    return toRegion(asRecord(data));
+  },
+  deleteRegion: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/catalog/regions/${id}`);
+  },
   getAmenities: async (): Promise<CatalogAmenity[]> => {
     const { data } = await apiClient.get('/catalog/amenities');
     return unknownItems(data).map((row) => toAmenity(asRecord(row)));
+  },
+  createAmenity: async (code: string, name: string): Promise<CatalogAmenity> => {
+    const { data } = await apiClient.post('/admin/catalog/amenities', { code, name });
+    return toAmenity(asRecord(data));
+  },
+  updateAmenity: async (id: string, name: string): Promise<CatalogAmenity> => {
+    const { data } = await apiClient.patch(`/admin/catalog/amenities/${id}`, { name });
+    return toAmenity(asRecord(data));
+  },
+  deleteAmenity: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/catalog/amenities/${id}`);
   },
 
   // Promos
@@ -1047,6 +1159,29 @@ export const AdminApi = {
       usageLimit: input.usageLimit,
       validUntil: input.validUntil || undefined,
     });
+  },
+  updatePromo: async (
+    id: string,
+    input: {
+      code: string;
+      discountType: 'percent' | 'fixed';
+      discountValue: number;
+      usageLimit: number;
+      validUntil?: string;
+      isActive: boolean;
+    },
+  ): Promise<void> => {
+    await apiClient.patch(`/admin/promos/${id}`, {
+      code: input.code,
+      discountType: input.discountType === 'percent' ? 'percentage' : 'fixed',
+      discountValue: input.discountValue,
+      usageLimit: input.usageLimit,
+      validUntil: input.validUntil || undefined,
+      isActive: input.isActive,
+    });
+  },
+  deletePromo: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/promos/${id}`);
   },
 
   // Support

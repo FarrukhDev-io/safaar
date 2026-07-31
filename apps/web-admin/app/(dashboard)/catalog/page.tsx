@@ -1,26 +1,116 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { AdminApi } from "@/lib/api/admin-api";
 import type { CatalogRegion, CatalogAmenity } from "@/types/admin";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import Input from "@/components/ui/Input";
 import { Plus, Edit2, Trash2, MapPin, Wifi } from "lucide-react";
+import { extractApiErrorMessage } from "@/lib/utils";
 
 export default function CatalogPage() {
   const [activeTab, setActiveTab] = useState<"regions" | "amenities">("regions");
   const [regions, setRegions] = useState<CatalogRegion[]>([]);
   const [amenities, setAmenities] = useState<CatalogAmenity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<CatalogRegion | CatalogAmenity | null>(null);
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+
+  const load = useCallback(() => {
+    Promise.all([AdminApi.getRegions(), AdminApi.getAmenities()])
+      .then(([reg, amen]) => {
+        setRegions(reg);
+        setAmenities(amen);
+      })
+      .catch(() => toast.error("Katalog ma'lumotlarini yuklab bo'lmadi."))
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
-    Promise.all([AdminApi.getRegions(), AdminApi.getAmenities()]).then(([reg, amen]) => {
-      setRegions(reg);
-      setAmenities(amen);
-      setLoading(false);
-    });
-  }, []);
+    load();
+  }, [load]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setName("");
+    setCode("");
+    setModalOpen(true);
+  };
+
+  const openEdit = (item: CatalogRegion | CatalogAmenity) => {
+    setEditing(item);
+    setName(item.name);
+    setCode("");
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      toast.error("Nomini kiriting.");
+      return;
+    }
+    setSaving(true);
+    try {
+      if (activeTab === "regions") {
+        if (editing) {
+          await AdminApi.updateRegion(editing.id, trimmedName);
+          toast.success("Hudud yangilandi!");
+        } else {
+          await AdminApi.createRegion(trimmedName);
+          toast.success("Hudud qo'shildi!");
+        }
+      } else {
+        if (editing) {
+          await AdminApi.updateAmenity(editing.id, trimmedName);
+          toast.success("Qulaylik yangilandi!");
+        } else {
+          const trimmedCode = code.trim();
+          if (!trimmedCode) {
+            toast.error("Qulaylik kodini kiriting.");
+            setSaving(false);
+            return;
+          }
+          await AdminApi.createAmenity(trimmedCode, trimmedName);
+          toast.success("Qulaylik qo'shildi!");
+        }
+      }
+      setModalOpen(false);
+      setEditing(null);
+      load();
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "Saqlab bo'lmadi. Qaytadan urinib ko'ring."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (item: CatalogRegion | CatalogAmenity) => {
+    if (!confirm(`"${item.name}"ni o'chirmoqchimisiz?`)) return;
+    setDeletingId(item.id);
+    try {
+      if (activeTab === "regions") {
+        await AdminApi.deleteRegion(item.id);
+      } else {
+        await AdminApi.deleteAmenity(item.id);
+      }
+      toast.success("O'chirildi!");
+      load();
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "O'chirib bo'lmadi."));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const regionColumns: Column<CatalogRegion>[] = [
     { key: "id", label: "ID", render: (row) => <span className="text-xs font-mono">{row.id}</span> },
@@ -38,12 +128,16 @@ export default function CatalogPage() {
     {
       key: "actions",
       label: "",
-      render: () => (
+      render: (row) => (
         <div className="flex justify-end gap-2">
-          <button className="w-8 h-8 rounded flex items-center justify-center text-[var(--primary)] hover:bg-[var(--primary)]/10">
+          <button className="w-8 h-8 rounded flex items-center justify-center text-[var(--primary)] hover:bg-[var(--primary)]/10" onClick={() => openEdit(row)}>
             <Edit2 size={14} />
           </button>
-          <button className="w-8 h-8 rounded flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10">
+          <button
+            className="w-8 h-8 rounded flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10 disabled:opacity-50"
+            disabled={deletingId === row.id}
+            onClick={() => handleDelete(row)}
+          >
             <Trash2 size={14} />
           </button>
         </div>
@@ -67,12 +161,16 @@ export default function CatalogPage() {
     {
       key: "actions",
       label: "",
-      render: () => (
+      render: (row) => (
         <div className="flex justify-end gap-2">
-          <button className="w-8 h-8 rounded flex items-center justify-center text-[var(--primary)] hover:bg-[var(--primary)]/10">
+          <button className="w-8 h-8 rounded flex items-center justify-center text-[var(--primary)] hover:bg-[var(--primary)]/10" onClick={() => openEdit(row)}>
             <Edit2 size={14} />
           </button>
-          <button className="w-8 h-8 rounded flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10">
+          <button
+            className="w-8 h-8 rounded flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10 disabled:opacity-50"
+            disabled={deletingId === row.id}
+            onClick={() => handleDelete(row)}
+          >
             <Trash2 size={14} />
           </button>
         </div>
@@ -85,8 +183,8 @@ export default function CatalogPage() {
   return (
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        
-        <Button size="sm" icon={<Plus size={14} />}>
+        <div />
+        <Button size="sm" icon={<Plus size={14} />} onClick={openCreate}>
           Yangi qo'shish
         </Button>
       </div>
@@ -119,6 +217,43 @@ export default function CatalogPage() {
           <DataTable columns={amenityColumns} data={amenities} keyField="id" emptyMessage="Qulayliklar topilmadi" />
         )}
       </div>
+
+      <Modal
+        open={modalOpen}
+        onClose={() => !saving && setModalOpen(false)}
+        title={
+          editing
+            ? activeTab === "regions" ? "Hududni tahrirlash" : "Qulaylikni tahrirlash"
+            : activeTab === "regions" ? "Yangi hudud" : "Yangi qulaylik"
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setModalOpen(false)} disabled={saving}>
+              Bekor qilish
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Saqlanmoqda..." : editing ? "Saqlash" : "Yaratish"}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {activeTab === "amenities" && !editing && (
+            <Input
+              label="Kod"
+              placeholder="wifi"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          )}
+          <Input
+            label="Nomi"
+            placeholder={activeTab === "regions" ? "Toshkent" : "Wi-Fi"}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

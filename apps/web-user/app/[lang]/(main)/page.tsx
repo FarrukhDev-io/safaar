@@ -12,7 +12,7 @@ import { TrustBar } from "@/components/features/home/TrustBar";
 import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotelsCarousel";
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
 import { PartnersShowcase } from "@/components/features/home/PartnersShowcase";
-import { PromoCodesSection } from "@/components/features/home/PromoCodesSection";
+import { PromoCodesSectionLive } from "@/components/features/home/PromoCodesSectionLive";
 
 export async function generateMetadata({
   params,
@@ -105,12 +105,8 @@ export default async function HomePage({
         </Suspense>
       </div>
 
-      {/* EKRAN 3: Promo-kodlar */}
-      {promos.length > 0 && (
-        <div className="py-10 sm:py-14">
-          <PromoCodesSection promos={promos} />
-        </div>
-      )}
+      {/* EKRAN 3: Promo-kodlar (real-time) */}
+      <PromoCodesSectionLive initialPromos={promos} />
 
       {/* EKRAN 4: City Cards */}
       <div className="py-10 sm:py-16 md:py-20">

@@ -9,7 +9,17 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AdminApi } from "@/lib/api/admin-api";
+import { extractApiErrorMessage } from "@/lib/utils";
 import type { AdminListing } from "@/types/admin";
+
+const MISSING_FIELD_LABELS: Record<string, string> = {
+  general: "Asosiy ma'lumot (nomi, tavsif)",
+  location: "Manzil va koordinatalar",
+  media: "Rasmlar (kamida 3 ta)",
+  amenities: "Qulayliklar (kamida 3 ta)",
+  rules: "Uy qoidalari (check-in/check-out)",
+  rooms: "Kamida 1 ta faol xona",
+};
 
 const LISTING_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   under_review: { label: "Ko'rib chiqilmoqda", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
@@ -64,18 +74,33 @@ export default function ListingDetailsPage() {
   }
 
   const handleApprove = async () => {
-    if (confirm("Ushbu e'lonni tasdiqlab, nashr qilasizmi?")) {
+    if (!confirm("Ushbu e'lonni tasdiqlab, nashr qilasizmi?")) return;
+    try {
       await AdminApi.approveListing(listing.id);
       toast.success("E'lon muvaffaqiyatli tasdiqlandi va nashr etildi");
       router.push("/partners/listings");
+    } catch (error) {
+      toast.error(
+        extractApiErrorMessage(error, "E'lonni tasdiqlab bo'lmadi. Qaytadan urinib ko'ring."),
+      );
     }
   };
 
   const handleReject = async () => {
-    if (confirm("Ushbu e'lonni rad etishni xohlaysizmi?")) {
-      await AdminApi.rejectListing(listing.id);
+    const reason = window.prompt("Rad etish sababini kiriting:");
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error("Rad etish sababini kiriting.");
+      return;
+    }
+    try {
+      await AdminApi.rejectListing(listing.id, reason.trim());
       toast.error("E'lon rad etildi");
       router.push("/partners/listings");
+    } catch (error) {
+      toast.error(
+        extractApiErrorMessage(error, "E'lonni rad etib bo'lmadi. Qaytadan urinib ko'ring."),
+      );
     }
   };
 
@@ -113,6 +138,23 @@ export default function ListingDetailsPage() {
           </div>
         )}
       </div>
+
+      {listing.completeness && !listing.completeness.isPublishable && (
+        <div className="flex items-start gap-3 rounded-xl border border-[var(--warning)]/30 bg-[var(--warning)]/10 p-4">
+          <Info size={18} className="mt-0.5 shrink-0 text-[var(--warning)]" />
+          <div className="text-sm text-[var(--text-primary)]">
+            <p className="font-semibold">E'lon hali to'liq to'ldirilmagan</p>
+            <p className="mt-1 text-[var(--text-secondary)]">
+              Hamkor quyidagi bo'limlarni to'ldirmaguncha "Tasdiqlash" ishlamaydi:
+            </p>
+            <ul className="mt-2 list-inside list-disc text-[var(--text-secondary)]">
+              {listing.completeness.missingFields.map((field) => (
+                <li key={field}>{MISSING_FIELD_LABELS[field] ?? field}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left Column - Main Details */}

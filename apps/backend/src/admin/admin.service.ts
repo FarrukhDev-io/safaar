@@ -237,6 +237,15 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+function isForeignKeyViolation(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return false;
+  }
+  const code = (error as { code?: unknown }).code;
+  // 23503 = foreign_key_violation, 23001 = restrict_violation (explicit ON DELETE RESTRICT)
+  return code === '23503' || code === '23001';
+}
+
 function normalizeSettingsGroup(group: string): string {
   const normalized = group.trim().toLowerCase();
   if (!/^[a-z0-9_-]{1,80}$/.test(normalized)) {
@@ -2842,7 +2851,7 @@ export class AdminService {
     try {
       rows = await this.rows(
         `insert into cms_entries (id, type, slug, title, body, status, metadata, published_at, updated_at)
-         values (gen_random_uuid(), 'promo', $1, ($2)::jsonb, '{}'::jsonb, 'active', ($3)::jsonb, $4, now())
+         values (gen_random_uuid(), 'promo', $1, ($2)::jsonb, '{}'::jsonb, 'published', ($3)::jsonb, $4, now())
          returning id::text, type, slug, title, metadata, status, published_at, created_at, updated_at`,
         [
           code.toLowerCase().replace(/\s+/g, '-'),
@@ -2869,11 +2878,269 @@ export class AdminService {
 
     void this.cache.delByPattern('cms:*');
     this.invalidateAdminCache();
+    this.events.promosUpdated();
     return rows[0];
+  }
+
+  async promoUpdate(id: string, body: Record<string, unknown>) {
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (body.code !== undefined) {
+      const code = String(body.code).toUpperCase();
+      sets.push(`slug = $${paramIndex++}`);
+      params.push(code.toLowerCase().replace(/\s+/g, '-'));
+      sets.push(`title = $${paramIndex++}::jsonb`);
+      params.push(JSON.stringify({ uz: code }));
+    }
+
+    const metadataPatch: Record<string, unknown> = {};
+    if (body.discountType !== undefined) {
+      metadataPatch.discountType = body.discountType;
+    }
+    if (body.discountValue !== undefined) {
+      metadataPatch.discountValue = Number(body.discountValue);
+    }
+    if (body.usageLimit !== undefined) {
+      metadataPatch.usageLimit = Number(body.usageLimit);
+    }
+    if (Object.keys(metadataPatch).length > 0) {
+      sets.push(`metadata = metadata || $${paramIndex++}::jsonb`);
+      params.push(JSON.stringify(metadataPatch));
+    }
+
+    const validUntilRaw = body.validUntil ?? body.valid_until;
+    if (validUntilRaw !== undefined) {
+      const date = new Date(String(validUntilRaw));
+      sets.push(`published_at = $${paramIndex++}`);
+      params.push(!Number.isNaN(date.getTime()) ? date.toISOString() : null);
+    }
+
+    if (body.isActive !== undefined) {
+      sets.push(`status = $${paramIndex++}`);
+      params.push(body.isActive ? 'published' : 'draft');
+    }
+
+    if (sets.length === 0) {
+      const [existing] = await this.rows(
+        `select id::text, type, slug, title, metadata, status, published_at, created_at, updated_at
+         from cms_entries where id = $1::uuid and type = 'promo'`,
+        [id],
+      );
+      if (!existing) {
+        throw new NotFoundException({
+          code: 'PROMO_NOT_FOUND',
+          message: 'Promo-kod topilmadi',
+        });
+      }
+      return existing;
+    }
+
+    sets.push('updated_at = now()');
+    params.push(id);
+
+    let rows: DbRow[];
+    try {
+      rows = await this.rows(
+        `update cms_entries set ${sets.join(', ')}
+         where id = $${paramIndex}::uuid and type = 'promo'
+         returning id::text, type, slug, title, metadata, status, published_at, created_at, updated_at`,
+        params,
+      );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException({
+          code: 'PROMO_CODE_EXISTS',
+          message: 'Bu promo-kod allaqachon mavjud. Boshqa nom tanlang.',
+        });
+      }
+      throw error;
+    }
+
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'PROMO_NOT_FOUND',
+        message: 'Promo-kod topilmadi',
+      });
+    }
+
+    void this.cache.delByPattern('cms:*');
+    this.invalidateAdminCache();
+    this.events.promosUpdated();
+    return rows[0];
+  }
+
+  async promoDelete(id: string) {
+    const rows = await this.rows(
+      `delete from cms_entries where id = $1::uuid and type = 'promo' returning id::text`,
+      [id],
+    );
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'PROMO_NOT_FOUND',
+        message: 'Promo-kod topilmadi',
+      });
+    }
+    void this.cache.delByPattern('cms:*');
+    this.invalidateAdminCache();
+    this.events.promosUpdated();
+    return { id, deleted: true };
   }
 
   promoStats(id: string) {
     return { id, usages: 0, revenue: 0 };
+  }
+
+  private localizedNameJson(body: Record<string, unknown>): string {
+    const raw = body.name;
+    const name =
+      raw && typeof raw === 'object' && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>)
+        : { uz: raw };
+    const uz = String(name.uz ?? '').trim();
+    if (!uz) {
+      throw new BadRequestException({
+        code: 'NAME_REQUIRED',
+        message: "Nomi (o'zbekcha) kiritilishi shart",
+      });
+    }
+    return JSON.stringify({
+      uz,
+      ru: name.ru ? String(name.ru) : uz,
+      en: name.en ? String(name.en) : uz,
+    });
+  }
+
+  async regionCreate(body: Record<string, unknown>) {
+    const rows = await this.rows(
+      `insert into regions (id, name, created_at, updated_at)
+       values (gen_random_uuid(), ($1)::jsonb, now(), now())
+       returning id::text, name, created_at, updated_at`,
+      [this.localizedNameJson(body)],
+    );
+    void this.cache.delByPattern('catalog:*');
+    return rows[0];
+  }
+
+  async regionUpdate(id: string, body: Record<string, unknown>) {
+    const rows = await this.rows(
+      `update regions set name = ($1)::jsonb, updated_at = now()
+       where id = $2::uuid
+       returning id::text, name, created_at, updated_at`,
+      [this.localizedNameJson(body), id],
+    );
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'REGION_NOT_FOUND',
+        message: 'Hudud topilmadi',
+      });
+    }
+    void this.cache.delByPattern('catalog:*');
+    return rows[0];
+  }
+
+  async regionDelete(id: string) {
+    let rows: DbRow[];
+    try {
+      rows = await this.rows(
+        `delete from regions where id = $1::uuid returning id::text`,
+        [id],
+      );
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw new ConflictException({
+          code: 'REGION_IN_USE',
+          message:
+            "Bu hududga shaharlar bog'langan. Avval shaharlarni o'chiring yoki boshqa hududga ko'chiring.",
+        });
+      }
+      throw error;
+    }
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'REGION_NOT_FOUND',
+        message: 'Hudud topilmadi',
+      });
+    }
+    void this.cache.delByPattern('catalog:*');
+    return { id, deleted: true };
+  }
+
+  async amenityCreate(body: Record<string, unknown>) {
+    const code = String(body.code ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_');
+    if (!code) {
+      throw new BadRequestException({
+        code: 'AMENITY_CODE_REQUIRED',
+        message: 'Qulaylik kodi kiritilishi shart',
+      });
+    }
+    let rows: DbRow[];
+    try {
+      rows = await this.rows(
+        `insert into amenities (id, code, name, created_at, updated_at)
+         values (gen_random_uuid(), $1, ($2)::jsonb, now(), now())
+         returning id::text, code, name, created_at, updated_at`,
+        [code, this.localizedNameJson(body)],
+      );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException({
+          code: 'AMENITY_CODE_EXISTS',
+          message: `"${code}" kodli qulaylik allaqachon mavjud.`,
+        });
+      }
+      throw error;
+    }
+    void this.cache.delByPattern('catalog:*');
+    return rows[0];
+  }
+
+  async amenityUpdate(id: string, body: Record<string, unknown>) {
+    const rows = await this.rows(
+      `update amenities set name = ($1)::jsonb, updated_at = now()
+       where id = $2::uuid
+       returning id::text, code, name, created_at, updated_at`,
+      [this.localizedNameJson(body), id],
+    );
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'AMENITY_NOT_FOUND',
+        message: 'Qulaylik topilmadi',
+      });
+    }
+    void this.cache.delByPattern('catalog:*');
+    return rows[0];
+  }
+
+  async amenityDelete(id: string) {
+    let rows: DbRow[];
+    try {
+      rows = await this.rows(
+        `delete from amenities where id = $1::uuid returning id::text`,
+        [id],
+      );
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw new ConflictException({
+          code: 'AMENITY_IN_USE',
+          message:
+            "Bu qulaylik mehmonxona yoki xonalarda ishlatilmoqda, shuning uchun o'chirib bo'lmaydi.",
+        });
+      }
+      throw error;
+    }
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'AMENITY_NOT_FOUND',
+        message: 'Qulaylik topilmadi',
+      });
+    }
+    void this.cache.delByPattern('catalog:*');
+    return { id, deleted: true };
   }
 
   async supportTickets(query: QueryLike = {}) {
@@ -3307,22 +3574,25 @@ export class AdminService {
   async auditLogs(query: QueryLike = {}) {
     return this.rows(`
       select
-        id::text,
-        actor_type,
-        actor_id::text,
-        action,
-        entity_type,
-        entity_id::text,
-        old_value,
-        new_value,
-        coalesce(metadata, '{}'::jsonb) ||
-          jsonb_build_object('target', concat_ws(':', entity_type, entity_id::text)) as metadata,
-        ip_address,
-        user_agent,
-        request_id,
-        created_at
-      from audit_logs
-      order by created_at desc
+        al.id::text,
+        al.actor_type,
+        al.actor_id::text,
+        coalesce(au.full_name, au.email) as actor_name,
+        al.action,
+        al.entity_type,
+        al.entity_id::text,
+        al.old_value,
+        al.new_value,
+        coalesce(al.metadata, '{}'::jsonb) ||
+          jsonb_build_object('target', concat_ws(':', al.entity_type, al.entity_id::text)) as metadata,
+        al.ip_address,
+        al.user_agent,
+        al.request_id,
+        al.created_at
+      from audit_logs al
+      left join admin_users au
+        on al.actor_type = 'admin' and au.id = al.actor_id
+      order by al.created_at desc
       ${this.limitClause(query)}
     `);
   }

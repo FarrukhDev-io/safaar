@@ -11,24 +11,17 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Edit2, Trash2 } from "lucide-react";
-import { formatDate, formatPrice } from "@/lib/utils";
-
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const response = (error as { response?: { data?: unknown } }).response;
-    const data = response?.data as
-      | { error?: { message?: string }; message?: string }
-      | undefined;
-    const message = data?.error?.message ?? data?.message;
-    if (typeof message === "string" && message) return message;
-  }
-  return fallback;
-}
+import { extractApiErrorMessage, formatDate, formatPrice } from "@/lib/utils";
 
 function defaultValidUntil(): string {
   const d = new Date();
   d.setDate(d.getDate() + 30);
   return d.toISOString().slice(0, 10);
+}
+
+function toDateInputValue(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? defaultValidUntil() : d.toISOString().slice(0, 10);
 }
 
 function makeEmptyForm() {
@@ -38,14 +31,17 @@ function makeEmptyForm() {
     discountValue: "",
     usageLimit: "100",
     validUntil: defaultValidUntil(),
+    isActive: true,
   };
 }
 
 export default function PromosPage() {
   const [data, setData] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState(makeEmptyForm);
 
   const loadPromos = useCallback(() => {
@@ -59,7 +55,26 @@ export default function PromosPage() {
     loadPromos();
   }, [loadPromos]);
 
-  const handleCreate = async () => {
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(makeEmptyForm());
+    setModalOpen(true);
+  };
+
+  const openEdit = (promo: PromoCode) => {
+    setEditingId(promo.id);
+    setForm({
+      code: promo.code,
+      discountType: promo.discountType,
+      discountValue: String(promo.discountValue),
+      usageLimit: String(promo.usageLimit),
+      validUntil: toDateInputValue(promo.validUntil),
+      isActive: promo.isActive,
+    });
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
     const code = form.code.trim();
     const discountValue = Number(form.discountValue);
     const usageLimit = Number(form.usageLimit);
@@ -75,23 +90,55 @@ export default function PromosPage() {
 
     setSaving(true);
     try {
-      await AdminApi.createPromo({
-        code,
-        discountType: form.discountType,
-        discountValue,
-        usageLimit: usageLimit > 0 ? usageLimit : 100,
-        validUntil: form.validUntil,
-      });
-      toast.success("Promo-kod yaratildi!");
-      setCreateOpen(false);
+      if (editingId) {
+        await AdminApi.updatePromo(editingId, {
+          code,
+          discountType: form.discountType,
+          discountValue,
+          usageLimit: usageLimit > 0 ? usageLimit : 100,
+          validUntil: form.validUntil,
+          isActive: form.isActive,
+        });
+        toast.success("Promo-kod yangilandi!");
+      } else {
+        await AdminApi.createPromo({
+          code,
+          discountType: form.discountType,
+          discountValue,
+          usageLimit: usageLimit > 0 ? usageLimit : 100,
+          validUntil: form.validUntil,
+        });
+        toast.success("Promo-kod yaratildi!");
+      }
+      setModalOpen(false);
+      setEditingId(null);
       setForm(makeEmptyForm());
       loadPromos();
     } catch (error) {
       toast.error(
-        extractErrorMessage(error, "Promo-kod yaratib bo'lmadi. Qaytadan urinib ko'ring."),
+        extractApiErrorMessage(
+          error,
+          editingId
+            ? "Promo-kodni saqlab bo'lmadi. Qaytadan urinib ko'ring."
+            : "Promo-kod yaratib bo'lmadi. Qaytadan urinib ko'ring.",
+        ),
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (promo: PromoCode) => {
+    if (!confirm(`"${promo.code}" promo-kodini o'chirmoqchimisiz?`)) return;
+    setDeletingId(promo.id);
+    try {
+      await AdminApi.deletePromo(promo.id);
+      toast.success("Promo-kod o'chirildi!");
+      loadPromos();
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "Promo-kodni o'chirib bo'lmadi."));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -118,19 +165,20 @@ export default function PromosPage() {
     {
       key: "actions",
       label: "",
-      render: () => (
+      render: (row) => (
         <div className="flex justify-end gap-2">
           <button
-            className="w-8 h-8 rounded flex items-center justify-center text-[var(--text-muted)] cursor-not-allowed"
-            title="Tahrirlash hozircha qo'llab-quvvatlanmaydi"
-            disabled
+            className="w-8 h-8 rounded flex items-center justify-center text-[var(--primary)] hover:bg-[var(--primary)]/10"
+            title="Tahrirlash"
+            onClick={() => openEdit(row)}
           >
             <Edit2 size={14} />
           </button>
           <button
-            className="w-8 h-8 rounded flex items-center justify-center text-[var(--text-muted)] cursor-not-allowed"
-            title="O'chirish hozircha qo'llab-quvvatlanmaydi"
-            disabled
+            className="w-8 h-8 rounded flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10 disabled:opacity-50"
+            title="O'chirish"
+            disabled={deletingId === row.id}
+            onClick={() => handleDelete(row)}
           >
             <Trash2 size={14} />
           </button>
@@ -145,23 +193,23 @@ export default function PromosPage() {
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div />
-        <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+        <Button size="sm" icon={<Plus size={14} />} onClick={openCreate}>
           Yangi promo-kod
         </Button>
       </div>
       <DataTable columns={columns} data={data} keyField="id" emptyMessage="Promo-kodlar topilmadi" />
 
       <Modal
-        open={createOpen}
-        onClose={() => !saving && setCreateOpen(false)}
-        title="Yangi promo-kod"
+        open={modalOpen}
+        onClose={() => !saving && setModalOpen(false)}
+        title={editingId ? "Promo-kodni tahrirlash" : "Yangi promo-kod"}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setCreateOpen(false)} disabled={saving}>
+            <Button variant="secondary" onClick={() => setModalOpen(false)} disabled={saving}>
               Bekor qilish
             </Button>
-            <Button onClick={handleCreate} disabled={saving}>
-              {saving ? "Saqlanmoqda..." : "Yaratish"}
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Saqlanmoqda..." : editingId ? "Saqlash" : "Yaratish"}
             </Button>
           </>
         }
@@ -208,6 +256,17 @@ export default function PromosPage() {
             value={form.validUntil}
             onChange={(e) => setForm({ ...form, validUntil: e.target.value })}
           />
+          {editingId && (
+            <Select
+              label="Holat"
+              value={form.isActive ? "active" : "inactive"}
+              onChange={(e) => setForm({ ...form, isActive: e.target.value === "active" })}
+              options={[
+                { value: "active", label: "Faol" },
+                { value: "inactive", label: "Nofaol" },
+              ]}
+            />
+          )}
         </div>
       </Modal>
     </div>

@@ -30,7 +30,7 @@ export class PromosService {
         coalesce((metadata ->> 'usedCount')::int, 0) as used_count,
         coalesce(published_at, created_at + interval '30 days') as valid_until
       from cms_entries
-      where type = 'promo' and status = 'active' ${extraWhere}
+      where type = 'promo' and status = 'published' ${extraWhere}
     `;
   }
 

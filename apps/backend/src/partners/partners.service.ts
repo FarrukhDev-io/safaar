@@ -1821,7 +1821,7 @@ export class PartnersService {
     id: string,
     body: Record<string, unknown>,
   ) {
-    await this.assertHotel(id, actor);
+    const existing = await this.assertHotel(id, actor);
     const now = new Date().toISOString();
     const sets: string[] = [];
     const params: unknown[] = [];
@@ -1865,11 +1865,11 @@ export class PartnersService {
       params.push(JSON.stringify(extraFees));
     }
     if (checkInTime !== undefined || checkOutTime !== undefined) {
+      const effectiveCheckIn = checkInTime ?? existing['check_in_time'];
+      const effectiveCheckOut = checkOutTime ?? existing['check_out_time'];
       const rulesComplete =
-        typeof checkInTime === 'string' &&
-        checkInTime.trim().length > 0 &&
-        typeof checkOutTime === 'string' &&
-        checkOutTime.trim().length > 0;
+        Boolean(effectiveCheckIn && String(effectiveCheckIn).trim()) &&
+        Boolean(effectiveCheckOut && String(effectiveCheckOut).trim());
       sets.push(`rules_completed_at = $${idx++}`);
       params.push(rulesComplete ? now : null);
     }

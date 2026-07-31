@@ -40,8 +40,11 @@ export function getLocalizedText(
 /** Admin panelda yaratilgan, hozir amal qiladigan promo-kodlar (`GET /promos`). */
 async function getActivePromos(): Promise<ActivePromo[]> {
   try {
+    // Admin panelda promo-kod qo'shilishi/tahrirlanishi/o'chirilishi
+    // darhol (keshsiz) ko'rinishi kerak — shuning uchun bu yerda
+    // revalidate keshi ishlatilmaydi.
     const res = await fetch(`${config.apiUrl}/promos`, {
-      next: { revalidate: 60, tags: ["promos"] },
+      cache: "no-store",
     });
     if (!res.ok) return [];
     const json = await res.json();
@@ -91,7 +94,7 @@ export async function getPromoBarConfig(locale: string): Promise<PromoBarConfig 
       headers: {
         "Accept-Language": locale,
       },
-      next: { revalidate: 60, tags: ["promo-bar"] },
+      cache: "no-store",
     });
 
     if (!res.ok) return null;

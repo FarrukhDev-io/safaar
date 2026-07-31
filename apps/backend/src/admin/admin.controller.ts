@@ -517,9 +517,66 @@ export class AdminController {
     return this.adminService.promoCreate(body);
   }
 
+  @Patch('promos/:id')
+  @Permissions(Permission.CmsWrite)
+  promoUpdate(
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminService.promoUpdate(id, body);
+  }
+
+  @Delete('promos/:id')
+  @Permissions(Permission.CmsWrite)
+  promoDelete(@Param('id') id: string) {
+    return this.adminService.promoDelete(id);
+  }
+
   @Get('promos/:id/stats')
   promoStats(@Param('id') id: string) {
     return this.adminService.promoStats(id);
+  }
+
+  @Post('catalog/regions')
+  @Permissions(Permission.CmsWrite)
+  regionCreate(@Body() body: Record<string, unknown>) {
+    return this.adminService.regionCreate(body);
+  }
+
+  @Patch('catalog/regions/:id')
+  @Permissions(Permission.CmsWrite)
+  regionUpdate(
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminService.regionUpdate(id, body);
+  }
+
+  @Delete('catalog/regions/:id')
+  @Permissions(Permission.CmsWrite)
+  regionDelete(@Param('id') id: string) {
+    return this.adminService.regionDelete(id);
+  }
+
+  @Post('catalog/amenities')
+  @Permissions(Permission.CmsWrite)
+  amenityCreate(@Body() body: Record<string, unknown>) {
+    return this.adminService.amenityCreate(body);
+  }
+
+  @Patch('catalog/amenities/:id')
+  @Permissions(Permission.CmsWrite)
+  amenityUpdate(
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminService.amenityUpdate(id, body);
+  }
+
+  @Delete('catalog/amenities/:id')
+  @Permissions(Permission.CmsWrite)
+  amenityDelete(@Param('id') id: string) {
+    return this.adminService.amenityDelete(id);
   }
 
   @Get('support/tickets')
