@@ -39,6 +39,8 @@ import { ActiveFilters, type ActiveFilterChip } from "@/components/ui/ActiveFilt
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 
+import { BaseCard } from "@/components/ui/BaseCard";
+
 export type { RestaurantItem };
 
 /* ─── RestaurantCard ─────────────────────────────────────────────── */
@@ -52,88 +54,35 @@ function RestaurantCard({
   onBook: () => void;
 }) {
   return (
-    <div
+    <BaseCard
+      imageSrc={item.imageUrl}
+      imageAlt={item.name}
+      title={item.name}
+      subInfo={`${item.cuisine} · ${item.cityName}`}
+      rating={
+        <span className="flex items-center gap-1 font-bold text-amber-500">
+          <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+          <span>{item.rating.toFixed(1)}</span>
+        </span>
+      }
+      footerLeft={
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            {dict.avgCheck}
+          </span>
+          <span className="mt-0.5 text-base font-extrabold text-slate-900 dark:text-white">
+            {formatSum(item.averageCheckSum)}
+          </span>
+        </div>
+      }
+      footerRight={
+        <div className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 transition-colors group-hover:text-blue-700">
+          <span>{dict.reserveTable}</span>
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+        </div>
+      }
       onClick={onBook}
-      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-500/30 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md"
-    >
-      {/* Image Section */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-        <Image
-          src={item.imageUrl}
-          alt={item.name}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-          quality={85}
-        />
-        {/* Sleek Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 to-transparent" />
-        
-        {/* Cuisine Badge - Glassmorphism */}
-        <div className="absolute left-3.5 top-3.5 z-10">
-          <span className="inline-flex items-center rounded-xl bg-slate-900/65 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md border border-white/10 shadow-xs">
-            {item.cuisine}
-          </span>
-        </div>
-
-        {/* Rating Badge */}
-        <div className="absolute right-3.5 top-3.5 z-10">
-          <span className="inline-flex items-center gap-1 rounded-xl bg-amber-500/95 px-2.5 py-1 text-[11px] font-extrabold text-white backdrop-blur-xs shadow-xs">
-            <Star className="h-3 w-3 fill-white text-white" />
-            {item.rating.toFixed(1)}
-          </span>
-        </div>
-      </div>
-
-      {/* Details Section */}
-      <div className="flex flex-col flex-1 p-5">
-        {/* Title */}
-        <h3 className="line-clamp-1 text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          {item.name}
-        </h3>
-
-        {/* Working Hours & City */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-            <span>{item.workingHours}</span>
-          </div>
-          <span className="text-slate-300 dark:text-slate-850">•</span>
-          <div className="flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-            <span>{item.cityName}</span>
-          </div>
-        </div>
-
-        {/* Address */}
-        <p className="mt-2.5 line-clamp-1 text-xs text-slate-400 dark:text-slate-500 font-medium">
-          {item.address}
-        </p>
-
-        {/* Reviews count info */}
-        <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-semibold">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
-          <span>{item.reviewsCount} ta sharh</span>
-        </div>
-
-        {/* Divider */}
-        <div className="mt-5 border-t border-slate-100 dark:border-slate-800/80" />
-        {/* Pricing & CTA */}
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{dict.avgCheck}</span>
-            <span className="mt-0.5 text-base font-extrabold text-slate-900 dark:text-white">
-              {formatSum(item.averageCheckSum)}
-            </span>
-          </div>
-
-          <div className="inline-flex w-full sm:w-auto min-h-[40px] items-center justify-center gap-1 rounded-xl bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-600 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white group-hover:shadow-md group-hover:shadow-blue-500/20 dark:bg-slate-800 dark:text-blue-400 dark:group-hover:bg-blue-600 dark:group-hover:text-white">
-            <span>{dict.reserveTable}</span>
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-          </div>
-        </div>
-      </div>
-    </div>
+    />
   );
 }
 

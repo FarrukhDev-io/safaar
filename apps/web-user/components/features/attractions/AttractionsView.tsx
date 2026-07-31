@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import Image from "next/image";
 import {
-  MapPin,
   Compass,
   Star,
   ArrowRight,
@@ -27,6 +25,8 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { Select, type SelectOption } from "@/components/ui/Select";
 
+import { BaseCard } from "@/components/ui/BaseCard";
+
 export type { AttractionItem };
 
 function AttractionCard({
@@ -48,106 +48,38 @@ function AttractionCard({
   onMoreInfo: () => void;
 }) {
   const { format } = useCurrency();
-  
-  const getDurationText = (category: string) => {
-    switch (category) {
-      case "historical":
-        return `2–3 ${dict.hoursSuffix || "soat"}`;
-      case "unesco":
-        return dict.fullDay || "Butun kun";
-      case "nature":
-        return `4–6 ${dict.hoursSuffix || "soat"}`;
-      case "culture":
-        return `1–2 ${dict.hoursSuffix || "soat"}`;
-      case "entertainment":
-        return `2–4 ${dict.hoursSuffix || "soat"}`;
-      default:
-        return `2–3 ${dict.hoursSuffix || "soat"}`;
-    }
-  };
-  const duration = getDurationText(item.categoryKey);
   const entryPrice = Math.round(item.rating * 60_000);
 
   return (
-    <div
-      onClick={onMoreInfo}
-      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-500/30 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md"
-    >
-      {/* Image Section */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-        <Image
-          src={item.imageUrl}
-          alt={item.name}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-          quality={85}
-        />
-        {/* Sleek Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 to-transparent" />
-        
-        {/* Category Badge - Glassmorphism */}
-        <div className="absolute left-3.5 top-3.5 z-10">
-          <span className="inline-flex items-center rounded-xl bg-slate-900/65 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md border border-white/10 shadow-xs">
-            {categoryLabel}
+    <BaseCard
+      imageSrc={item.imageUrl}
+      imageAlt={item.name}
+      title={item.name}
+      subInfo={`${categoryLabel} · ${item.cityName}`}
+      rating={
+        <span className="flex items-center gap-1 font-bold text-amber-500">
+          <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+          <span>{item.rating.toFixed(1)}</span>
+        </span>
+      }
+      footerLeft={
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            {dict.from ? `${dict.from} (` : ""}{locale === "uz" ? "Kirish narxi" : locale === "ru" ? "Входной билет" : "Entry ticket"}{dict.from ? ")" : ""}
+          </span>
+          <span className="mt-0.5 text-base font-extrabold text-slate-900 dark:text-white">
+            {format(entryPrice)}
           </span>
         </div>
-      </div>
-
-      {/* Details Section */}
-      <div className="flex flex-col flex-1 p-5">
-        {/* Title */}
-        <h3 className="line-clamp-1 text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          {item.name}
-        </h3>
-
-        {/* Minimalist City, Rating & Reviews Row */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-            <span>{item.cityName}</span>
-          </div>
-          <span className="text-slate-300 dark:text-slate-800">•</span>
-          <div className="flex items-center gap-1 text-amber-500 dark:text-amber-400">
-            <Star className="h-3.5 w-3.5 fill-current" />
-            <span>{item.rating.toFixed(1)}</span>
-          </div>
-          <span className="text-slate-350 dark:text-slate-800">•</span>
-          <span>{duration}</span>
+      }
+      footerRight={
+        <div className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 transition-colors group-hover:text-blue-700">
+          <span>{dict.moreInfo || "Batafsil"}</span>
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
         </div>
-
-        {/* Description */}
-        <p className="mt-3 line-clamp-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-          {item.description}
-        </p>
-
-        {/* Best time to visit info */}
-        <div className="mt-3.5 rounded-xl bg-slate-50 p-2.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-800/40 dark:text-slate-350 flex items-center gap-1.5">
-          <span className="font-bold text-blue-600 dark:text-blue-400">{dict.recommended || "Tavsiya etiladi:"}</span>
-          <span className="truncate">{item.bestTimeToVisit}</span>
-        </div>
-
-        {/* Divider */}
-        <div className="mt-5 border-t border-slate-100 dark:border-slate-800/80" />
-
-        {/* Pricing & CTA */}
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              {dict.from ? `${dict.from} (` : ""}{locale === "uz" ? "Kirish narxi" : locale === "ru" ? "Входной билет" : "Entry ticket"}{dict.from ? ")" : ""}
-            </span>
-            <span className="mt-0.5 text-base font-extrabold text-slate-900 dark:text-white">
-              {format(entryPrice)}
-            </span>
-          </div>
-
-          <div className="inline-flex items-center gap-1 text-xs font-bold text-blue-650 dark:text-blue-400 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-300">
-            <span>{dict.moreInfo || "Batafsil"}</span>
-            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
-          </div>
-        </div>
-      </div>
-    </div>
+      }
+      onClick={onMoreInfo}
+    />
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
-import { Car, Users, ArrowRight, PhoneCall, CheckCircle2, X, Filter, ChevronDown, MapPin, User, Phone, Calendar, Star } from "lucide-react";
+import { Car, ArrowRight, PhoneCall, CheckCircle2, X, Filter, ChevronDown, MapPin, User, Phone, Calendar, Star } from "lucide-react";
 import { formatSum } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -19,6 +19,8 @@ import { cn } from "@/lib/cn";
 import { Modal } from "@/components/ui/Modal";
 import { Select, type SelectOption } from "@/components/ui/Select";
 
+import { BaseCard } from "@/components/ui/BaseCard";
+
 export type { TransportItem };
 
 /* ─── TransportCard ─────────────────────────────────────────────── */
@@ -31,107 +33,41 @@ function TransportCard({
   dict: TransportDict;
   onBook: () => void;
 }) {
-  const catLabel = dict.categories?.[item.categoryKey] ?? item.categoryDefault;
-
   return (
-    <div
-      onClick={onBook}
-      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-500/30 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md"
-    >
-      {/* Image Section */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-        <Image
-          src={item.imageUrl}
-          alt={item.name}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-          quality={85}
-        />
-        {/* Sleek Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 to-transparent" />
-        
-        {/* Category Badge - Glassmorphism */}
-        <div className="absolute left-3.5 top-3.5 z-10">
-          <span className="inline-flex items-center rounded-xl bg-slate-900/65 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md border border-white/10 shadow-xs">
-            {catLabel}
+    <BaseCard
+      imageSrc={item.imageUrl}
+      imageAlt={item.name}
+      title={item.name}
+      subInfo={`${item.cityName} · ${item.seats} ${dict.seats} · ${item.transmission === "manual" ? (dict.manual || "Mexanika") : (dict.automatic || "Avtomat")}`}
+      rating={
+        item.rating ? (
+          <span className="flex items-center gap-1 font-bold text-amber-500">
+            <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+            <span>{item.rating.toFixed(1)}</span>
           </span>
-        </div>
-
-        {/* Rating Badge */}
-        {item.rating && (
-          <div className="absolute right-3.5 top-3.5 z-10">
-            <span className="inline-flex items-center gap-1 rounded-xl bg-amber-500/95 px-2.5 py-1 text-[11px] font-extrabold text-white backdrop-blur-xs shadow-xs">
-              <Star className="h-3 w-3 fill-white text-white" />
-              {item.rating.toFixed(1)}
+        ) : undefined
+      }
+      footerLeft={
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            kunlik ijara
+          </span>
+          <div className="mt-0.5 flex items-baseline gap-1">
+            <span className="text-base font-extrabold text-slate-900 dark:text-white">
+              {formatSum(item.pricePerDaySum)}
             </span>
-          </div>
-        )}
-      </div>
-
-      {/* Details Section */}
-      <div className="flex flex-col flex-1 p-5">
-        {/* Title */}
-        <h3 className="line-clamp-1 text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          {item.name}
-        </h3>
-
-        {/* City & Route info */}
-        <p className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-          <MapPin className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-          <span>{item.cityName}</span>
-        </p>
-
-        {/* Specs Grid */}
-        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-          <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 font-semibold text-slate-700 dark:bg-slate-800/40 dark:text-slate-350">
-            <Users className="h-4 w-4 text-blue-500 shrink-0" />
-            <span>{item.seats} {dict.seats}</span>
-          </div>
-          
-          <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 font-semibold text-slate-700 dark:bg-slate-800/40 dark:text-slate-350">
-            <Car className="h-4 w-4 text-blue-500 shrink-0" />
-            <span className="truncate">{item.transmission === "manual" ? (dict.manual || "Mexanika") : (dict.automatic || "Avtomat")}</span>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 font-semibold text-slate-700 dark:bg-slate-800/40 dark:text-slate-350">
-            <svg className="h-4 w-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-            <span className="truncate">{item.fuelType ?? "Benzin"}</span>
-          </div>
-
-          <div className={`flex items-center gap-2 rounded-xl p-2.5 font-semibold text-xs truncate ${
-            item.hasDriver 
-              ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300"
-              : "bg-amber-50 text-amber-800 dark:bg-amber-950/20 dark:text-amber-300"
-          }`}>
-            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${item.hasDriver ? "bg-emerald-500" : "bg-amber-500"}`} />
-            <span className="truncate">{item.hasDriver ? dict.driverIncluded : dict.withoutDriver}</span>
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">/ {dict.perDay}</span>
           </div>
         </div>
-
-        {/* Divider */}
-        <div className="mt-5 border-t border-slate-100 dark:border-slate-800/80" />
-        {/* Pricing & CTA */}
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">kunlik ijara</span>
-            <div className="mt-0.5 flex items-baseline gap-1">
-              <span className="text-base font-extrabold text-slate-900 dark:text-white">
-                {formatSum(item.pricePerDaySum)}
-              </span>
-              <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">/ {dict.perDay}</span>
-            </div>
-          </div>
-
-          <div className="inline-flex w-full sm:w-auto min-h-[40px] items-center justify-center gap-1 rounded-xl bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-600 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white group-hover:shadow-md group-hover:shadow-blue-500/20 dark:bg-slate-800 dark:text-blue-400 dark:group-hover:bg-blue-600 dark:group-hover:text-white">
-            <span>{dict.reserve}</span>
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-          </div>
+      }
+      footerRight={
+        <div className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 transition-colors group-hover:text-blue-700">
+          <span>{dict.reserve}</span>
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
         </div>
-      </div>
-    </div>
+      }
+      onClick={onBook}
+    />
   );
 }
 
