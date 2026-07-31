@@ -8,10 +8,10 @@ import { api } from "@/lib/api";
 import { SearchBar } from "@/components/search/SearchBar";
 import { Hero } from "@/components/features/home/Hero";
 import { CityCardsSection } from "@/components/features/home/CityCardsSection";
-import { TrustBar } from "@/components/features/home/TrustBar";
+
 import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotelsCarousel";
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
-import { PartnersShowcase } from "@/components/features/home/PartnersShowcase";
+
 import type { HotelListItem } from "@/types/view";
 
 export async function generateMetadata({
@@ -41,21 +41,19 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [common, dict, [citiesRes, featuredRes, dealsRes, statsRes]] = await Promise.all([
+  const [common, dict, [citiesRes, featuredRes, dealsRes]] = await Promise.all([
     getDictionary(locale, "common"),
     getDictionary(locale, "home"),
     Promise.allSettled([
       api.catalog.getCities(locale),
       api.hotels.getFeaturedHotels(locale, { limit: 4 }),
       api.cms.getDeals(locale),
-      api.cms.getPublicStats(),
     ]),
   ]);
 
   const cities = citiesRes.status === "fulfilled" ? citiesRes.value : [];
   const featuredResult = featuredRes.status === "fulfilled" ? featuredRes.value : null;
   const rawDeals = dealsRes.status === "fulfilled" ? dealsRes.value : [];
-  const stats = statsRes.status === "fulfilled" ? statsRes.value : null;
 
   const fromApi = featuredResult?.items ?? [];
   const hotels: HotelListItem[] = [...fromApi];
@@ -96,7 +94,7 @@ export default async function HomePage({
                 <Link
                   key={city.id}
                   href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-                  className="shrink-0 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 active:scale-95 sm:px-4 sm:py-2"
+                  className="shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 active:scale-95 sm:px-5 sm:py-2.5 sm:text-sm"
                 >
                   {city.name}
                 </Link>
@@ -131,11 +129,9 @@ export default async function HomePage({
         </Suspense>
       </div>
 
-      {/* EKRAN 5: Ishonchli hamkorlar */}
-      <PartnersShowcase dict={dict.partners} />
 
-      {/* EKRAN 6: Trust Bar */}
-      <TrustBar dict={dict.trust} stats={stats} />
+
+
     </main>
   );
 }

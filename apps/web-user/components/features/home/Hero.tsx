@@ -6,10 +6,8 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
     <section className="relative overflow-hidden pt-12 pb-10 sm:pt-16 sm:pb-14 lg:pt-20 lg:pb-16">
       <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
         {/* Title */}
-        <h1 className="mt-5 text-3xl font-black tracking-tight text-slate-900 sm:text-5xl md:text-6xl dark:text-white">
-          <span className="bg-gradient-to-r from-blue-700 via-blue-900 to-emerald-700 bg-clip-text text-transparent dark:from-white dark:via-blue-200 dark:to-emerald-300">
-            {dict.title}
-          </span>
+        <h1 className="mt-5 text-3xl font-black tracking-tight text-blue-700 sm:text-5xl md:text-6xl dark:text-blue-400">
+          {dict.title}
         </h1>
 
         {/* Subtitle */}
