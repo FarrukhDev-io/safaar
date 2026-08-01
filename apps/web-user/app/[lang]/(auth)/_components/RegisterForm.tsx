@@ -122,30 +122,20 @@ export function RegisterForm({
         {!isStep2 ? (
           <>
             {/* Step 1: Email Entry & Code Request */}
-            <div className="flex items-end gap-2">
-              <label className="flex flex-1 flex-col gap-1.5">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
-                <Input
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={handleEmailChange}
-                  placeholder={dict.emailPlaceholder}
-                />
-              </label>
-              <Button
-                type="submit"
-                variant="secondary"
-                size="md"
-                loading={sending}
-                disabled={otpState.ok && !otpState.error}
-                formAction={requestAction}
-              >
-                {otpState.ok ? dict.codeSent : dict.sendCode}
-              </Button>
-            </div>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
+              <Input
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={handleEmailChange}
+                placeholder={dict.emailPlaceholder}
+                readOnly={otpState.ok}
+                className={otpState.ok ? "bg-slate-50 text-slate-500 cursor-not-allowed" : ""}
+              />
+            </label>
 
             {otpState.devCode && (
               <p className="rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-900">
@@ -164,6 +154,7 @@ export function RegisterForm({
                   required
                   maxLength={6}
                   placeholder="••••••"
+                  autoFocus
                 />
               </label>
             )}
@@ -254,7 +245,12 @@ export function RegisterForm({
           </p>
         )}
 
-        <Button type="submit" size="lg" loading={loading}>
+        <Button
+          type="submit"
+          size="lg"
+          loading={loading}
+          formAction={!isStep2 && !otpState.ok ? requestAction : undefined}
+        >
           {isStep2 ? dict.save : (otpState.ok ? dict.verifyAndRegister : dict.sendCode)}
         </Button>
 
