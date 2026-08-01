@@ -8,9 +8,9 @@ import { useAuthStore } from "../_stores/auth-store";
 export const primaryHotelQueryKey = ["partner", "primary-hotel"] as const;
 
 export async function getPrimaryHotel(token?: string | null) {
-  const [hotel] = pageItems(await partners.listHotels(token));
+  let [hotel] = pageItems(await partners.listHotels(token));
   if (!hotel) {
-    throw new Error("Hamkor listingi topilmadi");
+    hotel = await partners.createHotel({ name: 'Yangi obyekt' }, token);
   }
   return hotel;
 }
