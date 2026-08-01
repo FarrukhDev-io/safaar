@@ -36,6 +36,30 @@ const AMENITY_ICONS: Record<string, typeof Wifi> = {
   security: ShieldCheck,
 };
 
+const BADGE_TRANSLATIONS: Record<Locale, Record<string, string>> = {
+  uz: {
+    wifi: "Bepul Wi-Fi",
+    pool: "Hovuz",
+    parking: "Bepul turargoh",
+    restaurant: "Restoran",
+    security: "Xavfsizlik xizmati",
+  },
+  ru: {
+    wifi: "Бесплатный Wi-Fi",
+    pool: "Бассейн",
+    parking: "Бесплатная парковка",
+    restaurant: "Ресторан",
+    security: "Служба безопасности",
+  },
+  en: {
+    wifi: "Free Wi-Fi",
+    pool: "Swimming pool",
+    parking: "Free parking",
+    restaurant: "Restaurant",
+    security: "Security service",
+  },
+};
+
 /* ─── Mock Fallback Data ─────────────────────────────────────────── */
 const MOCK_HOTELS_DETAIL: Record<string, HotelDetail> = {
   "khiva-ichan-kala": {
@@ -48,7 +72,7 @@ const MOCK_HOTELS_DETAIL: Record<string, HotelDetail> = {
     reviewsCount: 120,
     minPriceSum: 450000,
     imageUrl: "/Khiva-Ichan-Kala-aerial.jpeg",
-    description: "Qadimiy Ichan Qal'a markazida joylashgan, an'anaviy uslubdagi shinam mehmonxona. Tarixiy obidalarga piyoda masofa.",
+    description: "Qadimiy Ichan Qal'a markazida joylagan, an'anaviy uslubdagi shinam mehmonxona. Tarixiy obidalarga piyoda masofa.",
     address: "Ichan Qal'a, Xiva, O'zbekiston",
     amenities: ["wifi", "restaurant", "security"],
     images: ["/Khiva-Ichan-Kala-aerial.jpeg", "/Samarkand-Registan-cinematic.jpeg"],
@@ -118,16 +142,16 @@ const MOCK_HOTELS_DETAIL: Record<string, HotelDetail> = {
     minPriceSum: 750000,
     imageUrl: "/Samarkand-Registan-cinematic.jpeg",
     description: "Samarqandning nufuzli hududida joylashgan, yuqori darajadagi qulaylikka ega bo'lgan zamonaviy mehmonxona.",
-    address: "Universitet xiyoboni, Samarqand, O'zbekiston",
-    amenities: ["wifi", "parking", "restaurant", "security"],
-    images: ["/Samarkand-Registan-cinematic.jpeg", "/Bukhara-old-city-golden-hour.jpeg"],
-    latitude: 39.6508,
-    longitude: 66.9654,
+    address: "Dagbitskaya ko'chasi, Samarqand, O'zbekiston",
+    amenities: ["wifi", "pool", "parking", "restaurant"],
+    images: ["/Samarkand-Registan-cinematic.jpeg", "/Charvak-Lake-drone.jpeg"],
+    latitude: 39.6542,
+    longitude: 66.9589,
     checkInTime: "14:00",
     checkOutTime: "12:00",
     rooms: [
-      { id: "mock-r-5", name: "Standard Twin Room", priceSum: 750000, capacity: 2, available: 4 },
-      { id: "mock-r-6", name: "Junior Suite", priceSum: 1100000, capacity: 2, available: 2 },
+      { id: "mock-r-5", name: "Standard Twin Room", priceSum: 750000, capacity: 2, available: 2 },
+      { id: "mock-r-6", name: "Junior Suite", priceSum: 1100000, capacity: 2, available: 1 },
     ],
   },
   "grand-bukhara": {
@@ -176,12 +200,12 @@ export async function generateMetadata({
   params: Promise<{ lang: string; slug: string }>;
 }): Promise<Metadata> {
   const { lang, slug } = await params;
-  if (!isLocale(lang)) return {};
-  const hotel = await getCachedHotel(lang as Locale, slug);
+  const locale = isLocale(lang) ? lang : "uz";
+  const hotel = await getCachedHotel(locale, slug);
   if (!hotel || hotel === 404) return {};
   return {
-    title: `${hotel.name || "Mehmonxona"} — Safaar`,
-    description: hotel.description?.slice(0, 160) || "",
+    title: `${hotel.name} — Safaar`,
+    description: hotel.description,
   };
 }
 
@@ -193,8 +217,7 @@ export default async function HotelDetailPage({
   searchParams: Promise<SearchParams>;
 }) {
   const { lang, slug } = await params;
-  if (!isLocale(lang)) notFound();
-  const locale = lang as Locale;
+  const locale = isLocale(lang) ? lang : "uz";
   const sp = await searchParams;
 
   const [hotel, dict, favDict, reviewsDict, session, amenitiesRes] = await Promise.all([
@@ -227,7 +250,9 @@ export default async function HotelDetailPage({
     api.reviews.getHotelReviews(hotel.id).catch(() => []),
   ]);
 
-  const amenityName = new Map(amenitiesRes.map((a) => [a.id, a.name]));
+  const amenityName = new Map<string, string>(
+    amenitiesRes.map((a: { id: string; name: string }) => [a.id, a.name])
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
@@ -283,19 +308,19 @@ export default async function HotelDetailPage({
           {hotel.amenities?.includes("wifi") && (
             <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
               <Wifi className="h-3.5 w-3.5 stroke-[2.5]" />
-              Bepul Wi-Fi (Free Wi-Fi)
+              {BADGE_TRANSLATIONS[locale].wifi}
             </span>
           )}
           {hotel.amenities?.includes("pool") && (
             <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
               <Waves className="h-3.5 w-3.5" />
-              Hovuz (Swimming Pool)
+              {BADGE_TRANSLATIONS[locale].pool}
             </span>
           )}
           {hotel.amenities?.includes("parking") && (
             <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
               <Car className="h-3.5 w-3.5" />
-              Bepul turargoh (Free Parking)
+              {BADGE_TRANSLATIONS[locale].parking}
             </span>
           )}
         </div>
@@ -317,7 +342,7 @@ export default async function HotelDetailPage({
             <section className="flex flex-col gap-3">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">{dict.amenities}</h2>
               <ul className="flex flex-wrap gap-2">
-                {hotel.amenities.map((id) => {
+                {hotel.amenities.map((id: string) => {
                   const Icon = AMENITY_ICONS[id];
                   return (
                     <li

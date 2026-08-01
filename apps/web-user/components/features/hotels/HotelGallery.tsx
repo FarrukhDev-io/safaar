@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { SHOW_PLACEHOLDER_PHOTOS, placeholderPhoto } from "@/lib/images";
 import { Camera, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
 
 export function HotelGallery({
   images,
@@ -14,7 +15,7 @@ export function HotelGallery({
   images: string[];
   alt: string;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const real = images.filter((src) => src.startsWith("http") || src.startsWith("/"));
@@ -82,24 +83,28 @@ export function HotelGallery({
           ))}
         </div>
 
-        {/* "See all photos" Overlay Badge Button */}
-        <button
+        {/* "See all photos" Overlay Button */}
+        <Button
           type="button"
-          onClick={() => setIsOpen(true)}
-          className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md backdrop-blur-md transition-all hover:bg-slate-900 active:scale-95"
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setActiveIndex(0);
+            setIsLightboxOpen(true);
+          }}
+          className="absolute bottom-3 right-3 z-10 gap-1.5 rounded-xl border border-white/20 bg-slate-950/75 px-3 py-1.5 text-xs font-extrabold text-white shadow-md backdrop-blur-md hover:bg-slate-950/90 active:scale-95"
         >
           <Camera className="h-4 w-4 text-amber-300" />
           <span>Barcha {shots.length}+ rasmlar</span>
-        </button>
+        </Button>
       </div>
 
-      {/* Lightbox Slider Modal */}
+      {/* Lightbox Slideshow Modal */}
       <Modal
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+        size="lg"
         title={alt}
-        size="xl"
-        className="max-w-4xl sm:max-w-4xl md:max-w-4xl"
       >
         <div className="flex flex-col gap-4">
           {/* Main Large Image Container */}
