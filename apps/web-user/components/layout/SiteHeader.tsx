@@ -52,12 +52,6 @@ export function SiteHeader({
 
   const localeSwitcher = (
     <div className="flex items-center gap-1.5">
-      <CurrencySwitcher />
-      <LocaleSwitcher current={locale} />
-    </div>
-  );
-  const localeSwitcherLight = (
-    <div className="flex items-center gap-1.5">
       <CurrencySwitcher light />
       <LocaleSwitcher current={locale} light />
     </div>
@@ -67,7 +61,7 @@ export function SiteHeader({
     <div className="flex items-center gap-1.5">
       <Link
         href={`${base}/account`}
-        className="inline-flex h-8 items-center justify-center rounded-full px-3.5 text-sm font-bold text-white transition-colors hover:bg-white/20"
+        className="inline-flex h-8 items-center justify-center rounded-full px-3.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100"
       >
         {dict.actions.account}
       </Link>
@@ -81,13 +75,13 @@ export function SiteHeader({
     <div className="flex items-center gap-2">
       <Link
         href={`/${locale}/login`}
-        className="inline-flex h-9 items-center justify-center rounded-full border border-white/60 bg-white/10 px-4 text-xs font-bold text-white shadow-xs backdrop-blur-md transition-all duration-150 hover:bg-white/20 active:scale-[0.97]"
+        className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97]"
       >
         {dict.actions.login}
       </Link>
       <Link
         href={`/${locale}/register`}
-        className="inline-flex h-9 items-center justify-center rounded-full bg-white px-4 text-xs font-bold text-blue-700 shadow-xs transition-all duration-150 hover:bg-white/95 active:scale-[0.97]"
+        className="inline-flex h-9 items-center justify-center rounded-full bg-blue-600 px-4 text-xs font-bold text-white shadow-xs transition-all duration-150 hover:bg-blue-700 active:scale-[0.97]"
       >
         {dict.actions.register}
       </Link>
@@ -95,15 +89,15 @@ export function SiteHeader({
   );
 
   const authActionsLight = authed ? (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-col gap-2">
       <Link
         href={`${base}/account`}
-        className="inline-flex h-8 items-center justify-center rounded-full px-3.5 text-sm font-bold text-slate-900 transition-colors hover:bg-slate-100"
+        className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100"
       >
         {dict.actions.account}
       </Link>
-      <form action={logoutAction.bind(null, locale)}>
-        <Button size="sm" variant="secondary" type="submit">
+      <form action={logoutAction.bind(null, locale)} className="w-full">
+        <Button size="md" variant="secondary" type="submit" className="w-full">
           {dict.actions.logout}
         </Button>
       </form>
@@ -112,7 +106,7 @@ export function SiteHeader({
     <div className="flex flex-col gap-2">
       <Link
         href={`/${locale}/login`}
-        className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-bold text-slate-900 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97]"
+        className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97]"
       >
         {dict.actions.login}
       </Link>
@@ -138,7 +132,7 @@ export function SiteHeader({
       brand={dict.brand}
       brandHref={base}
       actions={actions}
-      localeSwitcher={localeSwitcherLight}
+      localeSwitcher={localeSwitcher}
       authActions={authActionsLight}
     />
   );

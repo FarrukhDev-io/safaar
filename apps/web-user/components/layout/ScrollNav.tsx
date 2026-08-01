@@ -82,15 +82,15 @@ function NavDropdown({ item, pathname }: { item: ScrollNavItem; pathname: string
         aria-haspopup="true"
         aria-label={displayItem.label}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+          "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50",
           active
-            ? "border border-white/60 bg-white/20 text-white shadow-xs"
-            : "text-white/95 hover:bg-white/15 hover:text-white",
+            ? "border border-blue-100/30 bg-blue-50 text-blue-700 shadow-2xs"
+            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
         )}
       >
         {displayItem.icon}
         <span className="text-sm font-bold tracking-wide">{displayItem.label}</span>
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform text-white/90", open && "rotate-180")} />
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform text-slate-455 text-slate-400", open && "rotate-180")} />
       </button>
 
       {open && item.children && (
@@ -110,11 +110,11 @@ function NavDropdown({ item, pathname }: { item: ScrollNavItem; pathname: string
                 className={cn(
                   "flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-all",
                   childActive
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800",
+                    ? "bg-blue-50 text-blue-700 border border-blue-100/30 shadow-2xs"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                 )}
               >
-                <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
+                <span className="flex h-5 w-5 items-center justify-center text-slate-400">{child.icon}</span>
                 <span className="text-sm font-bold">{child.label}</span>
               </Link>
             );
@@ -145,15 +145,15 @@ function MobileAccordionGroup({
         type="button"
         onClick={() => setExpanded((v) => !v)}
         className={cn(
-          "flex w-full items-center justify-between px-3 py-2 text-xs font-black uppercase tracking-wider transition-colors rounded-xl",
-          isGroupActive ? "text-blue-600 bg-blue-50/80 dark:bg-blue-950/40" : "text-slate-500 hover:bg-slate-50",
+          "flex w-full items-center justify-between px-3 py-2.5 text-xs font-black uppercase tracking-wider transition-colors rounded-xl",
+          isGroupActive ? "text-blue-700 bg-blue-50 border border-blue-100/30" : "text-slate-500 hover:bg-slate-50",
         )}
       >
         <span className="flex items-center gap-2">
           {item.icon}
           <span>{item.label}</span>
         </span>
-        <ChevronRight className={cn("h-4 w-4 transition-transform duration-200", expanded && "rotate-90")} />
+        <ChevronRight className={cn("h-4 w-4 transition-transform duration-200 text-slate-400", expanded && "rotate-90")} />
       </button>
 
       {expanded && item.children && (
@@ -169,11 +169,11 @@ function MobileAccordionGroup({
                 className={cn(
                   "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-colors",
                   childActive
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800",
+                    ? "bg-blue-50 text-blue-700 border border-blue-100/30 shadow-2xs"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                 )}
               >
-                <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
+                <span className="flex h-5 w-5 items-center justify-center text-slate-400">{child.icon}</span>
                 <span className="text-sm font-bold">{child.label}</span>
               </Link>
             );
@@ -214,8 +214,8 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
   return (
     <>
       {/* ═══ Mobile header ═══ */}
-      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-sky-300/30 bg-blue-600 px-4 text-white md:hidden shadow-xs backdrop-blur-md">
-        <Link href={brandHref} className="font-black tracking-wide text-lg sm:text-xl text-white">
+      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-slate-100/80 bg-white/85 px-4 text-slate-900 md:hidden shadow-xs backdrop-blur-md">
+        <Link href={brandHref} className="font-black tracking-wide text-lg sm:text-xl text-slate-900">
           {brand}
         </Link>
         <button
@@ -223,7 +223,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
           onClick={() => setMenuOpen((v) => !v)}
           aria-expanded={menuOpen}
           aria-label={menuOpen ? "Menyuni yopish" : "Menyuni ochish"}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-slate-100 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -263,11 +263,11 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                     className={cn(
                       "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-colors",
                       active
-                        ? "bg-blue-600 text-white shadow-xs"
-                        : "text-slate-900 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-800",
+                        ? "bg-blue-50 text-blue-700 border border-blue-100/30 shadow-2xs"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-white dark:hover:bg-slate-800",
                     )}
                   >
-                    <span className="flex h-6 w-6 items-center justify-center">{item.icon}</span>
+                    <span className="flex h-6 w-6 items-center justify-center text-slate-400">{item.icon}</span>
                     <span className="text-sm font-bold">{item.label}</span>
                   </Link>
                 );
@@ -290,9 +290,9 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       )}
 
       {/* ═══ Desktop navbar ═══ */}
-      <nav className="sticky top-0 z-100 hidden border-b border-sky-300/30 bg-blue-600 shadow-md md:block">
+      <nav className="sticky top-0 z-100 hidden border-b border-slate-100/80 bg-white/80 backdrop-blur-md shadow-xs md:block">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
-          <Link href={brandHref} className="shrink-0 font-black tracking-wide text-lg sm:text-xl text-white">
+          <Link href={brandHref} className="shrink-0 font-black tracking-wide text-lg sm:text-xl text-slate-900">
             {brand}
           </Link>
 
@@ -308,10 +308,10 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+                    "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50",
                     active
-                      ? "border border-white/60 bg-white/20 text-white shadow-xs"
-                      : "text-white/95 hover:bg-white/15 hover:text-white",
+                      ? "border border-blue-100/30 bg-blue-50 text-blue-700 shadow-2xs"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                   )}
                 >
                   {item.icon}
