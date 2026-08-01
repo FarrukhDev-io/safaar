@@ -31,7 +31,7 @@ export function BackButton({ href, className }: Props) {
       onClick={handleClick}
       aria-label="Orqaga"
       className={cn(
-        "h-9 w-9 min-h-0 p-0 flex items-center justify-center border border-slate-200 hover:border-slate-350 shadow-2xs",
+        "h-9 w-9 min-h-0 !p-0 flex items-center justify-center border border-slate-200 hover:border-slate-350 shadow-2xs",
         className,
       )}
     >
