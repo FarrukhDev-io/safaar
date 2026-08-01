@@ -186,3 +186,7 @@ export async function logoutAction(rawLocale: string): Promise<void> {
   const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
   redirect(`/${locale}`);
 }
+
+export async function getClientSession() {
+  return getSession();
+}

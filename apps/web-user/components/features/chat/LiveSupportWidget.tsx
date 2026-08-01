@@ -10,7 +10,11 @@ import {
   Bot,
   User,
 } from "lucide-react";
+import { io, Socket } from "socket.io-client";
 import { Button } from "@/components/ui/Button";
+import { getClientSession } from "@/lib/services/auth/actions";
+import { config } from "@/lib/config";
+import { Session } from "@/lib/auth/session";
 
 interface ChatMessage {
   id: string;
@@ -75,8 +79,106 @@ export function LiveSupportWidget() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isRealChat = Boolean(session?.accessToken);
+
+  // Load session on client component mount
+  useEffect(() => {
+    async function initSession() {
+      try {
+        const sess = await getClientSession();
+        setSession(sess);
+      } catch (err) {
+        console.error("Failed to load session:", err);
+      }
+    }
+    initSession();
+  }, []);
+
+  // Socket connection manager
+  useEffect(() => {
+    if (!open || !isRealChat || !session?.accessToken) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        setSocketConnected(false);
+      }
+      return;
+    }
+
+    const socketUrl = `${config.apiUrl.replace(/\/$/, "")}/ws/chat`;
+    const socketInstance = io(socketUrl, {
+      query: { token: session.accessToken },
+      transports: ["websocket"],
+    });
+
+    socketInstance.on("connect", () => {
+      setSocketConnected(true);
+      socketInstance.emit("client:join_room", {});
+    });
+
+    socketInstance.on("server:room_joined", (data: { roomId: string; status: string; userId: string }) => {
+      setRoomId(data.roomId);
+    });
+
+    socketInstance.on("server:receive_message", (msg: { id: string; senderId: string; senderType: string; text: string; createdAt: string }) => {
+      const senderType = msg.senderType === "user" ? "user" : "operator";
+      setMessages((prev) => {
+        if (senderType === "user") {
+          const idx = prev.findIndex((m) => m.sender === "user" && m.text === msg.text && m.id.startsWith("m-"));
+          if (idx !== -1) {
+            const next = [...prev];
+            next[idx] = {
+              ...next[idx],
+              id: msg.id,
+            };
+            return next;
+          }
+        }
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [
+          ...prev,
+          {
+            id: msg.id,
+            sender: senderType,
+            text: msg.text,
+            time: new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ];
+      });
+    });
+
+    socketInstance.on("server:typing_status", (data: { roomId: string; isTyping: boolean }) => {
+      setIsTyping(data.isTyping);
+    });
+
+    socketInstance.on("disconnect", () => {
+      setSocketConnected(false);
+    });
+
+    socketRef.current = socketInstance;
+
+    return () => {
+      socketInstance.disconnect();
+      socketRef.current = null;
+      setSocketConnected(false);
+    };
+  }, [open, isRealChat, session]);
+
+  // Clean timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeout) clearTimeout(typingTimeout);
+    };
+  }, [typingTimeout]);
 
   // Auto-scroll on new message
   useEffect(() => {
@@ -138,31 +240,47 @@ export function LiveSupportWidget() {
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
 
+    const text = inputText.trim();
     const userMsg: ChatMessage = {
       id: generateMessageId(),
       sender: "user",
-      text: inputText.trim(),
+      text,
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    const currentInput = inputText.trim();
     setInputText("");
 
-    // Bot response logic
-    const matchedFaq = FAQ_CHIPS.find(
-      (f) => f.label.toLowerCase() === currentInput.toLowerCase()
-    );
-    if (matchedFaq) {
-      addBotResponse(matchedFaq.response);
+    if (isRealChat && socketRef.current && roomId) {
+      socketRef.current.emit("client:send_message", { roomId, text });
+      socketRef.current.emit("client:typing_status", { roomId, isTyping: false });
     } else {
-      addBotResponse(
-        "Xabaringiz uchun rahmat! So'rovingiz qabul qilindi. Operatorimiz tez orada sizga javob beradi."
+      const matchedFaq = FAQ_CHIPS.find(
+        (f) => f.label.toLowerCase() === text.toLowerCase()
       );
+      if (matchedFaq) {
+        addBotResponse(matchedFaq.response);
+      } else {
+        addBotResponse(
+          "Xabaringiz uchun rahmat! So'rovingiz qabul qilindi. Operatorimiz tez orada sizga javob beradi."
+        );
+      }
     }
-  }, [inputText, addBotResponse]);
+  }, [inputText, isRealChat, roomId, addBotResponse]);
 
   const handleFaqClick = useCallback((faq: (typeof FAQ_CHIPS)[0]) => {
+    if (faq.id === "faq-3" && !isRealChat) {
+      const userMsg: ChatMessage = {
+        id: generateMessageId(),
+        sender: "user",
+        text: faq.label,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      addBotResponse("Operator bilan ulanish uchun iltimos tizimga kiring (Login qiling).");
+      return;
+    }
+
     const userMsg: ChatMessage = {
       id: generateMessageId(),
       sender: "user",
@@ -170,8 +288,29 @@ export function LiveSupportWidget() {
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
     setMessages((prev) => [...prev, userMsg]);
-    addBotResponse(faq.response);
-  }, [addBotResponse]);
+
+    if (isRealChat && socketRef.current && roomId) {
+      socketRef.current.emit("client:send_message", { roomId, text: faq.label });
+    } else {
+      addBotResponse(faq.response);
+    }
+  }, [addBotResponse, isRealChat, roomId]);
+
+  const handleInputChange = (text: string) => {
+    setInputText(text);
+    if (!isRealChat || !socketRef.current || !roomId) return;
+
+    socketRef.current.emit("client:typing_status", { roomId, isTyping: true });
+
+    if (typingTimeout) clearTimeout(typingTimeout);
+
+    const t = setTimeout(() => {
+      if (socketRef.current) {
+        socketRef.current.emit("client:typing_status", { roomId, isTyping: false });
+      }
+    }, 2000);
+    setTypingTimeout(t);
+  };
 
   return (
     <>
@@ -211,16 +350,32 @@ export function LiveSupportWidget() {
             <div className="flex items-center gap-3">
               <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
                 <Bot className="h-5 w-5" />
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full ring-2 ring-white dark:ring-slate-900 ${
+                  isRealChat && !socketConnected ? "bg-amber-500" : "bg-emerald-500"
+                }`} />
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-extrabold text-slate-900 dark:text-white">
                   Safaar Support 24/7
                 </span>
-                <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Operator tayyor (Online)
-                </span>
+                {isRealChat ? (
+                  socketConnected ? (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Suhbat faol (Online)
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-amber-500">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Ulanmoqda...
+                    </span>
+                  )
+                ) : (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    FAQ rejimida (Bot)
+                  </span>
+                )}
               </div>
             </div>
 
@@ -318,7 +473,7 @@ export function LiveSupportWidget() {
             <input
               type="text"
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Xabaringizni yozing..."
               className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-800 dark:text-white"
             />
