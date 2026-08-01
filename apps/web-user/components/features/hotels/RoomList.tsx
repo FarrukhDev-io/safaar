@@ -40,7 +40,7 @@ export function RoomList({
         return (
           <li
             key={room.id}
-            className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-slate-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900"
+            className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900"
           >
             <div className="flex flex-col gap-1.5">
               <h3 className="text-base font-bold text-slate-900 dark:text-white sm:text-lg">
@@ -56,12 +56,12 @@ export function RoomList({
                 <span className="text-slate-300">|</span>
 
                 {soldOut ? (
-                  <span className="inline-flex items-center gap-1 font-semibold text-red-600 dark:text-red-400">
+                  <span className="inline-flex items-center gap-1 font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded-lg text-xs dark:bg-red-950/40 dark:text-red-300">
                     <AlertCircle className="h-3.5 w-3.5" />
                     {dict.soldOut}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg text-xs dark:bg-emerald-950/40 dark:text-emerald-300">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     {room.available} {dict.available}
                   </span>

@@ -13,7 +13,7 @@ import { FavoriteButton } from "@/components/favorites/FavoriteButton";
 import { BackButton } from "@/components/ui/BackButton";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Star, MapPin, Check, Coffee, CreditCard, Flame, Wifi, Waves, Car, Utensils, ShieldCheck } from "lucide-react";
+import { Star, MapPin, Wifi, Waves, Car, Utensils, ShieldCheck } from "lucide-react";
 import type { HotelDetail } from "@/types/view";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -229,13 +229,6 @@ export default async function HotelDetailPage({
 
   const amenityName = new Map(amenitiesRes.map((a) => [a.id, a.name]));
 
-  // Trust & Value Badges Calculation
-  const hash = (hotel.id || "").split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const isFreeCancellation = hash % 2 === 0;
-  const isBreakfastIncluded = (hotel.stars || 0) >= 4 || hash % 3 === 0;
-  const isPayAtProperty = hash % 2 !== 0;
-  const isLowAvailability = (hotel.rating || 0) >= 4.7 || hash % 5 === 0;
-
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
       {/* Navigation Header */}
@@ -287,28 +280,22 @@ export default async function HotelDetailPage({
 
         {/* Badges */}
         <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-          {isFreeCancellation && (
+          {hotel.amenities?.includes("wifi") && (
             <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-              <Check className="h-3.5 w-3.5 stroke-[3]" />
-              Bepul bekor qilish (Free Cancellation)
+              <Wifi className="h-3.5 w-3.5 stroke-[2.5]" />
+              Bepul Wi-Fi (Free Wi-Fi)
             </span>
           )}
-          {isBreakfastIncluded && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
-              <Coffee className="h-3.5 w-3.5" />
-              Nonushta kiritilgan (Breakfast Included)
+          {hotel.amenities?.includes("pool") && (
+            <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+              <Waves className="h-3.5 w-3.5" />
+              Hovuz (Swimming Pool)
             </span>
           )}
-          {isPayAtProperty && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
-              <CreditCard className="h-3.5 w-3.5" />
-              Joyida to'lash (Pay at Property)
-            </span>
-          )}
-          {isLowAvailability && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-300">
-              <Flame className="h-3.5 w-3.5 fill-current text-red-500" />
-              Faqat 2 ta xona qoldi
+          {hotel.amenities?.includes("parking") && (
+            <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+              <Car className="h-3.5 w-3.5" />
+              Bepul turargoh (Free Parking)
             </span>
           )}
         </div>
@@ -381,7 +368,7 @@ export default async function HotelDetailPage({
         </div>
 
         {/* Sticky Pricing Sidebar Widget */}
-        <aside className="flex h-fit flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-md dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-24">
+        <aside className="flex h-fit flex-col gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_20px_45px_-12px_rgba(0,0,0,0.06),_0_10px_20px_-8px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-24">
           <div>
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{dict.from}</span>
             <p className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
