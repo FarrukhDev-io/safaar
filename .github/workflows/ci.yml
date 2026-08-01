@@ -157,14 +157,14 @@ jobs:
                   OWNER="adhambek"
                   ;;
                 # @Lazizdeveloper
-                apps/backend/* | packages/types/* | package.json | package-lock.json | CODEOWNERS | tsconfig.json | .prettierrc)
+                apps/backend/* | packages/types/* | CODEOWNERS | tsconfig.json | .prettierrc)
                   OWNER="laziz"
                   ;;
                 # Shared — hamma tegishi mumkin
                 .github/* | *.md | AGENTS.md | CONTRIBUTING.md | .gitignore | .gitattributes)
                   OWNER="shared"
                   ;;
-                railway.json | docker-compose* | vercel.json | .env* | next.config* | postcss.config* | eslint* | tsconfig*)
+                railway.json | docker-compose* | vercel.json | .env* | next.config* | postcss.config* | eslint* | tsconfig* | package.json | package-lock.json)
                   OWNER="shared"
                   ;;
               esac
