@@ -14,6 +14,7 @@ import { PwaInstallBanner } from "@/components/pwa/PwaInstallBanner";
 import dynamic from "next/dynamic";
 import { CurrencyProvider } from "@/lib/context/CurrencyContext";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
+import { Toaster } from "sonner";
 import { config } from "@/lib/config";
 
 const LiveSupportWidget = dynamic(
@@ -101,6 +102,7 @@ export default async function LangLayout({
         <AnalyticsProvider>
           <CurrencyProvider>
             {children}
+            <Toaster position="top-right" richColors />
             <ServiceWorkerRegister />
             <PwaInstallBanner />
             <LiveSupportWidget />
