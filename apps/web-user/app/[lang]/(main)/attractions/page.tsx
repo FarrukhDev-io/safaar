@@ -6,6 +6,8 @@ import { api } from "@/lib/api";
 import { AttractionsView } from "@/components/features/attractions/AttractionsView";
 import type { AttractionItem } from "@/components/catalog/types";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: {

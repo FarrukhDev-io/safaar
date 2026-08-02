@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@next/third-parties": "^16.2.9",
     "@safaar/api-client": "*",
     "@safaar/types": "*",
     "@types/leaflet": "^1.9.21",

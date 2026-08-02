@@ -2,7 +2,7 @@
 
 import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { GoogleAnalytics } from "@next/third-parties/google";
+import Script from "next/script";
 import { GA_TRACKING_ID, trackPageView } from "@/lib/services/analytics/tracker";
 
 function PageViewTracker() {
@@ -26,7 +26,21 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     <>
       {/* GA4 Script Ingestion */}
       {GA_TRACKING_ID && (
-        <GoogleAnalytics gaId={GA_TRACKING_ID} />
+        <>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
+            strategy="afterInteractive"
+          />
+          <Script id="google-analytics" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){window.dataLayer.push(arguments);}
+              gtag('js', new Date());
+
+              gtag('config', '${GA_TRACKING_ID}');
+            `}
+          </Script>
+        </>
       )}
 
       <Suspense fallback={null}>
