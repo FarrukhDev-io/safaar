@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
@@ -14,6 +14,7 @@ import type { AdminHotelBooking } from "@/types/admin";
 import { Download } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { exportToExcel } from "@/lib/export";
+import { AdminApi } from "@/lib/api/admin-api";
 
 import { useAdminStore } from "@/lib/store";
 
@@ -22,11 +23,19 @@ const ITEMS_PER_PAGE = 12;
 export default function HotelBookingsPage() {
   const router = useRouter();
   const bookings = useAdminStore((s) => s.hotelBookings);
+  const setHotelBookings = useAdminStore((s) => s.setHotelBookings);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    AdminApi.getBookings()
+      .then((items) => setHotelBookings(items))
+      .finally(() => setLoading(false));
+  }, [setHotelBookings]);
 
   const filtered = useMemo(() => {
     let result = bookings;
@@ -117,6 +126,14 @@ export default function HotelBookingsPage() {
       render: (row) => <StatusBadge status={String(row.status)} statusMap={BOOKING_STATUS_MAP} />,
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6">

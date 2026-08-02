@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,9 +10,15 @@ import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { TODAY_ISO } from "../../_lib/mocks/data";
-import { DACHA_UNIT_ROOM_ID, useDataStore } from "../../_stores/data-store";
+import { TODAY_ISO } from "../../_lib/utils/date";
 import { useAuthStore } from "../../_stores/auth-store";
+import { useListing } from "../../_hooks/use-listing";
+import { useRooms } from "../../_hooks/use-rooms";
+import { useRoomTypes } from "../../_hooks/use-room-types";
+import {
+  useCreateWalkInReservation,
+  useReservations,
+} from "../../_hooks/use-reservations";
 import { getPartnerLabels, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 import { DEFAULT_SLOT_DURATION_MINUTES, buildTimeSlots, toMinutes } from "../../_lib/utils/time-slots";
 import {
@@ -70,28 +76,21 @@ export function WalkInDialog({
   onClose,
   initialValues,
 }: WalkInDialogProps) {
-  const roomTypes = useDataStore((s) => s.roomTypes);
-  const rooms = useDataStore((s) => s.rooms);
-  const reservations = useDataStore((s) => s.reservations);
-  const addReservation = useDataStore((s) => s.addReservation);
-  const ensureSingleUnitRoom = useDataStore((s) => s.ensureSingleUnitRoom);
-  const listingName = useDataStore((s) => s.listing.name);
-  const listingCheckInTime = useDataStore((s) => s.listing.checkInTime);
-  const listingCheckOutTime = useDataStore((s) => s.listing.checkOutTime);
+  const { data: roomTypes } = useRoomTypes();
+  const { data: rooms } = useRooms();
+  const { data: reservations } = useReservations();
+  const { data: listing } = useListing();
+  const createReservation = useCreateWalkInReservation();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const unitCap = labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1);
   const dacha = isDacha(partnerType);
   const restaurant = isRestaurant(partnerType);
-  const [submitting, setSubmitting] = useState(false);
 
-  const timeSlots = restaurant ? buildTimeSlots(listingCheckInTime, listingCheckOutTime) : [];
-  const dachaRoom = dacha ? rooms.find((r) => r.id === DACHA_UNIT_ROOM_ID) : undefined;
-
-  useEffect(() => {
-    if (open && dacha) ensureSingleUnitRoom(listingName || "Dacha");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, dacha]);
+  const timeSlots = restaurant
+    ? buildTimeSlots(listing.checkInTime, listing.checkOutTime)
+    : [];
+  const dachaRoom = dacha ? rooms[0] : undefined;
 
   const defaultCheckIn = initialValues?.checkIn ?? TODAY_ISO;
   const defaultCheckOut =
@@ -136,8 +135,7 @@ export function WalkInDialog({
     ? rooms.filter((r) => r.roomTypeId === watchedRoomTypeId)
     : [];
 
-  const onSubmit = form.handleSubmit((values) => {
-    setSubmitting(true);
+  const onSubmit = form.handleSubmit(async (values) => {
     try {
       const effectiveRoomTypeId = dacha
         ? (dachaRoom?.roomTypeId ?? values.roomTypeId)
@@ -150,6 +148,10 @@ export function WalkInDialog({
         roomTypes.find((rt) => rt.id === effectiveRoomTypeId) ?? roomTypes[0];
       if (!roomType) {
         toast.error(`Avval ${labels.unitTypeLabel.toLowerCase()} yarating`);
+        return;
+      }
+      if (dacha && !dachaRoom) {
+        toast.error("Dacha uchun avval real narx va birlik yarating");
         return;
       }
       if (restaurant && !values.slotTime) {
@@ -199,7 +201,7 @@ export function WalkInDialog({
       const nightlyPrice = selectedRoom?.nightlyPrice ?? roomType.basePrice;
       const total = nightlyPrice * nights;
 
-      const created = addReservation({
+      const created = await createReservation.mutateAsync({
         fullName: values.fullName,
         phone: normalizePhone(values.phone),
         roomTypeId: effectiveRoomTypeId,
@@ -217,8 +219,8 @@ export function WalkInDialog({
       toast.success(`Bron yaratildi: ${created.id}`);
       form.reset();
       onClose();
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bron yaratib bo'lmadi");
     }
   });
 
@@ -365,7 +367,11 @@ export function WalkInDialog({
           <Button type="button" variant="outline" onClick={onClose}>
             Bekor qilish
           </Button>
-          <Button type="submit" disabled={submitting} loading={submitting}>
+          <Button
+            type="submit"
+            disabled={createReservation.isPending}
+            loading={createReservation.isPending}
+          >
             Bron yaratish
           </Button>
         </div>

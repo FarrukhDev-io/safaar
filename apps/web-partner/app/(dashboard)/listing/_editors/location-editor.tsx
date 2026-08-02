@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   ExternalLink,
@@ -9,28 +9,36 @@ import {
   Search,
   Trash2,
   X,
-} from "lucide-react";
-import dynamic from "next/dynamic";
-import { useRef, useState } from "react";
-import { toast } from "sonner";
-import { Button } from "../../../_components/ui/button";
-import { Drawer } from "../../../_components/ui/drawer";
-import { EmptyState } from "../../../_components/ui/empty-state";
-import { Input } from "../../../_components/ui/input";
-import { Label } from "../../../_components/ui/label";
-import { Tooltip } from "../../../_components/ui/tooltip";
-import { useListing } from "../../../_hooks/use-listing";
-import { useDataStore } from "../../../_stores/data-store";
-import { searchAddress, type GeocodeResult } from "../../../_lib/utils/geocoding";
+} from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '../../../_components/ui/button';
+import { Drawer } from '../../../_components/ui/drawer';
+import { EmptyState } from '../../../_components/ui/empty-state';
+import { Input } from '../../../_components/ui/input';
+import { Label } from '../../../_components/ui/label';
+import { Tooltip } from '../../../_components/ui/tooltip';
+import {
+  useListing,
+  useUpdateListingLocation,
+} from '../../../_hooks/use-listing';
+import {
+  searchAddress,
+  type GeocodeResult,
+} from '../../../_lib/utils/geocoding';
 
-const LocationMap = dynamic(() => import("../../../_components/domain/location-map"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full w-full items-center justify-center bg-[var(--surface-muted)] text-sm text-[var(--muted-foreground)]">
-      Xarita yuklanmoqda...
-    </div>
-  ),
-});
+const LocationMap = dynamic(
+  () => import('../../../_components/domain/location-map'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full w-full items-center justify-center bg-[var(--surface-muted)] text-sm text-[var(--muted-foreground)]">
+        Xarita yuklanmoqda...
+      </div>
+    ),
+  },
+);
 
 export function LocationEditor({
   open,
@@ -40,20 +48,20 @@ export function LocationEditor({
   onClose: () => void;
 }) {
   const { data } = useListing();
-  const addNearby = useDataStore((s) => s.addNearby);
-  const removeNearby = useDataStore((s) => s.removeNearby);
-  const updateLocation = useDataStore((s) => s.updateListingLocation);
-  const [name, setName] = useState("");
-  const [distance, setDistance] = useState("");
+  const updateLocation = useUpdateListingLocation();
+  const [addressDraft, setAddressDraft] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [distance, setDistance] = useState('');
   const [locating, setLocating] = useState(false);
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number } | null>(null);
   const searchAbort = useRef<AbortController | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const address = addressDraft ?? data.address;
 
   const handleQueryChange = (value: string) => {
     setQuery(value);
@@ -75,7 +83,7 @@ export function LocationEditor({
       searchAddress(value, controller.signal)
         .then((r) => setResults(r))
         .catch((err) => {
-          if (err.name !== "AbortError") setResults([]);
+          if (err.name !== 'AbortError') setResults([]);
         })
         .finally(() => setSearching(false));
     }, 400);
@@ -84,41 +92,92 @@ export function LocationEditor({
   const handlePickResult = (result: GeocodeResult) => {
     const latitude = Number(result.lat.toFixed(6));
     const longitude = Number(result.lon.toFixed(6));
-    updateLocation({ latitude, longitude });
+    const nextAddress = result.label.trim();
+    setAddressDraft(nextAddress);
+    updateLocation.mutate(
+      { address: nextAddress, latitude, longitude },
+      {
+        onSuccess: () => toast.success('Manzil va lakatsiya saqlandi'),
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Manzilni saqlab bo'lmadi",
+          );
+        },
+      },
+    );
     setFlyTo({ lat: latitude, lng: longitude });
     setQuery(result.label);
     setShowResults(false);
-    toast.success("Lakatsiya xaritada belgilandi");
   };
 
   const handleMapChange = (lat: number, lng: number) => {
-    updateLocation({ latitude: lat, longitude: lng });
+    updateLocation.mutate({ latitude: lat, longitude: lng });
   };
 
   const hasCoordinates =
-    typeof data.latitude === "number" && typeof data.longitude === "number";
+    typeof data.latitude === 'number' && typeof data.longitude === 'number';
   const mapUrl = hasCoordinates
     ? `https://www.google.com/maps?q=${data.latitude},${data.longitude}`
     : null;
 
+  const handleSaveAddress = (event: React.FormEvent) => {
+    event.preventDefault();
+    const nextAddress = address.trim();
+    if (nextAddress.length < 5) {
+      toast.error("Manzilni to'liqroq kiriting");
+      return;
+    }
+
+    updateLocation.mutate(
+      { address: nextAddress },
+      {
+        onSuccess: () => toast.success('Manzil saqlandi'),
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Manzilni saqlab bo'lmadi",
+          );
+        },
+      },
+    );
+  };
+
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim().length < 2) {
-      toast.error("Joy nomini kiriting");
+      toast.error('Joy nomini kiriting');
       return;
     }
     if (!/^\d+[.,]?\d*\s*(m|km)$/i.test(distance.trim())) {
       toast.error("Masofa noto'g'ri. Masalan: 500 m yoki 12 km");
       return;
     }
-    addNearby(name.trim(), distance.trim());
-    setName("");
-    setDistance("");
-    toast.success("Qo'shildi");
+    const next = [
+      ...data.nearby,
+      {
+        id: crypto.randomUUID(),
+        name: name.trim(),
+        distance: distance.trim(),
+      },
+    ];
+    updateLocation.mutate(
+      { nearbyPlaces: next },
+      {
+        onSuccess: () => {
+          setName('');
+          setDistance('');
+          toast.success("Qo'shildi");
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Joyni saqlab bo'lmadi",
+          );
+        },
+      },
+    );
   };
 
   const handleUseCurrentLocation = () => {
-    if (!("geolocation" in navigator)) {
+    if (!('geolocation' in navigator)) {
       toast.error("Brauzeringiz lakatsiyani qo'llab-quvvatlamaydi");
       return;
     }
@@ -128,10 +187,10 @@ export function LocationEditor({
       (position) => {
         const latitude = Number(position.coords.latitude.toFixed(6));
         const longitude = Number(position.coords.longitude.toFixed(6));
-        updateLocation({ latitude, longitude });
+        updateLocation.mutate({ latitude, longitude });
         setFlyTo({ lat: latitude, lng: longitude });
         setLocating(false);
-        toast.success("Lakatsiya belgilandi", {
+        toast.success('Lakatsiya belgilandi', {
           description: `${latitude}, ${longitude}`,
         });
       },
@@ -139,10 +198,10 @@ export function LocationEditor({
         setLocating(false);
         const message =
           error.code === error.PERMISSION_DENIED
-            ? "Lakatsiyaga ruxsat berilmadi"
+            ? 'Lakatsiyaga ruxsat berilmadi'
             : error.code === error.POSITION_UNAVAILABLE
               ? "Lakatsiyani aniqlab bo'lmadi"
-              : "Lakatsiya olish vaqti tugadi";
+              : 'Lakatsiya olish vaqti tugadi';
         toast.error(message);
       },
       {
@@ -169,10 +228,31 @@ export function LocationEditor({
             <Input value={data.city} disabled />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Manzil</Label>
-            <Input value={data.address} disabled />
+            <Label htmlFor="listing-address">Manzil</Label>
+            <form
+              onSubmit={handleSaveAddress}
+              className="grid gap-2 sm:grid-cols-[1fr_auto]"
+            >
+              <Input
+                id="listing-address"
+                value={address}
+                onChange={(event) => setAddressDraft(event.target.value)}
+                placeholder="Masalan: Samarqand, Registon ko'chasi 5"
+                aria-label="Aniq manzil"
+              />
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={
+                  updateLocation.isPending ||
+                  address.trim() === data.address.trim()
+                }
+              >
+                Saqlash
+              </Button>
+            </form>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Manzilni Sozlamalar → Biznes bo'limidan o'zgartiring.
+              Qidiruvdan manzil tanlasangiz, u ham shu yerga saqlanadi.
             </p>
           </div>
           <div className="flex flex-col gap-2 rounded-card border border-[var(--border)] bg-[var(--surface-muted)] p-3">
@@ -207,7 +287,7 @@ export function LocationEditor({
                   ) : (
                     <Navigation className="h-4 w-4" aria-hidden />
                   )}
-                  {locating ? "Aniqlanmoqda..." : "Joriy lakatsiyam"}
+                  {locating ? 'Aniqlanmoqda...' : 'Joriy lakatsiyam'}
                 </Button>
               </div>
             </div>
@@ -231,7 +311,7 @@ export function LocationEditor({
                 <button
                   type="button"
                   onClick={() => {
-                    setQuery("");
+                    setQuery('');
                     setResults([]);
                   }}
                   aria-label="Tozalash"
@@ -245,7 +325,10 @@ export function LocationEditor({
                 <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-lg">
                   {searching ? (
                     <li className="flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--muted-foreground)]">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      <Loader2
+                        className="h-3.5 w-3.5 animate-spin"
+                        aria-hidden
+                      />
                       Qidirilmoqda...
                     </li>
                   ) : (
@@ -299,11 +382,15 @@ export function LocationEditor({
               Yaqin diqqatga sazovor joylar
             </h3>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Aeroport, muzey, restoran va h.k. — 3-5 ta joy tavsiya qilinadi.
+              Ixtiyoriy: aeroport, muzey, restoran va h.k. — 3-5 ta joy tavsiya
+              qilinadi.
             </p>
           </div>
 
-          <form onSubmit={handleAdd} className="grid gap-2 sm:grid-cols-[1fr_140px_auto]">
+          <form
+            onSubmit={handleAdd}
+            className="grid gap-2 sm:grid-cols-[1fr_140px_auto]"
+          >
             <Input
               placeholder="Registon maydoni"
               value={name}
@@ -350,8 +437,23 @@ export function LocationEditor({
                       size="icon"
                       variant="ghost"
                       onClick={() => {
-                        removeNearby(place.id);
-                        toast.success("O'chirildi");
+                        updateLocation.mutate(
+                          {
+                            nearbyPlaces: data.nearby.filter(
+                              (item) => item.id !== place.id,
+                            ),
+                          },
+                          {
+                            onSuccess: () => toast.success("O'chirildi"),
+                            onError: (error) => {
+                              toast.error(
+                                error instanceof Error
+                                  ? error.message
+                                  : "O'chirib bo'lmadi",
+                              );
+                            },
+                          },
+                        );
                       }}
                       aria-label="O'chirish"
                       className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"

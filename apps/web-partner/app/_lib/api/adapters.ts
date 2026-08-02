@@ -1,20 +1,23 @@
-import { BookingStatus } from "@safaar/types";
-import { RoomStatus } from "../domain/types";
+import { BookingStatus } from '@safaar/types';
+import { ReservationSource, RoomStatus } from '../domain/types';
 import type {
   Room,
   FrontDeskStats,
-  ReservationSource,
   ReservationView,
   RoomType,
-} from "../domain/types";
+} from '../domain/types';
 import {
   CancellationPolicy,
   ListingStatus,
   PhotoCategory,
   type Listing,
-} from "../domain/listing";
+} from '../domain/listing';
 
-type Localized = string | { uz?: string; ru?: string; en?: string } | null | undefined;
+type Localized =
+  | string
+  | { uz?: string; ru?: string; en?: string }
+  | null
+  | undefined;
 
 export interface BackendPage<T> {
   items?: T[];
@@ -26,46 +29,92 @@ export interface BackendHotel {
   id: string;
   slug?: string;
   name?: Localized;
+  short_description?: Localized;
   description?: Localized;
   address?: string;
-  city?: string;
+  city?: Localized;
   city_id?: string;
   latitude?: number;
   longitude?: number;
+  nearby_places?: unknown;
   stars?: number;
   status?: string;
   amenities?: string[];
   images?: string[];
+  image_ids?: string[];
   check_in_time?: string;
   check_out_time?: string;
+  cancellation_policy_code?: string;
+  smoking_allowed?: boolean;
+  pets_allowed?: boolean;
+  children_allowed?: boolean;
+  extra_fees?: unknown;
 }
 
 export interface BackendRoom {
   id: string;
+  room_type_id?: string;
   code?: string;
+  floor?: number;
   name?: Localized;
+  description?: string | null;
+  image_url?: string | null;
+  bed_type?: string | null;
+  size_sqm?: number | null;
+  amenities?: string[] | null;
+  capacity?: number | null;
   base_occupancy?: number;
   max_adults?: number;
   max_children?: number;
   total_inventory?: number;
   base_price?: number;
   status?: string;
+  housekeeping_status?: string;
+  is_listed?: boolean;
+}
+
+export interface BackendBed {
+  id: string;
+  room_id: string;
+  label: string;
+  status?: string;
+  is_listed?: boolean;
+  nightly_price?: number | null;
 }
 
 export interface BackendBooking {
   id: string;
+  user_id?: string;
   status?: string;
   check_in?: string;
   check_out?: string;
   total_amount?: number;
+  paid_amount?: number;
   currency?: string;
   payment_method?: string;
   guest_name?: string;
   guest_phone?: string;
+  guest_email?: string;
   customer_name?: string;
   customer_phone?: string;
+  user_first_name?: string;
+  user_last_name?: string;
+  user_email?: string;
+  user_phone?: string;
   room_type_name?: string;
+  room_type_id?: string;
   room_number?: string;
+  price_snapshot?: {
+    room_id?: string;
+    room_type_id?: string;
+    room_number?: string | null;
+    bed_id?: string;
+    slot_time?: string;
+  };
+  policy_snapshot?: {
+    source?: string;
+    slot_time?: string;
+  };
   item?: {
     check_in?: string;
     check_out?: string;
@@ -89,9 +138,9 @@ export interface BackendDashboard {
   total_rooms?: number;
 }
 
-function localized(value: Localized, fallback = ""): string {
+function localized(value: Localized, fallback = ''): string {
   if (!value) return fallback;
-  if (typeof value === "string") return value;
+  if (typeof value === 'string') return value;
   return value.uz ?? value.en ?? value.ru ?? fallback;
 }
 
@@ -101,94 +150,124 @@ export function pageItems<T>(value: T[] | BackendPage<T>): T[] {
 }
 
 export function toListing(hotel: BackendHotel): Listing {
+  const imageIds = hotel.image_ids ?? [];
   return {
-    name: localized(hotel.name, "Mehmonxona"),
-    shortDescription: localized(hotel.description),
+    name: localized(hotel.name),
+    shortDescription:
+      localized(hotel.short_description) || localized(hotel.description),
     fullDescription: localized(hotel.description),
     status:
-      hotel.status === "published"
+      hotel.status === 'published'
         ? ListingStatus.PUBLISHED
-        : hotel.status === "pending_review"
+        : hotel.status === 'pending_review'
           ? ListingStatus.UNDER_REVIEW
-          : hotel.status === "hidden"
+          : hotel.status === 'hidden'
             ? ListingStatus.HIDDEN
             : ListingStatus.DRAFT,
-    address: hotel.address ?? "",
-    city: hotel.city ?? hotel.city_id ?? "",
+    address: hotel.address ?? '',
+    city: localized(hotel.city),
     latitude: hotel.latitude,
     longitude: hotel.longitude,
-    stars: hotel.stars ?? 3,
-    checkInTime: hotel.check_in_time ?? "14:00",
-    checkOutTime: hotel.check_out_time ?? "12:00",
+    stars: hotel.stars ?? 0,
+    checkInTime: hotel.check_in_time ?? '',
+    checkOutTime: hotel.check_out_time ?? '',
     amenities: hotel.amenities ?? [],
     photos:
       hotel.images?.map((url, index) => ({
-        id: `${hotel.id}-photo-${index}`,
+        id: imageIds[index] ?? url,
         url,
-        caption: localized(hotel.name, "Mehmonxona rasmi"),
+        caption: '',
         category: PhotoCategory.OTHER,
         isCover: index === 0,
         order: index,
       })) ?? [],
-    nearby: [],
-    cancellationPolicy: CancellationPolicy.MODERATE,
-    smokingAllowed: false,
-    petsAllowed: false,
-    childrenAllowed: true,
-    extraFees: [],
+    nearby: parseNearbyPlaces(hotel.nearby_places),
+    cancellationPolicy: normalizeCancellationPolicy(
+      hotel.cancellation_policy_code,
+    ),
+    smokingAllowed: Boolean(hotel.smoking_allowed),
+    petsAllowed: Boolean(hotel.pets_allowed),
+    childrenAllowed: hotel.children_allowed !== false,
+    extraFees: parseExtraFees(hotel.extra_fees),
   };
 }
 
 export function toRoom(room: BackendRoom): Room {
+  const roomTypeId = room.room_type_id ?? room.id;
+  const status = normalizeRoomStatus(room.housekeeping_status);
   return {
     id: room.id,
-    roomTypeId: room.id, // Using room.id as roomTypeId is temporary, the backend returns real relations
-    number: room.code ?? `R-${room.id.substring(0, 4)}`,
-    floor: 1, // Assume floor 1 for now if missing
-    status: room.status === "active" ? RoomStatus.VACANT_CLEAN : RoomStatus.VACANT_CLEAN,
-    roomTypeName: localized(room.name, "Xona"),
-    isListed: true,
+    roomTypeId,
+    number: room.code ?? '',
+    floor: room.floor ?? 1,
+    status,
+    roomTypeName: localized(room.name),
+    isListed: room.is_listed ?? room.status === 'active',
+    nightlyPrice: room.base_price ?? undefined,
   };
 }
 
 export function toRoomType(room: BackendRoom): RoomType {
   return {
     id: room.id,
-    name: localized(room.name, room.code ?? "Xona"),
-    description: room.code ?? "",
-    capacity: room.max_adults ?? room.base_occupancy ?? 2,
-    bedType: "Standart",
-    sizeSqm: 24,
+    name: localized(room.name, room.code ?? ''),
+    description: room.description ?? undefined,
+    capacity: room.capacity ?? room.max_adults ?? room.base_occupancy ?? 1,
+    bedType: room.bed_type ?? undefined,
+    sizeSqm: room.size_sqm ?? undefined,
     basePrice: room.base_price ?? 0,
-    amenities: [],
-    imageUrl: undefined,
+    amenities: room.amenities ?? [],
+    imageUrl: room.image_url ?? undefined,
+  };
+}
+
+export function toBed(bed: BackendBed): import('../domain/types').Bed {
+  return {
+    id: bed.id,
+    roomId: bed.room_id,
+    label: bed.label,
+    status: normalizeRoomStatus(bed.status),
+    isListed: bed.is_listed ?? true,
+    nightlyPrice: bed.nightly_price ?? undefined,
   };
 }
 
 export function toReservation(booking: BackendBooking): ReservationView {
-  const checkIn = booking.check_in ?? booking.item?.check_in ?? "";
-  const checkOut = booking.check_out ?? booking.item?.check_out ?? "";
+  const checkIn = booking.check_in ?? booking.item?.check_in ?? '';
+  const checkOut = booking.check_out ?? booking.item?.check_out ?? '';
+  const roomTypeId =
+    booking.room_type_id ?? booking.price_snapshot?.room_type_id ?? '';
+  const fullName =
+    booking.guest_name ??
+    booking.customer_name ??
+    [booking.user_first_name, booking.user_last_name].filter(Boolean).join(' ');
+  const phone =
+    booking.guest_phone ?? booking.customer_phone ?? booking.user_phone ?? '';
   return {
     id: booking.id,
     status: normalizeBookingStatus(booking.status),
     guest: {
-      id: `${booking.id}-guest`,
-      fullName: booking.guest_name ?? booking.customer_name ?? "Mehmon",
-      phone: booking.guest_phone ?? booking.customer_phone ?? "",
-      email: "",
+      id: booking.user_id ?? booking.id,
+      fullName,
+      phone,
+      email: booking.guest_email ?? booking.user_email ?? '',
     },
-    roomTypeId: booking.id,
-    roomTypeName: booking.room_type_name ?? "Xona",
-    roomNumber: booking.room_number,
+    roomTypeId,
+    roomTypeName: booking.room_type_name ?? '',
+    roomNumber:
+      booking.room_number ?? booking.price_snapshot?.room_number ?? undefined,
+    bedId: booking.price_snapshot?.bed_id,
+    slotTime:
+      booking.policy_snapshot?.slot_time ?? booking.price_snapshot?.slot_time,
     checkIn,
     checkOut,
-    nights: booking.item?.nights ?? 1,
-    adults: booking.item?.adults ?? 1,
+    nights: booking.item?.nights ?? calculateNights(checkIn, checkOut),
+    adults: booking.item?.adults ?? 0,
     children: booking.item?.children ?? 0,
     totalPrice: booking.total_amount ?? 0,
-    paidAmount: 0,
-    source: "UZBRON" as ReservationSource,
-    createdAt: booking.created_at ?? new Date().toISOString(),
+    paidAmount: booking.paid_amount ?? 0,
+    source: normalizeReservationSource(booking.policy_snapshot?.source),
+    createdAt: booking.created_at ?? '',
   };
 }
 
@@ -213,4 +292,80 @@ function normalizeBookingStatus(status?: string): BookingStatus {
     return BookingStatus[value as keyof typeof BookingStatus];
   }
   return BookingStatus.PENDING;
+}
+
+function normalizeRoomStatus(status?: string): RoomStatus {
+  const value = status?.toUpperCase();
+  if (value && value in RoomStatus) {
+    return RoomStatus[value as keyof typeof RoomStatus];
+  }
+  return RoomStatus.VACANT_CLEAN;
+}
+
+function normalizeReservationSource(source?: string): ReservationSource {
+  const value = source?.toUpperCase();
+  if (value && value in ReservationSource) {
+    return ReservationSource[value as keyof typeof ReservationSource];
+  }
+  return 'UZBRON' as ReservationSource;
+}
+
+function calculateNights(checkIn: string, checkOut: string): number {
+  if (!checkIn || !checkOut) return 0;
+  const start = new Date(checkIn).getTime();
+  const end = new Date(checkOut).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0;
+  return Math.max(1, Math.round((end - start) / (24 * 60 * 60 * 1000)));
+}
+
+function normalizeCancellationPolicy(value?: string): CancellationPolicy {
+  const policy = value?.toUpperCase();
+  if (policy && policy in CancellationPolicy) {
+    return CancellationPolicy[policy as keyof typeof CancellationPolicy];
+  }
+  return CancellationPolicy.MODERATE;
+}
+
+function parseExtraFees(value: unknown): Listing['extraFees'] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((fee): Listing['extraFees'][number] | null => {
+      if (!fee || typeof fee !== 'object') return null;
+      const item = fee as Record<string, unknown>;
+      const id = String(item.id ?? '').trim();
+      const name = String(item.name ?? '').trim();
+      const amount = Number(item.amount);
+      const charge = String(item.charge ?? '');
+      if (
+        !id ||
+        !name ||
+        !Number.isFinite(amount) ||
+        !['per_stay', 'per_night', 'per_person'].includes(charge)
+      ) {
+        return null;
+      }
+      return {
+        id,
+        name,
+        amount,
+        charge: charge as 'per_stay' | 'per_night' | 'per_person',
+        required: item.required !== false,
+      };
+    })
+    .filter((fee): fee is Listing['extraFees'][number] => Boolean(fee));
+}
+
+function parseNearbyPlaces(value: unknown): Listing['nearby'] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((place): Listing['nearby'][number] | null => {
+      if (!place || typeof place !== 'object') return null;
+      const item = place as Record<string, unknown>;
+      const id = String(item.id ?? '').trim();
+      const name = String(item.name ?? '').trim();
+      const distance = String(item.distance ?? '').trim();
+      if (!id || !name || !distance) return null;
+      return { id, name, distance };
+    })
+    .filter((place): place is Listing['nearby'][number] => Boolean(place));
 }

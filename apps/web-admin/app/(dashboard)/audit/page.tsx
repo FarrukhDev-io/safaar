@@ -1,33 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { History, Search } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 import Badge from "@/components/ui/Badge";
 import Pagination from "@/components/ui/Pagination";
+import { AdminApi } from "@/lib/api/admin-api";
 import { formatDateTime } from "@/lib/utils";
 
-// Qattiq yozilgan (statik) sanalar — `new Date()`/`Date.now()` ishlatilmaydi,
-// chunki server va klient bu kodni turli lahzalarda bajaradi va natijada
-// bir xil bo'lmagan vaqt qiymatlari React hydration mismatchiga olib kelardi.
-const mockLogs = [
-  { id: "1", user: "Super Admin", action: "Partnerni tasdiqlash", target: "Hilton Hotel", date: "2026-07-29T10:00:00.000Z", ip: "192.168.1.100" },
-  { id: "2", user: "Moderator Ali", action: "Foydalanuvchini bloklash", target: "User #12345", date: "2026-07-29T09:00:00.000Z", ip: "10.0.0.15" },
-  { id: "3", user: "Moliya Admini", action: "Komissiya o'zgartirildi", target: "Global Sozlamalar", date: "2026-07-29T08:00:00.000Z", ip: "192.168.1.102" },
-  { id: "4", user: "Super Admin", action: "Tizimga kirish", target: "Auth", date: "2026-07-28T10:00:00.000Z", ip: "192.168.1.100" },
-];
-
-type AuditLog = (typeof mockLogs)[number];
+interface AuditLog {
+  id: string;
+  user: string;
+  action: string;
+  target: string;
+  date: string;
+  ip: string;
+}
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredLogs = mockLogs.filter((log) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return [log.user, log.action, log.target].join(" ").toLowerCase().includes(q);
-  });
+  useEffect(() => {
+    AdminApi.getAuditLogs()
+      .then((items) => setLogs(items))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredLogs = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return logs;
+    return logs.filter((log) =>
+      [log.user, log.action, log.target, log.ip]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [logs, search]);
 
   const columns = [
     { key: "user", label: "Foydalanuvchi" },
@@ -36,6 +47,14 @@ export default function AuditLogsPage() {
     { key: "ip", label: "IP Manzil", render: (row: AuditLog) => <span className="font-mono text-xs">{row.ip}</span> },
     { key: "date", label: "Sana", render: (row: AuditLog) => formatDateTime(row.date) },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
@@ -72,7 +91,7 @@ export default function AuditLogsPage() {
             columns={columns}
             data={filteredLogs}
             keyField="id"
-            emptyMessage="Qidiruv bo'yicha hech narsa topilmadi"
+            emptyMessage="Audit loglar topilmadi"
           />
         </div>
 

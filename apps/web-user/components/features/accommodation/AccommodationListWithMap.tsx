@@ -45,6 +45,8 @@ export function AccommodationListWithMap({
         stars: h.stars,
         imageUrl: h.imageUrl,
         linkUrl: `/${locale}/hotels/${h.slug}`,
+        lat: h.latitude,
+        lng: h.longitude,
       })),
     [items, locale]
   );

@@ -1,38 +1,42 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, useEffect } from "react";
 import Link from "next/link";
 import { Sparkles, X, ArrowRight } from "lucide-react";
 import { type PromoBarConfig, getLocalizedText } from "@/lib/promo";
 
 interface PromoBarProps {
   config?: PromoBarConfig | null;
-  fallbackText?: string;
   locale?: string;
 }
 
 const emptySubscribe = () => () => {};
 
-export function PromoBar({ config, fallbackText, locale = "uz" }: PromoBarProps) {
-  const [now] = useState(() => Date.now());
+export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
+  const [now, setNow] = useState(0);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setNow(Date.now()), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
   const [isDismissed, setIsDismissed] = useState(false);
   const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
-  const promoId = config?.id ?? "default_promo";
-
   const handleDismiss = () => {
+    if (!config?.id) return;
     setIsDismissed(true);
     if (typeof window !== "undefined") {
-      sessionStorage.setItem(`safaar_promo_dismissed_${promoId}`, "1");
+      sessionStorage.setItem(`safaar_promo_dismissed_${config.id}`, "1");
     }
   };
 
-  const isActive = config ? config.isActive : !!fallbackText;
+  const isActive = Boolean(config?.isActive);
   const isExpired = Boolean(
-    config?.endsAt && new Date(config.endsAt).getTime() < now
+    config?.endsAt && now > 0 && new Date(config.endsAt).getTime() < now
   );
 
-  const text = config ? getLocalizedText(config.text, locale) || fallbackText : fallbackText;
+  const text = getLocalizedText(config?.text, locale);
   const badgeText = config ? getLocalizedText(config.badge, locale) : "";
   const linkText = config ? getLocalizedText(config.linkText, locale) : "";
 

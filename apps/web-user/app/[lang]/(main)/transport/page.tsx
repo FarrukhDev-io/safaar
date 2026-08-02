@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
+import { api } from "@/lib/api";
 import { TransportView } from "@/components/features/transport/TransportView";
+import type { TransportItem } from "@/components/catalog/types";
 
 export async function generateMetadata({
   params,
@@ -31,11 +33,26 @@ export default async function TransportPage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const transportDict = await getDictionary(locale, "transport");
+  const [transportDict, transports] = await Promise.all([
+    getDictionary(locale, "transport"),
+    api.catalog.getTransports(locale),
+  ]);
+
+  const items: TransportItem[] = transports.map((item) => ({
+    ...item,
+    categoryKey: toTransportCategory(item.categoryKey),
+  }));
 
   return (
     <main className="flex flex-1 flex-col">
-      <TransportView dict={transportDict} />
+      <TransportView dict={transportDict} items={items} />
     </main>
   );
+}
+
+function toTransportCategory(value: string): TransportItem["categoryKey"] {
+  if (value === "rent" || value === "transfer" || value === "vip") {
+    return value;
+  }
+  return "transfer";
 }

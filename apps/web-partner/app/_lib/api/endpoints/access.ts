@@ -1,10 +1,23 @@
-import { request } from "../client";
+import { request } from '../client';
 
-export type PartnerAccessStatus = "not_found" | "new" | "reviewing" | "approved" | "rejected" | "submitted";
+export type PartnerAccessStatus =
+  | 'not_found'
+  | 'new'
+  | 'reviewing'
+  | 'approved'
+  | 'rejected'
+  | 'submitted';
 
 export interface PartnerApplicationDraft {
   companyName: string;
-  type: "hotel" | "bus" | "hostel" | "guesthouse" | "motel" | "dacha" | "restaurant";
+  type:
+    | 'hotel'
+    | 'bus'
+    | 'hostel'
+    | 'guesthouse'
+    | 'motel'
+    | 'dacha'
+    | 'restaurant';
   contactPerson: string;
   phone: string;
   email: string;
@@ -14,18 +27,27 @@ export interface PartnerApplicationDraft {
   note?: string;
 }
 
+export type PartnerAccessLookup = string | { phone?: string; email?: string };
+
 export async function submitPartnerApplication(body: PartnerApplicationDraft) {
-  const result = await request<{ item: { id: string; status: PartnerAccessStatus } }>(
-    "/partners/requests",
-    {
-      method: "POST",
-      body,
-    }
-  );
+  const result = await request<{
+    item: { id: string; status: PartnerAccessStatus };
+  }>('/partners/requests', {
+    method: 'POST',
+    body,
+  });
   return result;
 }
 
-export async function getPartnerAccessStatus(phone: string) {
+export async function getPartnerAccessStatus(lookup: PartnerAccessLookup) {
+  const searchParams =
+    typeof lookup === 'string'
+      ? { phone: lookup }
+      : {
+          phone: lookup.phone,
+          email: lookup.email,
+        };
+
   const result = await request<{
     found: boolean;
     status: PartnerAccessStatus;
@@ -35,8 +57,8 @@ export async function getPartnerAccessStatus(phone: string) {
       status: PartnerAccessStatus;
       type?: string;
     } | null;
-  }>("/partners/requests", {
-    searchParams: { phone },
+  }>('/partners/requests', {
+    searchParams,
   });
   return result;
 }

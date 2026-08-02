@@ -11,7 +11,7 @@ function mapReviews(raw: unknown): ReviewView[] {
   const items = camelizeKeys<(RawReviewItem & Record<string, unknown>)[]>(raw);
   return (items ?? [])
     .filter((item) => (item.status ?? "published") !== "hidden")
-    .map((item) => toReviewView(item as any));
+    .map((item) => toReviewView(item));
 }
 
 export const reviewsService = {

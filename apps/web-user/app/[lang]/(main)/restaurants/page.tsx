@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
+import { api } from "@/lib/api";
 import { RestaurantsView } from "@/components/features/restaurants/RestaurantsView";
 
 export async function generateMetadata({
@@ -30,11 +31,14 @@ export default async function RestaurantsPage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const restaurantsDict = await getDictionary(locale, "restaurants");
+  const [restaurantsDict, restaurants] = await Promise.all([
+    getDictionary(locale, "restaurants"),
+    api.catalog.getRestaurants(locale),
+  ]);
 
   return (
     <main className="flex flex-1 flex-col">
-      <RestaurantsView dict={restaurantsDict} />
+      <RestaurantsView dict={restaurantsDict} items={restaurants} />
     </main>
   );
 }

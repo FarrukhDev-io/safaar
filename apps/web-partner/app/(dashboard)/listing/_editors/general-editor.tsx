@@ -10,8 +10,10 @@ import { Button } from "../../../_components/ui/button";
 import { Drawer } from "../../../_components/ui/drawer";
 import { Input } from "../../../_components/ui/input";
 import { Label } from "../../../_components/ui/label";
-import { useListing } from "../../../_hooks/use-listing";
-import { useDataStore } from "../../../_stores/data-store";
+import {
+  useListing,
+  useUpdateListingGeneral,
+} from "../../../_hooks/use-listing";
 import { useAuthStore } from "../../../_stores/auth-store";
 import { getPartnerLabels, hasStarRating, isRestaurant } from "../../../_lib/utils/partner-labels";
 import { cn } from "../../../_lib/utils/cn";
@@ -33,7 +35,7 @@ export function GeneralEditor({
   onClose: () => void;
 }) {
   const { data } = useListing();
-  const update = useDataStore((s) => s.updateListingGeneral);
+  const update = useUpdateListingGeneral();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const showStars = hasStarRating(partnerType);
   const restaurant = isRestaurant(partnerType);
@@ -53,10 +55,16 @@ export function GeneralEditor({
   const shortLen = watched.shortDescription?.length ?? 0;
   const fullLen = watched.fullDescription?.length ?? 0;
 
-  const onSave = form.handleSubmit((values) => {
-    update(values);
-    toast.success("Umumiy ma'lumotlar saqlandi");
-    onClose();
+  const onSave = form.handleSubmit(async (values) => {
+    try {
+      await update.mutateAsync(values);
+      toast.success("Umumiy ma'lumotlar saqlandi");
+      onClose();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Ma'lumotlarni saqlab bo'lmadi",
+      );
+    }
   });
 
   const err = form.formState.errors;
@@ -73,7 +81,10 @@ export function GeneralEditor({
           <Button variant="outline" onClick={onClose}>
             Bekor qilish
           </Button>
-          <Button onClick={onSave} disabled={!form.formState.isDirty}>
+          <Button
+            onClick={onSave}
+            disabled={!form.formState.isDirty || update.isPending}
+          >
             Saqlash
           </Button>
         </>

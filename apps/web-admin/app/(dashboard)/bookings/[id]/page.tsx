@@ -1,11 +1,12 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { getMockBookingDetail } from "@/lib/mock-data";
+import { useAdminStore } from "@/lib/store";
+import { AdminApi } from "@/lib/api/admin-api";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 import { BOOKING_STATUS_MAP, PAYMENT_METHOD_MAP } from "@/lib/constants";
 import {
@@ -13,26 +14,33 @@ import {
   Hotel, Bus, UtensilsCrossed, User, CreditCard, Clock, CheckCircle,
 } from "lucide-react";
 
-import { useAdminStore } from "@/lib/store";
 import { toast } from "sonner";
 import { BookingStatus } from "@safaar/types";
+import type { BookingDetail } from "@/types/admin";
 
 export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  
-  const hotelBookings = useAdminStore((s) => s.hotelBookings);
-  const busBookings = useAdminStore((s) => s.busBookings);
-  const restaurantBookings = useAdminStore((s) => s.restaurantBookings);
-  const updateHotelBookingStatus = useAdminStore((s) => s.updateHotelBookingStatus);
-  const updateBusBookingStatus = useAdminStore((s) => s.updateBusBookingStatus);
-  const updateRestaurantBookingStatus = useAdminStore((s) => s.updateRestaurantBookingStatus);
   const bookingNotes = useAdminStore((s) => s.bookingNotes);
   const setBookingNote = useAdminStore((s) => s.setBookingNote);
+  const [booking, setBooking] = useState<BookingDetail | null>(null);
+  const [loading, setLoading] = useState(true);
   const [noteDraft, setNoteDraft] = useState(bookingNotes[id] ?? "");
 
-  const baseBooking = getMockBookingDetail(id);
+  useEffect(() => {
+    AdminApi.getBookingDetail(id)
+      .then((item) => setBooking(item))
+      .finally(() => setLoading(false));
+  }, [id]);
 
-  if (!baseBooking) {
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!booking) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-lg text-[var(--text-muted)]">Bron topilmadi</p>
@@ -43,30 +51,13 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const isHotel = baseBooking.serviceType === "hotel";
-  const isRestaurant = baseBooking.serviceType === "restaurant";
+  const isHotel = booking.serviceType === "hotel";
+  const isRestaurant = booking.serviceType === "restaurant";
 
-  // Find real-time status from store
-  const storeBooking = isHotel
-    ? hotelBookings.find(b => b.id === id)
-    : isRestaurant
-      ? restaurantBookings.find(b => b.id === id)
-      : busBookings.find(b => b.id === id);
-
-  const booking = {
-    ...baseBooking,
-    status: storeBooking ? storeBooking.status : baseBooking.status,
-  };
-
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (confirm("Rostdan ham ushbu bronni bekor qilmoqchimisiz?")) {
-      if (isHotel) {
-        updateHotelBookingStatus(id, BookingStatus.CANCELLED);
-      } else if (isRestaurant) {
-        updateRestaurantBookingStatus(id, BookingStatus.CANCELLED);
-      } else {
-        updateBusBookingStatus(id, BookingStatus.CANCELLED);
-      }
+      const updated = await AdminApi.cancelBooking(id);
+      setBooking(updated);
       toast.success("Bron bekor qilindi!");
     }
   };
@@ -97,7 +88,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               background: isHotel
                 ? "linear-gradient(135deg, #1E3A5F, #2B5278)"
                 : isRestaurant
-                  ? "linear-gradient(135deg, #E67E22, #D35400)"
+                  ? "linear-gradient(135deg, #B8860B, #D4A017)"
                   : "linear-gradient(135deg, #2ECC71, #25A85C)",
             }}
           >
@@ -116,7 +107,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          {booking.status !== "CANCELLED" && (
+          {booking.status !== BookingStatus.CANCELLED && (
             <Button variant="danger" size="sm" icon={<Ban size={14} />} onClick={handleCancel}>
               Bekor qilish
             </Button>

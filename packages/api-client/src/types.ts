@@ -24,6 +24,8 @@ export interface HotelListItem {
   reviewsCount: number;
   minPriceSum: number;
   imageUrl?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface RoomTypeView {
@@ -101,4 +103,34 @@ export interface ReviewView {
   rating: number;
   body: string;
   createdAt: string;
+  authorName?: string;
+  avatarUrl?: string;
+  photos?: string[];
+  isVerifiedGuest?: boolean;
+}
+
+export interface SupportTicketView {
+  id: string;
+  subject: string;
+  priority: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  messages?: SupportMessageView[];
+}
+
+export interface SupportMessageView {
+  id: string;
+  ticketId: string;
+  senderType: "user" | "partner" | "admin" | string;
+  senderId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface PromoView {
+  code: string;
+  discountType: "percent" | "fixed" | string;
+  discountValue: number;
+  validUntil: string;
 }

@@ -10,11 +10,5 @@
     "unesco": "UNESCO Heritage",
     "nature": "Nature & Leisure"
   },
-  "bestTime": "Best time:",
-  "moreInfo": "Details",
-  "comingSoon": "Detailed guide for {name} coming soon!",
-  "hoursSuffix": "hours",
-  "fullDay": "Full day",
-  "from": "from",
-  "recommended": "Recommended:"
+  "bestTime": "Best time:"
 }

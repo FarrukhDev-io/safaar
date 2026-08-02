@@ -1,7 +1,7 @@
 "use client";
 
 import { ImageIcon } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,8 +10,9 @@ import { Button } from "../../../../_components/ui/button";
 import { Dialog } from "../../../../_components/ui/dialog";
 import { Input } from "../../../../_components/ui/input";
 import { Label } from "../../../../_components/ui/label";
-import { useDataStore } from "../../../../_stores/data-store";
 import { useAuthStore } from "../../../../_stores/auth-store";
+import { useCreateRoomType, useUpdateRoomType } from "../../../../_hooks/use-room-types";
+import { partners } from "../../../../_lib/api";
 import { getPartnerLabels, isRestaurant } from "../../../../_lib/utils/partner-labels";
 import type { RoomType } from "../../../../_lib/domain/types";
 
@@ -62,9 +63,11 @@ interface Props {
 }
 
 export function RoomTypeDialog({ open, onClose, editing }: Props) {
-  const addRoomType = useDataStore((s) => s.addRoomType);
-  const updateRoomType = useDataStore((s) => s.updateRoomType);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
+  const accessToken = useAuthStore((s) => s.tokens?.accessToken);
+  const createRoomType = useCreateRoomType();
+  const updateRoomType = useUpdateRoomType();
+  const [uploadingImage, setUploadingImage] = useState(false);
   const labels = getPartnerLabels(partnerType);
   const restaurant = isRestaurant(partnerType);
   const amenityOptions = restaurant ? TABLE_AMENITY_OPTIONS : ROOM_AMENITY_OPTIONS;
@@ -76,8 +79,8 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
       description: "",
       imageUrl: "",
       bedType: "",
-      sizeSqm: 24,
-      basePrice: 400_000,
+      sizeSqm: undefined,
+      basePrice: undefined as unknown as number,
       capacity: 2,
       amenities: [],
     },
@@ -92,7 +95,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
               description: editing.description ?? "",
               imageUrl: editing.imageUrl ?? "",
               bedType: editing.bedType ?? "",
-              sizeSqm: editing.sizeSqm ?? 24,
+              sizeSqm: editing.sizeSqm,
               basePrice: editing.basePrice,
               capacity: editing.capacity,
               amenities: editing.amenities,
@@ -102,8 +105,8 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
               description: "",
               imageUrl: "",
               bedType: "",
-              sizeSqm: 24,
-              basePrice: 400_000,
+              sizeSqm: undefined,
+              basePrice: undefined as unknown as number,
               capacity: 2,
               amenities: [],
             },
@@ -127,15 +130,39 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
     }
   };
 
-  const onSubmit = form.handleSubmit((values) => {
-    if (editing) {
-      updateRoomType(editing.id, values);
-      toast.success(`"${values.name}" yangilandi`);
-    } else {
-      addRoomType(values);
-      toast.success(`"${values.name}" qo'shildi`);
+  const handleImageUpload = async (file: File) => {
+    setUploadingImage(true);
+    try {
+      const uploaded = await partners.uploadImage(file, accessToken);
+      form.setValue("imageUrl", uploaded.url, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      toast.success("Rasm yuklandi");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Rasmni yuklab bo'lmadi",
+      );
+    } finally {
+      setUploadingImage(false);
     }
-    onClose();
+  };
+
+  const onSubmit = form.handleSubmit(async (values) => {
+    try {
+      if (editing) {
+        await updateRoomType.mutateAsync({ id: editing.id, values });
+        toast.success(`"${values.name}" yangilandi`);
+      } else {
+        await createRoomType.mutateAsync(values);
+        toast.success(`"${values.name}" qo'shildi`);
+      }
+      onClose();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Xona turini saqlab bo'lmadi",
+      );
+    }
   });
 
   const err = form.formState.errors;
@@ -258,12 +285,16 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    const url = URL.createObjectURL(file);
-                    form.setValue("imageUrl", url);
+                    void handleImageUpload(file);
                   }
                 }}
               />
             </label>
+            {uploadingImage && (
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Rasm yuklanmoqda...
+              </p>
+            )}
             {err.imageUrl && (
               <p className="text-xs text-red-600">{err.imageUrl.message}</p>
             )}
@@ -298,7 +329,16 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
           <Button type="button" variant="outline" onClick={onClose}>
             Bekor qilish
           </Button>
-          <Button type="submit">{editing ? "Saqlash" : "Qo'shish"}</Button>
+          <Button
+            type="submit"
+            disabled={
+              uploadingImage ||
+              createRoomType.isPending ||
+              updateRoomType.isPending
+            }
+          >
+            {editing ? "Saqlash" : "Qo'shish"}
+          </Button>
         </div>
       </form>
     </Dialog>

@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Spinner } from "../_components/ui/spinner";
-import { useAuthStore } from "../_stores/auth-store";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Spinner } from '../_components/ui/spinner';
+import { AUTH_STORAGE_KEY, useAuthStore } from '../_stores/auth-store';
 
 export default function LogoutPage() {
   const router = useRouter();
@@ -11,8 +11,8 @@ export default function LogoutPage() {
 
   useEffect(() => {
     clearSession();
-    localStorage.removeItem("uzbron-partner-auth");
-    router.replace("/login");
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    router.replace('/login');
   }, [clearSession, router]);
 
   return (

@@ -1,22 +1,27 @@
 "use client";
 
-import { useEffect, useActionState, useState, useCallback } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { AuthDict } from "@/i18n/dictionaries";
 import {
-  requestOtpAction,
-  verifyOtpAction,
-  type OtpState,
-  type VerifyState,
+  loginAction,
+  requestPasswordResetAction,
+  resetPasswordAction,
+  verifyPasswordResetCodeAction,
+  type LoginState,
+  type PasswordResetCodeState,
+  type PasswordResetRequestState,
+  type PasswordResetState,
 } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { AuthSplitLayout } from "./AuthSplitLayout";
-
 import { config } from "@/lib/config";
 
 const API_URL = config.apiUrl;
+
+type LoginMode = "login" | "forgot-email" | "forgot-code" | "reset-password";
 
 function GoogleIcon() {
   return (
@@ -56,41 +61,96 @@ export function LoginForm({
   locale,
   next,
   dict,
+  socialError,
 }: {
   locale: Locale;
   next: string;
   dict: AuthDict;
+  socialError?: string;
 }) {
+  const [mode, setMode] = useState<LoginMode>("login");
   const [email, setEmail] = useState("");
-  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-  }, []);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetChallengeId, setResetChallengeId] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [resetDone, setResetDone] = useState(false);
 
-  const [otpState, requestAction, sending] = useActionState<OtpState, FormData>(
-    requestOtpAction,
-    { ok: false },
-  );
-  const [verifyState, verifyAction, verifying] = useActionState<
-    VerifyState,
+  const [loginState, loginFormAction, loggingIn] = useActionState<
+    LoginState,
     FormData
-  >(verifyOtpAction, {});
+  >(loginAction, {});
+  const [resetRequestState, requestResetFormAction, requestingReset] =
+    useActionState<PasswordResetRequestState, FormData>(
+      requestPasswordResetAction,
+      { ok: false },
+    );
+  const [resetCodeState, verifyResetCodeFormAction, verifyingResetCode] =
+    useActionState<PasswordResetCodeState, FormData>(
+      verifyPasswordResetCodeAction,
+      { verified: false },
+    );
+  const [resetPasswordState, resetPasswordFormAction, resettingPassword] =
+    useActionState<PasswordResetState, FormData>(resetPasswordAction, {
+      ok: false,
+    });
 
-  // Yangi foydalanuvchi — profil to'ldirish sahifasiga yo'naltirish
   useEffect(() => {
-    if (verifyState.needsProfile && verifyState.locale) {
-      const target = `/${verifyState.locale}/register?email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`;
-      window.location.href = target;
+    if (resetRequestState.ok && resetRequestState.email) {
+      queueMicrotask(() => {
+        setResetEmail(resetRequestState.email ?? "");
+        setResetChallengeId(resetRequestState.challengeId ?? "");
+        setMode("forgot-code");
+      });
     }
-  }, [verifyState.needsProfile, verifyState.locale, email, next]);
+  }, [resetRequestState]);
+
+  useEffect(() => {
+    if (resetCodeState.verified && resetCodeState.resetToken) {
+      queueMicrotask(() => {
+        setResetEmail(resetCodeState.email ?? resetEmail);
+        setResetToken(resetCodeState.resetToken ?? "");
+        setMode("reset-password");
+      });
+    }
+  }, [resetCodeState, resetEmail]);
+
+  useEffect(() => {
+    if (resetPasswordState.ok) {
+      queueMicrotask(() => {
+        setMode("login");
+        setResetDone(true);
+      });
+    }
+  }, [resetPasswordState.ok]);
+
+  const oauthQuery = new URLSearchParams({
+    locale,
+    ...(next ? { next } : {}),
+  }).toString();
+  const socialErrorMessage = socialError
+    ? socialErrorMessageFor(socialError, dict)
+    : "";
 
   return (
     <AuthSplitLayout locale={locale} dict={dict}>
-      {!otpState.ok ? (
-        <form action={requestAction} className="flex flex-col gap-4">
+      {mode === "login" && (
+        <form action={loginFormAction} className="flex flex-col gap-4">
           <header className="flex flex-col gap-1">
             <h1 className="text-2xl font-black tracking-tight text-slate-900">{dict.title}</h1>
-            <p className="text-sm font-bold text-slate-700">{dict.subtitle}</p>
+            <p className="text-sm font-bold text-slate-700">{dict.passwordLoginSubtitle}</p>
           </header>
+
+          {socialErrorMessage && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+              {socialErrorMessage}
+            </p>
+          )}
+          {resetDone && (
+            <p className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-bold text-green-700">
+              {dict.passwordResetSuccess}
+            </p>
+          )}
+
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
             <Input
@@ -99,21 +159,46 @@ export function LoginForm({
               autoComplete="email"
               required
               value={email}
-              onChange={handleEmailChange}
+              onChange={(event) => setEmail(event.target.value)}
               placeholder={dict.emailPlaceholder}
             />
           </label>
-          {otpState.error && (
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.password}</span>
+            <Input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              placeholder={dict.passwordLoginPlaceholder}
+            />
+          </label>
+
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="next" value={next} />
+
+          {loginState.error && (
             <p className="text-sm font-bold text-red-600">
-              {otpState.error === "EMAIL_REQUIRED"
-                ? dict.emailRequired
-                : otpState.error === "EMAIL_INVALID"
-                  ? dict.emailInvalid
-                  : dict.error}
+              {authErrorMessageFor(loginState.error, dict)}
             </p>
           )}
-          <Button type="submit" size="lg" loading={sending}>
-            {dict.sendCode}
+
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              className="text-sm font-extrabold text-blue-700 hover:text-blue-800"
+              onClick={() => {
+                setResetDone(false);
+                setMode("forgot-email");
+              }}
+            >
+              {dict.forgotPassword}
+            </button>
+          </div>
+
+          <Button type="submit" size="lg" loading={loggingIn} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+            {dict.login}
           </Button>
 
           <p className="text-center text-sm font-bold text-slate-700">
@@ -125,24 +210,48 @@ export function LoginForm({
               {dict.register}
             </Link>
           </p>
-        </form>
-      ) : (
-        <form action={verifyAction} className="flex flex-col gap-4">
-          <header className="flex flex-col gap-1">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">{dict.codeTitle}</h1>
-            <p className="text-sm font-bold text-slate-700">{dict.codeSubtitle}</p>
-          </header>
 
-          {otpState.devCode && (
-            <p className="rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-900">
-              {dict.devCode}: <strong>{otpState.devCode}</strong>
+          <SocialLoginButtons dict={dict} oauthQuery={oauthQuery} />
+        </form>
+      )}
+
+      {mode === "forgot-email" && (
+        <form action={requestResetFormAction} className="flex flex-col gap-4">
+          <AuthHeader
+            title={dict.forgotPasswordTitle}
+            subtitle={dict.forgotPasswordSubtitle}
+          />
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
+            <Input
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              defaultValue={email}
+              placeholder={dict.emailPlaceholder}
+            />
+          </label>
+          {resetRequestState.error && (
+            <p className="text-sm font-bold text-red-600">
+              {authErrorMessageFor(resetRequestState.error, dict)}
             </p>
           )}
+          <Button type="submit" size="lg" loading={requestingReset} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+            {dict.sendCode}
+          </Button>
+          <BackToLoginButton dict={dict} onClick={() => setMode("login")} />
+        </form>
+      )}
 
-          <input type="hidden" name="email" value={email} />
-          <input type="hidden" name="locale" value={locale} />
-          <input type="hidden" name="next" value={next} />
-
+      {mode === "forgot-code" && (
+        <form action={verifyResetCodeFormAction} className="flex flex-col gap-4">
+          <AuthHeader
+            title={dict.resetCodeTitle}
+            subtitle={dict.resetCodeSubtitle}
+          />
+          <input type="hidden" name="email" value={resetEmail} />
+          <input type="hidden" name="challengeId" value={resetChallengeId} />
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.code}</span>
             <Input
@@ -154,49 +263,156 @@ export function LoginForm({
               placeholder="••••••"
             />
           </label>
-
-          {verifyState.error && (
+          {resetCodeState.error && (
             <p className="text-sm font-bold text-red-600">
-              {verifyState.error === "OTP_INVALID"
-                ? dict.otpInvalid
-                : verifyState.error === "OTP_EXPIRED"
-                  ? dict.otpExpired
-                  : dict.error}
+              {authErrorMessageFor(resetCodeState.error, dict)}
             </p>
           )}
-
-          <Button type="submit" size="lg" loading={verifying}>
-            {dict.verify}
+          <Button type="submit" size="lg" loading={verifyingResetCode} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+            {dict.verifyCode}
           </Button>
+          <BackToLoginButton dict={dict} onClick={() => setMode("login")} />
         </form>
       )}
 
-      {/* Social login */}
-      <div className="relative my-6">
+      {mode === "reset-password" && (
+        <form action={resetPasswordFormAction} className="flex flex-col gap-4">
+          <AuthHeader
+            title={dict.newPasswordTitle}
+            subtitle={dict.newPasswordSubtitle}
+          />
+          <input type="hidden" name="email" value={resetEmail} />
+          <input type="hidden" name="resetToken" value={resetToken} />
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.newPassword}</span>
+            <Input
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              placeholder={dict.passwordPlaceholder}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.confirmPassword}</span>
+            <Input
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              required
+              placeholder={dict.confirmPasswordPlaceholder}
+            />
+          </label>
+          {resetPasswordState.error && (
+            <p className="text-sm font-bold text-red-600">
+              {authErrorMessageFor(resetPasswordState.error, dict)}
+            </p>
+          )}
+          <Button type="submit" size="lg" loading={resettingPassword} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+            {dict.saveNewPassword}
+          </Button>
+          <BackToLoginButton dict={dict} onClick={() => setMode("login")} />
+        </form>
+      )}
+    </AuthSplitLayout>
+  );
+}
+
+function AuthHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <header className="flex flex-col gap-1">
+      <h1 className="text-2xl font-black tracking-tight text-slate-900">{title}</h1>
+      <p className="text-sm font-bold text-slate-700">{subtitle}</p>
+    </header>
+  );
+}
+
+function BackToLoginButton({
+  dict,
+  onClick,
+}: {
+  dict: AuthDict;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="text-center text-sm font-extrabold text-blue-700 hover:text-blue-800"
+      onClick={onClick}
+    >
+      {dict.backToLogin}
+    </button>
+  );
+}
+
+function SocialLoginButtons({
+  dict,
+  oauthQuery,
+}: {
+  dict: AuthDict;
+  oauthQuery: string;
+}) {
+  return (
+    <>
+      <div className="relative my-2">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200" />
+          <div className="w-full border-t border-slate-300" />
         </div>
         <div className="relative flex justify-center text-xs uppercase font-extrabold tracking-wider">
-          <span className="bg-white px-2.5 text-slate-500">{dict.or}</span>
+          <span className="bg-slate-50 px-2.5 text-slate-700">{dict.or}</span>
         </div>
       </div>
 
       <div className="flex flex-col gap-3">
         <a
-          href={`${API_URL}/auth/google?redirect=${encodeURIComponent(`/${locale}/auth/social-callback?next=${next}`)}`}
-          className="flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-350 hover:bg-slate-100/50 active:scale-[0.98]"
+          href={`${API_URL}/auth/google?${oauthQuery}`}
+          className="flex items-center justify-center gap-3 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98]"
         >
           <GoogleIcon />
           {dict.googleLogin}
         </a>
         <a
-          href={`${API_URL}/auth/facebook?redirect=${encodeURIComponent(`/${locale}/auth/social-callback?next=${next}`)}`}
-          className="flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-350 hover:bg-slate-100/50 active:scale-[0.98]"
+          href={`${API_URL}/auth/facebook?${oauthQuery}`}
+          className="flex items-center justify-center gap-3 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98]"
         >
           <FacebookIcon />
           {dict.facebookLogin}
         </a>
       </div>
-    </AuthSplitLayout>
+    </>
   );
+}
+
+function socialErrorMessageFor(error: string, dict: AuthDict): string {
+  if (
+    error === "OAUTH_ACCOUNT_NOT_REGISTERED" ||
+    error === "OAUTH_USER_NOT_REGISTERED"
+  ) {
+    return dict.socialAccountNotRegistered;
+  }
+  if (error === "USER_NOT_ACTIVE") {
+    return dict.accountNotActive;
+  }
+  return dict.socialLoginError;
+}
+
+function authErrorMessageFor(error: string, dict: AuthDict): string {
+  const messages: Record<string, string> = {
+    AUTH_INVALID_CREDENTIALS: dict.invalidCredentials,
+    USER_NO_PASSWORD: dict.userNoPassword,
+    EMAIL_REQUIRED: dict.emailRequired,
+    PASSWORD_REQUIRED: dict.passwordRequired,
+    CODE_REQUIRED: dict.codeRequired,
+    OTP_INVALID: dict.codeInvalid,
+    OTP_EXPIRED: dict.codeExpired,
+    PASSWORD_MISMATCH: dict.passwordMismatch,
+    PASSWORD_TOO_SHORT: dict.passwordTooShort,
+    PASSWORD_NO_UPPERCASE: dict.passwordNoUppercase,
+    PASSWORD_NO_LOWERCASE: dict.passwordNoLowercase,
+    PASSWORD_NO_NUMBER: dict.passwordNoNumber,
+    PASSWORD_NO_SPECIAL: dict.passwordNoSpecial,
+    PASSWORD_RESET_TOKEN_INVALID: dict.passwordResetTokenInvalid,
+  };
+
+  return messages[error] ?? dict.error;
 }

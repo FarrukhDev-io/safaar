@@ -25,6 +25,9 @@ export default async function LoginPage({
   const next = typeof nextRaw === "string" && nextRaw.startsWith("/")
     ? nextRaw
     : "";
+  const socialErrorRaw = sp.socialError;
+  const socialError =
+    typeof socialErrorRaw === "string" ? socialErrorRaw : undefined;
 
   // SENIOR OPTIMIZATION: Parallelize session check and dictionary loading
   const [session, dict] = await Promise.all([
@@ -36,5 +39,12 @@ export default async function LoginPage({
     redirect(next || `/${locale}`);
   }
 
-  return <LoginForm locale={locale} next={next} dict={dict} />;
+  return (
+    <LoginForm
+      locale={locale}
+      next={next}
+      dict={dict}
+      socialError={socialError}
+    />
+  );
 }

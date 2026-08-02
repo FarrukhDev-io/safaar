@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
@@ -15,6 +15,7 @@ import Button from "@/components/ui/Button";
 import type { Partner } from "@/types/admin";
 import { PartnerTypeDisplay } from "@/components/ui/PartnerTypeDisplay";
 import { exportToExcel } from "@/lib/export";
+import { AdminApi } from "@/lib/api/admin-api";
 
 import { useAdminStore } from "@/lib/store";
 
@@ -23,10 +24,18 @@ const ITEMS_PER_PAGE = 12;
 export default function PartnersListPage() {
   const router = useRouter();
   const partners = useAdminStore((s) => s.partners);
+  const setPartners = useAdminStore((s) => s.setPartners);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    AdminApi.getPartners()
+      .then((items) => setPartners(items))
+      .finally(() => setLoading(false));
+  }, [setPartners]);
 
   const filtered = useMemo(() => {
     let result = partners;
@@ -111,6 +120,14 @@ export default function PartnersListPage() {
       render: (row) => <StatusBadge status={row.status} statusMap={PARTNER_STATUS_MAP} />,
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6">

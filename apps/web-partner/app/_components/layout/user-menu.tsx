@@ -1,23 +1,26 @@
-"use client";
+'use client';
 
-import { ChevronDown, LogOut, Settings, UserCircle2 } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { cn } from "../../_lib/utils/cn";
-import { formatPhone } from "../../_lib/utils/format";
-import { useAuthStore } from "../../_stores/auth-store";
+import { ChevronDown, LogOut, Settings, UserCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
+import { cn } from '../../_lib/utils/cn';
+import { formatPhone } from '../../_lib/utils/format';
+import { useAuthStore } from '../../_stores/auth-store';
 
 interface UserMenuProps {
   name: string;
-  phone: string;
+  contact: string;
   onLogout: () => void;
 }
 
-export function UserMenu({ name, phone, onLogout }: UserMenuProps) {
+function formatContact(contact: string) {
+  return contact.includes('@') ? contact : formatPhone(contact);
+}
+
+export function UserMenu({ name, contact, onLogout }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const user = useAuthStore((s) => s.user);
-  const updateUser = useAuthStore((s) => s.updateUser);
 
   // Tashqariga bosilganda yoping
   useEffect(() => {
@@ -28,13 +31,13 @@ export function UserMenu({ name, phone, onLogout }: UserMenuProps) {
       }
     };
     const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === 'Escape') setOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("keydown", esc);
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', esc);
     return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("keydown", esc);
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', esc);
     };
   }, [open]);
 
@@ -44,7 +47,7 @@ export function UserMenu({ name, phone, onLogout }: UserMenuProps) {
     .filter(Boolean)
     .map((w) => w[0])
     .slice(0, 2)
-    .join("")
+    .join('')
     .toUpperCase();
 
   return (
@@ -55,23 +58,23 @@ export function UserMenu({ name, phone, onLogout }: UserMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(
-          "flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 pl-1 pr-2.5 text-sm transition-colors hover:bg-[var(--surface-hover)]",
-          open && "bg-[var(--surface-muted)]",
+          'flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 pl-1 pr-2.5 text-sm transition-colors hover:bg-[var(--surface-hover)]',
+          open && 'bg-[var(--surface-muted)]',
         )}
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-700 text-xs font-semibold text-white">
-          {initials || "H"}
+          {initials || 'H'}
         </span>
         <span className="hidden text-left text-xs leading-tight lg:block">
           <span className="block font-medium">{name}</span>
           <span className="block text-[var(--muted-foreground)]">
-            {formatPhone(phone)}
+            {formatContact(contact)}
           </span>
         </span>
         <ChevronDown
           className={cn(
-            "h-3.5 w-3.5 text-zinc-400 transition-transform",
-            open && "rotate-180",
+            'h-3.5 w-3.5 text-zinc-400 transition-transform',
+            open && 'rotate-180',
           )}
           aria-hidden
         />
@@ -85,7 +88,7 @@ export function UserMenu({ name, phone, onLogout }: UserMenuProps) {
           <div className="border-b border-[var(--border)] px-4 py-3">
             <p className="truncate text-sm font-medium">{name}</p>
             <p className="truncate text-xs text-[var(--muted-foreground)]">
-              {formatPhone(phone)}
+              {formatContact(contact)}
             </p>
           </div>
           <Link
@@ -107,24 +110,10 @@ export function UserMenu({ name, phone, onLogout }: UserMenuProps) {
             Sozlamalar
           </Link>
           <div className="border-t border-[var(--border)] px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-foreground)]">
-            Panel turi (Demo)
+            Panel turi
           </div>
-          <div className="px-4 pb-2">
-            <select
-              value={user?.partnerType || "hotel"}
-              onChange={(e) => {
-                updateUser({ partnerType: e.target.value });
-                setOpen(false);
-              }}
-              className="w-full rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1 text-xs focus:outline-none"
-            >
-              <option value="hotel">Mehmonxona (Hotel)</option>
-              <option value="motel">Motel</option>
-              <option value="dacha">Dacha</option>
-              <option value="hostel">Hostel</option>
-              <option value="restaurant">Restoran</option>
-              <option value="bus">Transport (Bus)</option>
-            </select>
+          <div className="px-4 pb-2 text-xs font-medium text-[var(--foreground)]">
+            {user?.partnerType || 'hotel'}
           </div>
           <div className="border-t border-[var(--border)]" />
           <button

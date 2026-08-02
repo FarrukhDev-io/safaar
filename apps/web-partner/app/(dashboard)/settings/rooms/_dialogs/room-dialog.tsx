@@ -9,8 +9,15 @@ import { Button } from "../../../../_components/ui/button";
 import { Dialog } from "../../../../_components/ui/dialog";
 import { Input } from "../../../../_components/ui/input";
 import { Label } from "../../../../_components/ui/label";
-import { useDataStore } from "../../../../_stores/data-store";
 import { useAuthStore } from "../../../../_stores/auth-store";
+import {
+  useCreateRoom,
+  useDeleteRoom,
+  useRooms,
+  useUpdateRoom,
+} from "../../../../_hooks/use-rooms";
+import { useRoomTypes } from "../../../../_hooks/use-room-types";
+import { useGenerateBeds } from "../../../../_hooks/use-beds";
 import { RoomStatus, type Room } from "../../../../_lib/domain/types";
 import { roomStatusLabel } from "../../../../_components/domain/room-status-badge";
 import { getPartnerLabels, hasBeds } from "../../../../_lib/utils/partner-labels";
@@ -38,11 +45,12 @@ interface Props {
 }
 
 export function RoomDialog({ open, onClose, editing }: Props) {
-  const roomTypes = useDataStore((s) => s.roomTypes);
-  const addRoom = useDataStore((s) => s.addRoom);
-  const updateRoom = useDataStore((s) => s.updateRoom);
-  const deleteRoom = useDataStore((s) => s.deleteRoom);
-  const generateBedsForRoom = useDataStore((s) => s.generateBedsForRoom);
+  const { data: roomTypes } = useRoomTypes();
+  const { data: rooms } = useRooms();
+  const createRoom = useCreateRoom();
+  const updateRoom = useUpdateRoom();
+  const deleteRoom = useDeleteRoom();
+  const generateBeds = useGenerateBeds();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const isHostel = hasBeds(partnerType);
   const labels = getPartnerLabels(partnerType);
@@ -84,40 +92,56 @@ export function RoomDialog({ open, onClose, editing }: Props) {
     }
   }, [open, editing, form, roomTypes]);
 
-  const onSubmit = form.handleSubmit((values) => {
-    if (editing) {
-      const result = updateRoom(editing.id, values);
-      if (!result.ok) {
-        toast.error(result.reason ?? "Tahrirlab bo'lmadi");
-        return;
-      }
-      toast.success(`${unitCap} ${values.number} yangilandi`);
-    } else {
-      const result = addRoom(values);
-      if (!result.ok) {
-        toast.error(result.reason ?? "Qo'shib bo'lmadi");
-        return;
-      }
-      if (isHostel && result.room) {
-        const roomType = roomTypes.find((rt) => rt.id === values.roomTypeId);
-        generateBedsForRoom(result.room.id, roomType?.capacity ?? 1);
-      }
-      toast.success(`${unitCap} ${values.number} qo'shildi`);
-    }
-    onClose();
-  });
-
-  const handleDelete = () => {
-    if (!editing) return;
-    if (!confirm(`Rostdan ham ${labels.unitSingular} ${editing.number} ni o'chirmoqchimisiz?`)) return;
-    const result = deleteRoom(editing.id);
-    if (!result.ok) {
-      toast.error(result.reason ?? "O'chirib bo'lmadi");
+  const onSubmit = form.handleSubmit(async (values) => {
+    const duplicate = rooms.some(
+      (room) => room.number === values.number && room.id !== editing?.id,
+    );
+    if (duplicate) {
+      toast.error(`${unitCap} ${values.number} allaqachon mavjud.`);
       return;
     }
-    toast.success(`${unitCap} ${editing.number} o'chirildi.`);
-    onClose();
+    try {
+      if (editing) {
+        await updateRoom.mutateAsync({ id: editing.id, values });
+        toast.success(`${unitCap} ${values.number} yangilandi`);
+      } else {
+        const created = await createRoom.mutateAsync(values);
+        if (isHostel) {
+          const roomType = roomTypes.find((rt) => rt.id === values.roomTypeId);
+          await generateBeds.mutateAsync({
+            roomId: created.id,
+            count: roomType?.capacity ?? 1,
+          });
+        }
+        toast.success(`${unitCap} ${values.number} qo'shildi`);
+      }
+      onClose();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Xonani saqlab bo'lmadi",
+      );
+    }
+  });
+
+  const handleDelete = async () => {
+    if (!editing) return;
+    if (!confirm(`Rostdan ham ${labels.unitSingular} ${editing.number} ni o'chirmoqchimisiz?`)) return;
+    try {
+      await deleteRoom.mutateAsync(editing.id);
+      toast.success(`${unitCap} ${editing.number} o'chirildi.`);
+      onClose();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "O'chirib bo'lmadi",
+      );
+    }
   };
+
+  const submitting =
+    createRoom.isPending ||
+    updateRoom.isPending ||
+    deleteRoom.isPending ||
+    generateBeds.isPending;
 
   const err = form.formState.errors;
   const selectedRoomTypeId = useWatch({ control: form.control, name: "roomTypeId" });
@@ -251,6 +275,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
               variant="outline"
               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
               onClick={handleDelete}
+              disabled={submitting}
             >
               O&apos;chirish
             </Button>
@@ -261,7 +286,10 @@ export function RoomDialog({ open, onClose, editing }: Props) {
             <Button type="button" variant="outline" onClick={onClose}>
               Bekor qilish
             </Button>
-            <Button type="submit" disabled={roomTypes.length === 0}>
+            <Button
+              type="submit"
+              disabled={roomTypes.length === 0 || submitting}
+            >
               {editing ? "Saqlash" : "Qo'shish"}
             </Button>
           </div>

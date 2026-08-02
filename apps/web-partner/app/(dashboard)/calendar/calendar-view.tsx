@@ -15,6 +15,7 @@ import { EmptyState } from "../../_components/ui/empty-state";
 import { Tooltip } from "../../_components/ui/tooltip";
 import { WalkInDialog, type WalkInInitial } from "../../_components/domain/walk-in-dialog";
 import { PageHeader } from "../../_components/layout/page-header";
+import { useBeds } from "../../_hooks/use-beds";
 import { useRooms } from "../../_hooks/use-rooms";
 import { useReservations } from "../../_hooks/use-reservations";
 import { useRoomTypes } from "../../_hooks/use-room-types";
@@ -22,7 +23,7 @@ import { useAuthStore } from "../../_stores/auth-store";
 import { useDataStore } from "../../_stores/data-store";
 import { cn } from "../../_lib/utils/cn";
 import { formatMoney } from "../../_lib/utils/format";
-import { TODAY_ISO } from "../../_lib/mocks/data";
+import { TODAY_ISO } from "../../_lib/utils/date";
 import { getPartnerLabels, hasBeds, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 import type { ReservationView } from "../../_lib/domain/types";
 import { ReservationBar } from "./_components/reservation-bar";
@@ -82,6 +83,7 @@ export function CalendarView() {
   const { data: rooms } = useRooms();
   const { data: reservations } = useReservations();
   const { data: roomTypes } = useRoomTypes();
+  useBeds();
   const beds = useDataStore((s) => s.beds);
 
   const [viewMode, setViewMode] = useState<ViewMode>(14);

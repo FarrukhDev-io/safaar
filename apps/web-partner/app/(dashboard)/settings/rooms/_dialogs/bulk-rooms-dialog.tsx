@@ -10,8 +10,10 @@ import { Button } from "../../../../_components/ui/button";
 import { Dialog } from "../../../../_components/ui/dialog";
 import { Input } from "../../../../_components/ui/input";
 import { Label } from "../../../../_components/ui/label";
-import { useDataStore } from "../../../../_stores/data-store";
 import { useAuthStore } from "../../../../_stores/auth-store";
+import { useBulkCreateRooms } from "../../../../_hooks/use-rooms";
+import { useRoomTypes } from "../../../../_hooks/use-room-types";
+import { useGenerateBeds } from "../../../../_hooks/use-beds";
 import { getPartnerLabels, hasBeds } from "../../../../_lib/utils/partner-labels";
 
 const schema = z.object({
@@ -29,9 +31,9 @@ interface Props {
 }
 
 export function BulkRoomsDialog({ open, onClose }: Props) {
-  const roomTypes = useDataStore((s) => s.roomTypes);
-  const bulkAddRooms = useDataStore((s) => s.bulkAddRooms);
-  const generateBedsForRoom = useDataStore((s) => s.generateBedsForRoom);
+  const { data: roomTypes } = useRoomTypes();
+  const bulkCreateRooms = useBulkCreateRooms();
+  const generateBeds = useGenerateBeds();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
 
@@ -66,23 +68,42 @@ export function BulkRoomsDialog({ open, onClose }: Props) {
   const showEllipsis = count > 5;
   const lastNumber = start + count - 1;
 
-  const onSubmit = form.handleSubmit((v) => {
-    const result = bulkAddRooms(v);
-    if (!result.ok) {
-      toast.error(result.reason ?? "Xato yuz berdi");
+  const onSubmit = form.handleSubmit(async (v) => {
+    const roomType = roomTypes.find((rt) => rt.id === v.roomTypeId);
+    if (!roomType) {
+      toast.error(`${labels.unitTypeLabel} topilmadi`);
       return;
     }
-    if (hasBeds(partnerType) && result.rooms) {
-      const roomType = roomTypes.find((rt) => rt.id === v.roomTypeId);
-      result.rooms.forEach((room) =>
-        generateBedsForRoom(room.id, roomType?.capacity ?? 1),
+    try {
+      const result = await bulkCreateRooms.mutateAsync({
+        ...v,
+        basePrice: roomType.basePrice,
+        capacity: roomType.capacity,
+      });
+      if (!result.ok && result.added === 0) {
+        toast.error(result.reason ?? "Xato yuz berdi");
+        return;
+      }
+      if (hasBeds(partnerType)) {
+        await Promise.all(
+          result.rooms.map((room) =>
+            generateBeds.mutateAsync({
+              roomId: room.id,
+              count: roomType.capacity,
+            }),
+          ),
+        );
+      }
+      toast.success(`${result.added} ta ${labels.unitSingular} qo'shildi`);
+      if (result.reason) {
+        toast.warning(result.reason);
+      }
+      onClose();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Xonalarni yaratib bo'lmadi",
       );
     }
-    toast.success(`${result.added} ta ${labels.unitSingular} qo'shildi`);
-    if (result.reason) {
-      toast.warning(result.reason);
-    }
-    onClose();
   });
 
   const err = form.formState.errors;
@@ -187,7 +208,14 @@ export function BulkRoomsDialog({ open, onClose }: Props) {
           <Button type="button" variant="outline" onClick={onClose}>
             Bekor qilish
           </Button>
-          <Button type="submit" disabled={roomTypes.length === 0}>
+          <Button
+            type="submit"
+            disabled={
+              roomTypes.length === 0 ||
+              bulkCreateRooms.isPending ||
+              generateBeds.isPending
+            }
+          >
             Yaratish
           </Button>
         </div>

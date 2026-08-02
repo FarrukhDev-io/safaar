@@ -1,7 +1,6 @@
-import type { ApiError } from "@safaar/types";
+import type { ApiError } from '@safaar/types';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "/api/backend";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api/backend';
 
 interface ApiEnvelope<T> {
   success: true;
@@ -18,33 +17,93 @@ export class HttpError extends Error {
     public payload?: ApiError,
   ) {
     super(message);
-    this.name = "HttpError";
+    this.name = 'HttpError';
   }
 }
 
-interface RequestOptions extends Omit<RequestInit, "body"> {
+type UnauthorizedHandler = (error: HttpError) => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
+  unauthorizedHandler = handler;
+}
+
+function handleUnauthorized(error: HttpError, token?: string | null) {
+  if (error.status === 401 && token) {
+    unauthorizedHandler?.(error);
+  }
+}
+
+interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   token?: string | null;
-  role?: "PARTNER" | "ADMIN" | "SUPER_ADMIN";
   organizationId?: string;
-  /** Skelet bosqichida headerlarni keng moslash uchun. */
   searchParams?: Record<string, string | number | boolean | undefined>;
 }
 
 function buildUrl(
   path: string,
-  searchParams?: RequestOptions["searchParams"],
+  searchParams?: RequestOptions['searchParams'],
 ): string {
-  const url = new URL(
-    path.startsWith("http") ? path : `${API_BASE_URL}${path}`,
-  );
+  const rawUrl = path.startsWith('http')
+    ? path
+    : `${API_BASE_URL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+  const isAbsolute = /^https?:\/\//i.test(rawUrl);
+  const base =
+    typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  const url = isAbsolute ? new URL(rawUrl) : new URL(rawUrl, base);
+
   if (searchParams) {
     for (const [key, value] of Object.entries(searchParams)) {
       if (value === undefined) continue;
       url.searchParams.set(key, String(value));
     }
   }
-  return url.toString();
+
+  return isAbsolute
+    ? url.toString()
+    : `${url.pathname}${url.search}${url.hash}`;
+}
+
+function storedOrganizationId(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const auth = JSON.parse(
+      localStorage.getItem('uzbron-partner-auth') || '{}',
+    );
+    if (auth?.state?.user?.organizationId) {
+      return auth.state.user.organizationId;
+    }
+  } catch {}
+  return undefined;
+}
+
+async function parseErrorPayload(response: Response): Promise<ApiError> {
+  let payload:
+    | {
+        error?: {
+          message?: string;
+          fields?: ApiError['fields'];
+          code?: string;
+        };
+        message?: string;
+        fields?: ApiError['fields'];
+        code?: string;
+      }
+    | undefined;
+  try {
+    payload = await response.json();
+  } catch {
+    // ignore
+  }
+
+  return {
+    message: payload?.error?.message ?? payload?.message ?? response.statusText,
+    fields: payload?.error?.fields ?? payload?.fields,
+    code: payload?.error?.code ?? payload?.code,
+    statusCode: response.status,
+  };
 }
 
 /**
@@ -61,21 +120,10 @@ export async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  let defaultOrgId = "demo-partner-org-id";
-  if (typeof window !== "undefined") {
-    try {
-      const auth = JSON.parse(localStorage.getItem("uzbron-partner-auth") || "{}");
-      if (auth?.state?.user?.organizationId) {
-        defaultOrgId = auth.state.user.organizationId;
-      }
-    } catch {}
-  }
-
   const {
     body,
     token,
-    role = "PARTNER",
-    organizationId = defaultOrgId,
+    organizationId = storedOrganizationId(),
     searchParams,
     headers,
     ...rest
@@ -84,11 +132,10 @@ export async function request<T>(
   const init: RequestInit = {
     ...rest,
     headers: {
-      Accept: "application/json",
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      Accept: 'application/json',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      "x-user-role": role,
-      "x-organization-id": organizationId,
+      ...(organizationId ? { 'x-organization-id': organizationId } : {}),
       ...headers,
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -102,35 +149,19 @@ export async function request<T>(
     throw new HttpError(
       0,
       "Backend bilan bog'lana olmadi. Internet va server holatini tekshiring.",
-      { statusCode: 0, message: cause instanceof Error ? cause.message : "Network error" },
+      {
+        statusCode: 0,
+        message: cause instanceof Error ? cause.message : 'Network error',
+      },
     );
   }
 
   if (!response.ok) {
-    let payload: {
-      error?: { message?: string; fields?: ApiError["fields"]; code?: string };
-      message?: string;
-      fields?: ApiError["fields"];
-      code?: string;
-    } | undefined;
-    try {
-      payload = await response.json();
-    } catch {
-      // ignore
-    }
+    const apiError = await parseErrorPayload(response);
+    const error = new HttpError(response.status, apiError.message, apiError);
 
-    const apiError: ApiError = {
-      message: payload?.error?.message ?? payload?.message ?? response.statusText,
-      fields: payload?.error?.fields ?? payload?.fields,
-      code: payload?.error?.code ?? payload?.code,
-      statusCode: response.status,
-    };
-
-    throw new HttpError(
-      response.status,
-      apiError.message,
-      apiError,
-    );
+    handleUnauthorized(error, token);
+    throw error;
   }
 
   // 204 No Content
@@ -140,10 +171,55 @@ export async function request<T>(
 
   const payload = (await response.json()) as T | ApiEnvelope<T>;
   if (
-    typeof payload === "object" &&
+    typeof payload === 'object' &&
     payload !== null &&
-    "success" in payload &&
-    "data" in payload
+    'success' in payload &&
+    'data' in payload
+  ) {
+    return (payload as ApiEnvelope<T>).data;
+  }
+
+  return payload as T;
+}
+
+export async function requestFormData<T>(
+  path: string,
+  formData: FormData,
+  options: Omit<RequestOptions, 'body'> = {},
+): Promise<T> {
+  const {
+    token,
+    organizationId = storedOrganizationId(),
+    searchParams,
+    headers,
+    ...rest
+  } = options;
+  const response = await fetch(buildUrl(path, searchParams), {
+    ...rest,
+    method: rest.method ?? 'POST',
+    headers: {
+      Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(organizationId ? { 'x-organization-id': organizationId } : {}),
+      ...headers,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const apiError = await parseErrorPayload(response);
+    const error = new HttpError(response.status, apiError.message, apiError);
+
+    handleUnauthorized(error, token);
+    throw error;
+  }
+
+  const payload = (await response.json()) as T | ApiEnvelope<T>;
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'success' in payload &&
+    'data' in payload
   ) {
     return (payload as ApiEnvelope<T>).data;
   }

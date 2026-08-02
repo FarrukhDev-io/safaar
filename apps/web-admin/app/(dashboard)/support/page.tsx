@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { MockApi } from "@/lib/api/mock-api";
+import { AdminApi } from "@/lib/api/admin-api";
 import type { SupportTicket, TicketMessage, TicketStatus } from "@/types/admin";
 import { formatDate } from "@/lib/utils";
 import { MessageCircle, Search, X, Send, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
@@ -18,6 +18,50 @@ const PRIORITY_MAP = {
   high: { label: "Yuqori", color: "bg-[var(--danger)]/10 text-[var(--danger)] font-bold" },
 } as const;
 
+function statusInfo(status: unknown) {
+  return status === "in_progress" || status === "closed"
+    ? STATUS_MAP[status]
+    : STATUS_MAP.open;
+}
+
+function priorityInfo(priority: unknown) {
+  return priority === "low" || priority === "high"
+    ? PRIORITY_MAP[priority]
+    : PRIORITY_MAP.medium;
+}
+
+function cleanText(value: string | undefined) {
+  const cleaned = value?.trim();
+  return cleaned ? cleaned : undefined;
+}
+
+function ticketContactName(ticket: SupportTicket) {
+  return cleanText(ticket.contactName) ?? cleanText(ticket.customerName) ?? "Noma'lum mijoz";
+}
+
+function ticketBusinessName(ticket: SupportTicket) {
+  return (
+    cleanText(ticket.hotelName) ??
+    cleanText(ticket.businessName) ??
+    cleanText(ticket.companyName)
+  );
+}
+
+function ticketBusinessLabel(ticket: SupportTicket) {
+  return ticketBusinessName(ticket) ?? (ticket.customerType === "partner" ? "Obyekt nomi kiritilmagan" : "Mijoz");
+}
+
+function ticketTaxLabel(ticket: SupportTicket) {
+  const taxId = cleanText(ticket.taxId);
+  return taxId ? `STIR: ${taxId}` : ticket.customerType === "partner" ? "STIR kiritilmagan" : undefined;
+}
+
+function ticketSubtitle(ticket: SupportTicket) {
+  return [ticketBusinessLabel(ticket), ticketTaxLabel(ticket)]
+    .filter(Boolean)
+    .join(" • ");
+}
+
 export default function SupportPage() {
   const [data, setData] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,51 +76,70 @@ export default function SupportPage() {
   const [ticketMessages, setTicketMessages] = useState<TicketMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [newMessage, setNewMessage] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   useEffect(() => {
-    MockApi.getTickets().then((res) => {
-      setData(res);
-      setLoading(false);
-    });
+    AdminApi.getTickets()
+      .then((res) => setData(res))
+      .finally(() => setLoading(false));
   }, []);
 
   const handleOpenTicket = (ticket: SupportTicket) => {
     setSelectedTicket(ticket);
     setMessagesLoading(true);
-    MockApi.getTicketMessages(ticket.id).then((msgs) => {
-      setTicketMessages(msgs);
-      setMessagesLoading(false);
-    });
+    AdminApi.getTicketMessages(ticket.id)
+      .then((msgs) => setTicketMessages(msgs))
+      .finally(() => setMessagesLoading(false));
   };
 
-  const handleStatusChange = (ticketId: string, newStatus: TicketStatus) => {
-    setData((prev) => prev.map((t) => (t.id === ticketId ? { ...t, status: newStatus } : t)));
-    if (selectedTicket?.id === ticketId) {
-      setSelectedTicket((prev) => prev ? { ...prev, status: newStatus } : null);
-    }
+  const handleStatusChange = async (ticketId: string, newStatus: TicketStatus) => {
+    await AdminApi.updateTicketStatus(ticketId, newStatus);
+    const applyStatus = (ticket: SupportTicket) =>
+      ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket;
+    setData((prev) => prev.map(applyStatus));
+    setSelectedTicket((prev) => (prev ? applyStatus(prev) : null));
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedTicket) return;
+    if (!newMessage.trim() || !selectedTicket || sendingMessage) return;
 
-    const msg: TicketMessage = {
-      id: `M-${Date.now()}`,
-      ticketId: selectedTicket.id,
-      senderName: "Admin Adminov", // Mock admin
-      senderRole: "admin",
-      message: newMessage,
-      createdAt: new Date().toISOString(),
-    };
-
-    setTicketMessages((prev) => [...prev, msg]);
-    setNewMessage("");
+    setSendingMessage(true);
+    try {
+      const message = await AdminApi.sendMessage(selectedTicket.id, newMessage);
+      setTicketMessages((prev) => [...prev, message]);
+      setNewMessage("");
+      setData((prev) =>
+        prev.map((ticket) =>
+          ticket.id === selectedTicket.id ? { ...ticket, status: "in_progress" } : ticket,
+        ),
+      );
+      setSelectedTicket((prev) =>
+        prev ? { ...prev, status: "in_progress" } : null,
+      );
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   // Memoized filters
   const filteredData = useMemo(() => {
     return data.filter((t) => {
-      const matchSearch = t.subject.toLowerCase().includes(searchQuery.toLowerCase()) || t.customerName.toLowerCase().includes(searchQuery.toLowerCase()) || t.id.toLowerCase().includes(searchQuery.toLowerCase());
+      const query = searchQuery.toLowerCase();
+      const searchable = [
+        t.subject,
+        t.customerName,
+        t.contactName,
+        t.businessName,
+        t.hotelName,
+        t.companyName,
+        t.taxId,
+        t.id,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const matchSearch = searchable.includes(query);
       const matchStatus = statusFilter === "all" || t.status === statusFilter;
       const matchPriority = priorityFilter === "all" || t.priority === priorityFilter;
       return matchSearch && matchStatus && matchPriority;
@@ -87,6 +150,7 @@ export default function SupportPage() {
   const openCount = data.filter((t) => t.status === "open").length;
   const inProgressCount = data.filter((t) => t.status === "in_progress").length;
   const closedCount = data.filter((t) => t.status === "closed").length;
+  const selectedTicketSubtitle = selectedTicket ? ticketSubtitle(selectedTicket) : "";
 
   if (loading) return <div className="flex justify-center p-12"><span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -136,12 +200,12 @@ export default function SupportPage() {
               <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--bg-secondary)] shrink-0">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h3 className="font-bold text-[var(--text-primary)] text-lg">{selectedTicket.id}</h3>
+                    <h3 className="font-bold text-[var(--text-primary)] text-lg">{ticketContactName(selectedTicket)}</h3>
                     <select
                       value={selectedTicket.status}
                       onChange={(e) => handleStatusChange(selectedTicket.id, e.target.value as TicketStatus)}
                       className="text-xs font-bold rounded-full px-3 py-1 bg-transparent cursor-pointer border border-[var(--border)] focus:outline-none"
-                      style={{ color: STATUS_MAP[selectedTicket.status].color, backgroundColor: STATUS_MAP[selectedTicket.status].bg }}
+                      style={{ color: statusInfo(selectedTicket.status).color, backgroundColor: statusInfo(selectedTicket.status).bg }}
                     >
                       <option value="open" className="text-black bg-white">Ochiq</option>
                       <option value="in_progress" className="text-black bg-white">Jarayonda</option>
@@ -149,7 +213,11 @@ export default function SupportPage() {
                     </select>
                   </div>
                   <p className="text-md font-medium mt-1">{selectedTicket.subject}</p>
-                  <p className="text-sm text-[var(--text-muted)] mt-1">{selectedTicket.customerName} ({selectedTicket.customerType === "user" ? "Mijoz" : "Hamkor"}) • Biriktirilgan: <span className="font-medium text-[var(--primary)]">{selectedTicket.assignee || "Hech kim"}</span></p>
+                  <p className="text-sm text-[var(--text-muted)] mt-1">
+                    {selectedTicketSubtitle}
+                    {selectedTicketSubtitle ? " • " : ""}
+                    Biriktirilgan: <span className="font-medium text-[var(--primary)]">{selectedTicket.assignee || "Hech kim"}</span>
+                  </p>
                 </div>
                 <button onClick={() => setSelectedTicket(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 text-[var(--text-muted)] hover:text-black shrink-0">
                   <X size={18} />
@@ -192,7 +260,7 @@ export default function SupportPage() {
                   />
                   <button
                     type="submit"
-                    disabled={!newMessage.trim()}
+                    disabled={!newMessage.trim() || sendingMessage}
                     className="w-12 h-12 rounded-full bg-[var(--primary)] text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--primary-dark)] transition-colors shadow-md shrink-0"
                   >
                     <Send size={18} />
@@ -260,19 +328,23 @@ export default function SupportPage() {
                 className={`p-3 rounded-lg cursor-pointer border transition-colors ${selectedTicket?.id === ticket.id ? 'bg-[var(--primary)]/5 border-[var(--primary)]/30' : 'bg-transparent border-transparent hover:bg-[var(--bg-tertiary)]'}`}
               >
                 <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs font-bold text-[var(--primary)]">{ticket.id}</span>
+                  <span className="text-sm font-bold text-[var(--primary)] truncate pr-3">{ticketContactName(ticket)}</span>
                   <span className="text-[10px] text-[var(--text-muted)]">{formatDate(ticket.createdAt).split(' ')[0]}</span>
                 </div>
                 <h4 className="text-sm font-semibold text-[var(--text-primary)] truncate pr-2">{ticket.subject}</h4>
                 <div className="flex justify-between items-end mt-2">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-[var(--text-secondary)] truncate max-w-[140px]">{ticket.customerName}</span>
-                    <span className="text-[10px] uppercase text-[var(--text-muted)]">{ticket.customerType}</span>
+                  <div className="flex flex-col min-w-0 pr-3">
+                    <span className="text-xs text-[var(--text-secondary)] truncate max-w-[280px]">{ticketBusinessLabel(ticket)}</span>
+                    {ticketTaxLabel(ticket) ? (
+                      <span className="text-[10px] uppercase text-[var(--text-muted)] truncate max-w-[280px]">{ticketTaxLabel(ticket)}</span>
+                    ) : (
+                      <span className="text-[10px] uppercase text-[var(--text-muted)]">{ticket.customerType === "user" ? "MIJOZ" : "HAMKOR"}</span>
+                    )}
                   </div>
                   <div className="flex gap-1 items-center shrink-0">
-                    <span className={`w-2 h-2 rounded-full ${ticket.status === 'open' ? 'bg-[var(--danger)]' : ticket.status === 'in_progress' ? 'bg-[var(--warning)]' : 'bg-[var(--success)]'}`} title={STATUS_MAP[ticket.status].label} />
-                    <span className={`px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider ${PRIORITY_MAP[ticket.priority].color}`}>
-                      {PRIORITY_MAP[ticket.priority].label}
+                    <span className={`w-2 h-2 rounded-full ${ticket.status === 'open' ? 'bg-[var(--danger)]' : ticket.status === 'in_progress' ? 'bg-[var(--warning)]' : 'bg-[var(--success)]'}`} title={statusInfo(ticket.status).label} />
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-wider ${priorityInfo(ticket.priority).color}`}>
+                      {priorityInfo(ticket.priority).label}
                     </span>
                   </div>
                 </div>

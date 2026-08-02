@@ -4,17 +4,5 @@
   "subtitle": "Top rated restaurants, national eateries, and cozy teahouses across Uzbekistan.",
   "searchPlaceholder": "Search by restaurant name or cuisine...",
   "allCities": "All Cities",
-  "avgCheck": "Avg check",
-  "reserveTable": "Book a table",
-  "modalTitle": "Table Reservation",
-  "guests": "Number of guests",
-  "date": "Date",
-  "time": "Time",
-  "fullName": "Your Name",
-  "phone": "Phone Number",
-  "confirm": "Confirm Reservation",
-  "successTitle": "Table reserved successfully!",
-  "successDesc": "The restaurant management will contact you shortly to confirm your booking.",
-  "callNow": "Call Now",
-  "close": "Close"
+  "avgCheck": "Avg check"
 }

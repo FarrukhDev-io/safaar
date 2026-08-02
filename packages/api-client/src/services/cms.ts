@@ -67,15 +67,18 @@ export const cmsService = {
     } as any);
     const items = camelizeKeys<RawDeal[]>(raw);
     return (items ?? [])
-      .filter((item) => (item.status ?? "active") === "active")
+      .filter((item) => {
+        const status = item.status ?? "active";
+        return status === "active" || status === "published";
+      })
       .map((item) => toDealView(item, locale));
   },
 
   /** `GET /stats/public` — bosh sahifa "TrustBar" statistikasi uchun. */
   async getPublicStats(): Promise<PublicStatsView | null> {
-    const raw = await rawApi
-      .get<unknown>("/stats/public", { next: { revalidate: 3600 } } as any)
-      .catch(() => null);
+    const raw = await rawApi.get<unknown>("/stats/public", {
+      next: { revalidate: 3600 },
+    } as any);
     if (!raw) return null;
     const data = camelizeKeys<PublicStatsView>(raw);
     return {

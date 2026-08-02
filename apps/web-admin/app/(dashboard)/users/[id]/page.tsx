@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -16,25 +16,41 @@ import {
 } from "lucide-react";
 
 import { useRouter } from "next/navigation";
-import { useAdminStore } from "@/lib/store";
 import { toast } from "sonner";
+import { AdminApi } from "@/lib/api/admin-api";
+import type { AdminHotelBooking, AdminManagedUser } from "@/types/admin";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  
-  const users = useAdminStore((s) => s.users);
-  const updateUserStatus = useAdminStore((s) => s.updateUserStatus);
-  const setUsers = useAdminStore((s) => s.setUsers);
-  const addUserBonus = useAdminStore((s) => s.addUserBonus);
-  const hotelBookings = useAdminStore((s) => s.hotelBookings);
-
+  const [user, setUser] = useState<AdminManagedUser | null>(null);
+  const [userBookings, setUserBookings] = useState<AdminHotelBooking[]>([]);
+  const [loading, setLoading] = useState(true);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
   const [smsMessage, setSmsMessage] = useState("");
   const [bonusModalOpen, setBonusModalOpen] = useState(false);
   const [bonusAmount, setBonusAmount] = useState("");
 
-  const user = users.find((u) => u.id === id);
+  useEffect(() => {
+    async function loadUser() {
+      const [userData, bookings] = await Promise.all([
+        AdminApi.getUser(id),
+        AdminApi.getUserBookings(id),
+      ]);
+      setUser(userData);
+      setUserBookings(bookings.slice(0, 5));
+    }
+
+    loadUser().finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -47,22 +63,15 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     );
   }
 
-  const userBookings = hotelBookings
-    .filter(b => b.customerName === user.fullName || b.customerPhone === user.phone)
-    .slice(0, 5)
-    .map((b) => ({
-      ...b,
-      customerName: user.fullName,
-    }));
-
-  const handleStatusChange = (status: "active" | "blocked" | "unverified") => {
-    updateUserStatus(id, status);
+  const handleStatusChange = async (status: "active" | "blocked" | "unverified") => {
+    const updated = await AdminApi.updateUserStatus(id, status);
+    setUser(updated);
     toast.success("Foydalanuvchi holati yangilandi!");
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm("Rostdan ham ushbu foydalanuvchini o'chirmoqchimisiz?")) {
-      setUsers(users.filter((u) => u.id !== id));
+      await AdminApi.deleteUser(id);
       toast.success("Foydalanuvchi o'chirildi!");
       router.push("/users");
     }
@@ -253,13 +262,14 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           <>
             <Button variant="ghost" onClick={() => setBonusModalOpen(false)}>Bekor qilish</Button>
             <Button
-              onClick={() => {
+              onClick={async () => {
                 const amount = parseInt(bonusAmount, 10);
                 if (!amount || amount <= 0) {
                   toast.error("To'g'ri summa kiriting");
                   return;
                 }
-                addUserBonus(id, amount);
+                const bonusBalance = await AdminApi.adjustUserBonus(id, amount);
+                setUser((prev) => (prev ? { ...prev, bonusBalance } : prev));
                 toast.success(`${formatPrice(amount)} bonus qo'shildi`);
                 setBonusAmount("");
                 setBonusModalOpen(false);

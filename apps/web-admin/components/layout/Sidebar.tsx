@@ -1,7 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { SIDEBAR_ITEMS } from "@/lib/constants";
+import { SIDEBAR_ITEMS, type NavItem } from "@/lib/constants";
+import { AdminApi, type AdminNotificationSummary } from "@/lib/api/admin-api";
 import SidebarItem from "./SidebarItem";
 import {
   LayoutDashboard, Users, Building2, CalendarCheck, Wallet, PanelsTopLeft,
@@ -10,7 +11,8 @@ import {
   Newspaper, Mail, Settings2, CreditCard, Send, ShieldCheck,
   ChevronLeft, History, UtensilsCrossed
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 const ICON_MAP: Record<string, ReactNode> = {
   LayoutDashboard: <LayoutDashboard size={18} />,
@@ -47,12 +49,68 @@ function getIcon(name: string): ReactNode {
   return ICON_MAP[name] ?? <LayoutDashboard size={18} />;
 }
 
+function badgeForItem(
+  href: string,
+  summary: AdminNotificationSummary | null,
+): number | undefined {
+  if (!summary) return undefined;
+  if (href === "/partners" || href === "/partners/requests") {
+    return summary.partnerRequests;
+  }
+  if (href === "/support") {
+    return summary.supportOpen;
+  }
+  return undefined;
+}
+
+function applyLiveBadges(
+  item: NavItem,
+  summary: AdminNotificationSummary | null,
+): NavItem {
+  return {
+    ...item,
+    badge: badgeForItem(item.href, summary),
+    children: item.children?.map((child) => applyLiveBadges(child, summary)),
+  };
+}
+
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
 }
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const pathname = usePathname();
+  const [summary, setSummary] = useState<AdminNotificationSummary | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadSummary = () => {
+      AdminApi.getNotificationSummary()
+        .then((nextSummary) => {
+          if (!cancelled) setSummary(nextSummary);
+        })
+        .catch((error) => {
+          console.error("Failed to load sidebar notification summary", error);
+        });
+    };
+
+    const initialTimeoutId = window.setTimeout(loadSummary, 0);
+    const intervalId = window.setInterval(loadSummary, 30_000);
+    window.addEventListener("focus", loadSummary);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(initialTimeoutId);
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", loadSummary);
+    };
+  }, [pathname]);
+
+  const sidebarItems = useMemo(
+    () => SIDEBAR_ITEMS.map((item) => applyLiveBadges(item, summary)),
+    [summary],
+  );
+
   return (
     <aside
       className={cn(
@@ -78,7 +136,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-0.5">
-        {SIDEBAR_ITEMS.map((item) => (
+        {sidebarItems.map((item) => (
           <SidebarItem
             key={item.href}
             label={item.label}

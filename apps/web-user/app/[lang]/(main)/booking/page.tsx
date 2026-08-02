@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
-import { api } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
 import { CheckoutForm } from "./_components/CheckoutForm";
 import { BackButton } from "@/components/ui/BackButton";
 
@@ -15,6 +15,17 @@ type SearchParams = Record<string, string | string[] | undefined>;
 
 function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+async function getCheckoutHotel(locale: Locale, hotelId: string) {
+  try {
+    return await api.hotels.getHotel(locale, hotelId);
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.statusCode === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export default async function CheckoutPage({
@@ -43,7 +54,7 @@ export default async function CheckoutPage({
   const [session, dict, hotel] = await Promise.all([
     getSession(),
     getDictionary(locale, "checkout"),
-    api.hotels.getHotel(locale, hotelId).catch(() => null),
+    getCheckoutHotel(locale, hotelId),
   ]);
 
   if (!session) {

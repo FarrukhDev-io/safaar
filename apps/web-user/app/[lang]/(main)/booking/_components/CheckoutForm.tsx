@@ -137,7 +137,11 @@ export function CheckoutForm({
         {nights < 1 && (
           <p className="text-sm text-amber-600">{dict.needDates}</p>
         )}
-        {state.error && <p className="text-sm text-red-600">{dict.error}</p>}
+        {state.error && (
+          <p className="text-sm text-red-600">
+            {state.error === "ERROR" ? dict.error : state.error}
+          </p>
+        )}
 
         <Button
           type="submit"

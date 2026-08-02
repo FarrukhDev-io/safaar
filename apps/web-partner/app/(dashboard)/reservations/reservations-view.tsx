@@ -35,6 +35,7 @@ import {
   useRejectReservation,
   useCheckIn,
 } from "../../_hooks/use-reservations";
+import { useBeds } from "../../_hooks/use-beds";
 import { cn } from "../../_lib/utils/cn";
 import type { Bed, ReservationUiStatus, ReservationView } from "../../_lib/domain/types";
 import { formatDate, formatMoney, formatPhone } from "../../_lib/utils/format";
@@ -114,6 +115,7 @@ export function ReservationsView() {
   const confirmReservation = useConfirmReservation();
   const rejectReservation = useRejectReservation();
   const checkIn = useCheckIn();
+  useBeds();
   const beds = useDataStore((s) => s.beds);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);

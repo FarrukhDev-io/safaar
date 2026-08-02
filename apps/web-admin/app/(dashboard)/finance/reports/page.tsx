@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MockApi } from "@/lib/api/mock-api";
+import { AdminApi } from "@/lib/api/admin-api";
 import type { FinanceReport } from "@/types/admin";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
@@ -15,7 +15,7 @@ export default function FinanceReportsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    MockApi.getFinanceReports().then((res) => {
+    AdminApi.getFinanceReports().then((res) => {
       setData(res);
       setLoading(false);
     });

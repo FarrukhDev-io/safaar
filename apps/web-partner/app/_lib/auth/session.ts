@@ -1,36 +1,51 @@
-import type { AuthTokens } from "@safaar/types";
-import { Role } from "@safaar/types";
-import type { AuthUser } from "../../_stores/auth-store";
+import type { AuthTokens } from '@safaar/types';
+import { Role } from '@safaar/types';
+import type { AuthUser } from '../../_stores/auth-store';
 
-/**
- * Stub JWT decoder.
- *
- * Backend hozir `stub-access-token` qaytaradi, JWT middleware'i hali yo'q.
- * Shu sabab biz tokenni "decode" qilolmaymiz — frontendda PARTNER roli bilan
- * synthetic foydalanuvchi yaratamiz. Real JWT kelganda bu funksiyani
- * `jose.decodeJwt(token)` bilan almashtiramiz.
- */
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const [, payload] = token.split('.');
+  if (!payload) return {};
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(normalized)) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+export function isAccessTokenExpired(
+  token: string | undefined,
+  skewMs = 30_000,
+): boolean {
+  if (!token) return true;
+  const payload = decodeJwtPayload(token);
+  const exp = payload.exp;
+  if (typeof exp !== 'number') return false;
+  return Date.now() + skewMs >= exp * 1000;
+}
+
 export function buildPartnerSession(
-  phone: string,
+  contact: string,
   tokens: AuthTokens,
   partnerType?: string,
+  contactType: 'email' | 'phone' = 'email',
 ): { user: AuthUser; tokens: AuthTokens } {
-  let resolvedType = partnerType || "hotel";
-  if (phone.includes("7777777")) {
-    resolvedType = "dacha";
-  } else if (phone.includes("8888888")) {
-    resolvedType = "hostel";
-  } else if (phone.includes("9999999")) {
-    resolvedType = "bus";
-  }
+  const payload = decodeJwtPayload(tokens.accessToken);
+  const id = typeof payload.sub === 'string' ? payload.sub : contact;
+  const organizationId =
+    typeof payload.organization_id === 'string'
+      ? payload.organization_id
+      : undefined;
 
   return {
     user: {
-      id: `staff-${phone}`,
-      phone,
-      fullName: "Resepsiyon Xodimi",
+      id,
+      phone: contactType === 'phone' ? contact : '',
+      email: contactType === 'email' ? contact : undefined,
+      fullName: 'Hamkor xodimi',
       role: Role.PARTNER,
-      partnerType: resolvedType,
+      organizationId,
+      partnerType: partnerType || 'hotel',
     },
     tokens,
   };

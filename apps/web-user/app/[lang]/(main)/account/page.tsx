@@ -26,21 +26,7 @@ export default async function AccountProfilePage({
     redirect(`/${locale}/login?next=${encodeURIComponent(`/${locale}/account`)}`);
   }
 
-  const profile: ProfileView | null = await api.users.getProfile({ token: session.accessToken }).catch(
-    () => null,
-  );
-
-  if (!profile) {
-    return (
-      <Card>
-        <CardBody>
-          <p className="text-sm text-amber-700 dark:text-amber-400">
-            {dict.profile.error}
-          </p>
-        </CardBody>
-      </Card>
-    );
-  }
+  const profile: ProfileView = await api.users.getProfile({ token: session.accessToken });
 
   const memberSince = (() => {
     const ts = Date.parse(profile.createdAt);

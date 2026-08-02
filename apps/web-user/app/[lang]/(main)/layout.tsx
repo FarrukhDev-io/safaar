@@ -2,9 +2,12 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { PromoBar } from "@/components/layout/PromoBar";
+import { PromoBarLive } from "@/components/layout/PromoBarLive";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { getPromoBarConfig } from "@/lib/promo";
+import { RealtimeProvider } from "@/lib/services/realtime/socket-provider";
+
+export const dynamic = "force-dynamic";
 
 /**
  * Main layout — SiteHeader + PromoBar + Footer.
@@ -27,11 +30,11 @@ export default async function MainLayout({
   ]);
 
   return (
-    <>
-      <PromoBar config={promoConfig} fallbackText={common.promo} locale={locale} />
+    <RealtimeProvider accessToken={session?.accessToken ?? null}>
+      <PromoBarLive initialConfig={promoConfig} locale={locale} />
       <SiteHeader locale={locale} dict={common} authed={!!session} />
       <div className="flex flex-1 flex-col bg-slate-100/60 dark:bg-slate-950">{children}</div>
       <SiteFooter locale={locale} dict={common} />
-    </>
+    </RealtimeProvider>
   );
 }

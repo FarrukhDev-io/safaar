@@ -5,13 +5,51 @@ import { Role } from "@safaar/types";
 import { api, ApiRequestError } from "@/lib/api";
 import { clearSession, getSession, setSession } from "@/lib/auth/session";
 import { defaultLocale, isLocale } from "@/i18n/config";
-import { config } from "../../config/config";
 
 /** OTP yuborish natijasi (LoginForm `useActionState`da ishlatadi). */
 export interface OtpState {
   ok: boolean;
   devCode?: string;
   error?: string;
+}
+
+export interface LoginState {
+  error?: string;
+}
+
+export async function loginAction(
+  _prev: LoginState,
+  formData: FormData,
+): Promise<LoginState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const rawLocale = String(formData.get("locale") ?? defaultLocale);
+  const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
+  const next = String(formData.get("next") ?? "");
+
+  if (!email) return { error: "EMAIL_REQUIRED" };
+  if (!password) return { error: "PASSWORD_REQUIRED" };
+
+  try {
+    const result = await api.auth.login(email, password);
+    await setSession({
+      userId: result.user.id,
+      role: Role.USER,
+      email: result.user.email,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
+  } catch (error) {
+    return {
+      error:
+        error instanceof ApiRequestError
+          ? error.code || error.message
+          : "ERROR",
+    };
+  }
+
+  const target = next.startsWith("/") ? next : `/${locale}`;
+  redirect(target);
 }
 
 export async function requestOtpAction(
@@ -22,29 +60,8 @@ export async function requestOtpAction(
   if (!email) return { ok: false, error: "EMAIL_REQUIRED" };
 
   try {
-    // Send email via the auth client. Note: The backend /auth/user/send-otp expects a body of { email } (SendEmailOtpDto).
-    // The current api-client has a sendOtp(phone) method which passes { phone }.
-    // Since packages/api-client is read-only according to boundaries, we will invoke the endpoint directly, or we can adapt by sending email as the parameter.
-    // In packages/api-client: sendOtp(phone) performs rawApi.post("/auth/user/send-otp", { phone })
-    // Since we need to send { email } to /auth/user/send-otp, we can bypass the api-client wrapper or check if we can call it.
-    // Actually, calling rawApi.post directly or adapting: let's inspect if rawApi is accessible.
-    // Alternatively, we can see if we can adapt it. Since we cannot modify packages/api-client, we can just fetch or do a custom call.
-    // Wait, let's look at how we can implement it. Let's write the adapter here in actions.ts.
-    // In api.ts or auth.ts, api is exported. Can we do a direct POST to rawApi, or does `api` have a way?
-    // Let's use fetch or a custom request to backend `/auth/user/send-otp` and `/auth/user/verify-otp` matching the SendEmailOtpDto and VerifyEmailOtpRequestDto.
-    // Let's look at lib/api.ts. It exports `api` which wraps `@safaar/api-client`.
-    // Let's check client.ts of api-client. We can import rawApi if it is exported, or just use fetch since we have config.apiUrl.
-    // Let's see if we can perform a direct request or write a custom helper using fetch.
-    const response = await fetch(`${config.apiUrl}/auth/user/send-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || "ERROR");
-    }
-    return { ok: true, devCode: data.devCode };
+    const result = await api.auth.sendEmailOtp(email);
+    return { ok: true, devCode: result.devCode };
   } catch (error) {
     return {
       ok: false,
@@ -64,6 +81,7 @@ export async function verifyOtpAction(
   formData: FormData,
 ): Promise<VerifyState> {
   const email = String(formData.get("email") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
   const code = String(formData.get("code") ?? "").trim();
   const rawLocale = String(formData.get("locale") ?? defaultLocale);
   const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
@@ -73,16 +91,7 @@ export async function verifyOtpAction(
   const password = String(formData.get("password") ?? "");
 
   try {
-    const response = await fetch(`${config.apiUrl}/auth/user/verify-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.message || "ERROR");
-    }
-
+    const result = await api.auth.verifyEmailOtp(email, code);
     await setSession({
       userId: result.user.id,
       role: Role.USER,
@@ -96,12 +105,14 @@ export async function verifyOtpAction(
         const session = await getSession();
         if (!session) return { error: "SESSION_EXPIRED" };
 
+        if (!password) return { error: "PASSWORD_REQUIRED" };
         const passwordError = validatePassword(password);
         if (passwordError) return { error: passwordError };
 
         await api.auth.completeProfile(session.accessToken, {
           firstName,
           lastName: lastName || undefined,
+          phone: phone || undefined,
           email: email || undefined,
           password: password || undefined,
         });
@@ -128,12 +139,123 @@ export interface CompleteProfileState {
   ok?: boolean;
 }
 
+export interface PasswordResetRequestState {
+  ok: boolean;
+  email?: string;
+  challengeId?: string;
+  error?: string;
+}
+
+export async function requestPasswordResetAction(
+  _prev: PasswordResetRequestState,
+  formData: FormData,
+): Promise<PasswordResetRequestState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { ok: false, error: "EMAIL_REQUIRED" };
+
+  try {
+    const result = await api.auth.forgotPassword(email);
+    return {
+      ok: true,
+      email,
+      challengeId: result.challengeId,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof ApiRequestError
+          ? error.code || error.message
+          : "ERROR",
+    };
+  }
+}
+
+export interface PasswordResetCodeState {
+  verified: boolean;
+  email?: string;
+  resetToken?: string;
+  error?: string;
+}
+
+export async function verifyPasswordResetCodeAction(
+  _prev: PasswordResetCodeState,
+  formData: FormData,
+): Promise<PasswordResetCodeState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const code = String(formData.get("code") ?? "").trim();
+  const challengeId = String(formData.get("challengeId") ?? "").trim();
+
+  if (!email) return { verified: false, error: "EMAIL_REQUIRED" };
+  if (!code) return { verified: false, error: "CODE_REQUIRED" };
+
+  try {
+    const result = await api.auth.verifyResetCode(
+      email,
+      code,
+      challengeId || undefined,
+    );
+    return {
+      verified: result.verified,
+      email,
+      resetToken: result.resetToken,
+    };
+  } catch (error) {
+    return {
+      verified: false,
+      error:
+        error instanceof ApiRequestError
+          ? error.code || error.message
+          : "ERROR",
+    };
+  }
+}
+
+export interface PasswordResetState {
+  ok: boolean;
+  error?: string;
+}
+
+export async function resetPasswordAction(
+  _prev: PasswordResetState,
+  formData: FormData,
+): Promise<PasswordResetState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const resetToken = String(formData.get("resetToken") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (!email) return { ok: false, error: "EMAIL_REQUIRED" };
+  if (!resetToken) return { ok: false, error: "RESET_TOKEN_REQUIRED" };
+  if (!password) return { ok: false, error: "PASSWORD_REQUIRED" };
+  if (password !== confirmPassword) {
+    return { ok: false, error: "PASSWORD_MISMATCH" };
+  }
+
+  const passwordError = validatePassword(password);
+  if (passwordError) return { ok: false, error: passwordError };
+
+  try {
+    await api.auth.resetPassword(email, password, resetToken);
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof ApiRequestError
+          ? error.code || error.message
+          : "ERROR",
+    };
+  }
+}
+
 export async function completeProfileAction(
   _prev: CompleteProfileState,
   formData: FormData,
 ): Promise<CompleteProfileState> {
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const rawLocale = String(formData.get("locale") ?? defaultLocale);
   const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
@@ -145,9 +267,12 @@ export async function completeProfileAction(
   if (!email) {
     return { error: "EMAIL_REQUIRED" };
   }
+  if (!password) {
+    return { error: "PASSWORD_REQUIRED" };
+  }
 
   const passwordError = validatePassword(password);
-  if (password && passwordError) {
+  if (passwordError) {
     return { error: passwordError };
   }
 
@@ -158,6 +283,7 @@ export async function completeProfileAction(
     await api.auth.completeProfile(session.accessToken, {
       firstName,
       lastName: lastName || undefined,
+      phone: phone || undefined,
       email,
       password: password || undefined,
     });
@@ -172,7 +298,6 @@ export async function completeProfileAction(
 }
 
 function validatePassword(password: string): string | null {
-  if (!password) return null; // ixtiyoriy
   if (password.length < 8) return "PASSWORD_TOO_SHORT";
   if (!/[A-Z]/.test(password)) return "PASSWORD_NO_UPPERCASE";
   if (!/[a-z]/.test(password)) return "PASSWORD_NO_LOWERCASE";

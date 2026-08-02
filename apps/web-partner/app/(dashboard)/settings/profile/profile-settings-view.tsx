@@ -1,26 +1,29 @@
-"use client";
+'use client';
 
-import { Save, ShieldCheck, Smartphone } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { Mail, Save, ShieldCheck } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { toast } from 'sonner';
 import {
   Card,
   CardBody,
   CardHeader,
   CardTitle,
-} from "../../../_components/ui/card";
-import { Button } from "../../../_components/ui/button";
-import { Input } from "../../../_components/ui/input";
-import { Label } from "../../../_components/ui/label";
-import { useAuthStore } from "../../../_stores/auth-store";
-import { formatPhone } from "../../../_lib/utils/format";
-import { isValidPhone, maskPhone, normalizePhone } from "../../../_lib/utils/phone";
+} from '../../../_components/ui/card';
+import { Button } from '../../../_components/ui/button';
+import { Input } from '../../../_components/ui/input';
+import { Label } from '../../../_components/ui/label';
+import { useAuthStore } from '../../../_stores/auth-store';
 
 const schema = z.object({
   fullName: z.string().min(2, "Ism kamida 2 belgi bo'lishi kerak"),
-  phone: z.string().min(1, "Telefon raqamni kiriting").refine(isValidPhone, "Telefon noto'g'ri formatda"),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email kiriting')
+    .email("Email noto'g'ri formatda")
+    .transform((value) => value.toLowerCase()),
 });
 
 type Values = z.infer<typeof schema>;
@@ -32,15 +35,15 @@ export function ProfileSettingsView() {
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     values: {
-      fullName: user?.fullName ?? "",
-      phone: user?.phone ? formatPhone(user.phone) : "+998 ",
+      fullName: user?.fullName ?? '',
+      email: user?.email ?? '',
     },
   });
 
   const onSubmit = form.handleSubmit((values) => {
     updateUser({
       fullName: values.fullName,
-      phone: normalizePhone(values.phone),
+      email: values.email,
     });
     toast.success("Profil ma'lumotlari saqlandi");
     form.reset(values);
@@ -65,7 +68,7 @@ export function ProfileSettingsView() {
               <Input
                 id="fullName"
                 aria-invalid={Boolean(err.fullName)}
-                {...form.register("fullName")}
+                {...form.register('fullName')}
               />
               {err.fullName ? (
                 <p className="text-xs text-red-600">{err.fullName.message}</p>
@@ -73,19 +76,16 @@ export function ProfileSettingsView() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="phone">Access telefoni</Label>
+              <Label htmlFor="email">Access emaili</Label>
               <Input
-                id="phone"
-                type="tel"
-                aria-invalid={Boolean(err.phone)}
-                {...form.register("phone", {
-                  onChange: (event) => {
-                    event.target.value = maskPhone(event.target.value);
-                  },
-                })}
+                id="email"
+                type="email"
+                autoComplete="email"
+                aria-invalid={Boolean(err.email)}
+                {...form.register('email')}
               />
-              {err.phone ? (
-                <p className="text-xs text-red-600">{err.phone.message}</p>
+              {err.email ? (
+                <p className="text-xs text-red-600">{err.email.message}</p>
               ) : null}
             </div>
 
@@ -108,7 +108,7 @@ export function ProfileSettingsView() {
             <div>
               <h3 className="text-sm font-semibold">Access holati</h3>
               <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                Bu profil admin tomonidan tasdiqlangan telefon raqam orqali ishlaydi.
+                Bu profil admin tomonidan tasdiqlangan email orqali ishlaydi.
               </p>
             </div>
           </CardBody>
@@ -117,12 +117,12 @@ export function ProfileSettingsView() {
         <Card>
           <CardBody className="flex items-start gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
-              <Smartphone className="h-5 w-5" aria-hidden />
+              <Mail className="h-5 w-5" aria-hidden />
             </div>
             <div>
               <h3 className="text-sm font-semibold">Kirish usuli</h3>
               <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                SMS kod talab qilinmaydi. Tasdiqlangan telefon raqam bilan kiriladi.
+                Tasdiqlangan email bilan kabinetga kiriladi.
               </p>
             </div>
           </CardBody>

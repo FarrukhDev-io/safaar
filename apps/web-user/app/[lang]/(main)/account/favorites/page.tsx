@@ -12,13 +12,6 @@ import { formatSum } from "@/lib/money";
 import { Star, Building2, HeartOff } from "lucide-react";
 import type { FavoriteView, HotelListItem } from "@/types/view";
 
-const KNOWN_MOCK_FAVORITES: Record<string, HotelListItem> = {
-  "mock-f1": { id: "mock-f1", slug: "tashkent-city-palace", name: "Tashkent City Palace", cityName: "Toshkent", stars: 5, rating: 4.8, reviewsCount: 234, minPriceSum: 650000, imageUrl: "/Tashkent-city-skyline.jpeg" },
-  "mock-f2": { id: "mock-f2", slug: "samarkand-plaza", name: "Samarkand Plaza", cityName: "Samarqand", stars: 5, rating: 4.7, reviewsCount: 189, minPriceSum: 520000, imageUrl: "/Samarkand-Registan-cinematic.jpeg" },
-  "mock-f3": { id: "mock-f3", slug: "grand-bukhara", name: "Grand Bukhara Hotel", cityName: "Buxoro", stars: 4, rating: 4.6, reviewsCount: 312, minPriceSum: 380000, imageUrl: "/Bukhara-old-city-golden-hour.jpeg" },
-  "mock-f4": { id: "mock-f4", slug: "khiva-ichan-kala", name: "Ichan-Kala Premier", cityName: "Xiva", stars: 4, rating: 4.9, reviewsCount: 156, minPriceSum: 450000, imageUrl: "/Khiva-Ichan-Kala-aerial.jpeg" },
-};
-
 export default async function AccountFavoritesPage({
   params,
 }: {
@@ -40,7 +33,7 @@ export default async function AccountFavoritesPage({
     );
   }
 
-  const rawFavorites: FavoriteView[] = await api.users.getFavorites({ token: session.accessToken }).catch(() => []);
+  const rawFavorites: FavoriteView[] = await api.users.getFavorites({ token: session.accessToken });
 
   if (rawFavorites.length === 0) {
     return (
@@ -54,14 +47,10 @@ export default async function AccountFavoritesPage({
     );
   }
 
-  // SENIOR RESOLUTION: Fetch real hotel details for favorite target IDs or use mock fallback
   const resolvedItems = await Promise.all(
     rawFavorites.map(async (fav) => {
-      if (KNOWN_MOCK_FAVORITES[fav.targetId]) {
-        return { favId: fav.id, hotel: KNOWN_MOCK_FAVORITES[fav.targetId] };
-      }
-      const realHotel = await api.hotels.getHotel(locale, fav.targetId).catch(() => null);
-      if (realHotel) {
+      if (fav.targetType === "hotel") {
+        const realHotel = await api.hotels.getHotel(locale, fav.targetId);
         const item: HotelListItem = {
           id: realHotel.id,
           slug: realHotel.slug,
@@ -84,7 +73,7 @@ export default async function AccountFavoritesPage({
       {resolvedItems.map((item) => {
         if ("hotel" in item && item.hotel) {
           const { hotel } = item;
-          const imageUrl = resolveImage(hotel.imageUrl, hotel.id, 400, 300);
+          const imageUrl = resolveImage(hotel.imageUrl);
           return (
             <Link
               key={item.favId}

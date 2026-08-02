@@ -11,8 +11,10 @@ import { CityCardsSection } from "@/components/features/home/CityCardsSection";
 
 import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotelsCarousel";
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
+import { PartnersShowcase } from "@/components/features/home/PartnersShowcase";
+import { PromoCodesSectionLive } from "@/components/features/home/PromoCodesSectionLive";
 
-import type { HotelListItem } from "@/types/view";
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -25,13 +27,6 @@ export async function generateMetadata({
   return { title: dict.hero.title, description: dict.hero.subtitle };
 }
 
-const FEATURED_FALLBACK: HotelListItem[] = [
-  { id: "mock-f1", slug: "tashkent-city-palace", name: "Tashkent City Palace", cityName: "Toshkent", stars: 5, rating: 4.8, reviewsCount: 234, minPriceSum: 650000, imageUrl: "/Tashkent-city-skyline.jpeg" },
-  { id: "mock-f2", slug: "samarkand-plaza", name: "Samarkand Plaza", cityName: "Samarqand", stars: 5, rating: 4.7, reviewsCount: 189, minPriceSum: 520000, imageUrl: "/Samarkand-Registan-cinematic.jpeg" },
-  { id: "mock-f3", slug: "grand-bukhara", name: "Grand Bukhara Hotel", cityName: "Buxoro", stars: 4, rating: 4.6, reviewsCount: 312, minPriceSum: 380000, imageUrl: "/Bukhara-old-city-golden-hour.jpeg" },
-  { id: "mock-f4", slug: "khiva-ichan-kala", name: "Ichan-Kala Premier", cityName: "Xiva", stars: 4, rating: 4.9, reviewsCount: 156, minPriceSum: 450000, imageUrl: "/Khiva-Ichan-Kala-aerial.jpeg" },
-];
-
 export default async function HomePage({
   params,
 }: {
@@ -41,27 +36,17 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [common, dict, [citiesRes, featuredRes, dealsRes]] = await Promise.all([
+  const [common, dict, cities, featuredResult, rawDeals, stats, promos] = await Promise.all([
     getDictionary(locale, "common"),
     getDictionary(locale, "home"),
-    Promise.allSettled([
-      api.catalog.getCities(locale),
-      api.hotels.getFeaturedHotels(locale, { limit: 4 }),
-      api.cms.getDeals(locale),
-    ]),
+    api.catalog.getCities(locale),
+    api.hotels.getFeaturedHotels(locale, { limit: 4 }),
+    api.cms.getDeals(locale),
+    api.cms.getPublicStats().catch(() => null),
+    api.promos.listActive().catch(() => []),
   ]);
 
-  const cities = citiesRes.status === "fulfilled" ? citiesRes.value : [];
-  const featuredResult = featuredRes.status === "fulfilled" ? featuredRes.value : null;
-  const rawDeals = dealsRes.status === "fulfilled" ? dealsRes.value : [];
-
-  const fromApi = featuredResult?.items ?? [];
-  const hotels: HotelListItem[] = [...fromApi];
-  for (const fallback of FEATURED_FALLBACK) {
-    if (hotels.length >= 4) break;
-    if (hotels.some((h) => h.id === fallback.id || h.slug === fallback.slug)) continue;
-    hotels.push(fallback);
-  }
+  const hotels = featuredResult.items;
 
   const deals: DealItem[] = rawDeals.map((d) => ({
     id: d.id,
@@ -121,6 +106,9 @@ export default async function HomePage({
           <DealsSection deals={deals} dict={dict.deals} locale={locale} />
         </Suspense>
       </div>
+
+      {/* EKRAN 3: Promo-kodlar (real-time) */}
+      <PromoCodesSectionLive initialPromos={promos} />
 
       {/* EKRAN 4: City Cards */}
       <div className="py-10 sm:py-16 md:py-20">

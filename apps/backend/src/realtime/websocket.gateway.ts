@@ -376,6 +376,14 @@ export class RealtimeGateway
     }
   }
 
+  @OnEvent(SERVER_EVENTS.PROMOS_UPDATED)
+  handlePromosUpdated(payload: { occurredAt: string }) {
+    // Promo-kodlar hamma uchun ochiq — xona/organizatsiyaga bog'liq emas,
+    // shuning uchun ulangan barcha clientlarga (anonim tashrif buyuruvchilar
+    // ham) yuboriladi.
+    this.server.emit(SERVER_EVENTS.PROMOS_UPDATED, payload);
+  }
+
   private isSupportRoom(room: string): boolean {
     return room.startsWith('support:') && room.length > 'support:'.length;
   }

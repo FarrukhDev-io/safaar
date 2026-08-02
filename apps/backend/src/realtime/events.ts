@@ -13,6 +13,7 @@ export const SERVER_EVENTS = {
   HOTEL_LISTING_CHANGED: 'hotel.listing_changed',
   HOTEL_SUBMITTED_FOR_REVIEW: 'hotel.submitted_for_review',
   HOTEL_MODERATION_CHANGED: 'hotel.moderation_changed',
+  PROMOS_UPDATED: 'promos.updated',
 } as const;
 
 export const CLIENT_EVENTS = {

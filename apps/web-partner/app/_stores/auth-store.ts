@@ -1,12 +1,15 @@
-"use client";
+'use client';
 
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import type { AuthTokens, Role } from "@safaar/types";
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import type { AuthTokens, Role } from '@safaar/types';
+
+export const AUTH_STORAGE_KEY = 'uzbron-partner-auth';
 
 export interface AuthUser {
   id: string;
   phone: string;
+  email?: string;
   fullName: string;
   role: Role;
   organizationId?: string;
@@ -17,7 +20,11 @@ interface AuthState {
   user: AuthUser | null;
   tokens: AuthTokens | null;
   setSession: (user: AuthUser, tokens: AuthTokens) => void;
-  updateUser: (patch: Partial<Pick<AuthUser, "fullName" | "phone" | "partnerType">>) => void;
+  updateUser: (
+    patch: Partial<
+      Pick<AuthUser, 'fullName' | 'phone' | 'email' | 'partnerType'>
+    >,
+  ) => void;
   clearSession: () => void;
   setAccessToken: (accessToken: string) => void;
 }
@@ -41,13 +48,11 @@ export const useAuthStore = create<AuthState>()(
       clearSession: () => set({ user: null, tokens: null }),
       setAccessToken: (accessToken) =>
         set((state) =>
-          state.tokens
-            ? { tokens: { ...state.tokens, accessToken } }
-            : state,
+          state.tokens ? { tokens: { ...state.tokens, accessToken } } : state,
         ),
     }),
     {
-      name: "uzbron-partner-auth",
+      name: AUTH_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
       version: 2,
       migrate: () => ({ user: null, tokens: null }),

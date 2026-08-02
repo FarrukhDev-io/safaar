@@ -97,7 +97,7 @@ export const usersService = {
    * aniqlash uchun). Sessiya yo'q bo'lsa `null`.
    */
   async findFavoriteId(targetId: string, options?: { token?: string }): Promise<string | null> {
-    const favorites = await this.getFavorites(options).catch(() => []);
+    const favorites = await this.getFavorites(options);
     return favorites.find((f) => f.targetId === targetId)?.id ?? null;
   },
 };

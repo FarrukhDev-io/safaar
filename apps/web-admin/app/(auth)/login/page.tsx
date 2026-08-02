@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Shield, Lock, User } from "lucide-react";
 import Cookies from "js-cookie";
-import { MockApi } from "../../../lib/api/mock-api";
+import { AdminApi } from "../../../lib/api/admin-api";
 import { useAuthStore } from "../../../lib/store/auth";
 
 export default function LoginPage() {
@@ -27,11 +27,8 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // API orqali feyk login
-      const data = await MockApi.login(username, password);
-      // Cookiega yozish (middleware uchun)
+      const data = await AdminApi.login(username, password);
       Cookies.set("admin_token", data.token, { expires: 1, path: "/" });
-      // Zustandga saqlash
       login(data.user);
       router.push("/dashboard");
     } catch (err) {

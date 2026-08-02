@@ -1,6 +1,6 @@
 "use client";
 
-import { MockApi } from "@/lib/api/mock-api";
+import { AdminApi } from "@/lib/api/admin-api";
 import { CmsArticleManager } from "../_components/cms-article-manager";
 
 export default function CmsOffersPage() {
@@ -10,7 +10,7 @@ export default function CmsOffersPage() {
       title="Maxsus takliflar"
       addLabel="Taklif qo'shish"
       emptyMessage="Takliflar topilmadi"
-      loadItems={MockApi.getCmsNews}
+      loadItems={AdminApi.getCmsOffers}
     />
   );
 }

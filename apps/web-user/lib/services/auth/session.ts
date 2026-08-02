@@ -5,10 +5,8 @@
  * serverda oladi — token/sessiyani o'qiy olishi kerak. localStorage faqat
  * brauzerda, shuning uchun cookie eng to'g'ri yo'l.
  *
- * ⚠️ Dev auth: backend `RolesGuard` hozircha `x-user-role` / `x-user-id`
- * headerlarini o'qiydi (JWT keyin ulanadi). Shuning uchun himoyalangan
- * so'rovlarda `devAuthHeaders` yuboriladi. Backend JWT qo'shganda — bu yerni
- * `Authorization: Bearer` ga o'zgartiramiz, qolgan kod tegmaydi.
+ * Himoyalangan so'rovlarda backend real JWT access tokenni
+ * `Authorization: Bearer` headeridan o'qiydi.
  */
 import "server-only";
 import { cookies } from "next/headers";
@@ -26,12 +24,36 @@ export interface Session {
   refreshToken: string;
 }
 
+/**
+ * Access token'ning `exp` (Unix soniya) maydonini imzoni tekshirmasdan
+ * o'qiydi — bu shunchaki UX uchun: muddati o'tgan bo'lsa sahifalar
+ * "Sessiya topilmadi" xatosi bilan qulash o'rniga tozza login'ga
+ * yo'naltiradi. Haqiqiy xavfsizlik tekshiruvi baribir backend'da.
+ */
+function isTokenExpired(token: string): boolean {
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) return true;
+    const payload = JSON.parse(
+      Buffer.from(payloadPart, "base64url").toString("utf-8"),
+    ) as { exp?: number };
+    if (typeof payload.exp !== "number") return false;
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export async function getSession(): Promise<Session | null> {
   const store = await cookies();
   const raw = store.get(COOKIE_NAME)?.value;
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as Session;
+    const session = JSON.parse(raw) as Session;
+    if (!session.accessToken || isTokenExpired(session.accessToken)) {
+      return null;
+    }
+    return session;
   } catch {
     return null;
   }

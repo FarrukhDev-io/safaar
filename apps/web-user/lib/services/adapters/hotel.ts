@@ -64,6 +64,8 @@ function toHotelBase(raw: RawHotel, locale: Locale): HotelListItem {
     reviewsCount: raw.reviewsCount ?? 0,
     minPriceSum: tiyinToSum(raw.minPrice ?? 0),
     imageUrl: raw.images?.[0],
+    latitude: raw.latitude,
+    longitude: raw.longitude,
   };
 }
 

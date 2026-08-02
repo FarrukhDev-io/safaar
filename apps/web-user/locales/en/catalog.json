@@ -5,19 +5,7 @@
     "subtitle": "Top rated restaurants, national eateries, and cozy teahouses across Uzbekistan.",
     "searchPlaceholder": "Search by restaurant name or cuisine...",
     "allCities": "All Cities",
-    "avgCheck": "Avg check",
-    "reserveTable": "Book a table",
-    "modalTitle": "Table Reservation",
-    "guests": "Number of guests",
-    "date": "Date",
-    "time": "Time",
-    "fullName": "Your Name",
-    "phone": "Phone Number",
-    "confirm": "Confirm Reservation",
-    "successTitle": "Table reserved successfully!",
-    "successDesc": "The restaurant management will contact you shortly to confirm your booking.",
-    "callNow": "Call Now",
-    "close": "Close"
+    "avgCheck": "Avg check"
   },
   "attractions": {
     "badge": "Travel & Heritage",
@@ -31,9 +19,7 @@
       "unesco": "UNESCO Heritage",
       "nature": "Nature & Leisure"
     },
-    "bestTime": "Best time:",
-    "moreInfo": "Details",
-    "comingSoon": "Detailed guide for {name} coming soon!"
+    "bestTime": "Best time:"
   },
   "transport": {
     "badge": "Transport & Transfers",
@@ -50,18 +36,6 @@
     "perDay": "per day",
     "driverIncluded": "With Driver",
     "withoutDriver": "Self-drive",
-    "seats": "seats",
-    "pickupDate": "Pick-up Date",
-    "returnDate": "Return Date",
-    "fullName": "Your Name",
-    "phone": "Phone Number",
-    "modalTitle": "Vehicle Rental & Booking",
-    "confirmOrder": "Confirm Booking",
-    "successTitle": "Booking Received!",
-    "successDesc": "Our operator will contact you shortly to confirm vehicle availability and pickup details.",
-    "callNow": "Call Now",
-    "close": "Close",
-    "reserve": "Book Vehicle",
-    "comingSoon": "Booking for {name} launching soon! Contact: {phone}"
+    "seats": "seats"
   }
 }

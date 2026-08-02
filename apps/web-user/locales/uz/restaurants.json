@@ -4,17 +4,5 @@
   "subtitle": "O'zbekistonning eng saralangan restoranlari, milliy oshxonalar va shinam choyxonalari.",
   "searchPlaceholder": "Restoran nomi yoki taom turi bo'yicha qidiruv...",
   "allCities": "Barcha shaharlar",
-  "avgCheck": "Chek",
-  "reserveTable": "Stol band qilish",
-  "modalTitle": "Stol band qilish",
-  "guests": "Kishilar soni",
-  "date": "Sana",
-  "time": "Vaqt",
-  "fullName": "Ismingiz",
-  "phone": "Telefon raqamingiz",
-  "confirm": "Band qilishni tasdiqlash",
-  "successTitle": "Stolingiz muvaffaqiyatli band qilindi!",
-  "successDesc": "Restoran ma'muriyati bandlikni tasdiqlash uchun tez orada siz bilan bog'lanadi.",
-  "callNow": "Hozir qo'ng'iroq qilish",
-  "close": "Yopish"
+  "avgCheck": "Chek"
 }

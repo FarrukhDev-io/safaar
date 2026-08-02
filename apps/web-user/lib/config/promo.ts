@@ -18,6 +18,13 @@ export interface PromoBarConfig {
   isDismissible?: boolean;
 }
 
+interface ActivePromo {
+  code: string;
+  discountType: string;
+  discountValue: number;
+  validUntil: string;
+}
+
 /**
  * Utility to resolve localized string value based on current locale.
  */
@@ -30,33 +37,74 @@ export function getLocalizedText(
   return value[locale] ?? value.uz ?? value.ru ?? value.en ?? Object.values(value)[0] ?? "";
 }
 
+/** Admin panelda yaratilgan, hozir amal qiladigan promo-kodlar (`GET /promos`). */
+async function getActivePromos(): Promise<ActivePromo[]> {
+  try {
+    // Admin panelda promo-kod qo'shilishi/tahrirlanishi/o'chirilishi
+    // darhol (keshsiz) ko'rinishi kerak — shuning uchun bu yerda
+    // revalidate keshi ishlatilmaydi.
+    const res = await fetch(`${config.apiUrl}/promos`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const items = Array.isArray(json?.data) ? json.data : [];
+    return items.map((row: Record<string, unknown>) => ({
+      code: String(row.code ?? ""),
+      discountType: String(row.discount_type ?? row.discountType ?? "percent"),
+      discountValue: Number(row.discount_value ?? row.discountValue ?? 0),
+      validUntil: String(row.valid_until ?? row.validUntil ?? ""),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function promoDiscountText(promo: ActivePromo): string {
+  if (promo.discountType.startsWith("percent")) {
+    return `${promo.discountValue}%`;
+  }
+  return `${new Intl.NumberFormat("uz-UZ").format(promo.discountValue)} so'm`;
+}
+
 /**
- * Fetch dynamic promo bar configuration from API.
- * Falls back safely if backend endpoint is not available yet.
+ * Sayt tepasidagi banner: avval hozir amal qiladigan promo-kod bo'lsa
+ * o'shani ko'rsatadi (amal qilish muddati tugasa keyingi sahifa
+ * yuklanishida avtomatik yo'qoladi — chunki backend uni ro'yxatdan olib
+ * tashlaydi). Aktiv promo-kod bo'lmasa, admin CMS'da qo'lda sozlagan
+ * umumiy bannerga qaytadi.
  */
 export async function getPromoBarConfig(locale: string): Promise<PromoBarConfig | null> {
+  const activePromos = await getActivePromos();
+  const promo = activePromos[0];
+
+  if (promo && promo.code) {
+    return {
+      id: `promo-${promo.code}`,
+      isActive: true,
+      badge: "Aksiya",
+      text: `Bron qilishda ${promoDiscountText(promo)} chegirma — ${promo.code} promokodi bilan!`,
+      endsAt: promo.validUntil || null,
+      isDismissible: true,
+    };
+  }
+
   try {
     const res = await fetch(`${config.apiUrl}/cms/promo-bar`, {
       headers: {
         "Accept-Language": locale,
       },
-      next: { revalidate: 60, tags: ["promo-bar"] },
+      cache: "no-store",
     });
 
-    if (!res.ok) {
-      if (res.status === 404) {
-        // Backend endpoint not created yet; return null to allow dictionary fallback
-        return null;
-      }
-      return null;
-    }
+    if (!res.ok) return null;
 
     const data = await res.json();
     if (!data) return null;
 
     return {
-      id: data.id ?? "default",
-      isActive: data.isActive ?? data.is_active ?? true,
+      id: data.id,
+      isActive: data.isActive ?? data.is_active ?? false,
       text: data.text,
       badge: data.badge,
       link: data.link,
@@ -65,7 +113,6 @@ export async function getPromoBarConfig(locale: string): Promise<PromoBarConfig 
       isDismissible: data.isDismissible ?? data.is_dismissible ?? true,
     };
   } catch {
-    // API network or fetch error, return null safely
     return null;
   }
 }

@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 export interface BaseCardProps {
-  imageSrc: string;
+  imageSrc?: string | null;
   imageAlt?: string;
   badge?: React.ReactNode;          // Rasm ustidagi 1 ta badge (optional)
   title: React.ReactNode;           // Katta sarlavha
@@ -39,14 +39,16 @@ export function BaseCard({
       {variant === "overlay" ? (
         /* Overlay variant (e.g. City Card) */
         <div className="relative aspect-[4/3] w-full overflow-hidden">
-          <Image
-            src={imageSrc}
-            alt={imageAlt}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-            quality={85}
-          />
+          {imageSrc && (
+            <Image
+              src={imageSrc}
+              alt={imageAlt}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+              quality={85}
+            />
+          )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           {badge && <div className="absolute left-2.5 top-2.5 z-10">{badge}</div>}
           <div className="absolute inset-x-0 bottom-0 p-3">
@@ -64,14 +66,16 @@ export function BaseCard({
         /* Default variant (standard card) */
         <>
           <div className="relative aspect-[3/2] w-full overflow-hidden rounded-t-2xl bg-slate-100 dark:bg-slate-800">
-            <Image
-              src={imageSrc}
-              alt={imageAlt}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-              quality={85}
-            />
+            {imageSrc && (
+              <Image
+                src={imageSrc}
+                alt={imageAlt}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                quality={85}
+              />
+            )}
             {badge && <div className="absolute left-2.5 top-2.5 z-10">{badge}</div>}
           </div>
 

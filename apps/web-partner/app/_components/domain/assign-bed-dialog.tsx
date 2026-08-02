@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { BookingStatus } from "@safaar/types";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
+import { useBeds } from "../../_hooks/use-beds";
 import { useRooms } from "../../_hooks/use-rooms";
 import { useReservations, useAssignRoom } from "../../_hooks/use-reservations";
 import { useDataStore } from "../../_stores/data-store";
@@ -22,9 +23,9 @@ interface Props {
 
 export function AssignBedDialog({ open, onClose, reservation, onAssigned }: Props) {
   const { data: rooms } = useRooms();
+  useBeds();
   const { data: reservations } = useReservations();
   const beds = useDataStore((s) => s.beds);
-  const assignBed = useDataStore((s) => s.assignBed);
   const assignRoom = useAssignRoom();
   const [selected, setSelected] = useState<{ room: Room; bed: Bed } | null>(null);
 
@@ -100,10 +101,13 @@ export function AssignBedDialog({ open, onClose, reservation, onAssigned }: Prop
   const assignAndClose = (room: Room, bed: Bed, auto: boolean) => {
     if (!reservation) return;
     assignRoom.mutate(
-      { id: reservation.id, roomNumber: room.number },
+      {
+        id: reservation.id,
+        roomNumber: room.number,
+        bedId: bed.id,
+      },
       {
         onSuccess: () => {
-          assignBed(reservation.id, bed.id);
           toast.success(
             auto
               ? `${room.number} · ${bed.label} avtomatik tayinlandi.`

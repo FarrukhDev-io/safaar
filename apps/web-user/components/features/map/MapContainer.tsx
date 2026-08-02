@@ -28,30 +28,18 @@ export interface MapContainerProps {
   className?: string;
 }
 
-function resolveItemCoords(item: MapMarkerItem): [number, number] {
-  if (typeof item.lat === "number" && typeof item.lng === "number" && item.lat !== 0) {
+function resolveItemCoords(item: MapMarkerItem): [number, number] | null {
+  if (
+    typeof item.lat === "number" &&
+    typeof item.lng === "number" &&
+    Number.isFinite(item.lat) &&
+    Number.isFinite(item.lng) &&
+    item.lat !== 0 &&
+    item.lng !== 0
+  ) {
     return [item.lat, item.lng];
   }
-  const city = (item.cityName ?? "").toLowerCase();
-  let baseLat = 41.2995;
-  let baseLng = 69.2401;
-
-  if (city.includes("samarqand") || city.includes("samarkand")) {
-    baseLat = 39.6542;
-    baseLng = 66.9597;
-  } else if (city.includes("buxoro") || city.includes("bukhara")) {
-    baseLat = 39.7747;
-    baseLng = 64.4286;
-  } else if (city.includes("xiva") || city.includes("khiva")) {
-    baseLat = 41.3783;
-    baseLng = 60.3639;
-  }
-
-  const hash = item.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const offsetLat = ((hash % 17) - 8) * 0.007;
-  const offsetLng = (((hash * 13) % 19) - 9) * 0.007;
-
-  return [baseLat + offsetLat, baseLng + offsetLng];
+  return null;
 }
 
 function createPricePinIcon(
@@ -97,7 +85,8 @@ export function MapContainer({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const firstCoords = items.length > 0 ? resolveItemCoords(items[0]) : center;
+    const firstCoords =
+      items.map(resolveItemCoords).find((coords) => coords !== null) ?? center;
 
     const map = L.map(containerRef.current, {
       center: firstCoords,
@@ -138,10 +127,13 @@ export function MapContainer({
     markersRef.current.clear();
 
     const bounds = L.latLngBounds([]);
+    let markerCount = 0;
 
     items.forEach((item) => {
       const coords = resolveItemCoords(item);
+      if (!coords) return;
       bounds.extend(coords);
+      markerCount += 1;
 
       const isSelected = item.id === selectedItemId;
       const isHovered = item.id === hoveredItemId;
@@ -155,31 +147,48 @@ export function MapContainer({
 
       const marker = L.marker(coords, { icon, zIndexOffset: isSelected || isHovered ? 1000 : 0 });
 
-      // Custom Popover HTML
+      // XSS Protection: HTML va string qadriyatlarni escape qilish
+      const escapeHtml = (unsafe: string) => {
+        return (unsafe || "")
+          .toString()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      };
+
+      // XSS Protection: URL'larni 'javascript:' emasligiga ishonch hosil qilish
+      const sanitizeUrl = (url: string) => {
+        if (url.trim().toLowerCase().startsWith("javascript:")) return "#";
+        return encodeURI(url);
+      };
+
+      // Custom Popover HTML with Safe Interpolation
       const popupHtml = `
         <div class="flex flex-col gap-2 p-1 min-w-[220px]">
           ${
             item.imageUrl
               ? `<div class="relative h-28 w-full overflow-hidden rounded-xl bg-slate-100">
-                  <img src="${item.imageUrl}" alt="${item.name}" class="h-full w-full object-cover" />
+                  <img src="${sanitizeUrl(item.imageUrl)}" alt="${escapeHtml(item.name)}" class="h-full w-full object-cover" />
                 </div>`
               : ""
           }
           <div class="flex flex-col gap-1 pt-1">
-            <h3 class="text-sm font-bold text-slate-900">${item.name}</h3>
+            <h3 class="text-sm font-bold text-slate-900">${escapeHtml(item.name)}</h3>
             ${
               item.cityName || item.address
-                ? `<p class="text-xs text-slate-500">${item.cityName ? item.cityName + " · " : ""}${item.address || ""}</p>`
+                ? `<p class="text-xs text-slate-500">${item.cityName ? escapeHtml(item.cityName) + " · " : ""}${escapeHtml(item.address || "")}</p>`
                 : ""
             }
             ${
               item.priceFormatted
-                ? `<p class="mt-1 text-sm font-extrabold text-blue-600">${item.priceFormatted}</p>`
+                ? `<p class="mt-1 text-sm font-extrabold text-blue-600">${escapeHtml(item.priceFormatted)}</p>`
                 : ""
             }
             ${
               item.linkUrl
-                ? `<a href="${item.linkUrl}" class="mt-2 inline-flex items-center justify-center rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700">Batafsil</a>`
+                ? `<a href="${sanitizeUrl(item.linkUrl)}" class="mt-2 inline-flex items-center justify-center rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700">Batafsil</a>`
                 : ""
             }
           </div>
@@ -197,7 +206,7 @@ export function MapContainer({
       markersRef.current.set(item.id, marker);
     });
 
-    if (items.length > 0) {
+    if (markerCount > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
   }, [items, selectedItemId, hoveredItemId, onSelectItem]);

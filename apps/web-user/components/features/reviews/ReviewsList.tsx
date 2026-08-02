@@ -6,7 +6,6 @@ import { ShieldCheck, Camera, User } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { ReviewsDict } from "@/i18n/dictionaries";
 import type { ReviewView } from "@/types/view";
-import { ReviewSubmissionModal } from "./ReviewSubmissionModal";
 import { PhotoLightbox } from "./PhotoLightbox";
 
 const LOCALE_TAG: Record<Locale, string> = {
@@ -31,47 +30,22 @@ export type ExtendedReview = ReviewView & {
   avatarUrl?: string;
   photos?: string[];
   isVerifiedGuest?: boolean;
-  breakdown?: {
-    cleanliness: number;
-    staff: number;
-    location: number;
-    valueForMoney: number;
-  };
 };
 
 export function ReviewsList({
   reviews: initialReviews,
   dict,
   locale,
-  hotelName = "Mehmonxona",
 }: {
   reviews: ReviewView[];
   dict: ReviewsDict;
   locale: Locale;
-  hotelName?: string;
 }) {
-  const [reviewsList, setReviewsList] = useState<ExtendedReview[]>(() => {
-    return initialReviews.map((r, i) => ({
-      ...r,
-      authorName: (r as ExtendedReview).authorName || `Mehmon #${i + 1}`,
-      isVerifiedGuest: true,
-      photos: (r as ExtendedReview).photos || (i === 0 ? ["/Samarkand-Registan-cinematic.jpeg", "/Charvak-Lake-drone.jpeg"] : []),
-      breakdown: (r as ExtendedReview).breakdown || {
-        cleanliness: 4.9,
-        staff: 4.8,
-        location: 4.9,
-        valueForMoney: 4.7,
-      },
-    }));
-  });
+  const reviewsList = initialReviews as ExtendedReview[];
 
   // Lightbox state
   const [activePhotoList, setActivePhotoList] = useState<string[] | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
-
-  const handleAddNewReview = (newReview: ReviewView) => {
-    setReviewsList((prev) => [newReview as ExtendedReview, ...prev]);
-  };
 
   const openLightbox = (photos: string[], index: number) => {
     setActivePhotoList(photos);
@@ -83,9 +57,9 @@ export function ReviewsList({
   const avgOverall =
     totalCount > 0
       ? (
-          reviewsList.reduce((acc, r) => acc + (r.rating || 5), 0) / totalCount
+          reviewsList.reduce((acc, r) => acc + Math.max(0, Number(r.rating) || 0), 0) / totalCount
         ).toFixed(1)
-      : "5.0";
+      : "0.0";
 
   return (
     <section className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -114,57 +88,6 @@ export function ReviewsList({
           </div>
         </div>
 
-        {/* 4 Criteria Progress Bars */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 max-w-md w-full">
-          {/* Cleanliness */}
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-              <span>🧹 Tozalik</span>
-              <span>4.9 / 5</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div className="h-full rounded-full bg-blue-600" style={{ width: "98%" }} />
-            </div>
-          </div>
-
-          {/* Staff */}
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-              <span>👨‍💼 Xodimlar</span>
-              <span>4.8 / 5</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: "96%" }} />
-            </div>
-          </div>
-
-          {/* Location */}
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-              <span>📍 Joylashuv</span>
-              <span>4.9 / 5</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div className="h-full rounded-full bg-amber-500" style={{ width: "98%" }} />
-            </div>
-          </div>
-
-          {/* Value */}
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-              <span>💰 Narx va Sifat</span>
-              <span>4.7 / 5</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div className="h-full rounded-full bg-indigo-500" style={{ width: "94%" }} />
-            </div>
-          </div>
-        </div>
-
-        <ReviewSubmissionModal
-          hotelName={hotelName}
-          onAddReview={handleAddNewReview}
-        />
       </div>
 
       {/* Reviews List */}

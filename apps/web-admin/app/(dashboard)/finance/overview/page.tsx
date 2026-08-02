@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MockApi } from "@/lib/api/mock-api";
+import { AdminApi } from "@/lib/api/admin-api";
 import { Wallet, ArrowDownToLine, FileSpreadsheet, TrendingUp, Download } from "lucide-react";
 import Button from "@/components/ui/Button";
-import RevenueBarChart from "@/components/charts/BarChart";
 import { formatPrice } from "@/lib/utils";
-import { revenueData } from "@/lib/mock-data";
 
 interface DashboardStats {
   revenue: number;
@@ -18,17 +16,15 @@ export default function FinanceOverviewPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([MockApi.getDashboardStats(), MockApi.getWithdrawals()]).then(
-      ([data, withdrawals]) => {
-        setStats(data);
-        setPendingWithdrawals(
-          withdrawals
-            .filter((w) => w.status === "pending")
-            .reduce((sum, w) => sum + w.amount, 0),
-        );
-        setLoading(false);
-      },
-    );
+    Promise.all([AdminApi.getDashboardStats(), AdminApi.getWithdrawals()]).then(([data, withdrawals]) => {
+      setStats(data);
+      setPendingWithdrawals(
+        withdrawals
+          .filter((withdrawal) => withdrawal.status === "pending")
+          .reduce((sum, withdrawal) => sum + withdrawal.amount, 0),
+      );
+      setLoading(false);
+    });
   }, []);
 
   if (loading) {
@@ -89,7 +85,9 @@ export default function FinanceOverviewPage() {
           <FileSpreadsheet className="text-[var(--primary)]" size={20} />
           <h2 className="text-lg font-bold text-[var(--text-primary)]">Daromadlar grafigi</h2>
         </div>
-        <RevenueBarChart data={revenueData} />
+        <div className="h-64 flex items-center justify-center border-2 border-dashed border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]">
+          <p className="text-[var(--text-muted)] text-sm font-medium">Daromad grafigi uchun backend ma'lumoti topilmadi</p>
+        </div>
       </div>
     </div>
   );

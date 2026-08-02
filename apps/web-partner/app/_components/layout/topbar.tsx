@@ -1,23 +1,23 @@
-"use client";
+'use client';
 
-import { Menu } from "lucide-react";
-import { useAuthStore } from "../../_stores/auth-store";
-import { useLogout } from "../../_hooks/use-auth";
-import { useUiStore } from "../../_stores/ui-store";
-import { CommandPalette } from "./command-palette";
-import { ThemeToggle } from "./theme-toggle";
-import { Tooltip } from "../ui/tooltip";
-import { UserMenu } from "./user-menu";
-import { getPartnerLabels } from "../../_lib/utils/partner-labels";
+import { Menu } from 'lucide-react';
+import { useAuthStore } from '../../_stores/auth-store';
+import { useLogout } from '../../_hooks/use-auth';
+import { useUiStore } from '../../_stores/ui-store';
+import { CommandPalette } from './command-palette';
+import { ThemeToggle } from './theme-toggle';
+import { Tooltip } from '../ui/tooltip';
+import { UserMenu } from './user-menu';
+import { getPartnerLabels } from '../../_lib/utils/partner-labels';
 
 export function Topbar() {
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
   const openMobileMenu = useUiStore((s) => s.openMobileSidebar);
 
-  const partnerType = user?.partnerType || "hotel";
+  const partnerType = user?.partnerType || 'hotel';
   const labels = getPartnerLabels(partnerType);
-  const orgName = user?.fullName || "Hamkor Kabinetim";
+  const orgName = user?.fullName || 'Hamkor Kabinetim';
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 shadow-sm shadow-slate-950/5 md:px-5">
@@ -46,8 +46,8 @@ export function Topbar() {
         <CommandPalette />
         <ThemeToggle />
         <UserMenu
-          name={user?.fullName ?? "Hamkor"}
-          phone={user?.phone ?? "—"}
+          name={user?.fullName ?? 'Hamkor'}
+          contact={user?.email ?? user?.phone ?? '—'}
           onLogout={logout}
         />
       </div>

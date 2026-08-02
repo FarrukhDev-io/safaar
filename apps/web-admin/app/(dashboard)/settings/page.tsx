@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Settings, Save, AlertTriangle } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { AdminApi } from "@/lib/api/admin-api";
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [settings, setSettings] = useState({
     commissionRate: "15",
     busCommissionRate: "10",
@@ -13,12 +16,33 @@ export default function SettingsPage() {
     contactEmail: "support@safaar.uz",
   });
 
+  useEffect(() => {
+    let cancelled = false;
+    AdminApi.getSettings()
+      .then((data) => {
+        if (!cancelled) setSettings(data);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Sozlamalarni yuklab bo'lmadi.");
+      })
+      .finally(() => {
+        if (!cancelled) setFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleSave = async () => {
     setLoading(true);
-    // Simulate save
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    alert("Sozlamalar saqlandi!");
+    try {
+      await AdminApi.updateSettings(settings);
+      toast.success("Sozlamalar saqlandi!");
+    } catch {
+      toast.error("Sozlamalarni saqlab bo'lmadi. Qaytadan urinib ko'ring.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,7 +54,7 @@ export default function SettingsPage() {
             Platformaning asosiy komissiya foizlari va texnik xizmat sozlamalari
           </p>
         </div>
-        <Button onClick={handleSave} disabled={loading} className="flex items-center gap-2">
+        <Button onClick={handleSave} disabled={loading || fetching} className="flex items-center gap-2">
           {loading ? <span className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" /> : <Save size={16} />}
           Saqlash
         </Button>
