@@ -92,7 +92,7 @@ export function DealsSection({
   const [now, setNow] = useState(0);
 
   useEffect(() => {
-    setNow(Date.now());
+    const timerId = setTimeout(() => setNow(Date.now()), 0);
     const el = ref.current;
     if (!el || deals.length < 3) return;
 
@@ -126,6 +126,7 @@ export function DealsSection({
     window.addEventListener("resize", handleResize);
 
     return () => {
+      clearTimeout(timerId);
       if (timer.current) clearInterval(timer.current);
       window.removeEventListener("resize", handleResize);
     };

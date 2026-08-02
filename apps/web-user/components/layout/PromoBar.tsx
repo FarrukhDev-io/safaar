@@ -16,7 +16,8 @@ export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
   const [now, setNow] = useState(0);
   
   useEffect(() => {
-    setNow(Date.now());
+    const timer = setTimeout(() => setNow(Date.now()), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const [isDismissed, setIsDismissed] = useState(false);

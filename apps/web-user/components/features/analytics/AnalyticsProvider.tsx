@@ -2,7 +2,6 @@
 
 import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import Script from "next/script";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { GA_TRACKING_ID, trackPageView } from "@/lib/services/analytics/tracker";
 
