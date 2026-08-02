@@ -43,7 +43,7 @@ export interface AnalyticsEventParams {
 /**
  * Universal Event Dispatcher — GA4 hamda Console log uchun.
  */
-export function trackEvent(
+function trackEvent(
   eventName: AnalyticsEventName,
   params: AnalyticsEventParams = {}
 ): void {
@@ -76,15 +76,6 @@ export function trackSearchPerformed(params: {
   guests?: number;
 }): void {
   trackEvent("search_performed", params);
-}
-
-/** Mehmonxona detal sahifasi ko'rilganda. */
-export function trackHotelViewed(params: {
-  hotelId: string;
-  hotelName: string;
-  priceSum?: number;
-}): void {
-  trackEvent("hotel_viewed", params);
 }
 
 /** Bron qilish boshlanganda. */

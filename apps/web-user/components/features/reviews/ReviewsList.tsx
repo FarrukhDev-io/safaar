@@ -7,6 +7,7 @@ import type { Locale } from "@/i18n/config";
 import type { ReviewsDict } from "@/i18n/dictionaries";
 import type { ReviewView } from "@/types/view";
 import { PhotoLightbox } from "./PhotoLightbox";
+import { Avatar } from "@/components/ui/Avatar";
 
 const LOCALE_TAG: Record<Locale, string> = {
   uz: "uz-UZ",
@@ -107,20 +108,12 @@ export function ReviewsList({
                 {/* Author Info Header */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="relative flex h-10 w-10 overflow-hidden rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-                      {review.avatarUrl ? (
-                        <Image
-                          src={review.avatarUrl}
-                          alt={review.authorName || "Mehmon"}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <span className="grid h-full w-full place-items-center">
-                          <User className="h-5 w-5" />
-                        </span>
-                      )}
-                    </div>
+                    <Avatar
+                      src={review.avatarUrl}
+                      alt={review.authorName || "Mehmon"}
+                      fallback={review.authorName?.charAt(0) || "M"}
+                      size="sm"
+                    />
 
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">

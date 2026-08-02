@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, Ticket } from "lucide-react";
 import type { PromoView } from "@safaar/api-client";
+import { toast } from "sonner";
 
 function discountLabel(promo: PromoView): string {
   if (promo.discountType === "percent") {
@@ -18,9 +19,10 @@ export function PromoCodeCard({ promo }: { promo: PromoView }) {
     try {
       await navigator.clipboard.writeText(promo.code);
       setCopied(true);
+      toast.success("Promo kod nusxalandi!");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard API mavjud bo'lmasa jim o'tkazib yuboriladi
+      toast.error("Nusxalashda xatolik yuz berdi.");
     }
   };
 

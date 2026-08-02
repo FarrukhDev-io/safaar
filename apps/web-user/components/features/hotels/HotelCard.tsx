@@ -2,7 +2,7 @@
 
 import { ArrowRight, Star } from "lucide-react";
 import type { Locale } from "@/i18n/config";
-import { useCurrency } from "@/lib/context/CurrencyContext";
+import { formatSum } from "@/lib/utils/money";
 import { resolveImage } from "@/lib/images";
 import type { HotelListItem } from "@/types/view";
 import { BaseCard } from "@/components/ui/BaseCard";
@@ -21,7 +21,6 @@ export function HotelCard({
   locale: Locale;
   labels: HotelCardLabels;
 }) {
-  const { format } = useCurrency();
   const imageUrl = resolveImage(hotel.imageUrl);
 
   const badge =
@@ -59,7 +58,7 @@ export function HotelCard({
         hotel.minPriceSum > 0 ? (
           <>
             <span className="text-sm font-bold text-slate-900 dark:text-white">
-              {format(hotel.minPriceSum)}
+              {formatSum(hotel.minPriceSum)}
             </span>
             <span className="text-[10px] text-slate-400">
               / {labels.perNight}
