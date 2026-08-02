@@ -31,7 +31,7 @@ function DealCard({
   now: number;
 }) {
   const { format } = useCurrency();
-  const endsInDays = deal.endsAt
+  const endsInDays = deal.endsAt && now > 0
     ? Math.max(0, Math.ceil((Date.parse(deal.endsAt) - now) / 86_400_000))
     : 0;
 
@@ -89,9 +89,10 @@ export function DealsSection({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [now] = useState(() => Date.now());
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
+    setNow(Date.now());
     const el = ref.current;
     if (!el || deals.length < 3) return;
 

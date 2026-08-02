@@ -24,9 +24,11 @@ export function PushSubscriptionManager({
 }: {
   className?: string;
 }) {
-  const [supported] = useState(
-    () => typeof window !== "undefined" && "serviceWorker" in navigator && "Notification" in window
-  );
+  const [supported, setSupported] = useState(false);
+  
+  useEffect(() => {
+    setSupported(typeof window !== "undefined" && "serviceWorker" in navigator && "Notification" in window);
+  }, []);
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
 

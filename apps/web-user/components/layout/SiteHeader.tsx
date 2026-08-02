@@ -26,16 +26,8 @@ export function SiteHeader({
   };
 
   const desktopItems: ScrollNavItem[] = [
-    { href: base, label: dict.nav.home, icon: <Home className="h-4 w-4" />, exact: true },
     {
       href: `${base}/hotels`, label: dict.nav.hotels, icon: <Hotel className="h-4 w-4" />,
-      children: [
-        { href: `${base}/hotels`, label: dict.nav.hotels ?? "Hotels", icon: <Building2 className="h-4 w-4" /> },
-        { href: `${base}/dachas`, label: dict.nav.dachas ?? "Dachas", icon: <Home className="h-4 w-4" /> },
-        { href: `${base}/guesthouses`, label: dict.nav.guesthouses ?? "Guest Houses", icon: <TreePine className="h-4 w-4" /> },
-        { href: `${base}/sanatoriums`, label: dict.nav.sanatoriums ?? "Sanatoriums", icon: <HeartPulse className="h-4 w-4" /> },
-        { href: `${base}/resorts`, label: dict.nav.resorts ?? "Resorts", icon: <Mountain className="h-4 w-4" /> },
-      ],
     },
     {
       href: `${base}/transport`, label: navDict.transport ?? "Transport", icon: <Car className="h-4 w-4" />,

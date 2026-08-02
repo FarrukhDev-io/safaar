@@ -147,31 +147,48 @@ export function MapContainer({
 
       const marker = L.marker(coords, { icon, zIndexOffset: isSelected || isHovered ? 1000 : 0 });
 
-      // Custom Popover HTML
+      // XSS Protection: HTML va string qadriyatlarni escape qilish
+      const escapeHtml = (unsafe: string) => {
+        return (unsafe || "")
+          .toString()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      };
+
+      // XSS Protection: URL'larni 'javascript:' emasligiga ishonch hosil qilish
+      const sanitizeUrl = (url: string) => {
+        if (url.trim().toLowerCase().startsWith("javascript:")) return "#";
+        return encodeURI(url);
+      };
+
+      // Custom Popover HTML with Safe Interpolation
       const popupHtml = `
         <div class="flex flex-col gap-2 p-1 min-w-[220px]">
           ${
             item.imageUrl
               ? `<div class="relative h-28 w-full overflow-hidden rounded-xl bg-slate-100">
-                  <img src="${item.imageUrl}" alt="${item.name}" class="h-full w-full object-cover" />
+                  <img src="${sanitizeUrl(item.imageUrl)}" alt="${escapeHtml(item.name)}" class="h-full w-full object-cover" />
                 </div>`
               : ""
           }
           <div class="flex flex-col gap-1 pt-1">
-            <h3 class="text-sm font-bold text-slate-900">${item.name}</h3>
+            <h3 class="text-sm font-bold text-slate-900">${escapeHtml(item.name)}</h3>
             ${
               item.cityName || item.address
-                ? `<p class="text-xs text-slate-500">${item.cityName ? item.cityName + " · " : ""}${item.address || ""}</p>`
+                ? `<p class="text-xs text-slate-500">${item.cityName ? escapeHtml(item.cityName) + " · " : ""}${escapeHtml(item.address || "")}</p>`
                 : ""
             }
             ${
               item.priceFormatted
-                ? `<p class="mt-1 text-sm font-extrabold text-blue-600">${item.priceFormatted}</p>`
+                ? `<p class="mt-1 text-sm font-extrabold text-blue-600">${escapeHtml(item.priceFormatted)}</p>`
                 : ""
             }
             ${
               item.linkUrl
-                ? `<a href="${item.linkUrl}" class="mt-2 inline-flex items-center justify-center rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700">Batafsil</a>`
+                ? `<a href="${sanitizeUrl(item.linkUrl)}" class="mt-2 inline-flex items-center justify-center rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700">Batafsil</a>`
                 : ""
             }
           </div>

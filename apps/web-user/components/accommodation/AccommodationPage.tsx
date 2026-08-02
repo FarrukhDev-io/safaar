@@ -8,6 +8,7 @@ import { HotelFilters } from "@/components/hotels/HotelFilters";
 import { HotelSortSelect } from "@/components/hotels/HotelSortSelect";
 import { ActiveFilters } from "@/components/hotels/ActiveFilters";
 import { Button } from "@/components/ui/Button";
+import { CategoryTabs } from "@/components/features/accommodation/CategoryTabs";
 import { AccommodationListWithMap } from "@/components/features/accommodation/AccommodationListWithMap";
 import type { HotelListItem } from "@/types/view";
 
@@ -104,6 +105,10 @@ export async function AccommodationPage({
         cities={cities}
         defaults={{ cityId, checkIn, checkOut, guests }}
       />
+      
+      <div className="mt-2">
+        <CategoryTabs locale={locale} dict={common.nav} />
+      </div>
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
