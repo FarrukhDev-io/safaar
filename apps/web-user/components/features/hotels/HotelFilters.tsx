@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
 import { Filter, ChevronDown } from "lucide-react";
 import { FilterSidebar } from "@/components/ui/FilterSidebar";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { FilterGroup } from "@/components/ui/FilterGroup";
 import { Button } from "@/components/ui/Button";
 
@@ -161,22 +162,17 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
             {AMENITIES.map((item) => {
               const checked = selectedAmenities.includes(item.id);
               return (
-                <label
+                <Checkbox
                   key={item.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
+                  checked={checked}
+                  onChange={() => toggleAmenity(item.id)}
+                  label={item.label}
+                  className={`flex-row-reverse justify-between items-center w-full rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
                     checked
-                      ? "border-blue-500 bg-blue-50/50 text-blue-900 font-bold dark:bg-blue-950/50 dark:text-blue-300"
+                      ? "border-blue-500 bg-blue-50/50 !text-blue-900 dark:bg-blue-950/50 dark:!text-blue-300"
                       : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300"
                   }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleAmenity(item.id)}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>{item.label}</span>
-                </label>
+                />
               );
             })}
           </div>
@@ -188,22 +184,17 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
             {PAYMENT_TYPES.map((item) => {
               const checked = selectedPayments.includes(item.id);
               return (
-                <label
+                <Checkbox
                   key={item.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
+                  checked={checked}
+                  onChange={() => togglePayment(item.id)}
+                  label={item.label}
+                  className={`flex-row-reverse justify-between items-center w-full rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
                     checked
-                      ? "border-blue-500 bg-blue-50/50 text-blue-900 font-bold dark:bg-blue-950/50 dark:text-blue-300"
+                      ? "border-blue-500 bg-blue-50/50 !text-blue-900 dark:bg-blue-950/50 dark:!text-blue-300"
                       : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300"
                   }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => togglePayment(item.id)}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>{item.label}</span>
-                </label>
+                />
               );
             })}
           </div>

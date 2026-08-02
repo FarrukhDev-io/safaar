@@ -13,6 +13,7 @@ import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotel
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
 import { PartnersShowcase } from "@/components/features/home/PartnersShowcase";
 import { PromoCodesSectionLive } from "@/components/features/home/PromoCodesSectionLive";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +90,7 @@ export default async function HomePage({
         </div>
 
         {hotels.length > 0 && (
-          <Suspense fallback={<div className="h-48 w-full animate-pulse bg-slate-100 dark:bg-slate-900" />}>
+          <Suspense fallback={<Skeleton className="h-48 w-full" />}>
             <FeaturedHotelsCarousel
               hotels={hotels}
               dict={dict.featured}
@@ -102,7 +103,7 @@ export default async function HomePage({
 
       {/* EKRAN 2: Chegirmadagi takliflar */}
       <div className="py-10 sm:py-14">
-        <Suspense fallback={<div className="h-64 w-full animate-pulse bg-slate-100 dark:bg-slate-900" />}>
+        <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <DealsSection deals={deals} dict={dict.deals} locale={locale} />
         </Suspense>
       </div>
@@ -112,7 +113,7 @@ export default async function HomePage({
 
       {/* EKRAN 4: City Cards */}
       <div className="py-10 sm:py-16 md:py-20">
-        <Suspense fallback={<div className="h-64 w-full animate-pulse bg-slate-100 dark:bg-slate-900" />}>
+        <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <CityCardsSection locale={locale} dict={dict.popularCities} />
         </Suspense>
       </div>
