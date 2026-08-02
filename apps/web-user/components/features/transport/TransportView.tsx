@@ -9,8 +9,6 @@ import type { TransportItem } from "@/components/catalog/types";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 
-import { BaseCard } from "@/components/ui/BaseCard";
-
 export type { TransportItem };
 
 function TransportCard({

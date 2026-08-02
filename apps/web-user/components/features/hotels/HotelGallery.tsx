@@ -47,29 +47,6 @@ export function HotelGallery({
           />
         </div>
 
-        {/* 4 Smaller Grid Side Photos */}
-        {sidePhotos.map((src, i) => (
-          <div
-            key={`${src}-${i}`}
-            className={cn(
-              'relative hidden overflow-hidden bg-slate-100 sm:block dark:bg-slate-800',
-              i === 0 && 'sm:col-span-1 sm:row-span-1',
-              i === 1 && 'sm:col-span-1 sm:row-span-1',
-              i === 2 && 'sm:col-span-1 sm:row-span-1',
-              i === 3 && 'sm:col-span-1 sm:row-span-1',
-            )}
-          >
-            <Image
-              src={mainPhoto}
-              alt={`${alt} — Asosiy ko'rinish`}
-              priority
-              fill
-              sizes="(max-width: 640px) 100vw, 50vw"
-              className="object-cover transition-transform duration-500 hover:scale-105"
-              quality={90}
-            />
-          </div>
-
           {/* 4 Smaller Grid Side Photos */}
           {sidePhotos.map((src, i) => (
             <div
@@ -93,21 +70,7 @@ export function HotelGallery({
           ))}
         </div>
 
-        {/* "See all photos" Overlay Button */}
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            setActiveIndex(0);
-            setIsLightboxOpen(true);
-          }}
-          className="absolute bottom-3 right-3 z-10 gap-1.5 rounded-xl border border-white/20 bg-slate-950/75 px-3 py-1.5 text-xs font-extrabold text-white shadow-md backdrop-blur-md hover:bg-slate-950/90 active:scale-95"
-        >
-          <Camera className="h-4 w-4 text-amber-300" />
-          <span>Barcha {shots.length}+ rasmlar</span>
-        </Button>
-      </div>
+
 
       {shots.length > 1 && (
         <div className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md backdrop-blur-md">
