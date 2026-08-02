@@ -1,10 +1,11 @@
+import { Skeleton } from "@/components/ui/Skeleton";
 export default function Loading() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
       {/* Header Skeleton */}
       <div className="flex flex-col gap-3">
-        <div className="h-8 w-64 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
-        <div className="h-4 w-96 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800/60" />
+        <Skeleton className="h-8 w-64 rounded-xl" />
+        <Skeleton className="h-4 w-96 rounded-lg" />
       </div>
 
       {/* Grid Skeleton */}
@@ -14,11 +15,11 @@ export default function Loading() {
             key={i}
             className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
           >
-            <div className="aspect-16/9 w-full animate-pulse bg-slate-200 dark:bg-slate-800" />
+            <Skeleton className="aspect-16/9 w-full" />
             <div className="flex flex-col gap-2.5 p-4">
-              <div className="h-4 w-3/4 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
-              <div className="h-3 w-1/2 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800/60" />
-              <div className="mt-2 h-5 w-1/3 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+              <Skeleton className="h-4 w-3/4 rounded-md" />
+              <Skeleton className="h-3 w-1/2 rounded-md" />
+              <Skeleton className="mt-2 h-5 w-1/3 rounded-md" />
             </div>
           </div>
         ))}

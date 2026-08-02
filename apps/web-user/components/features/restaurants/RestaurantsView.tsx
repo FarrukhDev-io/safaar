@@ -8,6 +8,7 @@ import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import type { RestaurantItem } from "@/components/catalog/types";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Select } from "@/components/ui/Select";
 
 export type { RestaurantItem };
 
@@ -129,30 +130,24 @@ export function RestaurantsView({
         searchPlaceholder={dict.searchPlaceholder}
         filterControls={
           <div className="flex flex-wrap gap-2">
-            <select
+            <Select
               value={selectedCity}
-              onChange={(event) => setSelectedCity(event.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">{dict.allCities}</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-            <select
+              onChange={setSelectedCity}
+              options={[
+                { value: "all", label: dict.allCities },
+                ...cities.map((city) => ({ value: city, label: city }))
+              ]}
+              className="w-44"
+            />
+            <Select
               value={selectedCuisine}
-              onChange={(event) => setSelectedCuisine(event.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">{allCuisinesLabel}</option>
-              {cuisines.map((cuisine) => (
-                <option key={cuisine} value={cuisine}>
-                  {cuisine}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedCuisine}
+              options={[
+                { value: "all", label: allCuisinesLabel },
+                ...cuisines.map((cuisine) => ({ value: cuisine, label: cuisine }))
+              ]}
+              className="w-44"
+            />
           </div>
         }
       />

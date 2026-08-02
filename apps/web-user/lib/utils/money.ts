@@ -4,8 +4,6 @@
 
 export type CurrencyCode = "UZS" | "USD" | "EUR" | "RUB";
 
-export const TIYIN_PER_SUM = 100;
-
 export const DEFAULT_EXCHANGE_RATES: Record<CurrencyCode, number> = {
   UZS: 1,
   USD: 12650,
@@ -23,10 +21,6 @@ export const CURRENCY_INFO: Record<
   RUB: { code: "RUB", symbol: "₽", flag: "🇷🇺", name: "Российский рубль" },
 };
 
-/** Tiyin (butun) → so'm. */
-export function tiyinToSum(tiyin: number): number {
-  return Math.round(tiyin) / TIYIN_PER_SUM;
-}
 
 /**
  * Valyuta bo'yicha narxni konvertatsiya qilish va formatlash.
@@ -71,7 +65,3 @@ export function formatSum(sum: number): string {
   return formatMoney(sum, "UZS");
 }
 
-/** Tiyinni to'g'ridan-to'g'ri so'm matniga. */
-export function formatTiyin(tiyin: number): string {
-  return formatSum(tiyinToSum(tiyin));
-}

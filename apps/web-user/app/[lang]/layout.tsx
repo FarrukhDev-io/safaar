@@ -12,8 +12,8 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { PwaInstallBanner } from "@/components/pwa/PwaInstallBanner";
 import dynamic from "next/dynamic";
-import { CurrencyProvider } from "@/lib/context/CurrencyContext";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
+import { Toaster } from "sonner";
 import { config } from "@/lib/config";
 
 const LiveSupportWidget = dynamic(
@@ -99,12 +99,11 @@ export default async function LangLayout({
     >
       <body className="flex min-h-full flex-col bg-slate-100/60 text-slate-900 subpixel-antialiased dark:bg-slate-950 dark:text-slate-100">
         <AnalyticsProvider>
-          <CurrencyProvider>
-            {children}
-            <ServiceWorkerRegister />
-            <PwaInstallBanner />
-            <LiveSupportWidget />
-          </CurrencyProvider>
+          {children}
+          <Toaster position="top-right" richColors />
+          <ServiceWorkerRegister />
+          <PwaInstallBanner />
+          <LiveSupportWidget />
         </AnalyticsProvider>
       </body>
     </html>

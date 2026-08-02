@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
-import { useCurrency } from "@/lib/context/CurrencyContext";
+import { formatSum } from "@/lib/utils/money";
 import { BaseCard } from "@/components/ui/BaseCard";
 
 export interface DealItem {
@@ -30,7 +30,6 @@ function DealCard({
   dict: HomeDict["deals"];
   now: number;
 }) {
-  const { format } = useCurrency();
   const endsInDays = deal.endsAt && now > 0
     ? Math.max(0, Math.ceil((Date.parse(deal.endsAt) - now) / 86_400_000))
     : 0;
@@ -61,10 +60,10 @@ function DealCard({
       footerLeft={
         <>
           <span className="text-xs text-slate-400 line-through">
-            {format(deal.oldPriceSum)}
+            {formatSum(deal.oldPriceSum)}
           </span>
           <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-            {format(deal.newPriceSum)}
+            {formatSum(deal.newPriceSum)}
           </span>
           <span className="text-[10px] text-slate-400">/ {dict.perNight}</span>
         </>

@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/Skeleton";
 /**
  * Kabinet tarkibi yuklanayotganda ko'rinadigan skeleton.
  * `account/layout.tsx` (sarlavha + AccountNav) saqlanadi, faqat tarkib joyida
@@ -7,7 +8,7 @@
 export default function AccountLoading() {
   return (
     <div className="flex flex-col gap-4">
-      <div className="h-40 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      <Skeleton className="h-40 rounded-xl" />
       {Array.from({ length: 2 }).map((_, i) => (
         <div
           key={i}
