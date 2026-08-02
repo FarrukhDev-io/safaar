@@ -240,5 +240,5 @@ jobs:
           Barcha tekshiruvlardan muvaffaqiyatli o'tgan develop'dagi o'zgarishlar main'ga merge qilinmoqda." \
             2>/dev/null || echo "PR allaqachon mavjud"
 
-          gh pr merge --auto --squash --base main 2>/dev/null || \
+          gh pr merge --auto --squash 2>/dev/null || \
             echo "Auto-merge yoqilgan yoki PR yopiq"
