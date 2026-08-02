@@ -14,6 +14,8 @@ import { DealsSection, type DealItem } from "@/components/features/home/DealsSec
 import { PartnersShowcase } from "@/components/features/home/PartnersShowcase";
 import { PromoCodesSectionLive } from "@/components/features/home/PromoCodesSectionLive";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: {

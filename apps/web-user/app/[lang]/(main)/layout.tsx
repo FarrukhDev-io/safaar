@@ -7,6 +7,8 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { getPromoBarConfig } from "@/lib/promo";
 import { RealtimeProvider } from "@/lib/services/realtime/socket-provider";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Main layout — SiteHeader + PromoBar + Footer.
  * Barcha sahifalar (login'dan tashqari) shu layout ichida.
