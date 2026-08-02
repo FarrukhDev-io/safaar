@@ -40,28 +40,26 @@ export function RoomList({
         return (
           <li
             key={room.id}
-            className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-slate-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900"
+            className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all duration-200 hover:border-slate-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900"
           >
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               <h3 className="text-base font-bold text-slate-900 dark:text-white sm:text-lg">
                 {room.name}
               </h3>
               
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                <span className="inline-flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-200/40 px-2.5 py-0.5 text-xs font-semibold text-slate-650 dark:bg-slate-850 dark:text-slate-350">
                   <Users className="h-3.5 w-3.5 text-slate-400" />
                   {dict.capacity}: {room.capacity} {dict.guests}
                 </span>
 
-                <span className="text-slate-300">|</span>
-
                 {soldOut ? (
-                  <span className="inline-flex items-center gap-1 font-semibold text-red-600 dark:text-red-400">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-100/50 px-2.5 py-0.5 text-xs font-bold text-red-650 dark:bg-red-950/20 dark:text-red-400">
                     <AlertCircle className="h-3.5 w-3.5" />
                     {dict.soldOut}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-100/50 px-2.5 py-0.5 text-xs font-bold text-emerald-650 dark:bg-emerald-950/20 dark:text-emerald-400">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     {room.available} {dict.available}
                   </span>

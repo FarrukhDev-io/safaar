@@ -58,6 +58,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:types
+      - run: npm run build -w @safaar/api-client
       - run: npm run lint -w @safaar/web-user
       - run: npm run build:user
 
@@ -73,6 +74,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:types
+      - run: npm run build -w @safaar/api-client
       - run: npm run lint -w @safaar/web-partner
       - run: npm run build:partner
 
@@ -88,6 +90,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:types
+      - run: npm run build -w @safaar/api-client
       - run: npm run lint -w @safaar/web-admin
       - run: npm run build:admin
 
@@ -154,14 +157,14 @@ jobs:
                   OWNER="adhambek"
                   ;;
                 # @Lazizdeveloper
-                apps/backend/* | packages/types/* | package.json | package-lock.json | CODEOWNERS | tsconfig.json | .prettierrc)
+                apps/backend/* | packages/types/* | CODEOWNERS | tsconfig.json | .prettierrc)
                   OWNER="laziz"
                   ;;
                 # Shared — hamma tegishi mumkin
                 .github/* | *.md | AGENTS.md | CONTRIBUTING.md | .gitignore | .gitattributes)
                   OWNER="shared"
                   ;;
-                railway.json | docker-compose* | vercel.json | .env* | next.config* | postcss.config* | eslint* | tsconfig*)
+                railway.json | docker-compose* | vercel.json | .env* | next.config* | postcss.config* | eslint* | tsconfig* | package.json | package-lock.json)
                   OWNER="shared"
                   ;;
               esac

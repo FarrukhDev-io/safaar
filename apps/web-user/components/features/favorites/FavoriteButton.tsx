@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import type { FavoritesDict } from "@/i18n/dictionaries";
+import { Button } from "@/components/ui/Button";
 import {
   addFavoriteAction,
   removeFavoriteAction,
@@ -69,22 +70,26 @@ export function FavoriteButton({
   }
 
   return (
-    <button
+    <Button
       type="button"
       onClick={handleClick}
       disabled={pending}
+      variant="secondary"
+      size="sm"
       aria-pressed={isFavorite}
       aria-label={label}
       title={pending ? dict.pending : label}
       className={cn(
-        "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center gap-2 border border-slate-200 hover:border-slate-350 shadow-2xs font-semibold",
         isFavorite
-          ? "border-primary-200 bg-primary-50 text-primary-600"
-          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+          ? "bg-rose-50 border-rose-100 hover:bg-rose-100/80 text-rose-600"
+          : "text-slate-700",
       )}
     >
-      <span aria-hidden>{isFavorite ? "♥" : "♡"}</span>
+      <span aria-hidden className={cn("text-xs transition-transform duration-200", isFavorite ? "text-rose-500 scale-110" : "text-slate-400")}>
+        {isFavorite ? "♥" : "♡"}
+      </span>
       <span>{isFavorite ? dict.added : dict.add}</span>
-    </button>
+    </Button>
   );
 }

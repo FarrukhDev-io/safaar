@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/Button";
 
 interface Props {
   href?: string;
@@ -23,16 +24,18 @@ export function BackButton({ href, className }: Props) {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="secondary"
+      size="sm"
       onClick={handleClick}
       aria-label="Orqaga"
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-800 shadow-btn transition-all duration-150 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 hover:shadow-btn-hover active:scale-[0.97] active:shadow-btn-active",
+        "h-9 w-9 min-h-0 !p-0 flex items-center justify-center border border-slate-200 hover:border-slate-350 shadow-2xs",
         className,
       )}
     >
-      <ArrowLeft className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-    </button>
+      <ArrowLeft className="h-5 w-5 text-slate-700" strokeWidth={2.5} aria-hidden />
+    </Button>
   );
 }

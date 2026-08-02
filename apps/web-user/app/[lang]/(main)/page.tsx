@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { SearchBar } from "@/components/search/SearchBar";
 import { Hero } from "@/components/features/home/Hero";
 import { CityCardsSection } from "@/components/features/home/CityCardsSection";
-import { TrustBar } from "@/components/features/home/TrustBar";
+
 import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotelsCarousel";
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
 import { PartnersShowcase } from "@/components/features/home/PartnersShowcase";
@@ -67,7 +67,7 @@ export default async function HomePage({
         <Hero dict={dict.hero} />
 
         <div className="relative z-40">
-          <section id="search-section" className="bg-slate-50 pb-10 pt-6 sm:pb-14 sm:pt-8 dark:bg-slate-900/50">
+          <section id="search-section" className="bg-transparent pb-10 pt-6 sm:pb-14 sm:pt-8">
             <div className="mx-auto max-w-4xl px-4">
               <SearchBar locale={locale} dict={common.search} cities={cities} />
             </div>
@@ -79,7 +79,7 @@ export default async function HomePage({
                 <Link
                   key={city.id}
                   href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-                  className="shrink-0 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 active:scale-95 sm:px-4 sm:py-2"
+                  className="shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 active:scale-95 sm:px-5 sm:py-2.5 sm:text-sm"
                 >
                   {city.name}
                 </Link>
@@ -117,11 +117,9 @@ export default async function HomePage({
         </Suspense>
       </div>
 
-      {/* EKRAN 5: Ishonchli hamkorlar */}
-      <PartnersShowcase dict={dict.partners} />
 
-      {/* EKRAN 6: Trust Bar */}
-      <TrustBar dict={dict.trust} stats={stats} />
+
+
     </main>
   );
 }

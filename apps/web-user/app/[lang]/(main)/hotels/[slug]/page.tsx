@@ -84,8 +84,8 @@ export async function generateMetadata({
   params: Promise<{ lang: string; slug: string }>;
 }): Promise<Metadata> {
   const { lang, slug } = await params;
-  if (!isLocale(lang)) return {};
-  const hotel = await getCachedHotel(lang as Locale, slug);
+  const locale = isLocale(lang) ? lang : "uz";
+  const hotel = await getCachedHotel(locale, slug);
   if (!hotel || hotel === 404) return {};
   return {
     title: `${hotel.name} — Safaar`,
@@ -101,8 +101,7 @@ export default async function Page({
   searchParams: Promise<SearchParams>;
 }) {
   const { lang, slug } = await params;
-  if (!isLocale(lang)) notFound();
-  const locale = lang as Locale;
+  const locale = isLocale(lang) ? lang : "uz";
   const sp = await searchParams;
 
   const [hotel, dict, favDict, reviewsDict, session, amenitiesRes] =
@@ -207,7 +206,7 @@ export default async function Page({
                 {dict.amenities}
               </h2>
               <ul className="flex flex-wrap gap-2">
-                {hotel.amenities.map((id) => {
+                {hotel.amenities.map((id: string) => {
                   const Icon = AMENITY_ICONS[id];
                   return (
                     <li
