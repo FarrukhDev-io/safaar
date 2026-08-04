@@ -10,68 +10,23 @@ import {
 } from 'class-validator';
 
 export class CreateHotelBookingDto {
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsString()
-  hotel_id?: string;
+  @IsNotEmpty()
+  hotel_id!: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsString()
-  hotelId?: string;
+  @IsNotEmpty()
+  room_id!: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ example: '2026-07-01' })
   @IsString()
-  room_id?: string;
+  check_in!: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ example: '2026-07-03' })
   @IsString()
-  roomId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  roomTypeId?: string;
-
-  @ApiPropertyOptional({ example: '2026-07-01' })
-  @IsOptional()
-  @IsString()
-  check_in?: string;
-
-  @ApiPropertyOptional({ example: '2026-07-01' })
-  @IsOptional()
-  @IsString()
-  checkIn?: string;
-
-  @ApiPropertyOptional({ example: '2026-07-03' })
-  @IsOptional()
-  @IsString()
-  check_out?: string;
-
-  @ApiPropertyOptional({ example: '2026-07-03' })
-  @IsOptional()
-  @IsString()
-  checkOut?: string;
-
-  @ApiPropertyOptional({ example: '18:00' })
-  @IsOptional()
-  @IsString()
-  slot_time?: string;
-
-  @ApiPropertyOptional({ example: '18:00' })
-  @IsOptional()
-  @IsString()
-  slotTime?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  totalPrice?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  total_price?: number;
+  check_out!: string;
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
@@ -84,10 +39,6 @@ export class CreateHotelBookingDto {
   @IsInt()
   @Min(1)
   adults?: number;
-
-  @ApiPropertyOptional({ default: 1 })
-  @IsOptional()
-  guests?: number;
 
   @ApiPropertyOptional({
     default: 'click',
@@ -110,35 +61,15 @@ export class CreateHotelBookingDto {
   @IsString()
   guest_name?: string;
 
-  @ApiPropertyOptional({ example: 'Laziz Shakarov' })
-  @IsOptional()
-  @IsString()
-  guestName?: string;
-
   @ApiPropertyOptional({ example: 'laziz@example.com' })
   @IsOptional()
   @IsString()
   guest_email?: string;
 
-  @ApiPropertyOptional({ example: 'laziz@example.com' })
-  @IsOptional()
-  @IsString()
-  guestEmail?: string;
-
   @ApiPropertyOptional({ example: '+998901234567' })
   @IsOptional()
   @IsString()
   guest_phone?: string;
-
-  @ApiPropertyOptional({ example: '+998901234567' })
-  @IsOptional()
-  @IsString()
-  guestPhone?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  source?: string;
 }
 
 export class CreateBusBookingDto {

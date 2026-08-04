@@ -45,7 +45,6 @@ function RestaurantCard({
 
   return (
     <BaseCard
-      href={`/restaurants/${item.id}`}
       imageSrc={item.imageUrl}
       imageAlt={item.name}
       badge={badge}
@@ -69,17 +68,12 @@ function RestaurantCard({
       }
       footerRight={
         item.phone ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              window.location.href = `tel:${item.phone.replace(/\s+/g, "")}`;
-            }}
+          <a
+            href={`tel:${item.phone.replace(/\s+/g, "")}`}
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <PhoneCall className="h-3.5 w-3.5" />
-          </button>
+          </a>
         ) : undefined
       }
     />

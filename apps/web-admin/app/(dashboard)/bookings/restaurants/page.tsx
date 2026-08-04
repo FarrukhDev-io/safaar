@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
@@ -14,7 +14,7 @@ import type { AdminRestaurantBooking } from "@/types/admin";
 import { Download } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { exportToExcel } from "@/lib/export";
-import { AdminApi } from "@/lib/api/admin-api";
+
 import { useAdminStore } from "@/lib/store";
 
 const ITEMS_PER_PAGE = 12;
@@ -22,12 +22,6 @@ const ITEMS_PER_PAGE = 12;
 export default function RestaurantBookingsPage() {
   const router = useRouter();
   const bookings = useAdminStore((s) => s.restaurantBookings);
-  const setRestaurantBookings = useAdminStore((s) => s.setRestaurantBookings);
-
-  useEffect(() => {
-    AdminApi.getRestaurantBookings().then((items) => setRestaurantBookings(items));
-  }, [setRestaurantBookings]);
-
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");

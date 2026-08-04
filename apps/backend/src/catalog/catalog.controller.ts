@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 
 type CatalogQuery = Record<string, string | string[] | undefined>;
@@ -80,10 +80,5 @@ export class RestaurantsController {
   @Get()
   findAll(@Query() query: CatalogQuery) {
     return this.catalogService.restaurants(query);
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.catalogService.restaurant(id);
   }
 }

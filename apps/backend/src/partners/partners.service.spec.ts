@@ -249,25 +249,18 @@ describe('PartnersService frontend action endpoints', () => {
     expect(eventsMock.adminDashboardUpdated).toHaveBeenCalledTimes(1);
   });
 
-  it('auto-creates amenity codes that are not in the catalog', async () => {
+  it('rejects amenity codes that are not in the catalog', async () => {
     pgMock.query
       .mockResolvedValueOnce([hotelRow])
       .mockResolvedValueOnce([
         { code: 'wifi', id: '00000000-0000-0000-0000-000000000004' },
-      ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        { code: 'wifi', id: '00000000-0000-0000-0000-000000000004' },
-        { code: 'unknown-amenity', id: '00000000-0000-0000-0000-000000000005' },
-      ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([hotelRow]);
+      ]);
 
-    const res = await service.updateListingAmenities(actor, hotelId, {
-      amenities: ['wifi', 'unknown-amenity'],
-    });
-    expect(res).toBeDefined();
+    await expect(
+      service.updateListingAmenities(actor, hotelId, {
+        amenities: ['wifi', 'unknown-amenity'],
+      }),
+    ).rejects.toThrow('Qulayliklar katalogdan topilmadi');
   });
 
   describe('createBooking — restoran stol/vaqt-slot himoyasi', () => {

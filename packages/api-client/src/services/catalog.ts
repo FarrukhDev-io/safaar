@@ -46,30 +46,6 @@ export interface RestaurantCatalogView {
   phone: string;
 }
 
-export interface RestaurantDetailView {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  cityName: string;
-  address: string;
-  workingHours: string;
-  checkInTime?: string;
-  checkOutTime?: string;
-  phone: string;
-  rating: number;
-  reviewsCount: number;
-  imageUrl: string;
-  images: string[];
-  tables: Array<{
-    id: string;
-    code: string;
-    name: string;
-    capacity: number;
-    basePriceSum: number;
-  }>;
-}
-
 export interface TransportCatalogView {
   id: string;
   name: string;
@@ -231,7 +207,7 @@ export const catalogService = {
 
   async getRestaurants(locale: Locale): Promise<RestaurantCatalogView[]> {
     const raw = await rawApi.get<unknown>("/catalog/restaurants", {
-      cache: "no-store",
+      next: { revalidate: 3600 },
     } as any);
     const items = camelizeKeys<RawRestaurant[]>(raw);
     return (items ?? []).map((item) => ({
@@ -242,43 +218,11 @@ export const catalogService = {
       cuisine: item.cuisine ?? "",
       rating: Number(item.rating ?? 0),
       reviewsCount: Number(item.reviewsCount ?? 0),
-      averageCheckSum: Number(item.averageCheck ?? 0),
+      averageCheckSum: tiyinToSum(item.averageCheck ?? 0),
       workingHours: item.workingHours ?? "",
       imageUrl: item.imageUrl ?? "",
       phone: item.phone ?? "",
     }));
-  },
-
-  async getRestaurant(idOrSlug: string, locale: Locale): Promise<RestaurantDetailView> {
-    const raw = await rawApi.get<unknown>(`/restaurants/${encodeURIComponent(idOrSlug)}`, {
-      cache: "no-store",
-    } as any);
-    const item = camelizeKeys<any>(raw);
-    return {
-      id: item.id,
-      slug: item.slug ?? "",
-      name: pickLocale(item.name, locale),
-      description: pickLocale(item.description, locale),
-      cityName: pickLocale(item.city?.name ?? item.cityName, locale),
-      address: item.address ?? "",
-      workingHours: item.workingHours ?? "",
-      checkInTime: item.checkInTime ?? "",
-      checkOutTime: item.checkOutTime ?? "",
-      phone: item.phone ?? "",
-      rating: Number(item.rating ?? 0),
-      reviewsCount: Number(item.reviewsCount ?? 0),
-      imageUrl: item.imageUrl ?? "",
-      images: Array.isArray(item.images) ? item.images : [],
-      tables: Array.isArray(item.tables)
-        ? item.tables.map((t: any) => ({
-            id: t.id,
-            code: t.code,
-            name: t.name ?? `Stol № ${t.code}`,
-            capacity: Number(t.capacity ?? 4),
-            basePriceSum: Number(t.basePrice ?? 0),
-          }))
-        : [],
-    };
   },
 
   async getTransports(locale: Locale): Promise<TransportCatalogView[]> {

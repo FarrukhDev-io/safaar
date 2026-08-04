@@ -4,7 +4,6 @@ import {
   Partner,
   AdminHotelBooking,
   AdminBusBooking,
-  AdminRestaurantBooking,
   PartnerRequest,
   CatalogAmenity,
   CatalogRegion,
@@ -297,74 +296,6 @@ function toBusBooking(row: ApiRecord): AdminBusBooking {
     commission: asNumber(row.commission_amount),
     status: bookingStatus(row.status),
     createdAt: asString(row.created_at, new Date().toISOString()),
-  };
-}
-
-function toRestaurantBooking(row: ApiRecord): AdminRestaurantBooking {
-  const item = asRecord(row.item);
-  const priceSnapshot = asRecord(row.price_snapshot ?? row.priceSnapshot);
-  return {
-    id: asString(row.booking_number ?? row.bookingNumber ?? row.id),
-    customerName: asString(
-      row.guest_name ??
-        row.guestName ??
-        priceSnapshot.guestName ??
-        priceSnapshot.guest_name ??
-        row.user_name ??
-        row.userName ??
-        row.customer_name ??
-        row.customerName,
-      'Mijoz',
-    ),
-    customerPhone: asString(
-      row.guest_phone ??
-        row.guestPhone ??
-        priceSnapshot.guestPhone ??
-        priceSnapshot.guest_phone ??
-        row.user_phone ??
-        row.userPhone ??
-        row.customer_phone ??
-        row.customerPhone,
-      '—',
-    ),
-    restaurantName: asString(
-      row.hotel_name ??
-        row.hotelName ??
-        item.name ??
-        row.partner_name ??
-        row.partnerName,
-      'Restoran',
-    ),
-    tableType: asString(
-      priceSnapshot.tableName ??
-        priceSnapshot.room_type ??
-        priceSnapshot.roomType ??
-        item.room_type,
-      'Stol',
-    ),
-    date: asString(
-      priceSnapshot.check_in ??
-        priceSnapshot.checkIn ??
-        row.created_at ??
-        row.createdAt,
-      new Date().toISOString().split('T')[0],
-    ),
-    slotTime: asString(
-      priceSnapshot.slot_time ??
-        priceSnapshot.slotTime ??
-        row.slot_time ??
-        row.slotTime,
-      '18:00',
-    ),
-    guests: asNumber(
-      priceSnapshot.adults ?? priceSnapshot.guests ?? row.guests,
-      2,
-    ),
-    amount: asNumber(row.total_amount ?? row.totalAmount ?? row.subtotal),
-    paymentMethod: paymentMethod(row.payment_method ?? row.paymentMethod),
-    commission: asNumber(row.commission_amount ?? row.commissionAmount),
-    status: bookingStatus(row.status),
-    createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
   };
 }
 
@@ -974,7 +905,7 @@ export const AdminApi = {
     const { data } = await apiClient.get('/admin/bookings');
     return unknownItems(data)
       .map(asRecord)
-      .filter((booking) => booking.type !== 'bus' && booking.type !== 'restaurant')
+      .filter((booking) => booking.type !== 'bus')
       .map(toHotelBooking);
   },
 
@@ -984,14 +915,6 @@ export const AdminApi = {
       .map(asRecord)
       .filter((booking) => booking.type === 'bus')
       .map(toBusBooking);
-  },
-
-  getRestaurantBookings: async (): Promise<AdminRestaurantBooking[]> => {
-    const { data } = await apiClient.get('/admin/bookings');
-    return unknownItems(data)
-      .map(asRecord)
-      .filter((booking) => booking.type === 'restaurant')
-      .map(toRestaurantBooking);
   },
 
   getBookingDetail: async (id: string): Promise<BookingDetail> => {
