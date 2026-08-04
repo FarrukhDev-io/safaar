@@ -3,7 +3,7 @@
 import {
   Activity,
   BedDouble,
-  Bus,
+  CarFront,
   DollarSign,
   TrendingDown,
   TrendingUp,
@@ -133,7 +133,7 @@ export function ReportsView() {
           label={isBus ? "Yangi Qatnov Bronlari" : "Yangi Bronlar"}
           value={monthBookings.toString()}
           trend={{ value: 8, positive: true }}
-          icon={isBus ? <Bus className="h-6 w-6" /> : restaurant ? <UtensilsCrossed className="h-6 w-6" /> : <BedDouble className="h-6 w-6" />}
+          icon={isBus ? <CarFront className="h-6 w-6" /> : restaurant ? <UtensilsCrossed className="h-6 w-6" /> : <BedDouble className="h-6 w-6" />}
           tone="success"
         />
       </section>

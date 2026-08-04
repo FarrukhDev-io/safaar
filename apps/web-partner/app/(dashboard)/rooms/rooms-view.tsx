@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, BedSingle, UtensilsCrossed, Users, Bus } from "lucide-react";
+import { BedDouble, BedSingle, UtensilsCrossed, Users, CarFront } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../_components/layout/page-header";
@@ -73,7 +73,7 @@ export function RoomsView() {
         <div className="mt-4 sm:mt-0">
           <Button onClick={() => setAddingRoom(true)}>
             {isBus ? (
-              <Bus className="mr-2 h-4 w-4" />
+              <CarFront className="mr-2 h-4 w-4" />
             ) : restaurant ? (
               <UtensilsCrossed className="mr-2 h-4 w-4" />
             ) : (
@@ -174,7 +174,7 @@ function RoomCard({
         </span>
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400">
           {isBus ? (
-            <Bus className="h-4 w-4" />
+            <CarFront className="h-4 w-4" />
           ) : restaurant ? (
             <UtensilsCrossed className="h-4 w-4" />
           ) : (

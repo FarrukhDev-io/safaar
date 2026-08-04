@@ -2,7 +2,7 @@
 
 import {
   BedDouble,
-  Bus,
+  CarFront,
   CalendarCheck,
   CalendarPlus,
   CalendarRange,
@@ -560,7 +560,7 @@ function ReservationCard({
                 }
               />
               <MiniInfo
-                icon={isBus ? <Bus /> : restaurant ? <UtensilsCrossed /> : <BedDouble />}
+                icon={isBus ? <CarFront /> : restaurant ? <UtensilsCrossed /> : <BedDouble />}
                 label={labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1)}
                 value={`${reservation.roomTypeName}${
                   reservation.roomNumber ? ` · ${reservation.roomNumber}` : ""

@@ -43,14 +43,14 @@ const TABLE_AMENITY_OPTIONS = [
 
 const BUS_AMENITY_OPTIONS = [
   { value: "ac", label: "Konditsioner" },
-  { value: "wifi", label: "Wi-Fi" },
-  { value: "usb", label: "USB Zaryadka" },
-  { value: "tv", label: "TV Monitolar" },
-  { value: "seats_recline", label: "Yotadigan o'rindiqlar" },
-  { value: "wc", label: "Hojatxona (WC)" },
-  { value: "luggage", label: "Keng bagajxona" },
-  { value: "water", label: "Salqin ichimlik suvi" },
-  { value: "curtains", label: "Pardalar" },
+  { value: "bluetooth", label: "Bluetooth Media" },
+  { value: "leather", label: "Charm salon" },
+  { value: "cruise", label: "Kruiz nazorati" },
+  { value: "rear_camera", label: "Orqa ko'rinish kamerasi" },
+  { value: "sunroof", label: "Lyuk/Panarama" },
+  { value: "heated_seats", label: "O'rindiq isitgichi" },
+  { value: "child_seat", label: "Bolalar o'rindig'i (ixtiyoriy)" },
+  { value: "gps", label: "GPS Navigatsiya" },
 ];
 
 const schema = z.object({
@@ -186,7 +186,9 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
       onClose={onClose}
       title={editing ? `${labels.unitTypeLabel}ni tahrirlash` : `Yangi ${labels.unitTypeLabel.toLowerCase()}`}
       description={
-        restaurant
+        isBus
+          ? "Masalan: Sedan, SUV, Miniven, Biznes klass"
+          : restaurant
           ? "Masalan: 2 kishilik, Terrasa, VIP xona"
           : "Masalan: Standart, Lyuks, Family Suite"
       }
@@ -199,7 +201,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
             <Label htmlFor="rt-name">Nomi</Label>
             <Input
               id="rt-name"
-              placeholder="Standart"
+              placeholder={isBus ? "Sedan" : "Standart"}
               aria-invalid={Boolean(err.name)}
               {...form.register("name")}
             />
@@ -209,7 +211,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="rt-capacity">Sig'imi (necha kishi)</Label>
+            <Label htmlFor="rt-capacity">{isBus ? "O'rindiqlar soni" : "Sig'imi (necha kishi)"}</Label>
             <Input
               id="rt-capacity"
               type="number"
@@ -223,7 +225,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
             <Label htmlFor="rt-desc">Qisqa tavsif</Label>
             <Input
               id="rt-desc"
-              placeholder={restaurant ? "Deraza yonida, 4 kishilik..." : "Keng, balkonli xona..."}
+              placeholder={isBus ? "Yangi, qulay salon, yoqilg'i tejamkor..." : restaurant ? "Deraza yonida, 4 kishilik..." : "Keng, balkonli xona..."}
               {...form.register("description")}
             />
             {err.description && (
@@ -236,19 +238,20 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
           {!restaurant && (
             <>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="rt-bed">Karavot turi</Label>
+                <Label htmlFor="rt-bed">{isBus ? "Uzatma (KPP)" : "Karavot turi"}</Label>
                 <Input
                   id="rt-bed"
-                  placeholder="1 king bed"
+                  placeholder={isBus ? "Avtomat" : "1 king bed"}
                   {...form.register("bedType")}
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="rt-size">Maydon (m²)</Label>
+                <Label htmlFor="rt-size">{isBus ? "Bagaj hajmi (L)" : "Maydon (m²)"}</Label>
                 <Input
                   id="rt-size"
                   type="number"
+                  placeholder={isBus ? "500" : ""}
                   min={0}
                   max={500}
                   {...form.register("sizeSqm", {

@@ -237,14 +237,14 @@ export function WalkInDialog({
       title={labels.walkInTitle}
       description={
         isBus
-          ? "Kassadan to'g'ridan-to'g'ri chipta olgan yo'lovchi uchun."
+          ? "Mijozga to'g'ridan-to'g'ri mashina ijaraga berish uchun."
           : "Resepsiyonga to'g'ridan-to'g'ri kelgan mehmon uchun."
       }
       size="lg"
     >
       <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-1.5 md:col-span-2">
-          <Label htmlFor="fullName">{isBus ? "Yo'lovchi FIO" : "Mehmon FIO"}</Label>
+          <Label htmlFor="fullName">{isBus ? "Mijoz (Haydovchi) FIO" : "Mehmon FIO"}</Label>
           <Input
             id="fullName"
             placeholder="Aliyev Sherzod"

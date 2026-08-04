@@ -3,6 +3,7 @@
 import {
   Baby,
   BedDouble,
+  CarFront,
   Camera,
   CheckCircle2,
   Cigarette,
@@ -52,6 +53,7 @@ import {
   hasStarRating,
   isDacha,
   isRestaurant,
+  hasBuses,
 } from '../../_lib/utils/partner-labels';
 import { cn } from '../../_lib/utils/cn';
 import { formatMoney } from '../../_lib/utils/format';
@@ -95,6 +97,7 @@ export function ListingOverview() {
   const dacha = isDacha(partnerType);
   const isHostel = hasBeds(partnerType);
   const restaurant = isRestaurant(partnerType);
+  const isBus = hasBuses(partnerType);
 
   const [openEditor, setOpenEditor] = useState<OpenEditor>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -264,13 +267,13 @@ export function ListingOverview() {
           roomAds.length > 0
             ? `${roomAds.length} tur · ${listedRooms.length} ${labels.unitPlural} sotuvda`
             : `Hali ${labels.unitTypeLabel.toLowerCase()} yo'q`,
-        icon: <BedDouble className="h-4 w-4" aria-hidden />,
+        icon: isBus ? <CarFront className="h-4 w-4" aria-hidden /> : <BedDouble className="h-4 w-4" aria-hidden />,
         missing: !roomTypesComplete
           ? `Kamida bitta ${labels.unitTypeLabel.toLowerCase()} yarating va sotuvga qo'ying.`
           : undefined,
       },
     ];
-  }, [cover, listing, showStars, labels, dacha, restaurant, roomAds, listedRooms]);
+  }, [cover, listing, showStars, labels, dacha, restaurant, isBus, roomAds, listedRooms]);
 
   const completedCount = sections.filter((section) => section.complete).length;
   const progress = Math.round((completedCount / sections.length) * 100);
