@@ -375,6 +375,11 @@ export class AdminService {
 
   private invalidatePublicHotelCache() {
     void this.cache.delByPattern('hotels:list:*');
+    void this.cache.delByPattern('catalog:restaurants:*');
+  }
+
+  private invalidatePublicRestaurantCache() {
+    void this.cache.delByPattern('catalog:restaurants:*');
   }
 
   private invalidatePublicBusCache() {
@@ -423,7 +428,7 @@ export class AdminService {
 
   private async ensureApprovedPartnerHotel(partner: DbRow) {
     const type = String(partner.type ?? '');
-    if (type !== 'hotel' && type !== 'mixed') {
+    if (type !== 'hotel' && type !== 'mixed' && type !== 'restaurant') {
       return undefined;
     }
 
@@ -834,15 +839,26 @@ export class AdminService {
         b.cancel_reason_text,
         b.policy_snapshot,
         b.price_snapshot,
+        b.guest_name,
+        b.guest_phone,
+        b.guest_email,
+        coalesce(nullif(trim(coalesce(u.first_name, '') || ' ' || coalesce(u.last_name, '')), ''), b.guest_name, 'Mijoz') as customer_name,
+        coalesce(u.phone, b.guest_phone, '—') as customer_phone,
+        coalesce(u.email, b.guest_email, '') as customer_email,
+        coalesce(ht.name, po.brand_name, '—') as hotel_name,
+        h.address as hotel_address,
+        po.type::text as partner_type,
+        c.name as city,
         (
           coalesce(b.price_snapshot, '{}'::jsonb) ||
           jsonb_strip_nulls(
             jsonb_build_object(
               'hotel_id', b.hotel_id::text,
               'trip_id', b.trip_id::text,
-              'check_in', b.price_snapshot ->> 'checkIn',
-              'check_out', b.price_snapshot ->> 'checkOut',
-              'room_type', b.price_snapshot ->> 'roomType',
+              'name', coalesce(ht.name, po.brand_name, '—'),
+              'check_in', coalesce(b.price_snapshot ->> 'checkIn', b.price_snapshot ->> 'check_in'),
+              'check_out', coalesce(b.price_snapshot ->> 'checkOut', b.price_snapshot ->> 'check_out'),
+              'room_type', coalesce(b.price_snapshot ->> 'roomType', b.price_snapshot ->> 'room_type'),
               'seatNumber', b.price_snapshot ->> 'seatNumber',
               'seats', case
                 when b.price_snapshot ? 'seatNumber'
@@ -857,6 +873,11 @@ export class AdminService {
         b.created_at,
         b.updated_at
       from bookings b
+      left join users u on u.id = b.user_id
+      left join partner_organizations po on po.id = b.partner_organization_id
+      left join hotels h on h.id = b.hotel_id
+      left join hotel_translations ht on ht.hotel_id = h.id and ht.language = 'uz'
+      left join cities c on c.id = h.city_id
       ${where}
       order by b.created_at desc
     `;
