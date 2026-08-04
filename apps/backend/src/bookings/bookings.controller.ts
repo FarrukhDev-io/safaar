@@ -19,7 +19,6 @@ export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
   @Post('hotel')
-  @Roles(Role.USER)
   createHotel(
     @CurrentActor() actor: RequestActor | undefined,
     @Body() dto: CreateHotelBookingDto,
@@ -43,7 +42,6 @@ export class BookingsController {
   }
 
   @Get(':id')
-  @Roles(Role.USER, Role.PARTNER, Role.ADMIN, Role.SUPER_ADMIN)
   findOne(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('id') id: string,

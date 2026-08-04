@@ -76,12 +76,15 @@ export class BookingsService {
     actor: RequestActor | undefined,
     dto: Record<string, unknown>,
   ) {
-    const currentActor = this.requireActor(actor);
+    const userId = actor?.id ?? null;
     const hotelId = String(dto.hotel_id ?? dto.hotelId ?? '');
-    const roomId = String(dto.room_id ?? dto.roomTypeId ?? '');
+    const roomId = String(dto.room_id ?? dto.roomId ?? dto.roomTypeId ?? '');
 
-    const [hotel] = await this.pg.query<HotelBookingRow>(
-      "SELECT id, partner_organization_id FROM hotels WHERE id = $1 AND deleted_at IS NULL AND status = 'published'",
+    const [hotel] = await this.pg.query<HotelBookingRow & { partner_type?: string }>(
+      `SELECT h.id, h.partner_organization_id, po.type AS partner_type
+       FROM hotels h
+       JOIN partner_organizations po ON po.id = h.partner_organization_id
+       WHERE h.id = $1 AND h.deleted_at IS NULL AND h.status = 'published'`,
       [hotelId],
     );
     const [room] = await this.pg.query<HotelRoomRow>(
@@ -102,8 +105,13 @@ export class BookingsService {
     const rooms = Number(dto.rooms ?? 1);
     const subtotal = Number(room.base_price) * nights * rooms;
 
-    const booking = await this.createBooking(currentActor.id, {
-      type: 'hotel',
+    const bookingType: 'hotel' | 'restaurant' =
+      hotel?.partner_type === 'restaurant' || dto.type === 'restaurant'
+        ? 'restaurant'
+        : 'hotel';
+
+    const booking = await this.createBooking(userId, {
+      type: bookingType,
       partner_organization_id: hotel.partner_organization_id,
       payment_method: this.paymentMethod(dto.payment_method),
       confirmation_mode: this.confirmationMode(dto.confirmation_mode),
@@ -419,9 +427,9 @@ export class BookingsService {
   }
 
   private async createBooking(
-    userId: string,
+    userId: string | null,
     input: {
-      type: 'hotel' | 'bus';
+      type: 'hotel' | 'bus' | 'restaurant';
       partner_organization_id: string;
       payment_method: string;
       confirmation_mode: string;

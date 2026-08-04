@@ -2017,19 +2017,32 @@ export class PartnersService {
       ];
 
       // Resolve codes → UUIDs from the amenities table
-      const resolved = await this.pg.query<{ code: string; id: string }>(
+      let resolved = await this.pg.query<{ code: string; id: string }>(
         `SELECT code, id::text FROM amenities WHERE code = ANY($1::text[])`,
         [codes],
       );
-      const codeToId = new Map(resolved.map((r) => [r.code, r.id]));
+      let codeToId = new Map(resolved.map((r) => [r.code, r.id]));
       const unknownCodes = codes.filter((code) => !codeToId.has(code));
 
       if (unknownCodes.length > 0) {
-        throw new BadRequestException({
-          code: 'AMENITY_NOT_FOUND',
-          message: 'Qulayliklar katalogdan topilmadi',
-          fields: unknownCodes,
-        });
+        for (const code of unknownCodes) {
+          const id = randomUUID();
+          const now = new Date().toISOString();
+          const name = code
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+          await this.pg.query(
+            `INSERT INTO amenities (id, code, name, created_at, updated_at)
+             VALUES ($1::uuid, $2, $3, $4, $5)
+             ON CONFLICT (code) DO NOTHING`,
+            [id, code, name, now, now],
+          );
+        }
+        resolved = await this.pg.query<{ code: string; id: string }>(
+          `SELECT code, id::text FROM amenities WHERE code = ANY($1::text[])`,
+          [codes],
+        );
+        codeToId = new Map(resolved.map((r) => [r.code, r.id]));
       }
 
       await this.pg.query(`DELETE FROM hotel_amenities WHERE hotel_id = $1`, [

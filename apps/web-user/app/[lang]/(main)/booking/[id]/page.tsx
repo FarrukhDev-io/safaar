@@ -22,9 +22,9 @@ function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-async function getBookingOrNull(id: string, token: string) {
+async function getBookingOrNull(id: string, token?: string) {
   try {
-    return await api.bookings.getBooking(id, { token });
+    return await api.bookings.getBooking(id, token ? { token } : undefined);
   } catch (error) {
     if (error instanceof ApiRequestError && error.statusCode === 404) {
       return null;
@@ -54,13 +54,9 @@ export default async function BookingDetailPage({
     getSession(),
   ]);
 
-  if (!session) {
-    redirect(`/${locale}/login?next=${encodeURIComponent(`/${locale}/booking/${id}`)}`);
-  }
-
   const booking: BookingView | null = await getBookingOrNull(
     id,
-    session.accessToken,
+    session?.accessToken,
   );
 
   if (!booking) {
