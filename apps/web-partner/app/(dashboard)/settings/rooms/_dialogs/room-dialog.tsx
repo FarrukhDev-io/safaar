@@ -25,8 +25,7 @@ import { getPartnerLabels, hasBeds, hasBuses, isRestaurant } from "../../../../_
 const schema = z.object({
   number: z
     .string()
-    .min(1, "Raqamni kiriting")
-    .regex(/^[0-9]+$/, "Faqat raqamlar"),
+    .min(1, "Raqam/nomini kiriting"),
   floor: z.number().int().min(1).max(50),
   roomTypeId: z.string().optional(),
   capacity: z.number().int().min(1).max(50).optional(),
@@ -210,18 +209,18 @@ export function RoomDialog({ open, onClose, editing }: Props) {
               <p className="text-xs text-red-600">{err.number.message}</p>
             )}
           </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="r-floor">{labels.floorSingular.charAt(0).toUpperCase() + labels.floorSingular.slice(1)}</Label>
-            <Input
-              id="r-floor"
-              type="number"
-              min={1}
-              max={50}
-              {...form.register("floor", { valueAsNumber: true })}
-            />
-          </div>
-
+          {!isBus && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="r-floor">{labels.floorSingular.charAt(0).toUpperCase() + labels.floorSingular.slice(1)}</Label>
+              <Input
+                id="r-floor"
+                type="number"
+                min={1}
+                max={50}
+                {...form.register("floor", { valueAsNumber: true })}
+              />
+            </div>
+          )}
           {restaurant ? (
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <Label htmlFor="r-capacity">Sig'imi (necha kishilik)</Label>
