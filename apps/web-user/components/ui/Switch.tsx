@@ -3,7 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/cn";
 
-export interface SwitchProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+export type SwitchProps = React.InputHTMLAttributes<HTMLInputElement>;
 
 export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
   ({ className, ...props }, ref) => {

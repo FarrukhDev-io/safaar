@@ -1865,8 +1865,9 @@ export class PartnersService {
       params.push(JSON.stringify(extraFees));
     }
     if (checkInTime !== undefined || checkOutTime !== undefined) {
-      const effectiveCheckIn = checkInTime ?? existing['check_in_time'];
-      const effectiveCheckOut = checkOutTime ?? existing['check_out_time'];
+      const existingTyped = existing as Record<string, unknown>;
+      const effectiveCheckIn = checkInTime ?? existingTyped['check_in_time'];
+      const effectiveCheckOut = checkOutTime ?? existingTyped['check_out_time'];
       const rulesComplete =
         Boolean(effectiveCheckIn && String(effectiveCheckIn).trim()) &&
         Boolean(effectiveCheckOut && String(effectiveCheckOut).trim());

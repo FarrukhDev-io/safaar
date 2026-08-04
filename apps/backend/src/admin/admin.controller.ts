@@ -519,10 +519,7 @@ export class AdminController {
 
   @Patch('promos/:id')
   @Permissions(Permission.CmsWrite)
-  promoUpdate(
-    @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
-  ) {
+  promoUpdate(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     return this.adminService.promoUpdate(id, body);
   }
 
@@ -545,10 +542,7 @@ export class AdminController {
 
   @Patch('catalog/regions/:id')
   @Permissions(Permission.CmsWrite)
-  regionUpdate(
-    @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
-  ) {
+  regionUpdate(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     return this.adminService.regionUpdate(id, body);
   }
 

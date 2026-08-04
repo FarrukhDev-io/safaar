@@ -2840,7 +2840,9 @@ export class AdminService {
   async promoCreate(body: Record<string, unknown>) {
     const code = String(body.code ?? 'UZBRON10').toUpperCase();
     const validUntilRaw = body.validUntil ?? body.valid_until;
-    const validUntilDate = validUntilRaw ? new Date(String(validUntilRaw)) : null;
+    const validUntilDate = validUntilRaw
+      ? new Date(String(validUntilRaw))
+      : null;
     // `published_at` promo uchun "amal qilish muddati" o'rnida ishlatiladi —
     // qo'yilmasa, ro'yxat so'rovi created_at + 30 kunni standart qiladi.
     const validUntil =
