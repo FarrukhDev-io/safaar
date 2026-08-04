@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, BedSingle, UtensilsCrossed, Users } from "lucide-react";
+import { BedDouble, BedSingle, UtensilsCrossed, Users, Bus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../_components/layout/page-header";
@@ -14,7 +14,7 @@ import { Button } from "../../_components/ui/button";
 import { formatMoney } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
 import { useDataStore } from "../../_stores/data-store";
-import { getPartnerLabels, hasBeds, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBeds, hasBuses, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 
 export function RoomsView() {
   const router = useRouter();
@@ -27,6 +27,7 @@ export function RoomsView() {
   const isHostel = hasBeds(partnerType);
   const isDachaType = isDacha(partnerType);
   const restaurant = isRestaurant(partnerType);
+  const isBus = hasBuses(partnerType);
 
   const [addingRoom, setAddingRoom] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -71,7 +72,9 @@ export function RoomsView() {
         />
         <div className="mt-4 sm:mt-0">
           <Button onClick={() => setAddingRoom(true)}>
-            {restaurant ? (
+            {isBus ? (
+              <Bus className="mr-2 h-4 w-4" />
+            ) : restaurant ? (
               <UtensilsCrossed className="mr-2 h-4 w-4" />
             ) : (
               <BedDouble className="mr-2 h-4 w-4" />
@@ -104,6 +107,7 @@ export function RoomsView() {
                     roomType={roomType}
                     beds={isHostel ? roomBeds : undefined}
                     restaurant={restaurant}
+                    isBus={isBus}
                     onEdit={() => setEditingRoom(room)}
                     onManageBeds={isHostel ? () => setManagingBedsFor(room) : undefined}
                   />
@@ -140,6 +144,7 @@ function RoomCard({
   roomType,
   beds,
   restaurant,
+  isBus,
   onEdit,
   onManageBeds,
 }: {
@@ -147,6 +152,7 @@ function RoomCard({
   roomType?: RoomType;
   beds?: Bed[];
   restaurant: boolean;
+  isBus?: boolean;
   onEdit: () => void;
   onManageBeds?: () => void;
 }) {
@@ -167,7 +173,9 @@ function RoomCard({
           {room.number}
         </span>
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400">
-          {restaurant ? (
+          {isBus ? (
+            <Bus className="h-4 w-4" />
+          ) : restaurant ? (
             <UtensilsCrossed className="h-4 w-4" />
           ) : (
             <BedDouble className="h-4 w-4" />
@@ -183,7 +191,7 @@ function RoomCard({
         <div className="flex items-center gap-3 text-xs font-medium text-zinc-500">
           <span className="flex items-center gap-1">
             <Users className="h-3.5 w-3.5" />
-            {roomType?.capacity || "?"} kishi
+            {roomType?.capacity || "?"} {isBus ? "o'rindiq" : "kishi"}
           </span>
           {roomType?.bedType && (
             <span className="flex items-center gap-1 text-zinc-400">
@@ -194,12 +202,16 @@ function RoomCard({
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-2 pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
-        <div>
-          <span className="text-[11px] font-medium text-[var(--muted-foreground)]">{restaurant ? "Narxi:" : "1 kechaga:"}</span>
-          <div className="font-semibold text-brand-700 dark:text-brand-300 mt-0.5">
-            {roomType ? formatMoney(roomType.basePrice) : "—"}
+        {!restaurant && (
+          <div>
+            <span className="text-[11px] font-medium text-[var(--muted-foreground)]">
+              {isBus ? "1 chiptaga:" : "1 kechaga:"}
+            </span>
+            <div className="font-semibold text-brand-700 dark:text-brand-300 mt-0.5">
+              {roomType ? formatMoney(roomType.basePrice) : "—"}
+            </div>
           </div>
-        </div>
+        )}
 
         {beds && onManageBeds && (
           <button

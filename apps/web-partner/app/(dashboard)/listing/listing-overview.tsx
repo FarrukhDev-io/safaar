@@ -67,8 +67,9 @@ type SectionId =
   | 'amenities'
   | 'location'
   | 'rules'
-  | 'roomTypes';
-type OpenEditor = Exclude<SectionId, 'roomTypes'> | null;
+  | 'roomTypes'
+  | 'rooms';
+type OpenEditor = Exclude<SectionId, 'roomTypes' | 'rooms'> | null;
 
 interface ListingSection {
   id: SectionId;
@@ -231,6 +232,26 @@ export function ListingOverview() {
       return base;
     }
 
+    if (restaurant) {
+      return [
+        ...base,
+        {
+          id: 'rooms',
+          title: 'Stollar',
+          subtitle: `Mijoz band qilishi mumkin bo'lgan stollar`,
+          action: `Stol qo'shish`,
+          complete: listedRooms.length > 0,
+          summary: listedRooms.length > 0
+            ? `${listedRooms.length} ta stol savdoda`
+            : `Hali stollar qo'shilmagan`,
+          icon: <UtensilsCrossed className="h-4 w-4" aria-hidden />,
+          missing: listedRooms.length === 0
+            ? `Kamida bitta stol qo'shing va sotuvga chiqaring.`
+            : undefined,
+        },
+      ];
+    }
+
     return [
       ...base,
       {
@@ -243,11 +264,7 @@ export function ListingOverview() {
           roomAds.length > 0
             ? `${roomAds.length} tur · ${listedRooms.length} ${labels.unitPlural} sotuvda`
             : `Hali ${labels.unitTypeLabel.toLowerCase()} yo'q`,
-        icon: restaurant ? (
-          <UtensilsCrossed className="h-4 w-4" aria-hidden />
-        ) : (
-          <BedDouble className="h-4 w-4" aria-hidden />
-        ),
+        icon: <BedDouble className="h-4 w-4" aria-hidden />,
         missing: !roomTypesComplete
           ? `Kamida bitta ${labels.unitTypeLabel.toLowerCase()} yarating va sotuvga qo'ying.`
           : undefined,
@@ -267,7 +284,11 @@ export function ListingOverview() {
       setRoomTypeDialogOpen(true);
       return;
     }
-    setOpenEditor(id);
+    if (id === 'rooms') {
+      setRoomDialogOpen(true);
+      return;
+    }
+    setOpenEditor(id as OpenEditor);
   };
 
   const statusTone = {
@@ -564,8 +585,8 @@ export function ListingOverview() {
               label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
             />
             <ChecklistItem
-              done={roomAds.length > 0 && listedRooms.length > 0}
-              label={labels.unitTypesTitle}
+              done={restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
+              label={restaurant ? 'Stollar' : labels.unitTypesTitle}
             />
           </CardBody>
         </Card>

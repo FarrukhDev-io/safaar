@@ -3,6 +3,7 @@
 import {
   Activity,
   BedDouble,
+  Bus,
   DollarSign,
   TrendingDown,
   TrendingUp,
@@ -27,7 +28,7 @@ import { useReservations } from "../../_hooks/use-reservations";
 import { useRoomTypes } from "../../_hooks/use-room-types";
 import { useDataStore } from "../../_stores/data-store";
 import { useAuthStore } from "../../_stores/auth-store";
-import { getPartnerLabels, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBuses, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 import { TODAY_ISO } from "../../_lib/utils/date";
 import { cn } from "../../_lib/utils/cn";
 
@@ -42,6 +43,7 @@ export function ReportsView() {
   const labels = getPartnerLabels(partnerType);
   const dacha = isDacha(partnerType);
   const restaurant = isRestaurant(partnerType);
+  const isBus = hasBuses(partnerType);
 
   const daysForRange = timeRange === "7days" ? 7 : timeRange === "year" ? 365 : 30;
   const dailyStats = useMemo(
@@ -114,24 +116,24 @@ export function ReportsView() {
           tone="brand"
         />
         <ReportMetric
-          label="O'rtacha Bandlik"
+          label={isBus ? "O'rtacha Bandlik va Sig'im" : "O'rtacha Bandlik"}
           value={`${avgOccupancy}%`}
           trend={{ value: 5, positive: true }}
           icon={<Activity className="h-6 w-6" />}
           tone="accent"
         />
         <ReportMetric
-          label={restaurant ? "O'rtacha bron narxi" : "O'rtacha kunlik narx (ADR)"}
+          label={isBus ? "O'rtacha qatnov/bron narxi" : restaurant ? "O'rtacha bron narxi" : "O'rtacha kunlik narx (ADR)"}
           value={formatMoney(adr)}
           trend={{ value: 2, positive: false }}
           icon={<CreditCard className="h-6 w-6" />}
           tone="warning"
         />
         <ReportMetric
-          label="Yangi Bronlar"
+          label={isBus ? "Yangi Qatnov Bronlari" : "Yangi Bronlar"}
           value={monthBookings.toString()}
           trend={{ value: 8, positive: true }}
-          icon={restaurant ? <UtensilsCrossed className="h-6 w-6" /> : <BedDouble className="h-6 w-6" />}
+          icon={isBus ? <Bus className="h-6 w-6" /> : restaurant ? <UtensilsCrossed className="h-6 w-6" /> : <BedDouble className="h-6 w-6" />}
           tone="success"
         />
       </section>

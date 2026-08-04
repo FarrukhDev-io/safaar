@@ -13,7 +13,7 @@ import { Label } from "../../../../_components/ui/label";
 import { useAuthStore } from "../../../../_stores/auth-store";
 import { useCreateRoomType, useUpdateRoomType } from "../../../../_hooks/use-room-types";
 import { partners } from "../../../../_lib/api";
-import { getPartnerLabels, isRestaurant } from "../../../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBuses, isRestaurant } from "../../../../_lib/utils/partner-labels";
 import type { RoomType } from "../../../../_lib/domain/types";
 
 const ROOM_AMENITY_OPTIONS = [
@@ -39,6 +39,18 @@ const TABLE_AMENITY_OPTIONS = [
   { value: "high_chair", label: "Bolalar kursisi" },
   { value: "wheelchair", label: "Nogironlar aravachasiga qulay" },
   { value: "smoking", label: "Chekish joyi" },
+];
+
+const BUS_AMENITY_OPTIONS = [
+  { value: "ac", label: "Konditsioner" },
+  { value: "wifi", label: "Wi-Fi" },
+  { value: "usb", label: "USB Zaryadka" },
+  { value: "tv", label: "TV Monitolar" },
+  { value: "seats_recline", label: "Yotadigan o'rindiqlar" },
+  { value: "wc", label: "Hojatxona (WC)" },
+  { value: "luggage", label: "Keng bagajxona" },
+  { value: "water", label: "Salqin ichimlik suvi" },
+  { value: "curtains", label: "Pardalar" },
 ];
 
 const schema = z.object({
@@ -70,7 +82,8 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const labels = getPartnerLabels(partnerType);
   const restaurant = isRestaurant(partnerType);
-  const amenityOptions = restaurant ? TABLE_AMENITY_OPTIONS : ROOM_AMENITY_OPTIONS;
+  const isBus = hasBuses(partnerType);
+  const amenityOptions = isBus ? BUS_AMENITY_OPTIONS : restaurant ? TABLE_AMENITY_OPTIONS : ROOM_AMENITY_OPTIONS;
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -80,7 +93,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
       imageUrl: "",
       bedType: "",
       sizeSqm: undefined,
-      basePrice: undefined as unknown as number,
+      basePrice: restaurant ? 0 : (undefined as unknown as number),
       capacity: 2,
       amenities: [],
     },
@@ -106,13 +119,13 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
               imageUrl: "",
               bedType: "",
               sizeSqm: undefined,
-              basePrice: undefined as unknown as number,
+              basePrice: restaurant ? 0 : (undefined as unknown as number),
               capacity: 2,
               amenities: [],
             },
       );
     }
-  }, [open, editing, form]);
+  }, [open, editing, form, restaurant]);
 
   const selectedAmenities =
     useWatch({ control: form.control, name: "amenities" }) ?? [];
@@ -247,19 +260,26 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
             </>
           )}
 
-          <div className="flex flex-col gap-1.5 md:col-span-2">
-            <Label htmlFor="rt-price">
-              {restaurant ? "Bron narxi (so'm)" : "Bir kechalik narx (so'm)"}
-            </Label>
-            <Input
-              id="rt-price"
-              type="number"
-              min={0}
-              step={10000}
-              placeholder="400000"
-              {...form.register("basePrice", { valueAsNumber: true })}
-            />
-          </div>
+          {!restaurant && (
+            <div className="flex flex-col gap-1.5 md:col-span-2">
+              <Label htmlFor="rt-price">
+                Bir kechalik narx (so'm)
+              </Label>
+              <Input
+                id="rt-price"
+                type="number"
+                min={0}
+                step={10000}
+                placeholder="400000"
+                {...form.register("basePrice", { valueAsNumber: true })}
+              />
+              {err.basePrice && (
+                <p className="text-xs text-red-600">
+                  {err.basePrice.message}
+                </p>
+              )}
+            </div>
+          )}
           </div>
 
           <div className="flex flex-col gap-2">

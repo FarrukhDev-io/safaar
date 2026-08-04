@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '../../_lib/utils/cn';
 import { formatPhone } from '../../_lib/utils/format';
 import { useAuthStore } from '../../_stores/auth-store';
+import { getPartnerLabels } from '../../_lib/utils/partner-labels';
 
 interface UserMenuProps {
   name: string;
@@ -110,10 +111,10 @@ export function UserMenu({ name, contact, onLogout }: UserMenuProps) {
             Sozlamalar
           </Link>
           <div className="border-t border-[var(--border)] px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-foreground)]">
-            Panel turi
+            Obyekt turi
           </div>
           <div className="px-4 pb-2 text-xs font-medium text-[var(--foreground)]">
-            {user?.partnerType || 'hotel'}
+            {getPartnerLabels(user?.partnerType).topbarSubtitle}
           </div>
           <div className="border-t border-[var(--border)]" />
           <button
