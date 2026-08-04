@@ -103,7 +103,7 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
       >
         <span className="flex items-center justify-between w-full">
           <span className="inline-flex items-center gap-2">
-            <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <Filter className="h-4 w-4 text-primary-600 dark:text-primary-400" />
             <span>{dict.filters.toggle}</span>
           </span>
           <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
@@ -169,7 +169,7 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
                   label={item.label}
                   className={`flex-row-reverse justify-between items-center w-full rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
                     checked
-                      ? "border-blue-500 bg-blue-50/50 !text-blue-900 dark:bg-blue-950/50 dark:!text-blue-300"
+                      ? "border-primary-500 bg-primary-50/50 !text-primary-900 dark:bg-primary-950/50 dark:!text-primary-300"
                       : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300"
                   }`}
                 />
@@ -191,7 +191,7 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
                   label={item.label}
                   className={`flex-row-reverse justify-between items-center w-full rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
                     checked
-                      ? "border-blue-500 bg-blue-50/50 !text-blue-900 dark:bg-blue-950/50 dark:!text-blue-300"
+                      ? "border-primary-500 bg-primary-50/50 !text-primary-900 dark:bg-primary-950/50 dark:!text-primary-300"
                       : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300"
                   }`}
                 />

@@ -15,7 +15,7 @@ export default function GlobalError({
     <html lang="uz">
       <body
         style={{ margin: 0 }}
-        className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white px-6 py-20 text-center text-slate-900"
+        className="flex min-h-screen flex-col items-center justify-center gap-6 bg-card px-6 py-20 text-center text-slate-900"
       >
         <h1 className="text-2xl font-bold tracking-tight text-primary-600 sm:text-3xl">
           Tizimda jiddiy xatolik

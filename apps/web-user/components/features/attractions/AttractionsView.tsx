@@ -114,7 +114,7 @@ export function AttractionsView({
                 onClick={() => setSelectedCategory(category.id)}
                 className={`min-h-[40px] rounded-xl px-3 py-2 text-xs font-bold transition-all ${
                   selectedCategory === category.id
-                    ? "bg-blue-600 text-white shadow-xs"
+                    ? "bg-primary-600 text-white shadow-xs"
                     : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
                 }`}
               >

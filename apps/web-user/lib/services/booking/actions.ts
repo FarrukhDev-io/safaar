@@ -36,9 +36,6 @@ export async function createBookingAction(
   const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
 
   const session = await getSession();
-  if (!session) {
-    redirect(`/${locale}/login`);
-  }
 
   const paymentMethod = (String(formData.get("paymentMethod") ?? "click")) as "click" | "payme" | "uzcard" | "humo" | "cash";
   const input = {
@@ -48,12 +45,17 @@ export async function createBookingAction(
     checkOut: String(formData.get("checkOut") ?? ""),
     guests: Number(formData.get("guests") ?? 1),
     paymentMethod,
+    // GUEST CHECKOUT FIELDS
+    firstName: String(formData.get("firstName") ?? ""),
+    lastName: String(formData.get("lastName") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
   };
   let bookingId = "";
   let checkoutUrl = "";
 
   try {
-    const booking = await api.bookings.createHotelBooking(input, { token: session.accessToken });
+    const booking = await api.bookings.createHotelBooking(input, { token: session?.accessToken });
     bookingId = booking.id;
 
     if (paymentMethod === "cash") {
@@ -62,7 +64,7 @@ export async function createBookingAction(
 
     try {
       const paymentSession = await api.payments.createPaymentSession(bookingId, paymentMethod, {
-        token: session.accessToken,
+        token: session?.accessToken,
       });
       if (paymentSession.paymentUrl) {
         checkoutUrl = paymentSession.paymentUrl;

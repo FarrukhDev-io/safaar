@@ -47,7 +47,7 @@ export function SiteHeader({
     <div className="flex items-center gap-1.5">
       <Link
         href={`${base}/account`}
-        className="inline-flex h-8 items-center justify-center rounded-full px-3.5 text-sm font-bold text-white transition-colors hover:bg-white/20"
+        className="inline-flex h-10 items-center justify-center rounded-full px-4 text-base font-bold text-white transition-colors hover:bg-white/20"
       >
         {dict.actions.account}
       </Link>
@@ -61,13 +61,13 @@ export function SiteHeader({
     <div className="flex items-center gap-2">
       <Link
         href={`/${locale}/login`}
-        className="inline-flex h-9 items-center justify-center rounded-full border border-white/60 bg-white/10 px-4 text-xs font-bold text-white shadow-xs backdrop-blur-md transition-all duration-150 hover:bg-white/20 active:scale-[0.97]"
+        className="inline-flex h-10 items-center justify-center rounded-full border border-white/60 bg-white/10 px-5 text-sm font-bold text-white shadow-xs backdrop-blur-md transition-all duration-150 hover:bg-white/20 active:scale-[0.97]"
       >
         {dict.actions.login}
       </Link>
       <Link
         href={`/${locale}/register`}
-        className="inline-flex h-9 items-center justify-center rounded-full bg-white px-4 text-xs font-bold text-blue-700 shadow-xs transition-all duration-150 hover:bg-white/95 active:scale-[0.97]"
+        className="inline-flex h-10 items-center justify-center rounded-full bg-card px-5 text-sm font-bold text-primary-700 shadow-xs transition-all duration-150 hover:bg-white/95 active:scale-[0.97]"
       >
         {dict.actions.register}
       </Link>
@@ -78,7 +78,7 @@ export function SiteHeader({
     <div className="flex items-center gap-1.5">
       <Link
         href={`${base}/account`}
-        className="inline-flex h-8 items-center justify-center rounded-full px-3.5 text-sm font-bold text-slate-900 transition-colors hover:bg-slate-100"
+        className="inline-flex h-10 items-center justify-center rounded-full px-4 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100"
       >
         {dict.actions.account}
       </Link>
@@ -92,13 +92,13 @@ export function SiteHeader({
     <div className="flex flex-col gap-2">
       <Link
         href={`/${locale}/login`}
-        className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-bold text-slate-900 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97]"
+        className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-card px-5 text-base font-bold text-slate-900 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97]"
       >
         {dict.actions.login}
       </Link>
       <Link
         href={`/${locale}/register`}
-        className="inline-flex h-10 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-bold text-white shadow-xs transition-all duration-150 hover:bg-blue-700 active:scale-[0.97]"
+        className="inline-flex h-11 items-center justify-center rounded-full bg-primary-500 px-5 text-base font-bold text-white shadow-xs transition-all duration-150 hover:bg-primary-600 active:scale-[0.97]"
       >
         {dict.actions.register}
       </Link>

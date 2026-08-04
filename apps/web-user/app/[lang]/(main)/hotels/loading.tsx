@@ -23,7 +23,7 @@ export default function HotelsLoading() {
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="flex flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+              className="flex flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-card shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
               <Skeleton className="aspect-[4/3] w-full" />
               <div className="flex flex-col gap-3 p-5">

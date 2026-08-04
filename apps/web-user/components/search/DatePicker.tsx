@@ -132,7 +132,7 @@ export function DatePicker({
         className={
           compact
             ? "flex w-full items-center gap-2 text-left"
-            : "group flex w-full items-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-left transition-colors hover:border-slate-400"
+            : "group flex w-full items-center gap-3 rounded-lg border border-slate-300 bg-card px-4 py-3 text-left transition-colors hover:border-slate-400"
         }
         style={undefined}
       >
@@ -159,7 +159,7 @@ export function DatePicker({
         <>
           {/* Mobilda overlay */}
           <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs md:hidden" aria-hidden onClick={() => setOpen(false)} />
-          <div className="fixed inset-x-4 top-1/2 z-50 -translate-y-1/2 rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 md:absolute md:inset-auto md:left-0 md:top-full md:mt-2 md:w-72 md:translate-y-0">
+          <div className="fixed inset-x-4 top-1/2 z-50 -translate-y-1/2 rounded-3xl border border-slate-200 bg-card p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 md:absolute md:inset-auto md:left-0 md:top-full md:mt-2 md:w-72 md:translate-y-0">
             {/* Mobile Header with Close Button */}
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800 md:hidden">
               <span className="text-sm font-bold text-slate-800 dark:text-white">Sanani tanlang</span>

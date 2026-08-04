@@ -65,7 +65,7 @@ export function AccommodationListWithMap({
             onClick={() => setViewMode("grid")}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
               viewMode === "grid"
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
+                ? "bg-card text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
                 : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
             }`}
           >
@@ -78,7 +78,7 @@ export function AccommodationListWithMap({
             onClick={() => setViewMode("map")}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
               viewMode === "map"
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
+                ? "bg-card text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
                 : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
             }`}
           >
@@ -107,7 +107,7 @@ export function AccommodationListWithMap({
                   onMouseEnter={() => setHoveredHotelId(hotel.id)}
                   onMouseLeave={() => setHoveredHotelId(null)}
                   className={`transition-all duration-200 rounded-2xl ${
-                    selectedHotelId === hotel.id ? "ring-2 ring-blue-500 shadow-lg" : ""
+                    selectedHotelId === hotel.id ? "ring-2 ring-primary-500 shadow-lg" : ""
                   }`}
                 >
                   <HotelCard

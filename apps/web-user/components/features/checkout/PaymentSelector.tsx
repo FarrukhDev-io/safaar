@@ -30,11 +30,11 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     badges: ["1-click to'lov", "Instant confirmation"],
     type: "online",
     colorTheme: {
-      badgeBg: "bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800",
-      badgeText: "text-blue-700 dark:text-blue-300",
-      borderSelected: "border-blue-500 ring-2 ring-blue-500/20",
-      bgSelected: "bg-blue-50/40 dark:bg-blue-950/20",
-      iconBg: "bg-blue-600 text-white",
+      badgeBg: "bg-primary-50 dark:bg-primary-950/60 border-primary-200 dark:border-primary-800",
+      badgeText: "text-primary-700 dark:text-primary-300",
+      borderSelected: "border-primary-500 ring-2 ring-primary-500/20",
+      bgSelected: "bg-primary-50/40 dark:bg-primary-950/20",
+      iconBg: "bg-primary-600 text-white",
     },
   },
   {
@@ -127,7 +127,7 @@ export function PaymentSelector({
                 "group relative flex cursor-pointer items-start justify-between rounded-2xl border p-4 transition-all duration-200 hover:shadow-md",
                 isSelected
                   ? cn(option.colorTheme.borderSelected, option.colorTheme.bgSelected)
-                  : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/80 dark:hover:border-slate-700"
+                  : "border-slate-200 bg-card hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/80 dark:hover:border-slate-700"
               )}
             >
               <div className="flex items-start gap-3.5">

@@ -65,16 +65,26 @@ export function CheckoutForm({
       <input type="hidden" name="roomId" value={room.id} />
 
       <div className="flex flex-col gap-6">
-        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm">
           <h2 className="text-lg font-semibold">{dict.guestDetails}</h2>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">{dict.fullName}</span>
-            <Input
-              name="fullName"
-              autoComplete="name"
-              placeholder={dict.fullNamePlaceholder}
-            />
-          </label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">Ism (First Name)</span>
+              <Input name="firstName" autoComplete="given-name" required />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">Familiya (Last Name)</span>
+              <Input name="lastName" autoComplete="family-name" required />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">Elektron pochta</span>
+              <Input name="email" type="email" autoComplete="email" placeholder="example@gmail.com" required />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">Telefon raqami</span>
+              <Input name="phone" type="tel" autoComplete="tel" placeholder="+998 90 123 45 67" required />
+            </label>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <label className="flex flex-col gap-1">
               <span className="text-sm font-medium">{dict.checkIn}</span>
@@ -111,13 +121,13 @@ export function CheckoutForm({
           </div>
         </section>
 
-        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">{dict.paymentMethod}</h2>
           <PaymentSelector defaultValue="click" name="paymentMethod" />
         </section>
       </div>
 
-      <aside className="flex h-fit flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
+      <aside className="flex h-fit flex-col gap-3 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm lg:sticky lg:top-24">
         <h2 className="text-lg font-semibold">{dict.summary}</h2>
         <div>
           <p className="font-medium">{hotelName}</p>

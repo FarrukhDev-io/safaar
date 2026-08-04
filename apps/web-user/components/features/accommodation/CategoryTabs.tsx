@@ -43,8 +43,8 @@ export function CategoryTabs({ locale, dict }: CategoryTabsProps) {
               className={cn(
                 "group relative flex shrink-0 cursor-pointer snap-start items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all duration-300",
                 isActive
-                  ? "bg-slate-900 text-white shadow-lg dark:bg-white dark:text-slate-900"
-                  : "bg-white text-slate-500 shadow-xs border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 hover:shadow-md dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                  ? "bg-slate-900 text-white shadow-lg dark:bg-card dark:text-slate-900"
+                  : "bg-card text-slate-500 shadow-xs border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 hover:shadow-md dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
               )}
             >
               <Icon
@@ -55,7 +55,7 @@ export function CategoryTabs({ locale, dict }: CategoryTabsProps) {
               />
               <span>{cat.label}</span>
               {isActive && (
-                <span className="absolute -bottom-1.5 left-1/2 h-1.5 w-8 -translate-x-1/2 rounded-full bg-slate-900 dark:bg-white" />
+                <span className="absolute -bottom-1.5 left-1/2 h-1.5 w-8 -translate-x-1/2 rounded-full bg-slate-900 dark:bg-card" />
               )}
             </Link>
           );

@@ -63,12 +63,12 @@ export function ReviewsList({
       : "0.0";
 
   return (
-    <section className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-card p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       {/* Header Summary & Rating Breakdown */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-6 dark:border-slate-800">
         <div className="flex items-center gap-5">
-          <div className="flex flex-col items-center justify-center rounded-2xl bg-blue-50 px-5 py-4 text-center dark:bg-blue-950/40">
-            <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-primary-50 px-5 py-4 text-center dark:bg-primary-950/40">
+            <span className="text-3xl font-extrabold text-primary-600 dark:text-primary-400">
               {avgOverall}
             </span>
             <div className="flex text-amber-400 my-1">

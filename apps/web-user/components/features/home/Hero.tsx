@@ -6,7 +6,7 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
     <section className="relative overflow-hidden pt-12 pb-10 sm:pt-16 sm:pb-14 lg:pt-20 lg:pb-16">
       <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
         {/* Title */}
-        <h1 className="mt-5 text-3xl font-black tracking-tight text-blue-700 sm:text-5xl md:text-6xl dark:text-blue-400">
+        <h1 className="mt-5 text-3xl font-black tracking-tight text-primary-700 sm:text-5xl md:text-6xl dark:text-primary-400">
           {dict.title}
         </h1>
 
@@ -22,7 +22,7 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
             <span>{dict.trustChip1}</span>
           </span>
           <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 px-4 py-2 text-xs font-extrabold text-slate-900 shadow-2xs backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80 dark:text-white sm:text-sm">
-            <ShieldCheck className="h-4 w-4 text-blue-600 shrink-0" aria-hidden />
+            <ShieldCheck className="h-4 w-4 text-primary-600 shrink-0" aria-hidden />
             <span>{dict.trustChip2}</span>
           </span>
           <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 px-4 py-2 text-xs font-extrabold text-slate-900 shadow-2xs backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80 dark:text-white sm:text-sm">

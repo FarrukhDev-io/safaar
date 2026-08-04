@@ -80,7 +80,7 @@ export default async function HomePage({
                 <Link
                   key={city.id}
                   href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-                  className="shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 active:scale-95 sm:px-5 sm:py-2.5 sm:text-sm"
+                  className="shrink-0 rounded-full border border-slate-200 bg-card px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 active:scale-95 sm:px-5 sm:py-2.5 sm:text-sm"
                 >
                   {city.name}
                 </Link>

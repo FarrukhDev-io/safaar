@@ -51,14 +51,14 @@ function createPricePinIcon(
   const text = price || (rating ? `★ ${rating.toFixed(1)}` : "Ko'rish");
   const bgClass =
     isSelected || isHovered
-      ? "bg-blue-600 text-white ring-4 ring-blue-500/30 scale-110 shadow-xl border-white"
-      : "bg-white text-slate-900 border-slate-300 shadow-md dark:bg-slate-900 dark:text-white dark:border-slate-700";
+      ? "bg-primary-600 text-white ring-4 ring-primary-500/30 scale-110 shadow-xl border-white"
+      : "bg-card text-slate-900 border-slate-300 shadow-md dark:bg-slate-900 dark:text-white dark:border-slate-700";
 
   return L.divIcon({
     className: "custom-leaflet-price-pin",
     html: `
       <div class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-extrabold transition-all duration-200 cursor-pointer shadow-md ${bgClass}">
-        <span class="h-2 w-2 rounded-full ${isSelected ? "bg-amber-400 animate-pulse" : "bg-blue-500"}"></span>
+        <span class="h-2 w-2 rounded-full ${isSelected ? "bg-amber-400 animate-pulse" : "bg-primary-500"}"></span>
         <span>${text}</span>
       </div>
     `,
@@ -75,7 +75,7 @@ export function MapContainer({
   onSelectItem,
   center = [41.2995, 69.2401],
   zoom = 12,
-  className = "h-[550px] w-full rounded-3xl overflow-hidden border border-slate-200/80 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900",
+  className = "h-[550px] w-full rounded-3xl overflow-hidden border border-slate-200/80 bg-card shadow-xl dark:border-slate-800 dark:bg-slate-900",
 }: MapContainerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -183,12 +183,12 @@ export function MapContainer({
             }
             ${
               item.priceFormatted
-                ? `<p class="mt-1 text-sm font-extrabold text-blue-600">${escapeHtml(item.priceFormatted)}</p>`
+                ? `<p class="mt-1 text-sm font-extrabold text-primary-600">${escapeHtml(item.priceFormatted)}</p>`
                 : ""
             }
             ${
               item.linkUrl
-                ? `<a href="${sanitizeUrl(item.linkUrl)}" class="mt-2 inline-flex items-center justify-center rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700">Batafsil</a>`
+                ? `<a href="${sanitizeUrl(item.linkUrl)}" class="mt-2 inline-flex items-center justify-center rounded-xl bg-primary-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-primary-700">Batafsil</a>`
                 : ""
             }
           </div>

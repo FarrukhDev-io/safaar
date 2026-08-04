@@ -8,17 +8,17 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* ── Brand colors ── */
-  --brand-50: #eff6ff;
-  --brand-100: #dbeafe;
-  --brand-200: #bfdbfe;
-  --brand-300: #93c5fd;
-  --brand-400: #60a5fa;
-  --brand-500: #3b82f6;
-  --brand-600: #1d4ed8;
-  --brand-700: #1e40af;
-  --brand-800: #1e3a8a;
-  --brand-900: #172554;
+  /* ── Brand colors (Vibrant Action Blue based on #006CE4) ── */
+  --brand-50: #eef6ff;
+  --brand-100: #d9ebff;
+  --brand-200: #bdddff;
+  --brand-300: #8bc5ff;
+  --brand-400: #52a3ff;
+  --brand-500: #006CE4; /* Action Blue (Asosiy tugmalar, linklar) */
+  --brand-600: #0059c2; /* Hover uchun */
+  --brand-700: #004599;
+  --brand-800: #00316e;
+  --brand-900: #00204a;
 
   /* ── Brand Accent ── */
   --brand-accent-50: #fff7ed;
@@ -29,9 +29,9 @@
   --brand-accent-700: #c2410c;
 
   /* ── Single Unified Background & Card System ── */
-  --background: #ffffff;
+  --background: #f1f5f9;
   --foreground: #0f172a;
-  --card: #f8fafc;
+  --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
@@ -77,13 +77,15 @@
   --font-heading: var(--font-manrope), var(--font-inter), sans-serif;
 
   --shadow-card:
-    0 1px 2px rgba(15, 23, 42, 0.06),
-    0 6px 16px -4px rgba(15, 23, 42, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    0 2px 4px rgba(0, 0, 0, 0.12),
+    0 8px 24px -4px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08);
   --shadow-card-hover:
-    0 2px 4px rgba(15, 23, 42, 0.08),
-    0 18px 34px -10px rgba(15, 23, 42, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    0 4px 8px rgba(0, 0, 0, 0.15),
+    0 20px 40px -8px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12);
   --shadow-btn:
     0 1px 2px rgba(15, 23, 42, 0.12),
     0 3px 8px -1px rgba(15, 23, 42, 0.18),

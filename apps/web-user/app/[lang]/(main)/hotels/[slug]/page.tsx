@@ -211,7 +211,7 @@ export default async function Page({
                   return (
                     <li
                       key={id}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-card px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
                     >
                       {Icon && (
                         <Icon className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />
@@ -257,7 +257,7 @@ export default async function Page({
           </section>
         </div>
 
-        <aside className="flex h-fit flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-md dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-24">
+        <aside className="flex h-fit flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-md dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-24">
           <div>
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               {dict.from}

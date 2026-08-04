@@ -129,7 +129,7 @@ export function RegisterForm({
         )}
 
         {otpState.devCode && (
-          <p className="rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-900">
+          <p className="rounded-xl border border-primary-300 bg-primary-50 px-3 py-2 text-sm font-bold text-primary-900">
             {dict.devCode}: <strong>{otpState.devCode}</strong>
           </p>
         )}
@@ -243,7 +243,7 @@ export function RegisterForm({
           </p>
         )}
 
-        <Button type="submit" size="lg" loading={loading} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+        <Button type="submit" size="lg" loading={loading} className="rounded-xl bg-primary-600 font-bold text-white shadow-xs hover:bg-primary-700">
           {dict.verifyAndRegister}
         </Button>
 
@@ -251,7 +251,7 @@ export function RegisterForm({
           {dict.hasAccount}{" "}
           <Link
             href={`/${locale}/login${next ? `?next=${encodeURIComponent(next)}` : ""}`}
-            className="font-extrabold text-blue-700 hover:text-blue-800"
+            className="font-extrabold text-primary-700 hover:text-primary-800"
           >
             {dict.login}
           </Link>

@@ -44,7 +44,7 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
         
         <div
           className={cn(
-            "flex h-full w-full items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+            "flex h-full w-full items-center justify-center rounded-full bg-primary-100 font-bold text-primary-700 dark:bg-primary-900/50 dark:text-primary-300",
             src ? "hidden" : "flex"
           )}
         >

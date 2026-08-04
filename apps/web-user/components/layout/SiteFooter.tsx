@@ -13,7 +13,7 @@ export function SiteFooter({
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-auto bg-white border-t border-slate-100">
+    <footer className="mt-auto bg-card border-t border-slate-100">
       <div className="mx-auto w-full max-w-[1400px] px-6 sm:px-8">
         {/* Main row */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 py-8">
@@ -21,7 +21,7 @@ export function SiteFooter({
           <div className="flex flex-col items-center md:items-start gap-1.5">
             <Link
               href={base}
-              className="text-lg font-bold text-slate-800 tracking-tight hover:text-blue-600 transition-colors"
+              className="text-lg font-bold text-slate-800 tracking-tight hover:text-primary-600 transition-colors"
             >
               {dict.brand}
             </Link>

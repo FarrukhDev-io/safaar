@@ -64,7 +64,7 @@ export function LocaleSwitcher({
         className={cn(
           "inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
           light
-            ? "border border-slate-200 bg-white text-slate-900 shadow-btn hover:bg-slate-50"
+            ? "border border-slate-200 bg-card text-slate-900 shadow-btn hover:bg-slate-50"
             : "border border-white/40 bg-white/10 text-white shadow-xs backdrop-blur-md hover:bg-white/20 hover:border-white/60",
         )}
       >
@@ -78,7 +78,7 @@ export function LocaleSwitcher({
         <div
           role="listbox"
           aria-label="Tillar"
-          className="absolute right-0 top-full mt-1.5 w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute right-0 top-full mt-1.5 w-36 rounded-xl border border-slate-200 bg-card p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100"
         >
           {locales.map((loc) => {
             const active = loc === current;
@@ -92,7 +92,7 @@ export function LocaleSwitcher({
                 className={cn(
                   "flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
                   active
-                    ? "bg-blue-600 text-white shadow-xs"
+                    ? "bg-primary-600 text-white shadow-xs"
                     : "text-slate-900 hover:bg-slate-100",
                 )}
               >

@@ -57,15 +57,6 @@ export default async function CheckoutPage({
     getCheckoutHotel(locale, hotelId),
   ]);
 
-  if (!session) {
-    const query = new URLSearchParams({ hotelId, roomId });
-    if (checkIn) query.set("checkIn", checkIn);
-    if (checkOut) query.set("checkOut", checkOut);
-    query.set("guests", String(guests));
-    const next = `/${locale}/booking?${query.toString()}`;
-    redirect(`/${locale}/login?next=${encodeURIComponent(next)}`);
-  }
-
   const room = hotel?.rooms.find((r) => r.id === roomId);
   if (!hotel || !room) {
     redirect(`/${locale}/hotels`);

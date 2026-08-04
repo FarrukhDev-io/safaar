@@ -130,11 +130,11 @@ export function DatePicker({
         className={
           compact
             ? "flex w-full items-center gap-2 text-left"
-            : "group flex w-full items-center gap-3 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-left transition-all hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+            : "group flex w-full items-center gap-3 rounded-xl border border-slate-300 bg-card px-3.5 py-2.5 text-left transition-all hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
         }
       >
         {!compact && (
-          <span className="shrink-0 text-slate-500 transition-colors group-hover:text-blue-600 dark:text-slate-400 dark:group-hover:text-blue-400">
+          <span className="shrink-0 text-slate-500 transition-colors group-hover:text-primary-600 dark:text-slate-400 dark:group-hover:text-primary-400">
             {icon ?? <CalendarIcon className="h-4 w-4" />}
           </span>
         )}
@@ -155,7 +155,7 @@ export function DatePicker({
       {open && (
         <>
           <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs md:hidden" aria-hidden />
-          <div className="fixed inset-x-4 top-1/2 z-100 -translate-y-1/2 rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 md:absolute md:inset-auto md:left-0 md:top-full md:z-100 md:mt-2 md:w-72 md:translate-y-0 animate-in fade-in zoom-in-95 duration-100">
+          <div className="fixed inset-x-4 top-1/2 z-100 -translate-y-1/2 rounded-3xl border border-slate-200 bg-card p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 md:absolute md:inset-auto md:left-0 md:top-full md:z-100 md:mt-2 md:w-72 md:translate-y-0 animate-in fade-in zoom-in-95 duration-100">
             {/* Oy navigatsiyasi */}
             <div className="mb-3 flex items-center justify-between">
               <button
@@ -164,7 +164,7 @@ export function DatePicker({
                   setView((v) => new Date(v.getFullYear(), v.getMonth() - 1, 1))
                 }
                 aria-label="prev"
-                className="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                className="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-primary-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-primary-400"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -177,7 +177,7 @@ export function DatePicker({
                   setView((v) => new Date(v.getFullYear(), v.getMonth() + 1, 1))
                 }
                 aria-label="next"
-                className="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                className="grid h-8 w-8 place-items-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-primary-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-primary-400"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -216,12 +216,12 @@ export function DatePicker({
                     className={`grid h-8 w-8 place-items-center rounded-full text-xs font-bold transition-all duration-150 active:scale-90
                       ${
                         isSelected
-                          ? "bg-blue-600 text-white shadow-xs"
+                          ? "bg-primary-600 text-white shadow-xs"
                           : disabled
                             ? "cursor-not-allowed text-slate-300 dark:text-slate-700"
-                            : "text-slate-800 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                            : "text-slate-800 hover:bg-primary-50 hover:text-primary-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-primary-400"
                       }
-                      ${!isSelected && isToday ? "ring-1 ring-blue-400" : ""}
+                      ${!isSelected && isToday ? "ring-1 ring-primary-400" : ""}
                     `}
                   >
                     {d.getDate()}
