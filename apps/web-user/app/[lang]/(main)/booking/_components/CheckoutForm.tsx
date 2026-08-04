@@ -67,24 +67,14 @@ export function CheckoutForm({
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm">
           <h2 className="text-lg font-semibold">{dict.guestDetails}</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Ism (First Name)</span>
-              <Input name="firstName" autoComplete="given-name" required />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Familiya (Last Name)</span>
-              <Input name="lastName" autoComplete="family-name" required />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Elektron pochta</span>
-              <Input name="email" type="email" autoComplete="email" placeholder="example@gmail.com" required />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Telefon raqami</span>
-              <Input name="phone" type="tel" autoComplete="tel" placeholder="+998 90 123 45 67" required />
-            </label>
-          </div>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium">{dict.fullName}</span>
+            <Input
+              name="fullName"
+              autoComplete="name"
+              placeholder={dict.fullNamePlaceholder}
+            />
+          </label>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <label className="flex flex-col gap-1">
               <span className="text-sm font-medium">{dict.checkIn}</span>
