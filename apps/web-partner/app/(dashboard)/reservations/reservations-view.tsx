@@ -543,7 +543,7 @@ function ReservationCard({
             <div className="grid gap-3 sm:grid-cols-3">
               <MiniInfo
                 icon={<CalendarRange />}
-                label={isBus ? "Jo'nash vaqti" : "Kelish"}
+                label={isBus ? "Olib ketish vaqti" : "Kelish"}
                 value={
                   restaurant && reservation.slotTime
                     ? `${formatDate(reservation.checkIn)} · ${reservation.slotTime}`
@@ -552,7 +552,7 @@ function ReservationCard({
               />
               <MiniInfo
                 icon={<CalendarRange />}
-                label={isBus ? "Yetib kelish vaqti" : "Ketish"}
+                label={isBus ? "Qaytarish vaqti" : "Ketish"}
                 value={
                   isBus || restaurant
                     ? formatDate(reservation.checkOut)

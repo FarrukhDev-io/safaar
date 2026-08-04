@@ -205,7 +205,7 @@ function RoomCard({
         {!restaurant && (
           <div>
             <span className="text-[11px] font-medium text-[var(--muted-foreground)]">
-              {isBus ? "1 chiptaga:" : "1 kechaga:"}
+              {isBus ? "1 kunga (ijara):" : "1 kechaga:"}
             </span>
             <div className="font-semibold text-brand-700 dark:text-brand-300 mt-0.5">
               {roomType ? formatMoney(roomType.basePrice) : "—"}

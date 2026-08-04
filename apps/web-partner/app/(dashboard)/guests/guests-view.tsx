@@ -64,14 +64,14 @@ export function GuestsView() {
   const vipCount = data.filter((g) => g.isVip).length;
 
   const isBus = hasBuses(partnerType);
-  const guestPlural = isBus ? "Yo'lovchilar" : "Mijozlar";
+  const guestPlural = isBus ? "Ijarachilar" : "Mijozlar";
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow={labels.guestLabel}
         title={guestPlural}
-        description={`${labels.guestLabel} profili, reyslar va xaridlar tarixi.`}
+        description={`${labels.guestLabel} profili, ijaralar va xaridlar tarixi.`}
       />
 
       <div className="flex flex-wrap items-center gap-2">
@@ -116,7 +116,7 @@ export function GuestsView() {
           description={
             vipOnly || query
               ? "Filterni o'zgartirib ko'ring yoki boshqa kalit so'z yozing."
-              : `${labels.guestLabel}lar chipta olganda shu yerda paydo bo'ladi.`
+              : `${labels.guestLabel}lar ijaraga olganda shu yerda paydo bo'ladi.`
           }
         />
       ) : (
@@ -126,9 +126,9 @@ export function GuestsView() {
               <tr>
                 <th className="px-4 py-3">{labels.guestLabel}</th>
                 <th className="px-4 py-3">Aloqa</th>
-                <th className="px-4 py-3">{isBus ? "Qatnovlar" : "Tashriflar"}</th>
+                <th className="px-4 py-3">{isBus ? "Ijaralar" : "Tashriflar"}</th>
                 <th className="px-4 py-3">Sarflagan</th>
-                <th className="px-4 py-3">{isBus ? "Oxirgi reys" : "Oxirgi tashrif"}</th>
+                <th className="px-4 py-3">{isBus ? "Oxirgi ijara" : "Oxirgi tashrif"}</th>
                 <th className="px-4 py-3">Belgilar</th>
               </tr>
             </thead>

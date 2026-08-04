@@ -123,14 +123,14 @@ export function ReportsView() {
           tone="accent"
         />
         <ReportMetric
-          label={isBus ? "O'rtacha qatnov/bron narxi" : restaurant ? "O'rtacha bron narxi" : "O'rtacha kunlik narx (ADR)"}
+          label={isBus ? "O'rtacha ijara narxi" : restaurant ? "O'rtacha bron narxi" : "O'rtacha kunlik narx (ADR)"}
           value={formatMoney(adr)}
           trend={{ value: 2, positive: false }}
           icon={<CreditCard className="h-6 w-6" />}
           tone="warning"
         />
         <ReportMetric
-          label={isBus ? "Yangi Qatnov Bronlari" : "Yangi Bronlar"}
+          label={isBus ? "Yangi Ijara Bronlari" : "Yangi Bronlar"}
           value={monthBookings.toString()}
           trend={{ value: 8, positive: true }}
           icon={isBus ? <CarFront className="h-6 w-6" /> : restaurant ? <UtensilsCrossed className="h-6 w-6" /> : <BedDouble className="h-6 w-6" />}
