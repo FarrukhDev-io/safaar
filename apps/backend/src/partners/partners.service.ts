@@ -558,7 +558,10 @@ export class PartnersService {
     );
 
     const nameUzInput = this.optionalString(
-      body.name_uz ?? body.name ?? organization?.brand_name ?? organization?.legal_name,
+      body.name_uz ??
+        body.name ??
+        organization?.brand_name ??
+        organization?.legal_name,
     );
     if (!nameUzInput) {
       throw new BadRequestException({
@@ -577,14 +580,14 @@ export class PartnersService {
       throw new BadRequestException({
         code: 'PARTNER_CITY_REQUIRED',
         message:
-          'Hamkor arizasida shahar topilmadi. Avval profil ma\'lumotlarini to\'ldiring.',
+          "Hamkor arizasida shahar topilmadi. Avval profil ma'lumotlarini to'ldiring.",
       });
     }
     if (!address) {
       throw new BadRequestException({
         code: 'PARTNER_ADDRESS_REQUIRED',
         message:
-          'Hamkor arizasida manzil topilmadi. Avval profil ma\'lumotlarini to\'ldiring.',
+          "Hamkor arizasida manzil topilmadi. Avval profil ma'lumotlarini to'ldiring.",
       });
     }
     const latitude =
@@ -2037,7 +2040,13 @@ export class PartnersService {
             `INSERT INTO amenities (id, code, name, created_at, updated_at)
              VALUES ($1::uuid, $2, ($3)::jsonb, $4, $5)
              ON CONFLICT (code) DO NOTHING`,
-            [id, code, JSON.stringify({ uz: name, ru: name, en: name }), now, now],
+            [
+              id,
+              code,
+              JSON.stringify({ uz: name, ru: name, en: name }),
+              now,
+              now,
+            ],
           );
         }
         resolved = await this.pg.query<{ code: string; id: string }>(

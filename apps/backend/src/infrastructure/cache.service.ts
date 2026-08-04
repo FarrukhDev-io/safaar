@@ -13,6 +13,7 @@ export class AppCacheService implements OnModuleDestroy {
   private readonly enabled: boolean;
   private readonly defaultTtlSeconds: number;
   private readonly memory = new Map<string, CacheEntry>();
+  private readonly inFlight = new Map<string, Promise<unknown>>();
   private readonly redis?: Redis;
 
   constructor(config: ConfigService) {
@@ -50,9 +51,22 @@ export class AppCacheService implements OnModuleDestroy {
       return cached;
     }
 
-    const value = await producer();
-    await this.set(key, value, ttlSeconds);
-    return value;
+    const existing = this.inFlight.get(key) as Promise<T> | undefined;
+    if (existing) {
+      return existing;
+    }
+
+    const pending = Promise.resolve()
+      .then(producer)
+      .then(async (value) => {
+        await this.set(key, value, ttlSeconds);
+        return value;
+      })
+      .finally(() => {
+        this.inFlight.delete(key);
+      });
+    this.inFlight.set(key, pending);
+    return pending;
   }
 
   async get<T>(key: string): Promise<T | undefined> {
@@ -140,16 +154,18 @@ export class AppCacheService implements OnModuleDestroy {
         this.memory.delete(key);
       }
     }
+    for (const key of this.inFlight.keys()) {
+      if (key.startsWith(prefix)) {
+        this.inFlight.delete(key);
+      }
+    }
 
     if (!this.redis) {
       return;
     }
 
     try {
-      const keys = await this.redis.keys(pattern);
-      if (keys.length > 0) {
-        await this.redis.del(keys);
-      }
+      await this.redisDelByPattern(pattern);
     } catch {
       // Redis fallback errors are already logged by the connection listener.
     }
@@ -222,6 +238,28 @@ export class AppCacheService implements OnModuleDestroy {
     } catch {
       return false;
     }
+  }
+
+  private async redisDelByPattern(pattern: string): Promise<void> {
+    if (!this.redis) {
+      return;
+    }
+
+    await this.ensureRedisConnected();
+    let cursor = '0';
+    do {
+      const [nextCursor, keys] = await this.redis.scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        250,
+      );
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await this.redis.del(...keys);
+      }
+    } while (cursor !== '0');
   }
 
   private async redisGetDel(key: string): Promise<string | undefined> {

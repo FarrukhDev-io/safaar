@@ -212,38 +212,46 @@ export class CatalogService {
   }
 
   async restaurants(query: CatalogQuery = {}) {
+    return this.cache.getOrSet(
+      `catalog:restaurants:${cacheKey(query)}`,
+      60,
+      () => this.restaurantsFresh(query),
+    );
+  }
+
+  private async restaurantsFresh(query: CatalogQuery = {}) {
     const bounds = parseGeoBounds(query.bounds);
 
-        // 1. Fetch published partner restaurants from hotels table
-        const hotelConditions = [
-          "po.type = 'restaurant'",
-          "h.status = 'published'",
-          "po.status = 'approved'",
-          'h.deleted_at IS NULL',
-        ];
-        const hotelParams: unknown[] = [];
-        let hotelParamIdx = 1;
+    // 1. Fetch published partner restaurants from hotels table
+    const hotelConditions = [
+      "po.type = 'restaurant'",
+      "h.status = 'published'",
+      "po.status = 'approved'",
+      'h.deleted_at IS NULL',
+    ];
+    const hotelParams: unknown[] = [];
+    let hotelParamIdx = 1;
 
-        if (bounds) {
-          hotelConditions.push(
-            `h.latitude IS NOT NULL AND h.longitude IS NOT NULL AND h.latitude BETWEEN $${hotelParamIdx++} AND $${hotelParamIdx++}`,
-          );
-          hotelParams.push(bounds.south, bounds.north);
-          if (bounds.west <= bounds.east) {
-            hotelConditions.push(
-              `h.longitude BETWEEN $${hotelParamIdx++} AND $${hotelParamIdx++}`,
-            );
-            hotelParams.push(bounds.west, bounds.east);
-          } else {
-            hotelConditions.push(
-              `(h.longitude >= $${hotelParamIdx++} OR h.longitude <= $${hotelParamIdx++})`,
-            );
-            hotelParams.push(bounds.west, bounds.east);
-          }
-        }
+    if (bounds) {
+      hotelConditions.push(
+        `h.latitude IS NOT NULL AND h.longitude IS NOT NULL AND h.latitude BETWEEN $${hotelParamIdx++} AND $${hotelParamIdx++}`,
+      );
+      hotelParams.push(bounds.south, bounds.north);
+      if (bounds.west <= bounds.east) {
+        hotelConditions.push(
+          `h.longitude BETWEEN $${hotelParamIdx++} AND $${hotelParamIdx++}`,
+        );
+        hotelParams.push(bounds.west, bounds.east);
+      } else {
+        hotelConditions.push(
+          `(h.longitude >= $${hotelParamIdx++} OR h.longitude <= $${hotelParamIdx++})`,
+        );
+        hotelParams.push(bounds.west, bounds.east);
+      }
+    }
 
-        const partnerRows = await this.postgres.query<DbRow>(
-          `
+    const partnerRows = await this.postgres.query<DbRow>(
+      `
           SELECT
             h.id::text,
             h.slug,
@@ -276,36 +284,36 @@ export class CatalogService {
           WHERE ${hotelConditions.join(' AND ')}
           ORDER BY h.rating_average DESC, h.created_at DESC
         `,
-          hotelParams,
-        );
+      hotelParams,
+    );
 
-        const partnerRestaurants = partnerRows.map((row) => ({
-          id: row.id,
-          slug: row.slug,
-          name: row.title,
-          city_name: row.city_name ?? {},
-          address: row.address ?? '',
-          cuisine: '',
-          rating: numberValue(row.rating),
-          reviews_count: numberValue(row.reviews_count),
-          average_check: numberValue(row.average_check),
-          latitude: nullableNumber(row.latitude),
-          longitude: nullableNumber(row.longitude),
-          working_hours: row.working_hours ?? '',
-          image_url: publicMediaUrl(row.image_url),
-          phone: row.phone ?? '',
-          updated_at: row.updated_at,
-        }));
+    const partnerRestaurants = partnerRows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.title,
+      city_name: row.city_name ?? {},
+      address: row.address ?? '',
+      cuisine: '',
+      rating: numberValue(row.rating),
+      reviews_count: numberValue(row.reviews_count),
+      average_check: numberValue(row.average_check),
+      latitude: nullableNumber(row.latitude),
+      longitude: nullableNumber(row.longitude),
+      working_hours: row.working_hours ?? '',
+      image_url: publicMediaUrl(row.image_url),
+      phone: row.phone ?? '',
+      updated_at: row.updated_at,
+    }));
 
-        if (partnerRestaurants.length > 0) {
-          return partnerRestaurants;
-        }
+    if (partnerRestaurants.length > 0) {
+      return partnerRestaurants;
+    }
 
-        // 2. Fetch CMS entries for restaurants (excluding demo seed entries)
-        const { conditions, params } = boundsConditions('restaurant', query);
-        const demoSlugParam = params.length + 1;
-        const cmsRows = await this.postgres.query<DbRow>(
-          `
+    // 2. Fetch CMS entries for restaurants (excluding demo seed entries)
+    const { conditions, params } = boundsConditions('restaurant', query);
+    const demoSlugParam = params.length + 1;
+    const cmsRows = await this.postgres.query<DbRow>(
+      `
         SELECT id::text, slug, title, metadata,
           ${latitudeSql}::float8 AS latitude,
           ${longitudeSql}::float8 AS longitude,
@@ -317,34 +325,34 @@ export class CatalogService {
           COALESCE((metadata ->> 'sortOrder')::int, (metadata ->> 'order')::int, 9999),
           COALESCE(published_at, created_at) DESC
       `,
-          [...params, DEMO_RESTAURANT_SLUGS],
-        );
-        const cmsRestaurants = cmsRows.map((row) => {
-          const meta = objectValue(row.metadata);
-          return {
-            id: row.id,
-            slug: row.slug,
-            name: row.title,
-            city_name: meta.city_name ?? meta.cityName ?? {},
-            address: meta.address ?? '',
-            cuisine: meta.cuisine ?? '',
-            rating: numberValue(meta.rating),
-            reviews_count: numberValue(meta.reviews_count ?? meta.reviewsCount),
-            average_check: numberValue(meta.average_check ?? meta.averageCheck),
-            latitude:
-              nullableNumber(row.latitude) ??
-              nullableNumber(meta.latitude ?? meta.lat),
-            longitude:
-              nullableNumber(row.longitude) ??
-              nullableNumber(meta.longitude ?? meta.lng ?? meta.lon),
-            working_hours: meta.working_hours ?? meta.workingHours ?? '',
-            image_url: publicMediaUrl(meta.image_url ?? meta.imageUrl),
-            phone: meta.phone ?? '',
-            updated_at: row.updated_at,
-          };
-        });
+      [...params, DEMO_RESTAURANT_SLUGS],
+    );
+    const cmsRestaurants = cmsRows.map((row) => {
+      const meta = objectValue(row.metadata);
+      return {
+        id: row.id,
+        slug: row.slug,
+        name: row.title,
+        city_name: meta.city_name ?? meta.cityName ?? {},
+        address: meta.address ?? '',
+        cuisine: meta.cuisine ?? '',
+        rating: numberValue(meta.rating),
+        reviews_count: numberValue(meta.reviews_count ?? meta.reviewsCount),
+        average_check: numberValue(meta.average_check ?? meta.averageCheck),
+        latitude:
+          nullableNumber(row.latitude) ??
+          nullableNumber(meta.latitude ?? meta.lat),
+        longitude:
+          nullableNumber(row.longitude) ??
+          nullableNumber(meta.longitude ?? meta.lng ?? meta.lon),
+        working_hours: meta.working_hours ?? meta.workingHours ?? '',
+        image_url: publicMediaUrl(meta.image_url ?? meta.imageUrl),
+        phone: meta.phone ?? '',
+        updated_at: row.updated_at,
+      };
+    });
 
-        return cmsRestaurants;
+    return cmsRestaurants;
   }
 
   async restaurant(slugOrId: string) {
