@@ -1,8 +1,12 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 
+const DEFAULT_API_BASE_URL = "https://backend-production-87e6.up.railway.app/v1";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_BASE_URL;
+
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "/api/backend",
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",

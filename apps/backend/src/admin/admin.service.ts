@@ -187,6 +187,7 @@ function listingCompleteness(
   amenities: Array<{ code: string }>,
   roomSummary: { active_room_count: number },
 ) {
+  const partnerType = String(row['partner_type'] ?? '').toLowerCase();
   const name = localizedObject(row['name']);
   const shortDescription = localizedObject(row['short_description']);
   const fullDescription = localizedObject(row['full_description']);
@@ -202,7 +203,7 @@ function listingCompleteness(
   const hasCoordinates =
     nullableNumber(row['latitude']) !== null &&
     nullableNumber(row['longitude']) !== null;
-  const sections = {
+  const sections: Record<string, boolean> = {
     general: hasName && hasShortDescription && hasFullDescription,
     location: Boolean(String(row['address'] ?? '').trim()) && hasCoordinates,
     media: media.length >= 3,
@@ -212,8 +213,10 @@ function listingCompleteness(
       row['check_in_time'] &&
       row['check_out_time'],
     ),
-    rooms: roomSummary.active_room_count > 0,
   };
+  if (partnerType !== 'restaurant') {
+    sections.rooms = roomSummary.active_room_count > 0;
+  }
   const completed = Object.values(sections).filter(Boolean).length;
   const missingFields = Object.entries(sections)
     .filter(([, complete]) => !complete)
@@ -244,6 +247,12 @@ function isForeignKeyViolation(error: unknown): boolean {
   const code = (error as { code?: unknown }).code;
   // 23503 = foreign_key_violation, 23001 = restrict_violation (explicit ON DELETE RESTRICT)
   return code === '23503' || code === '23001';
+}
+
+function partnerTypeFromHotel(row: DbRow): string {
+  const directType = String(row['partner_type'] ?? '').toLowerCase();
+  if (directType) return directType;
+  return String(objectValue(row['partner'])['type'] ?? '').toLowerCase();
 }
 
 function normalizeSettingsGroup(group: string): string {
@@ -375,6 +384,11 @@ export class AdminService {
 
   private invalidatePublicHotelCache() {
     void this.cache.delByPattern('hotels:list:*');
+    void this.cache.delByPattern('catalog:restaurants:*');
+  }
+
+  private invalidatePublicRestaurantCache() {
+    void this.cache.delByPattern('catalog:restaurants:*');
   }
 
   private invalidatePublicBusCache() {
@@ -423,7 +437,7 @@ export class AdminService {
 
   private async ensureApprovedPartnerHotel(partner: DbRow) {
     const type = String(partner.type ?? '');
-    if (type !== 'hotel' && type !== 'mixed') {
+    if (type !== 'hotel' && type !== 'mixed' && type !== 'restaurant') {
       return undefined;
     }
 
@@ -466,18 +480,19 @@ export class AdminService {
       const updated = await this.rows(
         `
           update hotels
-          set status = 'published',
+          set status = case when $4 = 'restaurant' then status else 'published'::"HotelStatus" end,
               city_id = $2::uuid,
               address = $3,
               updated_at = now()
           where id = $1::uuid
           returning id::text, slug
         `,
-        [hotel.id, cityId, address],
+        [hotel.id, cityId, address, type],
       );
       hotel = updated[0];
     } else {
       const slug = await this.uniqueHotelSlug(name, partnerId);
+      const initialStatus = type === 'restaurant' ? 'draft' : 'published';
       const inserted = await this.rows(
         `
           insert into hotels
@@ -507,7 +522,7 @@ export class AdminService {
               0,
               0,
               0,
-              'published',
+              $6::"HotelStatus",
               false,
               null,
               null,
@@ -516,7 +531,7 @@ export class AdminService {
             )
           returning id::text, slug
         `,
-        [randomUUID(), partnerId, slug, cityId, address],
+        [randomUUID(), partnerId, slug, cityId, address, initialStatus],
       );
       hotel = inserted[0];
     }
@@ -526,7 +541,11 @@ export class AdminService {
     }
 
     await this.upsertHotelTranslations(String(hotel.id), name, description);
-    this.invalidatePublicHotelCache();
+    if (type === 'restaurant') {
+      this.invalidatePublicRestaurantCache();
+    } else {
+      this.invalidatePublicHotelCache();
+    }
     return hotel;
   }
 
@@ -834,15 +853,26 @@ export class AdminService {
         b.cancel_reason_text,
         b.policy_snapshot,
         b.price_snapshot,
+        b.guest_name,
+        b.guest_phone,
+        b.guest_email,
+        coalesce(nullif(trim(coalesce(u.first_name, '') || ' ' || coalesce(u.last_name, '')), ''), b.guest_name, 'Mijoz') as customer_name,
+        coalesce(u.phone, b.guest_phone, '—') as customer_phone,
+        coalesce(u.email, b.guest_email, '') as customer_email,
+        coalesce(ht.name, po.brand_name, '—') as hotel_name,
+        h.address as hotel_address,
+        po.type::text as partner_type,
+        c.name as city,
         (
           coalesce(b.price_snapshot, '{}'::jsonb) ||
           jsonb_strip_nulls(
             jsonb_build_object(
               'hotel_id', b.hotel_id::text,
               'trip_id', b.trip_id::text,
-              'check_in', b.price_snapshot ->> 'checkIn',
-              'check_out', b.price_snapshot ->> 'checkOut',
-              'room_type', b.price_snapshot ->> 'roomType',
+              'name', coalesce(ht.name, po.brand_name, '—'),
+              'check_in', coalesce(b.price_snapshot ->> 'checkIn', b.price_snapshot ->> 'check_in'),
+              'check_out', coalesce(b.price_snapshot ->> 'checkOut', b.price_snapshot ->> 'check_out'),
+              'room_type', coalesce(b.price_snapshot ->> 'roomType', b.price_snapshot ->> 'room_type'),
               'seatNumber', b.price_snapshot ->> 'seatNumber',
               'seats', case
                 when b.price_snapshot ? 'seatNumber'
@@ -857,6 +887,11 @@ export class AdminService {
         b.created_at,
         b.updated_at
       from bookings b
+      left join users u on u.id = b.user_id
+      left join partner_organizations po on po.id = b.partner_organization_id
+      left join hotels h on h.id = b.hotel_id
+      left join hotel_translations ht on ht.hotel_id = h.id and ht.language = 'uz'
+      left join cities c on c.id = h.city_id
       ${where}
       order by b.created_at desc
     `;
@@ -1296,7 +1331,11 @@ export class AdminService {
         po.updated_at
       from partner_organizations po
       left join cities c on c.id = po.city_id
-      where po.status <> 'approved'
+      where po.status in (
+        'submitted'::"PartnerStatus",
+        'under_review'::"PartnerStatus",
+        'more_information_required'::"PartnerStatus"
+      )
       order by po.created_at desc
       ${this.limitClause(query)}
     `);
@@ -1771,6 +1810,7 @@ export class AdminService {
           po.id::text as partner_id,
           po.legal_name as partner_legal_name,
           po.brand_name as partner_brand_name,
+          po.type::text as partner_type,
           po.status::text as partner_status,
           c.name as city_name,
           r.id::text as region_id,
@@ -1955,6 +1995,7 @@ export class AdminService {
               id: String(row['partner_id']),
               legal_name: String(row['partner_legal_name'] ?? ''),
               brand_name: String(row['partner_brand_name'] ?? ''),
+              type: String(row['partner_type'] ?? ''),
               status: String(row['partner_status'] ?? ''),
             }
           : null,
@@ -2183,6 +2224,9 @@ export class AdminService {
     const rows = moderation.rows;
     this.invalidateAdminCache();
     this.invalidatePublicHotelCache();
+    if (partnerTypeFromHotel(current) === 'restaurant') {
+      this.invalidatePublicRestaurantCache();
+    }
     const updated = await this.hotel(id);
     if (moderation.notification && moderation.notificationRecipientId) {
       this.events.notificationCreated(
@@ -2840,7 +2884,9 @@ export class AdminService {
   async promoCreate(body: Record<string, unknown>) {
     const code = String(body.code ?? 'UZBRON10').toUpperCase();
     const validUntilRaw = body.validUntil ?? body.valid_until;
-    const validUntilDate = validUntilRaw ? new Date(String(validUntilRaw)) : null;
+    const validUntilDate = validUntilRaw
+      ? new Date(String(validUntilRaw))
+      : null;
     // `published_at` promo uchun "amal qilish muddati" o'rnida ishlatiladi —
     // qo'yilmasa, ro'yxat so'rovi created_at + 30 kunni standart qiladi.
     const validUntil =

@@ -82,13 +82,13 @@ export function SearchBar({
     <div className="mx-auto w-full max-w-4xl">
       <form
         onSubmit={handleSubmit}
-        className="rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-xl shadow-slate-200/50 transition-all duration-200 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-4"
+        className="rounded-3xl border border-slate-200/80 bg-card p-3.5 shadow-xl shadow-slate-200/50 transition-all duration-200 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-4"
       >
         {/* Desktop grid layout & Mobile stack layout */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2">
           {/* 1. Shahar / Destinatsiya */}
           <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5">
-            <MapPin className="h-5 w-5 shrink-0 text-blue-600" aria-hidden />
+            <MapPin className="h-5 w-5 shrink-0 text-primary-600" aria-hidden />
             <div className="min-w-0 flex-1">
               <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                 {dict.city}
@@ -106,7 +106,7 @@ export function SearchBar({
 
           {/* 2. Sanalar (Kirish va Chiqish) */}
           <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5">
-            <Calendar className="h-5 w-5 shrink-0 text-blue-600" aria-hidden />
+            <Calendar className="h-5 w-5 shrink-0 text-primary-600" aria-hidden />
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <div className="min-w-0 flex-1">
                 <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
@@ -148,7 +148,7 @@ export function SearchBar({
           {/* 3. Mehmonlar soni */}
           <div className="flex items-center justify-between gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5">
             <div className="flex items-center gap-2.5">
-              <Users className="h-5 w-5 shrink-0 text-blue-600" aria-hidden />
+              <Users className="h-5 w-5 shrink-0 text-primary-600" aria-hidden />
               <div>
                 <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                   {dict.guests}
@@ -162,7 +162,7 @@ export function SearchBar({
           <div className="shrink-0 pt-1 md:pt-0">
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition-all duration-150 hover:bg-blue-700 active:scale-[0.98] md:w-auto md:py-3"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition-all duration-150 hover:bg-primary-700 active:scale-[0.98] md:w-auto md:py-3"
             >
               <Search className="h-4 w-4 stroke-[2.5]" aria-hidden />
               <span className="uppercase tracking-wide">{dict.submit}</span>

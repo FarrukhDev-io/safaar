@@ -13,7 +13,7 @@ import { Label } from "../../../../_components/ui/label";
 import { useAuthStore } from "../../../../_stores/auth-store";
 import { useCreateRoomType, useUpdateRoomType } from "../../../../_hooks/use-room-types";
 import { partners } from "../../../../_lib/api";
-import { getPartnerLabels, isRestaurant } from "../../../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBuses, isRestaurant } from "../../../../_lib/utils/partner-labels";
 import type { RoomType } from "../../../../_lib/domain/types";
 
 const ROOM_AMENITY_OPTIONS = [
@@ -39,6 +39,18 @@ const TABLE_AMENITY_OPTIONS = [
   { value: "high_chair", label: "Bolalar kursisi" },
   { value: "wheelchair", label: "Nogironlar aravachasiga qulay" },
   { value: "smoking", label: "Chekish joyi" },
+];
+
+const BUS_AMENITY_OPTIONS = [
+  { value: "ac", label: "Konditsioner" },
+  { value: "bluetooth", label: "Bluetooth Media" },
+  { value: "leather", label: "Charm salon" },
+  { value: "cruise", label: "Kruiz nazorati" },
+  { value: "rear_camera", label: "Orqa ko'rinish kamerasi" },
+  { value: "sunroof", label: "Lyuk/Panarama" },
+  { value: "heated_seats", label: "O'rindiq isitgichi" },
+  { value: "child_seat", label: "Bolalar o'rindig'i (ixtiyoriy)" },
+  { value: "gps", label: "GPS Navigatsiya" },
 ];
 
 const schema = z.object({
@@ -70,7 +82,8 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const labels = getPartnerLabels(partnerType);
   const restaurant = isRestaurant(partnerType);
-  const amenityOptions = restaurant ? TABLE_AMENITY_OPTIONS : ROOM_AMENITY_OPTIONS;
+  const isBus = hasBuses(partnerType);
+  const amenityOptions = isBus ? BUS_AMENITY_OPTIONS : restaurant ? TABLE_AMENITY_OPTIONS : ROOM_AMENITY_OPTIONS;
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -80,7 +93,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
       imageUrl: "",
       bedType: "",
       sizeSqm: undefined,
-      basePrice: undefined as unknown as number,
+      basePrice: restaurant ? 0 : (undefined as unknown as number),
       capacity: 2,
       amenities: [],
     },
@@ -106,13 +119,13 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
               imageUrl: "",
               bedType: "",
               sizeSqm: undefined,
-              basePrice: undefined as unknown as number,
+              basePrice: restaurant ? 0 : (undefined as unknown as number),
               capacity: 2,
               amenities: [],
             },
       );
     }
-  }, [open, editing, form]);
+  }, [open, editing, form, restaurant]);
 
   const selectedAmenities =
     useWatch({ control: form.control, name: "amenities" }) ?? [];
@@ -173,7 +186,9 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
       onClose={onClose}
       title={editing ? `${labels.unitTypeLabel}ni tahrirlash` : `Yangi ${labels.unitTypeLabel.toLowerCase()}`}
       description={
-        restaurant
+        isBus
+          ? "Masalan: Sedan, SUV, Miniven, Biznes klass"
+          : restaurant
           ? "Masalan: 2 kishilik, Terrasa, VIP xona"
           : "Masalan: Standart, Lyuks, Family Suite"
       }
@@ -186,7 +201,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
             <Label htmlFor="rt-name">Nomi</Label>
             <Input
               id="rt-name"
-              placeholder="Standart"
+              placeholder={isBus ? "Sedan" : "Standart"}
               aria-invalid={Boolean(err.name)}
               {...form.register("name")}
             />
@@ -196,7 +211,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="rt-capacity">Sig'imi (necha kishi)</Label>
+            <Label htmlFor="rt-capacity">{isBus ? "O'rindiqlar soni" : "Sig'imi (necha kishi)"}</Label>
             <Input
               id="rt-capacity"
               type="number"
@@ -210,7 +225,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
             <Label htmlFor="rt-desc">Qisqa tavsif</Label>
             <Input
               id="rt-desc"
-              placeholder={restaurant ? "Deraza yonida, 4 kishilik..." : "Keng, balkonli xona..."}
+              placeholder={isBus ? "Yangi, qulay salon, yoqilg'i tejamkor..." : restaurant ? "Deraza yonida, 4 kishilik..." : "Keng, balkonli xona..."}
               {...form.register("description")}
             />
             {err.description && (
@@ -223,19 +238,20 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
           {!restaurant && (
             <>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="rt-bed">Karavot turi</Label>
+                <Label htmlFor="rt-bed">{isBus ? "Uzatma (KPP)" : "Karavot turi"}</Label>
                 <Input
                   id="rt-bed"
-                  placeholder="1 king bed"
+                  placeholder={isBus ? "Avtomat" : "1 king bed"}
                   {...form.register("bedType")}
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="rt-size">Maydon (m²)</Label>
+                <Label htmlFor="rt-size">{isBus ? "Bagaj hajmi (L)" : "Maydon (m²)"}</Label>
                 <Input
                   id="rt-size"
                   type="number"
+                  placeholder={isBus ? "500" : ""}
                   min={0}
                   max={500}
                   {...form.register("sizeSqm", {
@@ -247,19 +263,26 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
             </>
           )}
 
-          <div className="flex flex-col gap-1.5 md:col-span-2">
-            <Label htmlFor="rt-price">
-              {restaurant ? "Bron narxi (so'm)" : "Bir kechalik narx (so'm)"}
-            </Label>
-            <Input
-              id="rt-price"
-              type="number"
-              min={0}
-              step={10000}
-              placeholder="400000"
-              {...form.register("basePrice", { valueAsNumber: true })}
-            />
-          </div>
+          {!restaurant && (
+            <div className="flex flex-col gap-1.5 md:col-span-2">
+              <Label htmlFor="rt-price">
+                Bir kechalik narx (so'm)
+              </Label>
+              <Input
+                id="rt-price"
+                type="number"
+                min={0}
+                step={10000}
+                placeholder="400000"
+                {...form.register("basePrice", { valueAsNumber: true })}
+              />
+              {err.basePrice && (
+                <p className="text-xs text-red-600">
+                  {err.basePrice.message}
+                </p>
+              )}
+            </div>
+          )}
           </div>
 
           <div className="flex flex-col gap-2">

@@ -59,10 +59,10 @@ export function RestaurantScheduleView() {
   const [walkInInitial, setWalkInInitial] = useState<WalkInInitial>({});
 
   const scheduleDate = addDays(TODAY_ISO, dayOffset);
-  const slots = useMemo(
-    () => buildTimeSlots(listing.checkInTime, listing.checkOutTime),
-    [listing.checkInTime, listing.checkOutTime],
-  );
+  const slots = useMemo(() => {
+    const generatedSlots = buildTimeSlots(listing.checkInTime, listing.checkOutTime);
+    return generatedSlots.length > 0 ? generatedSlots : buildTimeSlots("09:00", "23:59");
+  }, [listing.checkInTime, listing.checkOutTime]);
   const spanSlots = Math.max(1, Math.round(DEFAULT_SLOT_DURATION_MINUTES / SLOT_STEP_MINUTES));
 
   const allRows = useMemo<TableRow[]>(

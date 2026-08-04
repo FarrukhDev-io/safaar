@@ -2,8 +2,8 @@ import { RoomStatus } from "../../_lib/domain/types";
 import { cn } from "../../_lib/utils/cn";
 
 const labels: Record<RoomStatus, string> = {
-  [RoomStatus.VACANT_CLEAN]: "Toza & bo'sh",
-  [RoomStatus.VACANT_DIRTY]: "Iflos & bo'sh",
+  [RoomStatus.VACANT_CLEAN]: "Bo'sh & Tayyor",
+  [RoomStatus.VACANT_DIRTY]: "Tozalanmoqda",
   [RoomStatus.OCCUPIED]: "Band",
   [RoomStatus.OUT_OF_SERVICE]: "Ta'mirda",
   [RoomStatus.BLOCKED]: "Bloklangan",

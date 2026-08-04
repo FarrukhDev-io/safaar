@@ -7,6 +7,7 @@ import { partners } from "../_lib/api";
 import { useAuthStore } from "../_stores/auth-store";
 import { useDataStore, type BedDraft } from "../_stores/data-store";
 import { getPrimaryHotel } from "./use-primary-hotel";
+import type { Bed } from "../_lib/domain/types";
 
 export const bedsQueryKey = ["partner", "beds"] as const;
 
@@ -60,6 +61,14 @@ export function useCreateBed() {
 export function useUpdateBed() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
   const queryClient = useQueryClient();
+  const setBeds = useDataStore((s) => s.setBeds);
+
+  const applyPatch = (
+    beds: Bed[],
+    id: string,
+    values: Partial<Omit<BedDraft, "roomId">>,
+  ) => beds.map((bed) => (bed.id === id ? { ...bed, ...values } : bed));
+
   return useMutation({
     mutationFn: async ({
       id,
@@ -71,7 +80,39 @@ export function useUpdateBed() {
       const hotel = await getPrimaryHotel(accessToken);
       return toBed(await partners.updateBed(hotel.id, id, values, accessToken));
     },
-    onSuccess: () => {
+    onMutate: async ({ id, values }) => {
+      await queryClient.cancelQueries({ queryKey: bedsQueryKey });
+      const previousQuery = queryClient.getQueryData<Bed[]>(bedsQueryKey);
+      const previousStore = useDataStore.getState().beds;
+
+      queryClient.setQueryData<Bed[]>(bedsQueryKey, (current) =>
+        current ? applyPatch(current, id, values) : current,
+      );
+      setBeds(applyPatch(previousStore, id, values));
+
+      return { previousQuery, previousStore };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousQuery) {
+        queryClient.setQueryData(bedsQueryKey, context.previousQuery);
+      }
+      if (context?.previousStore) {
+        setBeds(context.previousStore);
+      }
+    },
+    onSuccess: (updatedBed) => {
+      queryClient.setQueryData<Bed[]>(bedsQueryKey, (current) =>
+        current
+          ? current.map((bed) => (bed.id === updatedBed.id ? updatedBed : bed))
+          : current,
+      );
+      setBeds(
+        useDataStore
+          .getState()
+          .beds.map((bed) => (bed.id === updatedBed.id ? updatedBed : bed)),
+      );
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: bedsQueryKey });
     },
   });

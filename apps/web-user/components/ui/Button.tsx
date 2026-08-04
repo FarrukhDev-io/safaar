@@ -14,7 +14,7 @@ const variantClasses: Record<Variant, string> = {
   accent:
     "bg-accent-600 text-white shadow-md hover:shadow-lg hover:bg-accent-500 active:scale-[0.98] transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none",
   secondary:
-    "border border-slate-200 bg-white text-slate-900 shadow-sm hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all duration-150 disabled:bg-white disabled:border-slate-100 disabled:text-slate-300 disabled:shadow-none",
+    "border border-slate-200 bg-card text-slate-900 shadow-sm hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all duration-150 disabled:bg-card disabled:border-slate-100 disabled:text-slate-300 disabled:shadow-none",
   ghost:
     "text-slate-700 hover:bg-slate-100 active:scale-[0.98] transition-all duration-150 disabled:bg-transparent disabled:text-slate-300",
 };
@@ -55,7 +55,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-bold transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:pointer-events-none",
+        "inline-flex items-center justify-center gap-2 font-bold transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:pointer-events-none",
         variantClasses[variant],
         sizeClasses[size],
         roundedClasses[rounded],

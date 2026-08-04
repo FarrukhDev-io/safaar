@@ -12,6 +12,7 @@ import {
   usePartnerEmailOtpRequest,
   usePartnerEmailOtpVerify,
 } from '../../_hooks/use-auth';
+import type { PartnerAccessStatus } from '../../_lib/api/endpoints/access';
 
 const loginSchema = z.object({
   email: z
@@ -29,6 +30,7 @@ interface EmailChallenge {
   email: string;
   challengeId: string;
   partnerType?: string;
+  accessStatus?: PartnerAccessStatus;
 }
 
 export function LoginForm() {
@@ -48,6 +50,7 @@ export function LoginForm() {
           email: result.email,
           challengeId: result.challengeId,
           partnerType: result.partnerType,
+          accessStatus: result.accessStatus,
         });
         form.setValue('email', result.email);
       } catch (error) {
@@ -75,6 +78,7 @@ export function LoginForm() {
         code,
         challengeId: challenge.challengeId,
         partnerType: challenge.partnerType,
+        accessStatus: challenge.accessStatus,
       });
     } catch (error) {
       form.setError('code', {

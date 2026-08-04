@@ -60,7 +60,7 @@ function PageLink({
     return (
       <span
         aria-disabled="true"
-        className={`${base} border-slate-200 text-slate-300 bg-white opacity-40`}
+        className={`${base} border-slate-200 text-slate-300 bg-card opacity-40`}
       >
         {children}
       </span>
@@ -69,7 +69,7 @@ function PageLink({
   return (
     <Link
       href={href}
-      className={`${base} border-slate-300 bg-white text-slate-900 hover:bg-slate-50 hover:border-slate-400 active:bg-slate-100 active:scale-[0.97]`}
+      className={`${base} border-slate-300 bg-card text-slate-900 hover:bg-slate-50 hover:border-slate-400 active:bg-slate-100 active:scale-[0.97]`}
     >
       {children}
     </Link>

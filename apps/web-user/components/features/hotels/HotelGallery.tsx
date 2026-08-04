@@ -47,28 +47,30 @@ export function HotelGallery({
           />
         </div>
 
-        {/* 4 Smaller Grid Side Photos */}
-        {sidePhotos.map((src, i) => (
-          <div
-            key={`${src}-${i}`}
-            className={cn(
-              'relative hidden overflow-hidden bg-slate-100 sm:block dark:bg-slate-800',
-              i === 0 && 'sm:col-span-1 sm:row-span-1',
-              i === 1 && 'sm:col-span-1 sm:row-span-1',
-              i === 2 && 'sm:col-span-1 sm:row-span-1',
-              i === 3 && 'sm:col-span-1 sm:row-span-1',
-            )}
-          >
-            <Image
-              src={src}
-              alt={`${alt} — ${i + 2}`}
-              fill
-              sizes="25vw"
-              className="object-cover transition-transform duration-300 hover:scale-105"
-            />
-          </div>
-        ))}
-      </div>
+          {/* 4 Smaller Grid Side Photos */}
+          {sidePhotos.map((src, i) => (
+            <div
+              key={`${src}-${i}`}
+              className={cn(
+                "relative hidden overflow-hidden bg-slate-100 sm:block dark:bg-slate-800",
+                i === 0 && "sm:col-span-1 sm:row-span-1",
+                i === 1 && "sm:col-span-1 sm:row-span-1",
+                i === 2 && "sm:col-span-1 sm:row-span-1",
+                i === 3 && "sm:col-span-1 sm:row-span-1",
+              )}
+            >
+              <Image
+                src={src}
+                alt={`${alt} — ${i + 2}`}
+                fill
+                sizes="25vw"
+                className="object-cover transition-transform duration-300 hover:scale-105"
+              />
+            </div>
+          ))}
+        </div>
+
+
 
       {shots.length > 1 && (
         <div className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md backdrop-blur-md">

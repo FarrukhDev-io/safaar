@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/types/package.json packages/types/package.json
 COPY apps/backend/package.json apps/backend/package.json
-RUN npm ci --workspace=@Safaar/backend --include-workspace-root
+RUN npm ci --workspace=@safaar/backend --include-workspace-root
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
@@ -24,4 +24,4 @@ COPY --from=build /app/packages/types ./packages/types
 COPY --from=build /app/apps/backend ./apps/backend
 
 EXPOSE 4000
-CMD ["npm", "run", "start:prod", "-w", "@Safaar/backend"]
+CMD ["npm", "run", "start:prod", "-w", "@safaar/backend"]

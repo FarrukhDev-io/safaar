@@ -147,9 +147,7 @@ export default function RegisterPage() {
           <option value="motel">Motel</option>
           <option value="dacha">Dacha</option>
           <option value="restaurant">Restoran</option>
-          <option value="bus" disabled>
-            Transport (Tez kunda)
-          </option>
+          <option value="bus">Transport (Mashina Ijarasi)</option>
         </select>
       </Field>
       <Field

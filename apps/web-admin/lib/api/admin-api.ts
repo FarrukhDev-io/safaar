@@ -4,6 +4,7 @@ import {
   Partner,
   AdminHotelBooking,
   AdminBusBooking,
+  AdminRestaurantBooking,
   PartnerRequest,
   CatalogAmenity,
   CatalogRegion,
@@ -187,6 +188,8 @@ function toPartner(row: ApiRecord): Partner {
 }
 
 function toPartnerRequest(row: ApiRecord): PartnerRequest {
+  const rawStatus = asString(row.status).toLowerCase();
+
   return {
     id: asString(row.id),
     companyName: asString(row.brand_name ?? row.legal_name, 'Hamkor arizasi'),
@@ -198,13 +201,18 @@ function toPartnerRequest(row: ApiRecord): PartnerRequest {
     address: asString(row.address),
     documents: Array.isArray(row.documents) ? row.documents : [],
     status:
-      row.status === 'approved'
+      rawStatus === 'approved'
         ? 'approved'
-        : row.status === 'rejected'
+        : rawStatus === 'rejected' ||
+            rawStatus === 'blocked' ||
+            rawStatus === 'suspended'
           ? 'rejected'
-          : row.status === 'submitted'
-            ? 'reviewing'
-            : 'new',
+          : rawStatus === 'submitted'
+            ? 'submitted'
+            : rawStatus === 'under_review' ||
+                rawStatus === 'more_information_required'
+              ? 'reviewing'
+              : 'new',
     createdAt: asString(row.created_at, new Date().toISOString()),
   };
 }
@@ -218,6 +226,22 @@ function partnerType(value: unknown): Partner['type'] {
     type === 'motel' ||
     type === 'dacha' ||
     type === 'restaurant'
+  ) {
+    return type;
+  }
+  return 'hotel';
+}
+
+function listingPartnerType(value: unknown): AdminListing['partnerType'] {
+  const type = asString(value).toLowerCase();
+  if (
+    type === 'hotel' ||
+    type === 'hostel' ||
+    type === 'guesthouse' ||
+    type === 'motel' ||
+    type === 'dacha' ||
+    type === 'restaurant' ||
+    type === 'mixed'
   ) {
     return type;
   }
@@ -296,6 +320,74 @@ function toBusBooking(row: ApiRecord): AdminBusBooking {
     commission: asNumber(row.commission_amount),
     status: bookingStatus(row.status),
     createdAt: asString(row.created_at, new Date().toISOString()),
+  };
+}
+
+function toRestaurantBooking(row: ApiRecord): AdminRestaurantBooking {
+  const item = asRecord(row.item);
+  const priceSnapshot = asRecord(row.price_snapshot ?? row.priceSnapshot);
+  return {
+    id: asString(row.booking_number ?? row.bookingNumber ?? row.id),
+    customerName: asString(
+      row.guest_name ??
+        row.guestName ??
+        priceSnapshot.guestName ??
+        priceSnapshot.guest_name ??
+        row.user_name ??
+        row.userName ??
+        row.customer_name ??
+        row.customerName,
+      'Mijoz',
+    ),
+    customerPhone: asString(
+      row.guest_phone ??
+        row.guestPhone ??
+        priceSnapshot.guestPhone ??
+        priceSnapshot.guest_phone ??
+        row.user_phone ??
+        row.userPhone ??
+        row.customer_phone ??
+        row.customerPhone,
+      '—',
+    ),
+    restaurantName: asString(
+      row.hotel_name ??
+        row.hotelName ??
+        item.name ??
+        row.partner_name ??
+        row.partnerName,
+      'Restoran',
+    ),
+    tableType: asString(
+      priceSnapshot.tableName ??
+        priceSnapshot.room_type ??
+        priceSnapshot.roomType ??
+        item.room_type,
+      'Stol',
+    ),
+    date: asString(
+      priceSnapshot.check_in ??
+        priceSnapshot.checkIn ??
+        row.created_at ??
+        row.createdAt,
+      new Date().toISOString().split('T')[0],
+    ),
+    slotTime: asString(
+      priceSnapshot.slot_time ??
+        priceSnapshot.slotTime ??
+        row.slot_time ??
+        row.slotTime,
+      '18:00',
+    ),
+    guests: asNumber(
+      priceSnapshot.adults ?? priceSnapshot.guests ?? row.guests,
+      2,
+    ),
+    amount: asNumber(row.total_amount ?? row.totalAmount ?? row.subtotal),
+    paymentMethod: paymentMethod(row.payment_method ?? row.paymentMethod),
+    commission: asNumber(row.commission_amount ?? row.commissionAmount),
+    status: bookingStatus(row.status),
+    createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
   };
 }
 
@@ -378,6 +470,7 @@ function toListing(row: ApiRecord): AdminListing {
   return {
     id: asString(row.id),
     partnerId: asString(row.partner_organization_id),
+    partnerType: listingPartnerType(row.partner_type ?? partner.type),
     companyName: localizedText(
       row.company_name ??
         row.brand_name ??
@@ -866,7 +959,14 @@ export const AdminApi = {
 
   getPartnerRequests: async (): Promise<PartnerRequest[]> => {
     const { data } = await apiClient.get('/admin/partners/requests');
-    return unknownItems(data).map((row) => toPartnerRequest(asRecord(row)));
+    return unknownItems(data)
+      .map((row) => asRecord(row))
+      .filter((row) =>
+        ['submitted', 'under_review', 'more_information_required'].includes(
+          asString(row.status).toLowerCase(),
+        ),
+      )
+      .map((row) => toPartnerRequest(row));
   },
 
   approvePartner: async (id: string) => {
@@ -905,7 +1005,7 @@ export const AdminApi = {
     const { data } = await apiClient.get('/admin/bookings');
     return unknownItems(data)
       .map(asRecord)
-      .filter((booking) => booking.type !== 'bus')
+      .filter((booking) => booking.type !== 'bus' && booking.type !== 'restaurant')
       .map(toHotelBooking);
   },
 
@@ -915,6 +1015,14 @@ export const AdminApi = {
       .map(asRecord)
       .filter((booking) => booking.type === 'bus')
       .map(toBusBooking);
+  },
+
+  getRestaurantBookings: async (): Promise<AdminRestaurantBooking[]> => {
+    const { data } = await apiClient.get('/admin/bookings');
+    return unknownItems(data)
+      .map(asRecord)
+      .filter((booking) => booking.type === 'restaurant')
+      .map(toRestaurantBooking);
   },
 
   getBookingDetail: async (id: string): Promise<BookingDetail> => {

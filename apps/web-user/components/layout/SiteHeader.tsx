@@ -1,12 +1,11 @@
-import Link from "next/link";
-import { Home, Hotel, MountainSnow, HelpCircle, Building2, TreePine, HeartPulse, Mountain, UtensilsCrossed, Car, Compass, ShieldCheck } from "lucide-react";
-import type { Locale } from "@/i18n/config";
-import type { CommonDict } from "@/i18n/dictionaries";
-import { logoutAction } from "@/lib/auth/actions";
-import { Button } from "@/components/ui/Button";
-import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
-import { LocaleSwitcher } from "./LocaleSwitcher";
-import { CurrencySwitcher } from "./CurrencySwitcher";
+import Link from 'next/link';
+import { Car, Hotel, MountainSnow, UtensilsCrossed } from 'lucide-react';
+import type { Locale } from '@/i18n/config';
+import type { CommonDict } from '@/i18n/dictionaries';
+import { logoutAction } from '@/lib/auth/actions';
+import { Button } from '@/components/ui/Button';
+import { ScrollNav, type ScrollNavItem } from './ScrollNav';
+import { LocaleSwitcher } from './LocaleSwitcher';
 
 export function SiteHeader({
   locale,
@@ -26,48 +25,36 @@ export function SiteHeader({
   };
 
   const desktopItems: ScrollNavItem[] = [
-    { href: base, label: dict.nav.home, icon: <Home className="h-4 w-4" />, exact: true },
     {
-      href: `${base}/hotels`, label: dict.nav.hotels, icon: <Hotel className="h-4 w-4" />,
-      children: [
-        { href: `${base}/hotels`, label: dict.nav.hotels ?? "Hotels", icon: <Building2 className="h-4 w-4" /> },
-        { href: `${base}/dachas`, label: dict.nav.dachas ?? "Dachas", icon: <Home className="h-4 w-4" /> },
-        { href: `${base}/guesthouses`, label: dict.nav.guesthouses ?? "Guest Houses", icon: <TreePine className="h-4 w-4" /> },
-        { href: `${base}/sanatoriums`, label: dict.nav.sanatoriums ?? "Sanatoriums", icon: <HeartPulse className="h-4 w-4" /> },
-        { href: `${base}/resorts`, label: dict.nav.resorts ?? "Resorts", icon: <Mountain className="h-4 w-4" /> },
-      ],
+      href: `${base}/hotels`,
+      label: dict.nav.hotels,
+      icon: <Hotel className="h-4 w-4" />,
     },
     {
-      href: `${base}/transport`, label: navDict.transport ?? "Transport", icon: <Car className="h-4 w-4" />,
-      children: [
-        { href: `${base}/transport?type=rent`, label: navDict.carRent ?? "Avto ijarasi", icon: <Car className="h-4 w-4" /> },
-        { href: `${base}/transport?type=transfer`, label: navDict.transfers ?? "Aeroport Transfer", icon: <Compass className="h-4 w-4" /> },
-        { href: `${base}/transport?type=vip`, label: navDict.vipTaxi ?? "VIP Taksi", icon: <ShieldCheck className="h-4 w-4" /> },
-      ],
+      href: `${base}/transport`,
+      label: navDict.transport ?? 'Transport',
+      icon: <Car className="h-4 w-4" />,
     },
-    { href: `${base}/restaurants`, label: dict.nav.restaurants ?? "Restaurants", icon: <UtensilsCrossed className="h-4 w-4" /> },
-    { href: `${base}/attractions`, label: dict.nav.attractions, icon: <MountainSnow className="h-4 w-4" /> },
-    { href: `${base}/help`, label: dict.nav.help, icon: <HelpCircle className="h-4 w-4" /> },
+    {
+      href: `${base}/restaurants`,
+      label: dict.nav.restaurants ?? 'Restaurants',
+      icon: <UtensilsCrossed className="h-4 w-4" />,
+    },
+    {
+      href: `${base}/attractions`,
+      label: dict.nav.attractions,
+      icon: <MountainSnow className="h-4 w-4" />,
+    },
   ];
 
-  const localeSwitcher = (
-    <div className="flex items-center gap-1.5">
-      <CurrencySwitcher />
-      <LocaleSwitcher current={locale} />
-    </div>
-  );
-  const localeSwitcherLight = (
-    <div className="flex items-center gap-1.5">
-      <CurrencySwitcher light />
-      <LocaleSwitcher current={locale} light />
-    </div>
-  );
+  const localeSwitcher = <LocaleSwitcher current={locale} />;
+  const localeSwitcherLight = <LocaleSwitcher current={locale} light />;
 
   const authActions = authed ? (
     <div className="flex items-center gap-1.5">
       <Link
         href={`${base}/account`}
-        className="inline-flex h-8 items-center justify-center rounded-full px-3.5 text-sm font-bold text-white transition-colors hover:bg-white/20"
+        className="inline-flex h-10 items-center justify-center rounded-full px-4 text-base font-bold text-white transition-colors hover:bg-white/20"
       >
         {dict.actions.account}
       </Link>
@@ -81,13 +68,13 @@ export function SiteHeader({
     <div className="flex items-center gap-2">
       <Link
         href={`/${locale}/login`}
-        className="inline-flex h-9 items-center justify-center rounded-full border border-white/60 bg-white/10 px-4 text-xs font-bold text-white shadow-xs backdrop-blur-md transition-all duration-150 hover:bg-white/20 active:scale-[0.97]"
+        className="inline-flex h-10 items-center justify-center rounded-full border border-white/60 bg-white/10 px-5 text-sm font-bold text-white shadow-xs backdrop-blur-md transition-all duration-150 hover:bg-white/20 active:scale-[0.97]"
       >
         {dict.actions.login}
       </Link>
       <Link
         href={`/${locale}/register`}
-        className="inline-flex h-9 items-center justify-center rounded-full bg-white px-4 text-xs font-bold text-blue-700 shadow-xs transition-all duration-150 hover:bg-white/95 active:scale-[0.97]"
+        className="inline-flex h-10 items-center justify-center rounded-full bg-card px-5 text-sm font-bold text-primary-700 shadow-xs transition-all duration-150 hover:bg-white/95 active:scale-[0.97]"
       >
         {dict.actions.register}
       </Link>
@@ -98,7 +85,7 @@ export function SiteHeader({
     <div className="flex items-center gap-1.5">
       <Link
         href={`${base}/account`}
-        className="inline-flex h-8 items-center justify-center rounded-full px-3.5 text-sm font-bold text-slate-900 transition-colors hover:bg-slate-100"
+        className="inline-flex h-10 items-center justify-center rounded-full px-4 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100"
       >
         {dict.actions.account}
       </Link>
@@ -112,13 +99,13 @@ export function SiteHeader({
     <div className="flex flex-col gap-2">
       <Link
         href={`/${locale}/login`}
-        className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-bold text-slate-900 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97]"
+        className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-card px-5 text-base font-bold text-slate-900 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97]"
       >
         {dict.actions.login}
       </Link>
       <Link
         href={`/${locale}/register`}
-        className="inline-flex h-10 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-bold text-white shadow-xs transition-all duration-150 hover:bg-blue-700 active:scale-[0.97]"
+        className="inline-flex h-11 items-center justify-center rounded-full bg-primary-500 px-5 text-base font-bold text-white shadow-xs transition-all duration-150 hover:bg-primary-600 active:scale-[0.97]"
       >
         {dict.actions.register}
       </Link>

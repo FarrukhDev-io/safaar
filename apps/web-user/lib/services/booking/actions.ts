@@ -1,13 +1,13 @@
-"use server";
+'use server';
 
-import { redirect } from "next/navigation";
-import { api, ApiRequestError } from "@/lib/api";
-import { clearSession, getSession } from "@/lib/auth/session";
-import { defaultLocale, isLocale } from "@/i18n/config";
+import { redirect } from 'next/navigation';
+import { api, ApiRequestError } from '@/lib/api';
+import { clearSession, getSession } from '@/lib/auth/session';
+import { defaultLocale, isLocale } from '@/i18n/config';
 
 const SESSION_EXPIRED_CODES = new Set([
-  "AUTH_TOKEN_INVALID",
-  "AUTH_SESSION_REVOKED",
+  'AUTH_TOKEN_INVALID',
+  'AUTH_SESSION_REVOKED',
 ]);
 
 async function redirectToLoginIfSessionExpired(
@@ -32,58 +32,90 @@ export async function createBookingAction(
   _prev: CheckoutState,
   formData: FormData,
 ): Promise<CheckoutState> {
-  const rawLocale = String(formData.get("locale") ?? defaultLocale);
+  const rawLocale = String(formData.get('locale') ?? defaultLocale);
   const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
 
   const session = await getSession();
-  if (!session) {
-    redirect(`/${locale}/login`);
+
+  const firstName = String(formData.get('firstName') ?? '').trim();
+  const lastName = String(formData.get('lastName') ?? '').trim();
+  const email = String(formData.get('email') ?? '').trim();
+  const phone = String(formData.get('phone') ?? '').trim();
+  const paymentMethod = String(formData.get('paymentMethod') ?? 'click') as
+    | 'click'
+    | 'payme'
+    | 'uzcard'
+    | 'humo'
+    | 'cash';
+
+  if (!firstName || !lastName || !email || !phone) {
+    return { error: 'GUEST_DETAILS_REQUIRED' };
   }
 
-  const paymentMethod = (String(formData.get("paymentMethod") ?? "click")) as "click" | "payme" | "uzcard" | "humo" | "cash";
   const input = {
-    hotelId: String(formData.get("hotelId") ?? ""),
-    roomId: String(formData.get("roomId") ?? ""),
-    checkIn: String(formData.get("checkIn") ?? ""),
-    checkOut: String(formData.get("checkOut") ?? ""),
-    guests: Number(formData.get("guests") ?? 1),
+    hotelId: String(formData.get('hotelId') ?? ''),
+    roomId: String(formData.get('roomId') ?? ''),
+    checkIn: String(formData.get('checkIn') ?? ''),
+    checkOut: String(formData.get('checkOut') ?? ''),
+    guests: Number(formData.get('guests') ?? 1),
     paymentMethod,
+    firstName,
+    lastName,
+    fullName: [firstName, lastName].join(' '),
+    email,
+    phone,
   };
-  let bookingId = "";
-  let checkoutUrl = "";
+  let bookingId = '';
+  let checkoutUrl = '';
 
   try {
-    const booking = await api.bookings.createHotelBooking(input, { token: session.accessToken });
+    const booking = await api.bookings.createHotelBooking(input, {
+      token: session?.accessToken,
+    });
     bookingId = booking.id;
-
-    if (paymentMethod === "cash") {
-      redirect(`/${locale}/booking/${bookingId}?status=confirmed&payment=cash`);
-    }
+    checkoutUrl = booking.payment?.url ?? '';
 
     try {
-      const paymentSession = await api.payments.createPaymentSession(bookingId, paymentMethod, {
-        token: session.accessToken,
-      });
-      if (paymentSession.paymentUrl) {
-        checkoutUrl = paymentSession.paymentUrl;
+      if (!checkoutUrl && paymentMethod !== 'cash') {
+        const paymentSession = await api.payments.createPaymentSession(
+          bookingId,
+          paymentMethod,
+          {
+            token: session?.accessToken,
+          },
+        );
+        if (paymentSession.paymentUrl) {
+          checkoutUrl = paymentSession.paymentUrl;
+        }
       }
     } catch {
       // Fall back to booking details page if payment session fails
     }
   } catch (error) {
-    await redirectToLoginIfSessionExpired(error, locale);
+    if (session) {
+      await redirectToLoginIfSessionExpired(error, locale);
+    }
     return {
-      error: error instanceof ApiRequestError ? error.message : "ERROR",
+      error: error instanceof ApiRequestError ? error.message : 'ERROR',
     };
+  }
+
+  if (!bookingId) {
+    return { error: 'ERROR' };
+  }
+
+  if (paymentMethod === 'cash') {
+    redirect(`/${locale}/booking/${bookingId}?status=confirmed&payment=cash`);
   }
 
   if (checkoutUrl) {
     redirect(checkoutUrl);
   }
 
-  redirect(`/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}`);
+  redirect(
+    `/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}`,
+  );
 }
-
 
 export interface BusCheckoutState {
   error?: string;
@@ -93,7 +125,7 @@ export async function createBusBookingAction(
   _prev: BusCheckoutState,
   formData: FormData,
 ): Promise<BusCheckoutState> {
-  const rawLocale = String(formData.get("locale") ?? defaultLocale);
+  const rawLocale = String(formData.get('locale') ?? defaultLocale);
   const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
 
   const session = await getSession();
@@ -101,35 +133,47 @@ export async function createBusBookingAction(
     redirect(`/${locale}/login`);
   }
 
-  const tripId = String(formData.get("tripId") ?? "");
-  const seats = String(formData.get("seats") ?? "")
-    .split(",")
+  const tripId = String(formData.get('tripId') ?? '');
+  const seats = String(formData.get('seats') ?? '')
+    .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const paymentMethod = (String(formData.get("paymentMethod") ?? "click")) as "click" | "payme" | "uzcard" | "humo" | "cash";
+  const paymentMethod = String(formData.get('paymentMethod') ?? 'click') as
+    | 'click'
+    | 'payme'
+    | 'uzcard'
+    | 'humo'
+    | 'cash';
 
   if (!tripId || seats.length === 0) {
-    return { error: "NO_SEATS" };
+    return { error: 'NO_SEATS' };
   }
 
-  let bookingId = "";
-  let checkoutUrl = "";
+  let bookingId = '';
+  let checkoutUrl = '';
   try {
-    const booking = await api.bookings.createBusBooking({
-      tripId,
-      seats,
-      paymentMethod,
-    }, { token: session.accessToken });
+    const booking = await api.bookings.createBusBooking(
+      {
+        tripId,
+        seats,
+        paymentMethod,
+      },
+      { token: session.accessToken },
+    );
     bookingId = booking.id;
 
-    if (paymentMethod === "cash") {
+    if (paymentMethod === 'cash') {
       redirect(`/${locale}/booking/${bookingId}?status=confirmed&payment=cash`);
     }
 
     try {
-      const paymentSession = await api.payments.createPaymentSession(bookingId, paymentMethod, {
-        token: session.accessToken,
-      });
+      const paymentSession = await api.payments.createPaymentSession(
+        bookingId,
+        paymentMethod,
+        {
+          token: session.accessToken,
+        },
+      );
       if (paymentSession.paymentUrl) {
         checkoutUrl = paymentSession.paymentUrl;
       }
@@ -139,7 +183,7 @@ export async function createBusBookingAction(
   } catch (error) {
     await redirectToLoginIfSessionExpired(error, locale);
     return {
-      error: error instanceof ApiRequestError ? error.message : "ERROR",
+      error: error instanceof ApiRequestError ? error.message : 'ERROR',
     };
   }
 
@@ -147,5 +191,7 @@ export async function createBusBookingAction(
     redirect(checkoutUrl);
   }
 
-  redirect(`/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}`);
+  redirect(
+    `/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}`,
+  );
 }

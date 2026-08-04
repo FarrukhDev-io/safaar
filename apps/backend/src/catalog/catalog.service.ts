@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { parseGeoBounds } from '../common/geo-bounds';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { PostgresService } from '../infrastructure/postgres.service';
@@ -19,6 +19,13 @@ const longitudeSql = `COALESCE(
   CASE WHEN metadata ->> 'lon' ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN (metadata ->> 'lon')::numeric END
 )`;
 
+const DEMO_RESTAURANT_SLUGS = [
+  'osh-markazi',
+  'osh-markazi-toshkent',
+  'registon-terrace',
+  'buxoro-caravan',
+];
+
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -33,6 +40,30 @@ function numberValue(value: unknown, fallback = 0): number {
 function nullableNumber(value: unknown): number | null {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function publicApiOrigin(): string {
+  const raw =
+    process.env.PUBLIC_API_ORIGIN ??
+    'https://backend-production-87e6.up.railway.app';
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return 'https://backend-production-87e6.up.railway.app';
+  }
+}
+
+function publicMediaUrl(value: unknown): string {
+  const url = String(value ?? '').trim();
+  if (!url) return '';
+  const origin = publicApiOrigin();
+  if (url.startsWith('/uploads/')) {
+    return `${origin}${url}`;
+  }
+  return url.replace(
+    /^https?:\/\/localhost(?::\d+)?\/uploads\//i,
+    `${origin}/uploads/`,
+  );
 }
 
 @Injectable()
@@ -170,7 +201,7 @@ export class CatalogService {
             longitude:
               nullableNumber(row.longitude) ??
               nullableNumber(meta.longitude ?? meta.lng ?? meta.lon),
-            image_url: meta.image_url ?? meta.imageUrl ?? '',
+            image_url: publicMediaUrl(meta.image_url ?? meta.imageUrl),
             best_time_to_visit:
               meta.best_time_to_visit ?? meta.bestTimeToVisit ?? '',
             updated_at: row.updated_at,
@@ -181,12 +212,99 @@ export class CatalogService {
   }
 
   async restaurants(query: CatalogQuery = {}) {
-    return this.cache.getOrSet(
-      `catalog:restaurants:${cacheKey(query)}`,
-      3600,
-      async () => {
+    const bounds = parseGeoBounds(query.bounds);
+
+        // 1. Fetch published partner restaurants from hotels table
+        const hotelConditions = [
+          "po.type = 'restaurant'",
+          "h.status = 'published'",
+          "po.status = 'approved'",
+          'h.deleted_at IS NULL',
+        ];
+        const hotelParams: unknown[] = [];
+        let hotelParamIdx = 1;
+
+        if (bounds) {
+          hotelConditions.push(
+            `h.latitude IS NOT NULL AND h.longitude IS NOT NULL AND h.latitude BETWEEN $${hotelParamIdx++} AND $${hotelParamIdx++}`,
+          );
+          hotelParams.push(bounds.south, bounds.north);
+          if (bounds.west <= bounds.east) {
+            hotelConditions.push(
+              `h.longitude BETWEEN $${hotelParamIdx++} AND $${hotelParamIdx++}`,
+            );
+            hotelParams.push(bounds.west, bounds.east);
+          } else {
+            hotelConditions.push(
+              `(h.longitude >= $${hotelParamIdx++} OR h.longitude <= $${hotelParamIdx++})`,
+            );
+            hotelParams.push(bounds.west, bounds.east);
+          }
+        }
+
+        const partnerRows = await this.postgres.query<DbRow>(
+          `
+          SELECT
+            h.id::text,
+            h.slug,
+            COALESCE(ht.name, po.brand_name) AS title,
+            h.address,
+            h.rating_average::float8 AS rating,
+            h.reviews_count,
+            h.latitude::float8 AS latitude,
+            h.longitude::float8 AS longitude,
+            CASE
+              WHEN h.check_in_time IS NOT NULL AND h.check_out_time IS NOT NULL THEN h.check_in_time || ' - ' || h.check_out_time
+              ELSE COALESCE(h.check_in_time, h.check_out_time, '')
+            END AS working_hours,
+            po.phone,
+            c.name AS city_name,
+            COALESCE(
+              (SELECT url FROM media_files WHERE owner_type = 'hotel' AND owner_id = h.id AND deleted_at IS NULL AND url IS NOT NULL ORDER BY is_cover DESC, sort_order ASC LIMIT 1),
+              po.logo_url,
+              ''
+            ) AS image_url,
+            COALESCE(
+              (SELECT MIN(base_price)::float8 FROM hotel_rooms WHERE hotel_id = h.id AND status = 'active'),
+              0
+            ) AS average_check,
+            h.updated_at
+          FROM hotels h
+          JOIN partner_organizations po ON po.id = h.partner_organization_id
+          LEFT JOIN hotel_translations ht ON ht.hotel_id = h.id AND ht.language = 'uz'
+          LEFT JOIN cities c ON c.id = h.city_id
+          WHERE ${hotelConditions.join(' AND ')}
+          ORDER BY h.rating_average DESC, h.created_at DESC
+        `,
+          hotelParams,
+        );
+
+        const partnerRestaurants = partnerRows.map((row) => ({
+          id: row.id,
+          slug: row.slug,
+          name: row.title,
+          city_name: row.city_name ?? {},
+          address: row.address ?? '',
+          cuisine: '',
+          rating: numberValue(row.rating),
+          reviews_count: numberValue(row.reviews_count),
+          average_check: numberValue(row.average_check),
+          latitude: nullableNumber(row.latitude),
+          longitude: nullableNumber(row.longitude),
+          working_hours: row.working_hours ?? '',
+          image_url: publicMediaUrl(row.image_url),
+          phone: row.phone ?? '',
+          updated_at: row.updated_at,
+        }));
+
+        if (partnerRestaurants.length > 0) {
+          return partnerRestaurants;
+        }
+
+        // 2. Fetch CMS entries for restaurants (excluding demo seed entries)
         const { conditions, params } = boundsConditions('restaurant', query);
-        const rows = await this.postgres.query<DbRow>(
+        const demoSlugParam = params.length + 1;
+        const cmsRows = await this.postgres.query<DbRow>(
           `
         SELECT id::text, slug, title, metadata,
           ${latitudeSql}::float8 AS latitude,
@@ -194,13 +312,14 @@ export class CatalogService {
           published_at, updated_at
         FROM cms_entries
         WHERE ${conditions.join(' AND ')}
+          AND slug <> ALL($${demoSlugParam}::text[])
         ORDER BY
           COALESCE((metadata ->> 'sortOrder')::int, (metadata ->> 'order')::int, 9999),
           COALESCE(published_at, created_at) DESC
       `,
-          params,
+          [...params, DEMO_RESTAURANT_SLUGS],
         );
-        return rows.map((row) => {
+        const cmsRestaurants = cmsRows.map((row) => {
           const meta = objectValue(row.metadata);
           return {
             id: row.id,
@@ -219,13 +338,110 @@ export class CatalogService {
               nullableNumber(row.longitude) ??
               nullableNumber(meta.longitude ?? meta.lng ?? meta.lon),
             working_hours: meta.working_hours ?? meta.workingHours ?? '',
-            image_url: meta.image_url ?? meta.imageUrl ?? '',
+            image_url: publicMediaUrl(meta.image_url ?? meta.imageUrl),
             phone: meta.phone ?? '',
             updated_at: row.updated_at,
           };
         });
-      },
+
+        return cmsRestaurants;
+  }
+
+  async restaurant(slugOrId: string) {
+    const rows = await this.postgres.query<DbRow>(
+      `
+      SELECT
+        h.id::text,
+        h.slug,
+        COALESCE(ht.name, po.brand_name) AS name,
+        ht.description,
+        h.address,
+        h.rating_average::float8 AS rating,
+        h.reviews_count,
+        h.latitude::float8 AS latitude,
+        h.longitude::float8 AS longitude,
+        h.check_in_time,
+        h.check_out_time,
+        CASE
+          WHEN h.check_in_time IS NOT NULL AND h.check_out_time IS NOT NULL THEN h.check_in_time || ' - ' || h.check_out_time
+          ELSE COALESCE(h.check_in_time, h.check_out_time, '')
+        END AS working_hours,
+        po.phone,
+        c.id::text AS city_id,
+        c.name AS city_name,
+        h.updated_at
+      FROM hotels h
+      JOIN partner_organizations po ON po.id = h.partner_organization_id
+      LEFT JOIN hotel_translations ht ON ht.hotel_id = h.id AND ht.language = 'uz'
+      LEFT JOIN cities c ON c.id = h.city_id
+      WHERE (h.id::text = $1 OR h.slug = $1)
+        AND po.type = 'restaurant'
+        AND h.status = 'published'
+        AND po.status = 'approved'
+        AND h.deleted_at IS NULL
+    `,
+      [slugOrId],
     );
+
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'RESTAURANT_NOT_FOUND',
+        message: 'Restoran topilmadi',
+      });
+    }
+
+    const res = rows[0];
+    const hotelId = String(res.id);
+
+    const [mediaRows, roomRows] = await Promise.all([
+      this.postgres.query<{ url: string }>(
+        `SELECT url FROM media_files WHERE owner_type = 'hotel' AND owner_id = $1::uuid AND deleted_at IS NULL AND url IS NOT NULL ORDER BY is_cover DESC, sort_order ASC`,
+        [hotelId],
+      ),
+      this.postgres.query<{
+        id: string;
+        code: string;
+        base_occupancy: number;
+        max_adults: number;
+        base_price: number;
+        status: string;
+      }>(
+        `SELECT id::text, code, base_occupancy, max_adults, base_price::float8, status::text
+         FROM hotel_rooms
+         WHERE hotel_id = $1::uuid AND status = 'active'
+         ORDER BY code ASC`,
+        [hotelId],
+      ),
+    ]);
+
+    const images = mediaRows.map((m) => publicMediaUrl(m.url));
+    const tables = roomRows.map((r) => ({
+      id: r.id,
+      code: r.code,
+      name: `Stol № ${r.code}`,
+      capacity: r.max_adults || r.base_occupancy || 4,
+      base_price: Number(r.base_price || 0),
+    }));
+
+    return {
+      id: res.id,
+      slug: res.slug,
+      name: res.name,
+      description: res.description ?? '',
+      city: { id: res.city_id, name: res.city_name },
+      address: res.address,
+      latitude: nullableNumber(res.latitude),
+      longitude: nullableNumber(res.longitude),
+      working_hours: res.working_hours,
+      check_in_time: res.check_in_time,
+      check_out_time: res.check_out_time,
+      phone: res.phone,
+      rating: numberValue(res.rating),
+      reviews_count: numberValue(res.reviews_count),
+      image_url: images[0] ?? '',
+      images,
+      tables,
+    };
   }
 
   async transports() {

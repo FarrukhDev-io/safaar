@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AuthTokens, Role } from '@safaar/types';
+import type { PartnerAccessStatus } from '../_lib/api/endpoints/access';
 
 export const AUTH_STORAGE_KEY = 'uzbron-partner-auth';
 
@@ -14,6 +15,7 @@ export interface AuthUser {
   role: Role;
   organizationId?: string;
   partnerType?: string;
+  accessStatus?: PartnerAccessStatus;
 }
 
 interface AuthState {
@@ -22,7 +24,15 @@ interface AuthState {
   setSession: (user: AuthUser, tokens: AuthTokens) => void;
   updateUser: (
     patch: Partial<
-      Pick<AuthUser, 'fullName' | 'phone' | 'email' | 'partnerType'>
+      Pick<
+        AuthUser,
+        | 'fullName'
+        | 'phone'
+        | 'email'
+        | 'partnerType'
+        | 'organizationId'
+        | 'accessStatus'
+      >
     >,
   ) => void;
   clearSession: () => void;

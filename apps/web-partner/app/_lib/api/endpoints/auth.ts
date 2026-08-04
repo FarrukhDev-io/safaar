@@ -37,6 +37,8 @@ export function verifyOtp(dto: VerifyOtpDto): Promise<AuthTokens> {
 export interface PartnerLoginResponse extends AuthTokens {
   organization_id: string;
   organizationId?: string;
+  organization_status?: string;
+  organizationStatus?: string;
   partner_role: string;
 }
 

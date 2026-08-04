@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
         hostname: '**.safaar.uz',
       },
       {
+        protocol: 'https',
+        hostname: '**.up.railway.app',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pub-9055e0d28a444107a7df2431aff012ee.r2.dev',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
       },

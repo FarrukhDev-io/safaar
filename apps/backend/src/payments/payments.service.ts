@@ -20,7 +20,7 @@ type HeaderMap = Record<string, string | string[] | undefined>;
 
 interface BookingVisibilityRow {
   id: string;
-  user_id: string;
+  user_id: string | null;
   partner_organization_id: string;
   total_amount: string | number;
   currency: string;

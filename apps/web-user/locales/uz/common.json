@@ -50,6 +50,12 @@
     "email": "info@safaar.uz",
     "supportLabel": "(Qo'llab-quvvatlash)",
     "secureBooking": "Xavfsiz va kafolatlangan bron qilish",
-    "partner": "Hamkorlar"
+    "partner": "Hamkorlar uchun portal",
+    "sections": {
+      "platform": "Platforma",
+      "company": "Kompaniya",
+      "partners": "Hamkorlik",
+      "contact": "Aloqa"
+    }
   }
 }

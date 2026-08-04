@@ -628,7 +628,8 @@ export class AuthService {
     );
     const organization = orgRows[0];
 
-    if (!organization || organization['status'] !== 'approved') {
+    const organizationStatus = String(organization?.['status'] ?? '');
+    if (!this.isPartnerLoginStatusAllowed(organizationStatus)) {
       throw new UnauthorizedException({
         code: 'PARTNER_NOT_ACTIVE',
         message: 'Hamkor tashkilot faol emas',
@@ -643,6 +644,9 @@ export class AuthService {
         organizationId: partnerUser.organization_id,
       })),
       organization_id: partnerUser.organization_id,
+      organizationId: partnerUser.organization_id,
+      organization_status: organizationStatus,
+      organizationStatus,
       partner_role: partnerUser.role,
     };
   }
@@ -1280,6 +1284,9 @@ export class AuthService {
   private async issuePartnerTokensByPhone(phone: string): Promise<
     AuthTokens & {
       organization_id: string;
+      organizationId: string;
+      organization_status: string;
+      organizationStatus: string;
       partner_role: string;
     }
   > {
@@ -1303,12 +1310,13 @@ export class AuthService {
     );
     const row = rows[0];
 
-    if (!row || row['organization_status'] !== 'approved') {
+    if (!row || !this.isPartnerLoginStatusAllowed(row['organization_status'])) {
       throw new UnauthorizedException({
         code: 'PARTNER_NOT_ACTIVE',
         message: 'Hamkor tashkilot faol emas',
       });
     }
+    const organizationStatus = String(row['organization_status'] ?? '');
 
     if (row['user_status'] && row['user_status'] !== 'active') {
       throw this.invalidCredentials();
@@ -1325,6 +1333,9 @@ export class AuthService {
         organizationId,
       })),
       organization_id: organizationId,
+      organizationId,
+      organization_status: organizationStatus,
+      organizationStatus,
       partner_role: String(row['partner_role'] ?? 'owner'),
     };
   }
@@ -1333,6 +1344,8 @@ export class AuthService {
     AuthTokens & {
       organization_id: string;
       organizationId: string;
+      organization_status: string;
+      organizationStatus: string;
       partner_role: string;
     }
   > {
@@ -1357,12 +1370,13 @@ export class AuthService {
     );
     const row = rows[0];
 
-    if (!row || row['organization_status'] !== 'approved') {
+    if (!row || !this.isPartnerLoginStatusAllowed(row['organization_status'])) {
       throw new UnauthorizedException({
         code: 'PARTNER_NOT_ACTIVE',
         message: 'Hamkor tashkilot faol emas',
       });
     }
+    const organizationStatus = String(row['organization_status'] ?? '');
 
     if (row['user_status'] && row['user_status'] !== 'active') {
       throw this.invalidCredentials();
@@ -1380,6 +1394,8 @@ export class AuthService {
       })),
       organization_id: organizationId,
       organizationId,
+      organization_status: organizationStatus,
+      organizationStatus,
       partner_role: String(row['partner_role'] ?? 'owner'),
     };
   }
@@ -1387,24 +1403,32 @@ export class AuthService {
   private async assertApprovedPartnerEmail(email: string) {
     const rows = await this.pg.query<DbRow>(
       `
-        select po.id::text
+        select po.id::text, po.status::text as organization_status
         from partner_organizations po
         left join partner_users pu
           on pu.organization_id = po.id
          and pu.deleted_at is null
-        where po.status = 'approved'
-          and (lower(po.email) = lower($1) or lower(pu.email) = lower($1))
+        where lower(po.email) = lower($1) or lower(pu.email) = lower($1)
         limit 1
       `,
       [email],
     );
 
-    if (!rows[0]) {
+    if (
+      !rows[0] ||
+      !this.isPartnerLoginStatusAllowed(rows[0]['organization_status'])
+    ) {
       throw new UnauthorizedException({
         code: 'PARTNER_NOT_ACTIVE',
         message: 'Hamkor tashkilot faol emas',
       });
     }
+  }
+
+  private isPartnerLoginStatusAllowed(status: unknown): boolean {
+    return ['approved', 'blocked', 'suspended'].includes(
+      String(status ?? '').toLowerCase(),
+    );
   }
 
   private async findAdminUser(

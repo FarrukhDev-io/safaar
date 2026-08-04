@@ -23,6 +23,7 @@ export interface PartnerProfile {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
+  status?: string | null;
 }
 
 /** Hamkor bosh paneli ko'rsatkichlari (`GET /api/partners/dashboard`). */
@@ -85,6 +86,16 @@ export function updateHotel(
     body,
     token,
   });
+}
+
+export function resetHotel(id: string, token?: string | null) {
+  return request<BackendHotel>(
+    `/partners/hotels/${encodeURIComponent(id)}/reset`,
+    {
+      method: 'POST',
+      token,
+    },
+  );
 }
 
 export function submitHotelReview(id: string, token?: string | null) {

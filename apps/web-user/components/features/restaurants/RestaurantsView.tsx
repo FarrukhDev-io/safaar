@@ -3,20 +3,24 @@
 import { useMemo, useState } from "react";
 import { Clock, MapPin, PhoneCall, Star, Utensils } from "lucide-react";
 import { formatSum } from "@/lib/money";
+import type { Locale } from "@/i18n/config";
 import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import type { RestaurantItem } from "@/components/catalog/types";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Select } from "@/components/ui/Select";
 
 export type { RestaurantItem };
 
 function RestaurantCard({
   item,
   dict,
+  locale,
 }: {
   item: RestaurantItem;
   dict: CatalogDict["restaurants"];
+  locale: Locale;
 }) {
   const badge = item.cuisine ? (
     <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
@@ -44,6 +48,7 @@ function RestaurantCard({
 
   return (
     <BaseCard
+      href={`/${locale}/restaurants/${item.id}`}
       imageSrc={item.imageUrl}
       imageAlt={item.name}
       badge={badge}
@@ -67,12 +72,17 @@ function RestaurantCard({
       }
       footerRight={
         item.phone ? (
-          <a
-            href={`tel:${item.phone.replace(/\s+/g, "")}`}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.location.href = `tel:${item.phone.replace(/\s+/g, "")}`;
+            }}
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <PhoneCall className="h-3.5 w-3.5" />
-          </a>
+          </button>
         ) : undefined
       }
     />
@@ -82,9 +92,11 @@ function RestaurantCard({
 export function RestaurantsView({
   dict,
   items,
+  locale,
 }: {
   dict: CatalogDict["restaurants"];
   items: RestaurantItem[];
+  locale: Locale;
 }) {
   const [query, setQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
@@ -129,30 +141,24 @@ export function RestaurantsView({
         searchPlaceholder={dict.searchPlaceholder}
         filterControls={
           <div className="flex flex-wrap gap-2">
-            <select
+            <Select
               value={selectedCity}
-              onChange={(event) => setSelectedCity(event.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">{dict.allCities}</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-            <select
+              onChange={setSelectedCity}
+              options={[
+                { value: "all", label: dict.allCities },
+                ...cities.map((city) => ({ value: city, label: city }))
+              ]}
+              className="w-44"
+            />
+            <Select
               value={selectedCuisine}
-              onChange={(event) => setSelectedCuisine(event.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">{allCuisinesLabel}</option>
-              {cuisines.map((cuisine) => (
-                <option key={cuisine} value={cuisine}>
-                  {cuisine}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedCuisine}
+              options={[
+                { value: "all", label: allCuisinesLabel },
+                ...cuisines.map((cuisine) => ({ value: cuisine, label: cuisine }))
+              ]}
+              className="w-44"
+            />
           </div>
         }
       />
@@ -165,7 +171,7 @@ export function RestaurantsView({
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
           {filtered.map((item) => (
-            <RestaurantCard key={item.id} item={item} dict={dict} />
+            <RestaurantCard key={item.id} item={item} dict={dict} locale={locale} />
           ))}
         </div>
       )}

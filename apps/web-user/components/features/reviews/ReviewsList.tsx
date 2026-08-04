@@ -1,17 +1,18 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Image from "next/image";
-import { ShieldCheck, Camera, User } from "lucide-react";
-import type { Locale } from "@/i18n/config";
-import type { ReviewsDict } from "@/i18n/dictionaries";
-import type { ReviewView } from "@/types/view";
-import { PhotoLightbox } from "./PhotoLightbox";
+import { useState } from 'react';
+import Image from 'next/image';
+import { Camera, ShieldCheck } from 'lucide-react';
+import type { Locale } from '@/i18n/config';
+import type { ReviewsDict } from '@/i18n/dictionaries';
+import type { ReviewView } from '@/types/view';
+import { PhotoLightbox } from './PhotoLightbox';
+import { Avatar } from '@/components/ui/Avatar';
 
 const LOCALE_TAG: Record<Locale, string> = {
-  uz: "uz-UZ",
-  ru: "ru-RU",
-  en: "en-US",
+  uz: 'uz-UZ',
+  ru: 'ru-RU',
+  en: 'en-US',
 };
 
 function formatReviewDate(createdAt: string, locale: Locale): string | null {
@@ -19,9 +20,9 @@ function formatReviewDate(createdAt: string, locale: Locale): string | null {
   const date = new Date(createdAt);
   if (Number.isNaN(date.getTime())) return null;
   return new Intl.DateTimeFormat(LOCALE_TAG[locale], {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
   }).format(date);
 }
 
@@ -57,21 +58,24 @@ export function ReviewsList({
   const avgOverall =
     totalCount > 0
       ? (
-          reviewsList.reduce((acc, r) => acc + Math.max(0, Number(r.rating) || 0), 0) / totalCount
+          reviewsList.reduce(
+            (acc, r) => acc + Math.max(0, Number(r.rating) || 0),
+            0,
+          ) / totalCount
         ).toFixed(1)
-      : "0.0";
+      : '0.0';
 
   return (
-    <section className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-card p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       {/* Header Summary & Rating Breakdown */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-6 dark:border-slate-800">
         <div className="flex items-center gap-5">
-          <div className="flex flex-col items-center justify-center rounded-2xl bg-blue-50 px-5 py-4 text-center dark:bg-blue-950/40">
-            <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-primary-50 px-5 py-4 text-center dark:bg-primary-950/40">
+            <span className="text-3xl font-extrabold text-primary-600 dark:text-primary-400">
               {avgOverall}
             </span>
             <div className="flex text-amber-400 my-1">
-              {"★".repeat(Math.round(Number(avgOverall)))}
+              {'★'.repeat(Math.round(Number(avgOverall)))}
             </div>
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
               {totalCount} ta sharh
@@ -87,7 +91,6 @@ export function ReviewsList({
             </p>
           </div>
         </div>
-
       </div>
 
       {/* Reviews List */}
@@ -107,25 +110,17 @@ export function ReviewsList({
                 {/* Author Info Header */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="relative flex h-10 w-10 overflow-hidden rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-                      {review.avatarUrl ? (
-                        <Image
-                          src={review.avatarUrl}
-                          alt={review.authorName || "Mehmon"}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <span className="grid h-full w-full place-items-center">
-                          <User className="h-5 w-5" />
-                        </span>
-                      )}
-                    </div>
+                    <Avatar
+                      src={review.avatarUrl}
+                      alt={review.authorName || 'Mehmon'}
+                      fallback={review.authorName?.charAt(0) || 'M'}
+                      size="sm"
+                    />
 
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {review.authorName || "Mehmon"}
+                          {review.authorName || 'Mehmon'}
                         </span>
                         {review.isVerifiedGuest && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -137,7 +132,7 @@ export function ReviewsList({
 
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-amber-500 font-bold">
-                          {"★".repeat(rating)} ({rating}.0)
+                          {'★'.repeat(rating)} ({rating}.0)
                         </span>
                         {dateLabel && (
                           <span className="text-xs text-slate-400">

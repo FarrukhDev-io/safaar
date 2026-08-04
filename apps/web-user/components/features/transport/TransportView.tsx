@@ -8,6 +8,8 @@ import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import type { TransportItem } from "@/components/catalog/types";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Select } from "@/components/ui/Select";
+import { CategoryTabs, type CategoryTab } from "@/components/ui/CategoryTabs";
 
 export type { TransportItem };
 
@@ -116,6 +118,15 @@ export function TransportView({
     });
   }, [items, query, selectedCategory, selectedCity, hasDriverFilter]);
 
+  const transportTabs: CategoryTab[] = useMemo(() => {
+    return categories.map((cat) => ({
+      key: cat.id,
+      label: cat.label,
+      isActive: selectedCategory === cat.id,
+      onClick: () => setSelectedCategory(cat.id),
+    }));
+  }, [categories, selectedCategory]);
+
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
       <CatalogHeader
@@ -128,41 +139,32 @@ export function TransportView({
         searchPlaceholder={dict.searchPlaceholder}
         filterControls={
           <div className="flex flex-wrap gap-2">
-            <select
-              value={selectedCategory}
-              onChange={(event) => setSelectedCategory(event.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.label}
-                </option>
-              ))}
-            </select>
-            <select
+            <Select
               value={selectedCity}
-              onChange={(event) => setSelectedCity(event.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">Barcha shaharlar</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-            <select
+              onChange={setSelectedCity}
+              options={[
+                { value: "all", label: "Barcha shaharlar" },
+                ...cities.map((city) => ({ value: city, label: city }))
+              ]}
+              className="w-44"
+            />
+            <Select
               value={hasDriverFilter}
-              onChange={(event) => setHasDriverFilter(event.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-900 shadow-xs transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">Hammasi</option>
-              <option value="yes">{dict.driverIncluded}</option>
-              <option value="no">{dict.withoutDriver}</option>
-            </select>
+              onChange={setHasDriverFilter}
+              options={[
+                { value: "all", label: "Hammasi" },
+                { value: "yes", label: dict.driverIncluded },
+                { value: "no", label: dict.withoutDriver }
+              ]}
+              className="w-44"
+            />
           </div>
         }
       />
+
+      <div className="mt-2 mb-6">
+        <CategoryTabs tabs={transportTabs} />
+      </div>
 
       {filtered.length === 0 ? (
         <EmptyState

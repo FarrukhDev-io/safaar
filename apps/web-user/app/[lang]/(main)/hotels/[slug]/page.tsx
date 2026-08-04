@@ -84,8 +84,8 @@ export async function generateMetadata({
   params: Promise<{ lang: string; slug: string }>;
 }): Promise<Metadata> {
   const { lang, slug } = await params;
-  if (!isLocale(lang)) return {};
-  const hotel = await getCachedHotel(lang as Locale, slug);
+  const locale = isLocale(lang) ? lang : "uz";
+  const hotel = await getCachedHotel(locale, slug);
   if (!hotel || hotel === 404) return {};
   return {
     title: `${hotel.name} — Safaar`,
@@ -101,8 +101,7 @@ export default async function Page({
   searchParams: Promise<SearchParams>;
 }) {
   const { lang, slug } = await params;
-  if (!isLocale(lang)) notFound();
-  const locale = lang as Locale;
+  const locale = isLocale(lang) ? lang : "uz";
   const sp = await searchParams;
 
   const [hotel, dict, favDict, reviewsDict, session, amenitiesRes] =
@@ -207,12 +206,12 @@ export default async function Page({
                 {dict.amenities}
               </h2>
               <ul className="flex flex-wrap gap-2">
-                {hotel.amenities.map((id) => {
+                {hotel.amenities.map((id: string) => {
                   const Icon = AMENITY_ICONS[id];
                   return (
                     <li
                       key={id}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-card px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
                     >
                       {Icon && (
                         <Icon className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />
@@ -258,7 +257,7 @@ export default async function Page({
           </section>
         </div>
 
-        <aside className="flex h-fit flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-md dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-24">
+        <aside className="flex h-fit flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-md dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-24">
           <div>
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               {dict.from}

@@ -3,7 +3,7 @@ import type { ApiError, ApiResponse } from "@safaar/types";
 let currentBaseUrl =
   typeof process !== "undefined" && process.env && process.env.NEXT_PUBLIC_API_URL
     ? process.env.NEXT_PUBLIC_API_URL
-    : "http://localhost:4000/v1";
+    : "https://backend-production-87e6.up.railway.app/v1";
 
 export const apiConfig = {
   setBaseUrl(url: string) {

@@ -3,6 +3,7 @@
 import {
   Baby,
   BedDouble,
+  CarFront,
   Camera,
   CheckCircle2,
   Cigarette,
@@ -14,6 +15,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  RotateCcw,
   Send,
   Sparkles,
   Star,
@@ -40,7 +42,11 @@ import {
   ListingStatus,
   RESTAURANT_AMENITY_GROUPS,
 } from '../../_lib/domain/listing';
-import { useListing, useUpdateListingStatus } from '../../_hooks/use-listing';
+import {
+  useListing,
+  useResetListing,
+  useUpdateListingStatus,
+} from '../../_hooks/use-listing';
 import { useBeds } from '../../_hooks/use-beds';
 import { useRooms } from '../../_hooks/use-rooms';
 import { useRoomTypes } from '../../_hooks/use-room-types';
@@ -52,6 +58,7 @@ import {
   hasStarRating,
   isDacha,
   isRestaurant,
+  hasBuses,
 } from '../../_lib/utils/partner-labels';
 import { cn } from '../../_lib/utils/cn';
 import { formatMoney } from '../../_lib/utils/format';
@@ -67,8 +74,9 @@ type SectionId =
   | 'amenities'
   | 'location'
   | 'rules'
-  | 'roomTypes';
-type OpenEditor = Exclude<SectionId, 'roomTypes'> | null;
+  | 'roomTypes'
+  | 'rooms';
+type OpenEditor = Exclude<SectionId, 'roomTypes' | 'rooms'> | null;
 
 interface ListingSection {
   id: SectionId;
@@ -88,12 +96,14 @@ export function ListingOverview() {
   useBeds();
   const beds = useDataStore((s) => s.beds);
   const updateStatus = useUpdateListingStatus();
+  const resetListing = useResetListing();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const showStars = hasStarRating(partnerType);
   const dacha = isDacha(partnerType);
   const isHostel = hasBeds(partnerType);
   const restaurant = isRestaurant(partnerType);
+  const isBus = hasBuses(partnerType);
 
   const [openEditor, setOpenEditor] = useState<OpenEditor>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -231,6 +241,26 @@ export function ListingOverview() {
       return base;
     }
 
+    if (restaurant) {
+      return [
+        ...base,
+        {
+          id: 'rooms',
+          title: 'Stollar',
+          subtitle: `Mijoz band qilishi mumkin bo'lgan stollar`,
+          action: `Stol qo'shish`,
+          complete: listedRooms.length > 0,
+          summary: listedRooms.length > 0
+            ? `${listedRooms.length} ta stol savdoda`
+            : `Hali stollar qo'shilmagan`,
+          icon: <UtensilsCrossed className="h-4 w-4" aria-hidden />,
+          missing: listedRooms.length === 0
+            ? `Kamida bitta stol qo'shing va sotuvga chiqaring.`
+            : undefined,
+        },
+      ];
+    }
+
     return [
       ...base,
       {
@@ -243,17 +273,13 @@ export function ListingOverview() {
           roomAds.length > 0
             ? `${roomAds.length} tur · ${listedRooms.length} ${labels.unitPlural} sotuvda`
             : `Hali ${labels.unitTypeLabel.toLowerCase()} yo'q`,
-        icon: restaurant ? (
-          <UtensilsCrossed className="h-4 w-4" aria-hidden />
-        ) : (
-          <BedDouble className="h-4 w-4" aria-hidden />
-        ),
+        icon: isBus ? <CarFront className="h-4 w-4" aria-hidden /> : <BedDouble className="h-4 w-4" aria-hidden />,
         missing: !roomTypesComplete
           ? `Kamida bitta ${labels.unitTypeLabel.toLowerCase()} yarating va sotuvga qo'ying.`
           : undefined,
       },
     ];
-  }, [cover, listing, showStars, labels, dacha, restaurant, roomAds, listedRooms]);
+  }, [cover, listing, showStars, labels, dacha, restaurant, isBus, roomAds, listedRooms]);
 
   const completedCount = sections.filter((section) => section.complete).length;
   const progress = Math.round((completedCount / sections.length) * 100);
@@ -267,7 +293,11 @@ export function ListingOverview() {
       setRoomTypeDialogOpen(true);
       return;
     }
-    setOpenEditor(id);
+    if (id === 'rooms') {
+      setRoomDialogOpen(true);
+      return;
+    }
+    setOpenEditor(id as OpenEditor);
   };
 
   const statusTone = {
@@ -319,6 +349,21 @@ export function ListingOverview() {
         toast.success("E'lon ko'rib chiqishga yuborildi", {
           description: 'Admin tekshirgandan keyin nashr qilinadi.',
         }),
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : 'Xato yuz berdi');
+      },
+    });
+  };
+
+  const handleResetListing = () => {
+    const confirmed = window.confirm(
+      "E'lonni qayta yaratmoqchimisiz? Nomi, tavsifi, rasmlari, qulayliklari va xonalari butunlay o'chiriladi va bu amalni bekor qilib bo'lmaydi.",
+    );
+    if (!confirmed) return;
+
+    resetListing.mutate(undefined, {
+      onSuccess: () =>
+        toast.success("E'lon tozalandi — endi qaytadan to'ldirishingiz mumkin"),
       onError: (error) => {
         toast.error(error instanceof Error ? error.message : 'Xato yuz berdi');
       },
@@ -397,6 +442,15 @@ export function ListingOverview() {
                           Nashrga yuborish
                         </>
                       )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={resetListing.isPending}
+                      onClick={handleResetListing}
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden />
+                      Qayta e'lon yaratish
                     </Button>
                   </div>
                 </div>
@@ -564,8 +618,8 @@ export function ListingOverview() {
               label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
             />
             <ChecklistItem
-              done={roomAds.length > 0 && listedRooms.length > 0}
-              label={labels.unitTypesTitle}
+              done={restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
+              label={restaurant ? 'Stollar' : labels.unitTypesTitle}
             />
           </CardBody>
         </Card>

@@ -12,6 +12,7 @@ import {
   Route,
   Ticket,
   UtensilsCrossed,
+  UserCircle2,
   type LucideIcon,
 } from "lucide-react";
 import { getPartnerLabels } from "../../_lib/utils/partner-labels";
@@ -30,6 +31,18 @@ export interface NavGroup {
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+export function getLimitedAccessNavGroups(): NavGroup[] {
+  return [
+    {
+      title: "Access",
+      items: [
+        { label: "Profil", href: "/settings/profile", icon: UserCircle2 },
+        { label: "Yordam", href: "/support", icon: LifeBuoy },
+      ],
+    },
+  ];
+}
+
 /**
  * Dinamik navigatsiya paneli — hamkor turiga qarab o'zgaradi.
  *
@@ -40,11 +53,11 @@ export function getNavGroups(partnerType: string): NavGroup[] {
   const type = partnerType?.toLowerCase() || "hotel";
   const labels = getPartnerLabels(type);
 
-  // 1. Avtobuslar / Transport hamkorlar uchun navigatsiya
+  // 1. Transport (Avtomobil va Reyslar) hamkorlar uchun navigatsiya
   if (type === "bus") {
     return [
       {
-        items: [{ label: "Reyting va Asosiy", href: "/", icon: ConciergeBell }],
+        items: [{ label: "Dispetcherlik", href: "/", icon: ConciergeBell }],
       },
       {
         title: "Sotuv",
@@ -53,14 +66,14 @@ export function getNavGroups(partnerType: string): NavGroup[] {
       {
         title: "Operatsion",
         items: [
-          { label: "Avtobuslar", href: "/rooms", icon: Bus }, // /rooms sahifasini Avtobuslar deb nomlaymiz
-          { label: "Yo'nalishlar", href: "/calendar", icon: Route }, // kalendarni Yo'nalishlar jadvali sifatida ishlatamiz
-          { label: "Chiptalar (Bronlar)", href: "/reservations", icon: Ticket },
+          { label: "Transport Parki", href: "/rooms", icon: Bus },
+          { label: "Qatnovlar Jadvali", href: "/calendar", icon: Route },
+          { label: "Bronlar va Chiptalar", href: "/reservations", icon: Ticket },
         ],
       },
       {
-        title: "Yo'lovchi",
-        items: [{ label: "Yo'lovchilar", href: "/guests", icon: Users }],
+        title: "Mijozlar",
+        items: [{ label: "Yo'lovchilar / Mijozlar", href: "/guests", icon: Users }],
       },
       {
         title: "Boshqaruv",

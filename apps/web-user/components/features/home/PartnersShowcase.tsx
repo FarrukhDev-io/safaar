@@ -34,7 +34,7 @@ export async function PartnersShowcase({
           {partners.map((partner) => (
             <div
               key={partner.id}
-              className="group relative flex items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-xs backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-500/30 hover:bg-white hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80 dark:hover:border-primary-500/40 dark:hover:bg-slate-900"
+              className="group relative flex items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-xs backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-500/30 hover:bg-card hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80 dark:hover:border-primary-500/40 dark:hover:bg-slate-900"
             >
               {partner.logoUrl ? (
                 <div className="relative h-7 w-28 sm:h-8">

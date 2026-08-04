@@ -5,6 +5,8 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { api } from "@/lib/api";
 import { RestaurantsView } from "@/components/features/restaurants/RestaurantsView";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: {
@@ -38,7 +40,7 @@ export default async function RestaurantsPage({
 
   return (
     <main className="flex flex-1 flex-col">
-      <RestaurantsView dict={restaurantsDict} items={restaurants} />
+      <RestaurantsView dict={restaurantsDict} items={restaurants} locale={locale} />
     </main>
   );
 }

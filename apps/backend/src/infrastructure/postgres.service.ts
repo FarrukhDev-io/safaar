@@ -1,6 +1,12 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Pool, type PoolClient, type QueryResultRow } from 'pg';
+import { Pool, types, type PoolClient, type QueryResultRow } from 'pg';
+
+// node-postgres DATE ustunlarini standart holda JS `Date` obyektiga
+// aylantiradi — bu server jarayonining vaqt zonasi orqali kun siljishiga
+// olib kelishi mumkin (masalan '2026-08-10' -> '2026-08-09T19:00:00.000Z').
+// DATE (oid 1082) qiymatini xom "YYYY-MM-DD" satr sifatida qaytaramiz.
+types.setTypeParser(1082, (value: string) => value);
 
 export interface PostgresTransaction {
   query<T extends QueryResultRow = QueryResultRow>(

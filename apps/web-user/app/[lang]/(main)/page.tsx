@@ -1,18 +1,23 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { isLocale, type Locale } from "@/i18n/config";
-import { getDictionary } from "@/i18n/dictionaries";
-import { api } from "@/lib/api";
-import { SearchBar } from "@/components/search/SearchBar";
-import { Hero } from "@/components/features/home/Hero";
-import { CityCardsSection } from "@/components/features/home/CityCardsSection";
-import { TrustBar } from "@/components/features/home/TrustBar";
-import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotelsCarousel";
-import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
-import { PartnersShowcase } from "@/components/features/home/PartnersShowcase";
-import { PromoCodesSectionLive } from "@/components/features/home/PromoCodesSectionLive";
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { isLocale, type Locale } from '@/i18n/config';
+import { getDictionary } from '@/i18n/dictionaries';
+import { api } from '@/lib/api';
+import { SearchBar } from '@/components/search/SearchBar';
+import { Hero } from '@/components/features/home/Hero';
+import { CityCardsSection } from '@/components/features/home/CityCardsSection';
+
+import { FeaturedHotelsCarousel } from '@/components/features/home/FeaturedHotelsCarousel';
+import {
+  DealsSection,
+  type DealItem,
+} from '@/components/features/home/DealsSection';
+import { PromoCodesSectionLive } from '@/components/features/home/PromoCodesSectionLive';
+import { Skeleton } from '@/components/ui/Skeleton';
+
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
@@ -21,7 +26,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { lang } = await params;
   if (!isLocale(lang)) return {};
-  const dict = await getDictionary(lang, "home");
+  const dict = await getDictionary(lang, 'home');
   return { title: dict.hero.title, description: dict.hero.subtitle };
 }
 
@@ -34,15 +39,15 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [common, dict, cities, featuredResult, rawDeals, stats, promos] = await Promise.all([
-    getDictionary(locale, "common"),
-    getDictionary(locale, "home"),
-    api.catalog.getCities(locale),
-    api.hotels.getFeaturedHotels(locale, { limit: 4 }),
-    api.cms.getDeals(locale),
-    api.cms.getPublicStats().catch(() => null),
-    api.promos.listActive().catch(() => []),
-  ]);
+  const [common, dict, cities, featuredResult, rawDeals, promos] =
+    await Promise.all([
+      getDictionary(locale, 'common'),
+      getDictionary(locale, 'home'),
+      api.catalog.getCities(locale),
+      api.hotels.getFeaturedHotels(locale, { limit: 4 }),
+      api.cms.getDeals(locale),
+      api.promos.listActive().catch(() => []),
+    ]);
 
   const hotels = featuredResult.items;
 
@@ -65,7 +70,10 @@ export default async function HomePage({
         <Hero dict={dict.hero} />
 
         <div className="relative z-40">
-          <section id="search-section" className="bg-slate-50 pb-10 pt-6 sm:pb-14 sm:pt-8 dark:bg-slate-900/50">
+          <section
+            id="search-section"
+            className="bg-transparent pb-10 pt-6 sm:pb-14 sm:pt-8"
+          >
             <div className="mx-auto max-w-4xl px-4">
               <SearchBar locale={locale} dict={common.search} cities={cities} />
             </div>
@@ -77,7 +85,7 @@ export default async function HomePage({
                 <Link
                   key={city.id}
                   href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-                  className="shrink-0 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 active:scale-95 sm:px-4 sm:py-2"
+                  className="shrink-0 rounded-full border border-slate-200 bg-card px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 active:scale-95 sm:px-5 sm:py-2.5 sm:text-sm"
                 >
                   {city.name}
                 </Link>
@@ -87,7 +95,7 @@ export default async function HomePage({
         </div>
 
         {hotels.length > 0 && (
-          <Suspense fallback={<div className="h-48 w-full animate-pulse bg-slate-100 dark:bg-slate-900" />}>
+          <Suspense fallback={<Skeleton className="h-48 w-full" />}>
             <FeaturedHotelsCarousel
               hotels={hotels}
               dict={dict.featured}
@@ -95,12 +103,11 @@ export default async function HomePage({
             />
           </Suspense>
         )}
-
       </div>
 
       {/* EKRAN 2: Chegirmadagi takliflar */}
       <div className="py-10 sm:py-14">
-        <Suspense fallback={<div className="h-64 w-full animate-pulse bg-slate-100 dark:bg-slate-900" />}>
+        <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <DealsSection deals={deals} dict={dict.deals} locale={locale} />
         </Suspense>
       </div>
@@ -110,16 +117,10 @@ export default async function HomePage({
 
       {/* EKRAN 4: City Cards */}
       <div className="py-10 sm:py-16 md:py-20">
-        <Suspense fallback={<div className="h-64 w-full animate-pulse bg-slate-100 dark:bg-slate-900" />}>
+        <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <CityCardsSection locale={locale} dict={dict.popularCities} />
         </Suspense>
       </div>
-
-      {/* EKRAN 5: Ishonchli hamkorlar */}
-      <PartnersShowcase dict={dict.partners} />
-
-      {/* EKRAN 6: Trust Bar */}
-      <TrustBar dict={dict.trust} stats={stats} />
     </main>
   );
 }

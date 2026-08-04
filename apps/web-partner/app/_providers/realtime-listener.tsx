@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useSocket } from "../_hooks/use-socket";
 import { listingQueryKey } from "../_hooks/use-listing";
 import { primaryHotelQueryKey } from "../_hooks/use-primary-hotel";
+import { isLimitedPartnerAccessStatus } from "../_lib/auth/access-status";
+import { useAuthStore } from "../_stores/auth-store";
 
 /**
  * Backend `RealtimeGateway`sidan e'lon holati o'zgarishi (admin
@@ -14,7 +16,9 @@ import { primaryHotelQueryKey } from "../_hooks/use-primary-hotel";
  * yangilamasdan darhol yangi holatni ko'radi.
  */
 export function RealtimeListener() {
-  const { on } = useSocket();
+  const accessStatus = useAuthStore((s) => s.user?.accessStatus);
+  const limitedAccess = isLimitedPartnerAccessStatus(accessStatus);
+  const { on } = useSocket({ enabled: !limitedAccess });
   const queryClient = useQueryClient();
 
   useEffect(() => {

@@ -1,15 +1,14 @@
-"use client";
+'use client';
 
-import { useActionState, useState } from "react";
-import type { Locale } from "@/i18n/config";
-import type { CheckoutDict } from "@/i18n/dictionaries";
-import { createBookingAction, type CheckoutState } from "@/lib/booking/actions";
-import { formatSum } from "@/lib/money";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { PaymentSelector } from "@/components/features/checkout/PaymentSelector";
-import { trackBookingStarted } from "@/lib/services/analytics/tracker";
-
+import { useActionState, useState } from 'react';
+import type { Locale } from '@/i18n/config';
+import type { CheckoutDict } from '@/i18n/dictionaries';
+import { createBookingAction, type CheckoutState } from '@/lib/booking/actions';
+import { formatSum } from '@/lib/money';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { PaymentSelector } from '@/components/features/checkout/PaymentSelector';
+import { trackBookingStarted } from '@/lib/services/analytics/tracker';
 
 function nightsBetween(checkIn: string, checkOut: string): number {
   const start = Date.parse(checkIn);
@@ -45,6 +44,12 @@ export function CheckoutForm({
 
   const nights = nightsBetween(checkIn, checkOut);
   const total = room.priceSum * Math.max(nights, 0);
+  const errorMessage =
+    state.error === 'GUEST_DETAILS_REQUIRED'
+      ? dict.guestDetailsRequired
+      : state.error === 'ERROR'
+        ? dict.error
+        : state.error;
 
   const handleSubmitForm = (formData: FormData) => {
     trackBookingStarted({
@@ -65,16 +70,48 @@ export function CheckoutForm({
       <input type="hidden" name="roomId" value={room.id} />
 
       <div className="flex flex-col gap-6">
-        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm">
           <h2 className="text-lg font-semibold">{dict.guestDetails}</h2>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">{dict.fullName}</span>
-            <Input
-              name="fullName"
-              autoComplete="name"
-              placeholder={dict.fullNamePlaceholder}
-            />
-          </label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">{dict.firstName}</span>
+              <Input
+                name="firstName"
+                autoComplete="given-name"
+                placeholder={dict.firstNamePlaceholder}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">{dict.lastName}</span>
+              <Input
+                name="lastName"
+                autoComplete="family-name"
+                placeholder={dict.lastNamePlaceholder}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">{dict.email}</span>
+              <Input
+                type="email"
+                name="email"
+                autoComplete="email"
+                placeholder={dict.emailPlaceholder}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">{dict.phone}</span>
+              <Input
+                type="tel"
+                name="phone"
+                autoComplete="tel"
+                placeholder={dict.phonePlaceholder}
+                required
+              />
+            </label>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <label className="flex flex-col gap-1">
               <span className="text-sm font-medium">{dict.checkIn}</span>
@@ -111,13 +148,15 @@ export function CheckoutForm({
           </div>
         </section>
 
-        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">{dict.paymentMethod}</h2>
+        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            {dict.paymentMethod}
+          </h2>
           <PaymentSelector defaultValue="click" name="paymentMethod" />
         </section>
       </div>
 
-      <aside className="flex h-fit flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
+      <aside className="flex h-fit flex-col gap-3 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm lg:sticky lg:top-24">
         <h2 className="text-lg font-semibold">{dict.summary}</h2>
         <div>
           <p className="font-medium">{hotelName}</p>
@@ -137,11 +176,7 @@ export function CheckoutForm({
         {nights < 1 && (
           <p className="text-sm text-amber-600">{dict.needDates}</p>
         )}
-        {state.error && (
-          <p className="text-sm text-red-600">
-            {state.error === "ERROR" ? dict.error : state.error}
-          </p>
-        )}
+        {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
 
         <Button
           type="submit"

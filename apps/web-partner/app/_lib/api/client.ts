@@ -1,6 +1,11 @@
 import type { ApiError } from '@safaar/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api/backend';
+const DEFAULT_API_BASE_URL =
+  process.env.NODE_ENV === 'development'
+    ? '/api/backend'
+    : 'https://backend-production-87e6.up.railway.app/v1';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_BASE_URL;
 
 interface ApiEnvelope<T> {
   success: true;

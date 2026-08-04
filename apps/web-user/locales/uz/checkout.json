@@ -3,6 +3,14 @@
   "guestDetails": "Mehmon ma'lumotlari",
   "fullName": "To'liq ism",
   "fullNamePlaceholder": "Ism Familiya",
+  "firstName": "Ism",
+  "firstNamePlaceholder": "Ismingiz",
+  "lastName": "Familiya",
+  "lastNamePlaceholder": "Familiyangiz",
+  "email": "Email",
+  "emailPlaceholder": "email@example.com",
+  "phone": "Telefon",
+  "phonePlaceholder": "+998 90 123 45 67",
   "checkIn": "Kirish sanasi",
   "checkOut": "Chiqish sanasi",
   "guests": "Mehmonlar",
@@ -20,5 +28,6 @@
   "total": "Jami",
   "confirm": "Bronni tasdiqlash",
   "needDates": "Davom etish uchun kirish va chiqish sanasini tanlang.",
+  "guestDetailsRequired": "Bron qilish uchun ism, familiya, email va telefonni kiriting.",
   "error": "Bron qilishda xatolik yuz berdi. Qayta urinib ko'ring."
 }

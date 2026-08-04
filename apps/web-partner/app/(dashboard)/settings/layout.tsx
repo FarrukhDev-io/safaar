@@ -1,5 +1,9 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { Building2, UserCircle2 } from "lucide-react";
+import { isLimitedPartnerAccessStatus } from "../../_lib/auth/access-status";
+import { useAuthStore } from "../../_stores/auth-store";
 import { SettingsTabLink } from "./_components/settings-tab-link";
 
 const TABS = [
@@ -18,6 +22,11 @@ const TABS = [
 ];
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
+  const accessStatus = useAuthStore((s) => s.user?.accessStatus);
+  const tabs = isLimitedPartnerAccessStatus(accessStatus)
+    ? TABS.filter((tab) => tab.href === "/settings/profile")
+    : TABS;
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -37,7 +46,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
           aria-label="Sozlamalar bo'limlari"
           className="flex flex-row gap-1 overflow-x-auto lg:flex-col lg:overflow-visible"
         >
-          {TABS.map((t) => {
+          {tabs.map((t) => {
             const Icon = t.icon;
             return (
               <SettingsTabLink key={t.href} href={t.href}>

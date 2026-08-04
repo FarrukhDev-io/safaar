@@ -3,6 +3,14 @@
   "guestDetails": "Данные гостя",
   "fullName": "Полное имя",
   "fullNamePlaceholder": "Имя Фамилия",
+  "firstName": "Имя",
+  "firstNamePlaceholder": "Ваше имя",
+  "lastName": "Фамилия",
+  "lastNamePlaceholder": "Ваша фамилия",
+  "email": "Email",
+  "emailPlaceholder": "email@example.com",
+  "phone": "Телефон",
+  "phonePlaceholder": "+998 90 123 45 67",
   "checkIn": "Дата заезда",
   "checkOut": "Дата выезда",
   "guests": "Гости",
@@ -20,5 +28,6 @@
   "total": "Итого",
   "confirm": "Подтвердить бронь",
   "needDates": "Выберите даты заезда и выезда, чтобы продолжить.",
+  "guestDetailsRequired": "Введите имя, фамилию, email и телефон для бронирования.",
   "error": "Ошибка при бронировании. Попробуйте снова."
 }

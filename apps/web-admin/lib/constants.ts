@@ -133,6 +133,7 @@ export const PARTNER_STATUS_MAP: Record<string, { label: string; color: string; 
 
 export const PARTNER_REQUEST_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   new: { label: "Yangi", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
+  submitted: { label: "Yangi", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
   reviewing: { label: "Ko'rib chiqilmoqda", color: "#3498DB", bg: "rgba(52,152,219,0.12)" },
   approved: { label: "Tasdiqlangan", color: "#2ECC71", bg: "rgba(46,204,113,0.12)" },
   rejected: { label: "Rad etilgan", color: "#E74C3C", bg: "rgba(231,76,60,0.12)" },

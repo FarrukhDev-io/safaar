@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/Skeleton";
 /**
  * Natijalar sahifasi yuklanayotganda darhol ko'rinadigan skeleton (CWV uchun).
  * Layout darhol chiqadi, ma'lumot kelguncha shu fallback ko'rsatiladi.
@@ -5,16 +6,36 @@
 export default function HotelsLoading() {
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-8">
-      <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
-      <div className="h-8 w-48 animate-pulse rounded bg-slate-100" />
+      {/* Search Bar / Header Skeleton */}
+      <Skeleton className="h-24 rounded-2xl" />
+      
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-6 w-48 rounded-lg" />
+        <Skeleton className="h-4 w-32 rounded-md" />
+      </div>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
-        <div className="h-80 animate-pulse rounded-2xl bg-slate-100" />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {/* Filters Sidebar Skeleton */}
+        <Skeleton className="hidden lg:block h-[600px] rounded-3xl border border-slate-200 dark:border-slate-800" />
+        
+        {/* Hotel Cards Grid Skeleton */}
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="h-64 animate-pulse rounded-2xl bg-slate-100"
-            />
+              className="flex flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-card shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            >
+              <Skeleton className="aspect-[4/3] w-full" />
+              <div className="flex flex-col gap-3 p-5">
+                <Skeleton className="h-5 w-3/4 rounded-md" />
+                <Skeleton className="h-3 w-1/2 rounded-md" />
+                
+                <div className="mt-4 flex items-center justify-between">
+                  <Skeleton className="h-4 w-16 rounded-md" />
+                  <Skeleton className="h-6 w-24 rounded-lg" />
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>

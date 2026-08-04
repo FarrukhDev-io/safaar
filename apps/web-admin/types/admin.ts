@@ -25,6 +25,7 @@ export interface AdminUser {
 export interface AdminListing {
   id: string;
   partnerId: string;
+  partnerType?: ListingPartnerType;
   companyName: string;
   hotelName: string;
   city: string;
@@ -216,6 +217,7 @@ export type PaymentMethod = 'click' | 'payme' | 'uzcard' | 'humo';
  * modelidan foydalanadi, shuning uchun bitta jadvalda birlashtirilgan,
  * faqat shu maydon orqali farqlanadi. */
 export type AccommodationPartnerType = "hotel" | "motel" | "hostel" | "dacha" | "guesthouse";
+export type ListingPartnerType = AccommodationPartnerType | "restaurant" | "mixed";
 
 export interface AdminHotelBooking {
   id: string;

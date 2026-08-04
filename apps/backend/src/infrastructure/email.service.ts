@@ -77,7 +77,7 @@ export class EmailService {
     if (!response.ok) {
       throw new ServiceUnavailableException({
         code: 'EMAIL_SEND_FAILED',
-        message: body?.message ?? 'Email yuborib bo\'lmadi',
+        message: body?.message ?? "Email yuborib bo'lmadi",
       });
     }
 

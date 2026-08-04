@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, Ticket } from "lucide-react";
 import type { PromoView } from "@safaar/api-client";
+import { toast } from "sonner";
 
 function discountLabel(promo: PromoView): string {
   if (promo.discountType === "percent") {
@@ -18,9 +19,10 @@ export function PromoCodeCard({ promo }: { promo: PromoView }) {
     try {
       await navigator.clipboard.writeText(promo.code);
       setCopied(true);
+      toast.success("Promo kod nusxalandi!");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard API mavjud bo'lmasa jim o'tkazib yuboriladi
+      toast.error("Nusxalashda xatolik yuz berdi.");
     }
   };
 
@@ -28,10 +30,10 @@ export function PromoCodeCard({ promo }: { promo: PromoView }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="group flex min-h-[44px] flex-col gap-1.5 rounded-2xl border border-dashed border-blue-300 bg-blue-50/60 p-4 text-left transition-colors hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 dark:hover:bg-blue-950/30"
+      className="group flex min-h-[44px] flex-col gap-1.5 rounded-2xl border border-dashed border-primary-300 bg-primary-50/60 p-4 text-left transition-colors hover:bg-primary-50 dark:border-primary-800 dark:bg-primary-950/20 dark:hover:bg-primary-950/30"
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-sm font-black tracking-widest text-blue-700 dark:text-blue-300">
+        <span className="inline-flex items-center gap-1.5 text-sm font-black tracking-widest text-primary-700 dark:text-primary-300">
           <Ticket className="h-4 w-4" aria-hidden />
           {promo.code}
         </span>

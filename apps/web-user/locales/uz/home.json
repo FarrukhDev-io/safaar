@@ -1,9 +1,9 @@
 {
   "hero": {
-    "title": "O'zbekiston bo'ylab turar joy toping",
-    "subtitle": "Eng yaxshi narxlar, tezkor tasdiq — barchasi Safaar'da.",
-    "trustChip1": "Soniyalarda tezkor tasdiq",
-    "trustChip2": "Kafolatlangan eng yaxshi narxlar"
+    "title": "Orzuyingizdagi sayohatni bugun boshlang",
+    "subtitle": "Mehmonxonalar, dachalar va oromgohlarni kafolatlangan eng arzon narxlarda kashf eting. Soniyalar ichida bron qiling.",
+    "trustChip1": "Tezkor tasdiq",
+    "trustChip2": "Eng yaxshi narxlar"
   },
   "popularCities": {
     "title": "Mashhur yo'nalishlar",
@@ -18,7 +18,8 @@
     "rating": "4.8★",
     "ratingLabel": "o'rtacha baho",
     "support": "24/7",
-    "supportLabel": "yordam xizmati"
+    "supportLabel": "yordam xizmati",
+    "paymentMethodsLabel": "To'lov turlari:"
   },
   "featured": {
     "title": "Mashhur takliflar",

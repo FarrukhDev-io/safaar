@@ -50,8 +50,8 @@ export class PromosService {
 
     const valid = Boolean(
       promo &&
-        new Date(promo.valid_until).getTime() > Date.now() &&
-        promo.used_count < promo.usage_limit,
+      new Date(promo.valid_until).getTime() > Date.now() &&
+      promo.used_count < promo.usage_limit,
     );
 
     return {

@@ -6,7 +6,9 @@ export type PartnerAccessStatus =
   | 'reviewing'
   | 'approved'
   | 'rejected'
-  | 'submitted';
+  | 'submitted'
+  | 'blocked'
+  | 'suspended';
 
 export interface PartnerApplicationDraft {
   companyName: string;

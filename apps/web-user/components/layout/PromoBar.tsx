@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, useEffect } from "react";
 import Link from "next/link";
 import { Sparkles, X, ArrowRight } from "lucide-react";
 import { type PromoBarConfig, getLocalizedText } from "@/lib/promo";
@@ -13,7 +13,13 @@ interface PromoBarProps {
 const emptySubscribe = () => () => {};
 
 export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
-  const [now] = useState(() => Date.now());
+  const [now, setNow] = useState(0);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setNow(Date.now()), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
   const [isDismissed, setIsDismissed] = useState(false);
   const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
@@ -27,7 +33,7 @@ export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
 
   const isActive = Boolean(config?.isActive);
   const isExpired = Boolean(
-    config?.endsAt && new Date(config.endsAt).getTime() < now
+    config?.endsAt && now > 0 && new Date(config.endsAt).getTime() < now
   );
 
   const text = getLocalizedText(config?.text, locale);
