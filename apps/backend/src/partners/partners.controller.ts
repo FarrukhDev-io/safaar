@@ -131,6 +131,14 @@ export class PartnersController {
     return this.partnersService.updateHotel(actor, id, body);
   }
 
+  @Post('hotels/:id/reset')
+  resetHotel(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.partnersService.resetHotel(actor, id);
+  }
+
   @Post('hotels/:id/submit-review')
   submitHotelReview(
     @CurrentActor() actor: RequestActor | undefined,

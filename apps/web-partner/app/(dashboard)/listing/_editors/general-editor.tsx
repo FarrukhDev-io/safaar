@@ -1,7 +1,7 @@
 "use client";
 
 import { Star } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,14 +18,18 @@ import { useAuthStore } from "../../../_stores/auth-store";
 import { getPartnerLabels, hasStarRating, isRestaurant } from "../../../_lib/utils/partner-labels";
 import { cn } from "../../../_lib/utils/cn";
 
-const schema = z.object({
-  name: z.string().min(3, "Nomi kamida 3 belgi").max(100, "Max 100 belgi"),
-  stars: z.number().int().min(1).max(5),
-  shortDescription: z.string().min(20, "Kamida 20 belgi").max(200, "Max 200"),
-  fullDescription: z.string().min(100, "Kamida 100 belgi").max(2000, "Max 2000"),
-});
+function buildSchema(requireStars: boolean) {
+  return z.object({
+    name: z.string().min(3, "Nomi kamida 3 belgi").max(100, "Max 100 belgi"),
+    stars: requireStars
+      ? z.number().int().min(1, "Yulduzlarni tanlang").max(5)
+      : z.number().int().min(0).max(5),
+    shortDescription: z.string().min(20, "Kamida 20 belgi").max(200, "Max 200"),
+    fullDescription: z.string().min(100, "Kamida 100 belgi").max(2000, "Max 2000"),
+  });
+}
 
-type Values = z.infer<typeof schema>;
+type Values = z.infer<ReturnType<typeof buildSchema>>;
 
 export function GeneralEditor({
   open,
@@ -40,6 +44,7 @@ export function GeneralEditor({
   const showStars = hasStarRating(partnerType);
   const restaurant = isRestaurant(partnerType);
   const labels = getPartnerLabels(partnerType);
+  const schema = useMemo(() => buildSchema(showStars), [showStars]);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),

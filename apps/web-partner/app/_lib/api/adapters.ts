@@ -88,6 +88,7 @@ export interface BackendBooking {
   status?: string;
   check_in?: string;
   check_out?: string;
+  slot_time?: string;
   total_amount?: number;
   paid_amount?: number;
   currency?: string;
@@ -257,8 +258,11 @@ export function toReservation(booking: BackendBooking): ReservationView {
     roomNumber:
       booking.room_number ?? booking.price_snapshot?.room_number ?? undefined,
     bedId: booking.price_snapshot?.bed_id,
-    slotTime:
-      booking.policy_snapshot?.slot_time ?? booking.price_snapshot?.slot_time,
+    slotTime: normalizeSlotTime(
+      booking.slot_time ??
+        booking.policy_snapshot?.slot_time ??
+        booking.price_snapshot?.slot_time,
+    ),
     checkIn,
     checkOut,
     nights: booking.item?.nights ?? calculateNights(checkIn, checkOut),
@@ -300,6 +304,13 @@ function normalizeRoomStatus(status?: string): RoomStatus {
     return RoomStatus[value as keyof typeof RoomStatus];
   }
   return RoomStatus.VACANT_CLEAN;
+}
+
+/** Postgres `TIME` ustuni "19:00:00" qaytaradi — slotlar bilan solishtirish
+ * uchun "HH:MM" formatiga qisqartiramiz. */
+function normalizeSlotTime(value?: string): string | undefined {
+  if (!value) return undefined;
+  return value.slice(0, 5);
 }
 
 function normalizeReservationSource(source?: string): ReservationSource {

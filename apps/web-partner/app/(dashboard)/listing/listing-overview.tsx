@@ -15,6 +15,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  RotateCcw,
   Send,
   Sparkles,
   Star,
@@ -41,7 +42,11 @@ import {
   ListingStatus,
   RESTAURANT_AMENITY_GROUPS,
 } from '../../_lib/domain/listing';
-import { useListing, useUpdateListingStatus } from '../../_hooks/use-listing';
+import {
+  useListing,
+  useResetListing,
+  useUpdateListingStatus,
+} from '../../_hooks/use-listing';
 import { useBeds } from '../../_hooks/use-beds';
 import { useRooms } from '../../_hooks/use-rooms';
 import { useRoomTypes } from '../../_hooks/use-room-types';
@@ -91,6 +96,7 @@ export function ListingOverview() {
   useBeds();
   const beds = useDataStore((s) => s.beds);
   const updateStatus = useUpdateListingStatus();
+  const resetListing = useResetListing();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const showStars = hasStarRating(partnerType);
@@ -349,6 +355,21 @@ export function ListingOverview() {
     });
   };
 
+  const handleResetListing = () => {
+    const confirmed = window.confirm(
+      "E'lonni qayta yaratmoqchimisiz? Nomi, tavsifi, rasmlari, qulayliklari va xonalari butunlay o'chiriladi va bu amalni bekor qilib bo'lmaydi.",
+    );
+    if (!confirmed) return;
+
+    resetListing.mutate(undefined, {
+      onSuccess: () =>
+        toast.success("E'lon tozalandi — endi qaytadan to'ldirishingiz mumkin"),
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : 'Xato yuz berdi');
+      },
+    });
+  };
+
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="flex min-w-0 flex-col gap-5">
@@ -421,6 +442,15 @@ export function ListingOverview() {
                           Nashrga yuborish
                         </>
                       )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={resetListing.isPending}
+                      onClick={handleResetListing}
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden />
+                      Qayta e'lon yaratish
                     </Button>
                   </div>
                 </div>

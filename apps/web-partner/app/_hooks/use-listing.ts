@@ -121,6 +121,13 @@ export function useUpdateListingAmenities() {
   );
 }
 
+/** E'lonni butunlay tozalab, qayta to'ldirish uchun (qaytarib bo'lmaydi). */
+export function useResetListing() {
+  return useListingMutation<void>((hotelId, token) =>
+    partners.resetHotel(hotelId, token).then(toListing),
+  );
+}
+
 export function useUpdateListingStatus() {
   return useListingMutation<ListingStatus>((hotelId, token, status) => {
     const backendStatus =

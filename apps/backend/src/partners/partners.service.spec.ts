@@ -7,7 +7,9 @@ import { PartnersService } from './partners.service';
 
 describe('PartnersService frontend action endpoints', () => {
   let service: PartnersService;
-  let pgMock: jest.Mocked<Pick<PostgresService, 'query'>>;
+  let pgMock: jest.Mocked<Pick<PostgresService, 'query'>> & {
+    transaction: jest.Mock;
+  };
   let eventsMock: {
     hotelListingChanged: jest.Mock;
     adminDashboardUpdated: jest.Mock;
@@ -40,6 +42,9 @@ describe('PartnersService frontend action endpoints', () => {
   beforeEach(() => {
     pgMock = {
       query: jest.fn().mockResolvedValue([hotelRow]),
+      transaction: jest.fn(async (operation: (tx: unknown) => unknown) =>
+        operation({ query: pgMock.query }),
+      ),
     };
     eventsMock = {
       hotelListingChanged: jest.fn(),
@@ -52,14 +57,21 @@ describe('PartnersService frontend action endpoints', () => {
     );
   });
 
-  it('returns active drafts before previously submitted hotels', async () => {
+  it('returns the published listing before a pending next-draft, and an active draft before a rejected one', async () => {
     pgMock.query.mockResolvedValueOnce([]);
 
     await service.hotels(actor);
 
     expect(pgMock.query).toHaveBeenCalledWith(
       expect.stringContaining(
-        "ORDER BY CASE WHEN status = 'draft' THEN 0 ELSE 1 END",
+        "ORDER BY CASE status\n" +
+          "                  WHEN 'published' THEN 0\n" +
+          "                  WHEN 'pending_review' THEN 1\n" +
+          "                  WHEN 'hidden' THEN 2\n" +
+          "                  WHEN 'draft' THEN 3\n" +
+          "                  WHEN 'rejected' THEN 4\n" +
+          "                  ELSE 5\n" +
+          "                END",
       ),
       [actor.organizationId, 50, 0],
     );
@@ -249,5 +261,101 @@ describe('PartnersService frontend action endpoints', () => {
         amenities: ['wifi', 'unknown-amenity'],
       }),
     ).rejects.toThrow('Qulayliklar katalogdan topilmadi');
+  });
+
+  describe('createBooking — restoran stol/vaqt-slot himoyasi', () => {
+    const roomTypeId = '00000000-0000-0000-0000-000000000005';
+    const roomId = '00000000-0000-0000-0000-000000000006';
+    const restaurantHotelRow = {
+      id: hotelId,
+      check_in_time: '10:00',
+      check_out_time: '23:00',
+      partner_type: 'restaurant',
+    };
+    const walkInBody = {
+      hotelId,
+      roomTypeId,
+      roomNumber: 'T1',
+      slotTime: '19:00',
+      checkIn: '2026-08-10',
+      checkOut: '2026-08-10',
+      adults: 2,
+      children: 0,
+      nights: 1,
+      totalPrice: 200000,
+      source: 'walk_in',
+      fullName: 'Test Guest',
+      phone: '+998901234567',
+    };
+
+    it("bron turini 'restaurant' deb yozadi va xona/sana/slot ustunlarini haqiqiy INSERT ustunlariga to'ldiradi", async () => {
+      pgMock.query
+        .mockResolvedValueOnce([restaurantHotelRow]) // hotel + partner_organizations JOIN
+        .mockResolvedValueOnce([
+          { id: roomTypeId, name: { uz: 'Stol' }, base_price: 0, capacity: 4 },
+        ]) // room_types
+        .mockResolvedValueOnce([
+          { id: roomId, room_type_id: roomTypeId, code: 'T1', base_price: 0 },
+        ]) // hotel_rooms (roomNumber bo'yicha)
+        .mockResolvedValueOnce([{ id: roomId }]) // FOR UPDATE qulf
+        .mockResolvedValueOnce([]) // ziddiyat tekshiruvi — bo'sh, ziddiyat yo'q
+        .mockResolvedValueOnce([]) // INSERT bookings
+        .mockResolvedValueOnce([]) // INSERT payments
+        .mockResolvedValueOnce([
+          { id: 'booking-1', partner_organization_id: actor.organizationId },
+        ]); // this.booking() ichidagi so'rov
+
+      await service.createBooking(actor, walkInBody);
+
+      expect(pgMock.transaction).toHaveBeenCalledTimes(1);
+      const insertCall = pgMock.query.mock.calls.find(
+        ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO bookings'),
+      );
+      expect(insertCall).toBeDefined();
+      const params = insertCall?.[1] as unknown[];
+      expect(params[4]).toBe('restaurant');
+      expect(params[18]).toBe(roomId);
+      expect(params[19]).toBe('2026-08-10');
+      expect(params[20]).toBe('2026-08-10');
+      expect(params[21]).toBe('19:00');
+    });
+
+    it("bir xil stol + kesishuvchi vaqt-slot uchun 409 (TABLE_ALREADY_BOOKED) qaytaradi", async () => {
+      pgMock.query
+        .mockResolvedValueOnce([restaurantHotelRow])
+        .mockResolvedValueOnce([
+          { id: roomTypeId, name: { uz: 'Stol' }, base_price: 0, capacity: 4 },
+        ])
+        .mockResolvedValueOnce([
+          { id: roomId, room_type_id: roomTypeId, code: 'T1', base_price: 0 },
+        ])
+        .mockResolvedValueOnce([{ id: roomId }]) // FOR UPDATE qulf
+        .mockResolvedValueOnce([{ id: 'existing-booking-id' }]); // ziddiyat topildi
+
+      await expect(service.createBooking(actor, walkInBody)).rejects.toThrow(
+        'Bu stol tanlangan vaqtda band',
+      );
+
+      expect(
+        pgMock.query.mock.calls.some(
+          ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO bookings'),
+        ),
+      ).toBe(false);
+    });
+
+    it('ish vaqtidan tashqari slot uchun SLOT_OUTSIDE_HOURS xatosini qaytaradi', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([restaurantHotelRow])
+        .mockResolvedValueOnce([
+          { id: roomTypeId, name: { uz: 'Stol' }, base_price: 0, capacity: 4 },
+        ])
+        .mockResolvedValueOnce([
+          { id: roomId, room_type_id: roomTypeId, code: 'T1', base_price: 0 },
+        ]);
+
+      await expect(
+        service.createBooking(actor, { ...walkInBody, slotTime: '23:30' }),
+      ).rejects.toThrow('Tanlangan vaqt ish vaqtidan tashqarida');
+    });
   });
 });
