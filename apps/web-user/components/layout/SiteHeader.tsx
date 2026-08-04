@@ -30,11 +30,6 @@ export function SiteHeader({
     },
     {
       href: `${base}/transport`, label: navDict.transport ?? "Transport", icon: <Car className="h-4 w-4" />,
-      children: [
-        { href: `${base}/transport?type=rent`, label: navDict.carRent ?? "Avto ijarasi", icon: <Car className="h-4 w-4" /> },
-        { href: `${base}/transport?type=transfer`, label: navDict.transfers ?? "Aeroport Transfer", icon: <Compass className="h-4 w-4" /> },
-        { href: `${base}/transport?type=vip`, label: navDict.vipTaxi ?? "VIP Taksi", icon: <ShieldCheck className="h-4 w-4" /> },
-      ],
     },
     { href: `${base}/restaurants`, label: dict.nav.restaurants ?? "Restaurants", icon: <UtensilsCrossed className="h-4 w-4" /> },
     { href: `${base}/attractions`, label: dict.nav.attractions, icon: <MountainSnow className="h-4 w-4" /> },

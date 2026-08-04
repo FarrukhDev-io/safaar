@@ -9,6 +9,7 @@ import type { TransportItem } from "@/components/catalog/types";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
+import { CategoryTabs, type CategoryTab } from "@/components/ui/CategoryTabs";
 
 export type { TransportItem };
 
@@ -117,6 +118,15 @@ export function TransportView({
     });
   }, [items, query, selectedCategory, selectedCity, hasDriverFilter]);
 
+  const transportTabs: CategoryTab[] = useMemo(() => {
+    return categories.map((cat) => ({
+      key: cat.id,
+      label: cat.label,
+      isActive: selectedCategory === cat.id,
+      onClick: () => setSelectedCategory(cat.id),
+    }));
+  }, [categories, selectedCategory]);
+
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
       <CatalogHeader
@@ -129,12 +139,6 @@ export function TransportView({
         searchPlaceholder={dict.searchPlaceholder}
         filterControls={
           <div className="flex flex-wrap gap-2">
-            <Select
-              value={selectedCategory}
-              onChange={setSelectedCategory}
-              options={categories.map((category) => ({ value: category.id, label: category.label }))}
-              className="w-44"
-            />
             <Select
               value={selectedCity}
               onChange={setSelectedCity}
@@ -157,6 +161,10 @@ export function TransportView({
           </div>
         }
       />
+
+      <div className="mt-2 mb-6">
+        <CategoryTabs tabs={transportTabs} />
+      </div>
 
       {filtered.length === 0 ? (
         <EmptyState

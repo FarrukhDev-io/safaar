@@ -8,7 +8,7 @@ import { HotelFilters } from "@/components/hotels/HotelFilters";
 import { HotelSortSelect } from "@/components/hotels/HotelSortSelect";
 import { ActiveFilters } from "@/components/hotels/ActiveFilters";
 import { Button } from "@/components/ui/Button";
-import { CategoryTabs } from "@/components/features/accommodation/CategoryTabs";
+import { AccommodationCategoryTabs } from "@/components/features/accommodation/AccommodationCategoryTabs";
 import { AccommodationListWithMap } from "@/components/features/accommodation/AccommodationListWithMap";
 import type { HotelListItem } from "@/types/view";
 
@@ -107,7 +107,7 @@ export async function AccommodationPage({
       />
       
       <div className="mt-2">
-        <CategoryTabs locale={locale} dict={common.nav} />
+        <AccommodationCategoryTabs locale={locale} dict={common.nav as Record<string, string>} />
       </div>
 
       <div className="flex flex-col gap-3">
