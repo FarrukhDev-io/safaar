@@ -11,7 +11,9 @@ describe('CatalogService.restaurants', () => {
     cache = {
       getOrSet: jest
         .fn()
-        .mockImplementation((_key: string, _ttl: number, fn: () => Promise<unknown>) => fn()),
+        .mockImplementation(
+          (_key: string, _ttl: number, fn: () => Promise<unknown>) => fn(),
+        ),
     } as unknown as AppCacheService;
 
     postgres = {
@@ -107,11 +109,13 @@ describe('CatalogService.restaurants', () => {
       updated_at: '2026-08-04T12:00:00Z',
     };
 
-    postgres.query.mockResolvedValueOnce([]).mockResolvedValueOnce([realCmsRow]);
+    postgres.query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([realCmsRow]);
 
     const result = await service.restaurants({});
 
-    const cmsQuery = postgres.query.mock.calls[1]?.[0] as string;
+    const cmsQuery = postgres.query.mock.calls[1]?.[0];
     const cmsParams = postgres.query.mock.calls[1]?.[1] as unknown[];
 
     expect(cmsQuery).toContain('slug <> ALL($2::text[])');

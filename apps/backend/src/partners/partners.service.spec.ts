@@ -42,8 +42,8 @@ describe('PartnersService frontend action endpoints', () => {
   beforeEach(() => {
     pgMock = {
       query: jest.fn().mockResolvedValue([hotelRow]),
-      transaction: jest.fn(async (operation: (tx: unknown) => unknown) =>
-        operation({ query: pgMock.query }),
+      transaction: jest.fn((operation: (tx: unknown) => unknown) =>
+        Promise.resolve(operation({ query: pgMock.query })),
       ),
     };
     eventsMock = {
@@ -64,14 +64,14 @@ describe('PartnersService frontend action endpoints', () => {
 
     expect(pgMock.query).toHaveBeenCalledWith(
       expect.stringContaining(
-        "ORDER BY CASE status\n" +
+        'ORDER BY CASE status\n' +
           "                  WHEN 'published' THEN 0\n" +
           "                  WHEN 'pending_review' THEN 1\n" +
           "                  WHEN 'hidden' THEN 2\n" +
           "                  WHEN 'draft' THEN 3\n" +
           "                  WHEN 'rejected' THEN 4\n" +
-          "                  ELSE 5\n" +
-          "                END",
+          '                  ELSE 5\n' +
+          '                END',
       ),
       [actor.organizationId, 50, 0],
     );
@@ -351,7 +351,8 @@ describe('PartnersService frontend action endpoints', () => {
 
       expect(pgMock.transaction).toHaveBeenCalledTimes(1);
       const insertCall = pgMock.query.mock.calls.find(
-        ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO bookings'),
+        ([sql]) =>
+          typeof sql === 'string' && sql.includes('INSERT INTO bookings'),
       );
       expect(insertCall).toBeDefined();
       const params = insertCall?.[1] as unknown[];
@@ -362,7 +363,7 @@ describe('PartnersService frontend action endpoints', () => {
       expect(params[21]).toBe('19:00');
     });
 
-    it("bir xil stol + kesishuvchi vaqt-slot uchun 409 (TABLE_ALREADY_BOOKED) qaytaradi", async () => {
+    it('bir xil stol + kesishuvchi vaqt-slot uchun 409 (TABLE_ALREADY_BOOKED) qaytaradi', async () => {
       pgMock.query
         .mockResolvedValueOnce([restaurantHotelRow])
         .mockResolvedValueOnce([
@@ -380,7 +381,8 @@ describe('PartnersService frontend action endpoints', () => {
 
       expect(
         pgMock.query.mock.calls.some(
-          ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO bookings'),
+          ([sql]) =>
+            typeof sql === 'string' && sql.includes('INSERT INTO bookings'),
         ),
       ).toBe(false);
     });
