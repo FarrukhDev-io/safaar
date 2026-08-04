@@ -85,4 +85,63 @@ describe('CatalogService.restaurants', () => {
       updated_at: '2026-08-04T12:00:00Z',
     });
   });
+
+  it('partner restoran bo‘lmasa demo seed CMS restoranlarini yashirishi kerak', async () => {
+    const realCmsRow = {
+      id: 'cms-real-rest-1',
+      slug: 'real-family-restaurant',
+      title: 'Haqiqiy Oilaviy Restoran',
+      metadata: {
+        city_name: { uz: 'Toshkent' },
+        address: 'Toshkent sh., real manzil 12',
+        cuisine: 'Oilaviy oshxona',
+        rating: 4.4,
+        reviews_count: 7,
+        average_check: 90000,
+        working_hours: '10:00 - 22:00',
+        image_url: 'https://example.com/real.jpg',
+        phone: '+998901112233',
+      },
+      latitude: 41.31,
+      longitude: 69.28,
+      updated_at: '2026-08-04T12:00:00Z',
+    };
+
+    postgres.query.mockResolvedValueOnce([]).mockResolvedValueOnce([realCmsRow]);
+
+    const result = await service.restaurants({});
+
+    const cmsQuery = postgres.query.mock.calls[1]?.[0] as string;
+    const cmsParams = postgres.query.mock.calls[1]?.[1] as unknown[];
+
+    expect(cmsQuery).toContain('slug <> ALL($2::text[])');
+    expect(cmsParams).toEqual([
+      'restaurant',
+      [
+        'osh-markazi',
+        'osh-markazi-toshkent',
+        'registon-terrace',
+        'buxoro-caravan',
+      ],
+    ]);
+    expect(result).toEqual([
+      {
+        id: 'cms-real-rest-1',
+        slug: 'real-family-restaurant',
+        name: 'Haqiqiy Oilaviy Restoran',
+        city_name: { uz: 'Toshkent' },
+        address: 'Toshkent sh., real manzil 12',
+        cuisine: 'Oilaviy oshxona',
+        rating: 4.4,
+        reviews_count: 7,
+        average_check: 90000,
+        latitude: 41.31,
+        longitude: 69.28,
+        working_hours: '10:00 - 22:00',
+        image_url: 'https://example.com/real.jpg',
+        phone: '+998901112233',
+        updated_at: '2026-08-04T12:00:00Z',
+      },
+    ]);
+  });
 });

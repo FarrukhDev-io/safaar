@@ -19,6 +19,13 @@ const longitudeSql = `COALESCE(
   CASE WHEN metadata ->> 'lon' ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN (metadata ->> 'lon')::numeric END
 )`;
 
+const DEMO_RESTAURANT_SLUGS = [
+  'osh-markazi',
+  'osh-markazi-toshkent',
+  'registon-terrace',
+  'buxoro-caravan',
+];
+
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -33,6 +40,30 @@ function numberValue(value: unknown, fallback = 0): number {
 function nullableNumber(value: unknown): number | null {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function publicApiOrigin(): string {
+  const raw =
+    process.env.PUBLIC_API_ORIGIN ??
+    'https://backend-production-87e6.up.railway.app';
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return 'https://backend-production-87e6.up.railway.app';
+  }
+}
+
+function publicMediaUrl(value: unknown): string {
+  const url = String(value ?? '').trim();
+  if (!url) return '';
+  const origin = publicApiOrigin();
+  if (url.startsWith('/uploads/')) {
+    return `${origin}${url}`;
+  }
+  return url.replace(
+    /^https?:\/\/localhost(?::\d+)?\/uploads\//i,
+    `${origin}/uploads/`,
+  );
 }
 
 @Injectable()
@@ -170,7 +201,7 @@ export class CatalogService {
             longitude:
               nullableNumber(row.longitude) ??
               nullableNumber(meta.longitude ?? meta.lng ?? meta.lon),
-            image_url: meta.image_url ?? meta.imageUrl ?? '',
+            image_url: publicMediaUrl(meta.image_url ?? meta.imageUrl),
             best_time_to_visit:
               meta.best_time_to_visit ?? meta.bestTimeToVisit ?? '',
             updated_at: row.updated_at,
@@ -181,11 +212,7 @@ export class CatalogService {
   }
 
   async restaurants(query: CatalogQuery = {}) {
-    return this.cache.getOrSet(
-      `catalog:restaurants:${cacheKey(query)}`,
-      3600,
-      async () => {
-        const bounds = parseGeoBounds(query.bounds);
+    const bounds = parseGeoBounds(query.bounds);
 
         // 1. Fetch published partner restaurants from hotels table
         const hotelConditions = [
@@ -265,7 +292,7 @@ export class CatalogService {
           latitude: nullableNumber(row.latitude),
           longitude: nullableNumber(row.longitude),
           working_hours: row.working_hours ?? '',
-          image_url: row.image_url ?? '',
+          image_url: publicMediaUrl(row.image_url),
           phone: row.phone ?? '',
           updated_at: row.updated_at,
         }));
@@ -276,6 +303,7 @@ export class CatalogService {
 
         // 2. Fetch CMS entries for restaurants (excluding demo seed entries)
         const { conditions, params } = boundsConditions('restaurant', query);
+        const demoSlugParam = params.length + 1;
         const cmsRows = await this.postgres.query<DbRow>(
           `
         SELECT id::text, slug, title, metadata,
@@ -284,12 +312,12 @@ export class CatalogService {
           published_at, updated_at
         FROM cms_entries
         WHERE ${conditions.join(' AND ')}
-          AND slug NOT IN ('osh-markazi', 'registon-terrace', 'buxoro-caravan')
+          AND slug <> ALL($${demoSlugParam}::text[])
         ORDER BY
           COALESCE((metadata ->> 'sortOrder')::int, (metadata ->> 'order')::int, 9999),
           COALESCE(published_at, created_at) DESC
       `,
-          params,
+          [...params, DEMO_RESTAURANT_SLUGS],
         );
         const cmsRestaurants = cmsRows.map((row) => {
           const meta = objectValue(row.metadata);
@@ -310,15 +338,13 @@ export class CatalogService {
               nullableNumber(row.longitude) ??
               nullableNumber(meta.longitude ?? meta.lng ?? meta.lon),
             working_hours: meta.working_hours ?? meta.workingHours ?? '',
-            image_url: meta.image_url ?? meta.imageUrl ?? '',
+            image_url: publicMediaUrl(meta.image_url ?? meta.imageUrl),
             phone: meta.phone ?? '',
             updated_at: row.updated_at,
           };
         });
 
         return cmsRestaurants;
-      },
-    );
   }
 
   async restaurant(slugOrId: string) {
@@ -388,7 +414,7 @@ export class CatalogService {
       ),
     ]);
 
-    const images = mediaRows.map((m) => m.url);
+    const images = mediaRows.map((m) => publicMediaUrl(m.url));
     const tables = roomRows.map((r) => ({
       id: r.id,
       code: r.code,

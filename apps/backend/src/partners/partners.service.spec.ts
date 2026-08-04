@@ -189,7 +189,8 @@ describe('PartnersService frontend action endpoints', () => {
       ])
       .mockResolvedValueOnce([{ count: 3 }])
       .mockResolvedValueOnce([{ count: 1 }])
-      .mockResolvedValueOnce([{ count: 1 }]);
+      .mockResolvedValueOnce([{ count: 1 }])
+      .mockResolvedValueOnce([{ type: 'hotel' }]);
 
     await expect(
       service.updateListingStatus(actor, hotelId, { status: 'UNDER_REVIEW' }),
@@ -217,6 +218,7 @@ describe('PartnersService frontend action endpoints', () => {
       .mockResolvedValueOnce([{ count: 3 }])
       .mockResolvedValueOnce([{ count: 3 }])
       .mockResolvedValueOnce([{ count: 1 }])
+      .mockResolvedValueOnce([{ type: 'hotel' }])
       .mockResolvedValueOnce([{ ...completeHotel, status: 'pending_review' }]);
 
     const result = await service.updateListingStatus(actor, hotelId, {
@@ -247,6 +249,39 @@ describe('PartnersService frontend action endpoints', () => {
       sections: ['status'],
     });
     expect(eventsMock.adminDashboardUpdated).toHaveBeenCalledTimes(1);
+  });
+
+  it("restoran e'lonini faol xona bo'lmasa ham ko'rib chiqishga yuboradi", async () => {
+    const completeRestaurant = {
+      ...hotelRow,
+      address: 'Samarqand, Registon kochasi 1',
+      latitude: 39.65,
+      longitude: 66.96,
+      rules_completed_at: new Date().toISOString(),
+    };
+    pgMock.query
+      .mockResolvedValueOnce([completeRestaurant])
+      .mockResolvedValueOnce([
+        {
+          name: 'Restoran',
+          short_description: 'Yetarlicha uzun qisqa restoran tavsifi',
+          description:
+            'Bu restoran haqida mijozga ko‘rinadigan yetarlicha uzun batafsil tavsif matni mavjud. Taomlar, ish vaqti va bron qoidalari tushuntiriladi.',
+        },
+      ])
+      .mockResolvedValueOnce([{ count: 3 }])
+      .mockResolvedValueOnce([{ count: 3 }])
+      .mockResolvedValueOnce([{ count: 0 }])
+      .mockResolvedValueOnce([{ type: 'restaurant' }])
+      .mockResolvedValueOnce([
+        { ...completeRestaurant, status: 'pending_review' },
+      ]);
+
+    const result = await service.updateListingStatus(actor, hotelId, {
+      status: 'UNDER_REVIEW',
+    });
+
+    expect(result).toMatchObject({ status: 'pending_review' });
   });
 
   it('auto-creates amenity codes that are not in the catalog', async () => {

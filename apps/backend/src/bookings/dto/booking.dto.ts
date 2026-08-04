@@ -105,6 +105,31 @@ export class CreateHotelBookingDto {
   @IsIn(['instant_confirmation', 'request_confirmation'])
   confirmation_mode?: string;
 
+  @ApiPropertyOptional({ example: 'Laziz' })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Shakarov' })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiPropertyOptional({ example: 'Laziz Shakarov' })
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @ApiPropertyOptional({ example: 'laziz@example.com' })
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional({ example: '+998901234567' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
   @ApiPropertyOptional({ example: 'Laziz Shakarov' })
   @IsOptional()
   @IsString()

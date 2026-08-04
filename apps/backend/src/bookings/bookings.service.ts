@@ -80,7 +80,9 @@ export class BookingsService {
     const hotelId = String(dto.hotel_id ?? dto.hotelId ?? '');
     const roomId = String(dto.room_id ?? dto.roomId ?? dto.roomTypeId ?? '');
 
-    const [hotel] = await this.pg.query<HotelBookingRow & { partner_type?: string }>(
+    const [hotel] = await this.pg.query<
+      HotelBookingRow & { partner_type?: string }
+    >(
       `SELECT h.id, h.partner_organization_id, po.type AS partner_type
        FROM hotels h
        JOIN partner_organizations po ON po.id = h.partner_organization_id
@@ -104,6 +106,20 @@ export class BookingsService {
     const nights = this.calculateNights(checkIn, checkOut);
     const rooms = Number(dto.rooms ?? 1);
     const subtotal = Number(room.base_price) * nights * rooms;
+    const firstName = this.optionalText(dto.firstName ?? dto.first_name);
+    const lastName = this.optionalText(dto.lastName ?? dto.last_name);
+    const fullName = this.optionalText(dto.fullName ?? dto.full_name);
+    const composedName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    const guestName =
+      this.optionalText(dto.guest_name ?? dto.guestName) ??
+      fullName ??
+      (composedName || '');
+    const guestEmail =
+      this.optionalText(
+        dto.guest_email ?? dto.guestEmail ?? dto.email,
+      )?.toLowerCase() ?? '';
+    const guestPhone =
+      this.optionalText(dto.guest_phone ?? dto.guestPhone ?? dto.phone) ?? '';
 
     const bookingType: 'hotel' | 'restaurant' =
       hotel?.partner_type === 'restaurant' || dto.type === 'restaurant'
@@ -118,9 +134,9 @@ export class BookingsService {
       subtotal,
       hotel_id: hotel.id,
       trip_id: null,
-      guest_name: String(dto.guest_name ?? dto.guestName ?? ''),
-      guest_email: String(dto.guest_email ?? dto.guestEmail ?? ''),
-      guest_phone: String(dto.guest_phone ?? dto.guestPhone ?? ''),
+      guest_name: guestName,
+      guest_email: guestEmail,
+      guest_phone: guestPhone,
       price_snapshot: {
         room_id: room.id,
         check_in: checkIn,
@@ -130,9 +146,11 @@ export class BookingsService {
         adults: Number(dto.adults ?? dto.guests ?? 1),
         children: Number(dto.children ?? 0),
         guest: {
-          name: String(dto.guest_name ?? dto.guestName ?? ''),
-          email: String(dto.guest_email ?? dto.guestEmail ?? ''),
-          phone: String(dto.guest_phone ?? dto.guestPhone ?? ''),
+          first_name: firstName ?? null,
+          last_name: lastName ?? null,
+          name: guestName,
+          email: guestEmail,
+          phone: guestPhone,
         },
       },
     });
@@ -670,6 +688,14 @@ export class BookingsService {
   private confirmationMode(value: unknown): string {
     const mode = String(value ?? 'instant_confirmation');
     return mode === 'request_confirmation' ? mode : 'instant_confirmation';
+  }
+
+  private optionalText(value: unknown): string | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+    const text = String(value).trim();
+    return text || undefined;
   }
 
   private calculateNights(checkIn: string, checkOut: string): number {

@@ -69,6 +69,18 @@ describe('AdminService frontend action endpoints', () => {
     expect(result.status).toBe('deleted');
   });
 
+  it('lists only onboarding partner applications in requests', async () => {
+    pgMock.query.mockResolvedValue([]);
+
+    await service.partnerRequests();
+
+    const sql = String(pgMock.query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain("'submitted'");
+    expect(sql).toContain("'under_review'");
+    expect(sql).toContain("'more_information_required'");
+    expect(sql).not.toContain("po.status <> 'approved'");
+  });
+
   it('updates support status and appends an admin support message', async () => {
     pgMock.query.mockResolvedValue([{ status: 'closed' }]);
     const closed = await service.supportStatus(

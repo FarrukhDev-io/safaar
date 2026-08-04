@@ -27,7 +27,9 @@ type PublicPartnerStatus =
   | 'new'
   | 'reviewing'
   | 'approved'
-  | 'rejected';
+  | 'rejected'
+  | 'blocked'
+  | 'suspended';
 
 function localizedText(body: Record<string, unknown>, key: string) {
   const value = String(
@@ -2033,9 +2035,9 @@ export class PartnersService {
             .replace(/\b\w/g, (c) => c.toUpperCase());
           await this.pg.query(
             `INSERT INTO amenities (id, code, name, created_at, updated_at)
-             VALUES ($1::uuid, $2, $3, $4, $5)
+             VALUES ($1::uuid, $2, ($3)::jsonb, $4, $5)
              ON CONFLICT (code) DO NOTHING`,
-            [id, code, name, now, now],
+            [id, code, JSON.stringify({ uz: name, ru: name, en: name }), now, now],
           );
         }
         resolved = await this.pg.query<{ code: string; id: string }>(
@@ -2050,6 +2052,7 @@ export class PartnersService {
       ]);
       for (const code of codes) {
         const amenityId = codeToId.get(code);
+        if (!amenityId) continue;
         await this.pg.query(
           `INSERT INTO hotel_amenities (hotel_id, amenity_id)
            VALUES ($1::uuid, $2::uuid)
@@ -3859,6 +3862,12 @@ export class PartnersService {
     if (status === 'rejected') {
       return 'rejected';
     }
+    if (status === 'blocked') {
+      return 'blocked';
+    }
+    if (status === 'suspended') {
+      return 'suspended';
+    }
     if (status === 'under_review' || status === 'submitted') {
       return 'reviewing';
     }
@@ -4185,40 +4194,49 @@ export class PartnersService {
     id: string,
   ) {
     const hotel = await this.assertHotel(id, actor);
-    const [translations, media, amenities, rooms] = await Promise.all([
-      this.pg.query<{
-        name: string | null;
-        short_description: string | null;
-        description: string | null;
-      }>(
-        `SELECT name, short_description, description
-         FROM hotel_translations
-         WHERE hotel_id = $1::uuid`,
-        [id],
-      ),
-      this.pg.query<{ count: number }>(
-        `SELECT count(*)::int AS count
-         FROM media_files
-         WHERE owner_type = 'hotel'
-           AND owner_id = $1::uuid
-           AND deleted_at IS NULL
-           AND url IS NOT NULL`,
-        [id],
-      ),
-      this.pg.query<{ count: number }>(
-        `SELECT count(*)::int AS count
-         FROM hotel_amenities
-         WHERE hotel_id = $1::uuid`,
-        [id],
-      ),
-      this.pg.query<{ count: number }>(
-        `SELECT count(*)::int AS count
-         FROM hotel_rooms
-         WHERE hotel_id = $1::uuid
-           AND status = 'active'`,
-        [id],
-      ),
-    ]);
+    const [translations, media, amenities, rooms, partnerRows] =
+      await Promise.all([
+        this.pg.query<{
+          name: string | null;
+          short_description: string | null;
+          description: string | null;
+        }>(
+          `SELECT name, short_description, description
+           FROM hotel_translations
+           WHERE hotel_id = $1::uuid`,
+          [id],
+        ),
+        this.pg.query<{ count: number }>(
+          `SELECT count(*)::int AS count
+           FROM media_files
+           WHERE owner_type = 'hotel'
+             AND owner_id = $1::uuid
+             AND deleted_at IS NULL
+             AND url IS NOT NULL`,
+          [id],
+        ),
+        this.pg.query<{ count: number }>(
+          `SELECT count(*)::int AS count
+           FROM hotel_amenities
+           WHERE hotel_id = $1::uuid`,
+          [id],
+        ),
+        this.pg.query<{ count: number }>(
+          `SELECT count(*)::int AS count
+           FROM hotel_rooms
+           WHERE hotel_id = $1::uuid
+             AND status = 'active'`,
+          [id],
+        ),
+        this.pg.query<{ type: string }>(
+          `SELECT type::text
+           FROM partner_organizations
+           WHERE id = $1::uuid`,
+          [String(hotel['partner_organization_id'])],
+        ),
+      ]);
+    const isRestaurant =
+      String(partnerRows[0]?.type ?? '').toLowerCase() === 'restaurant';
 
     const hasName = translations.some(
       (row) => (row.name ?? '').trim().length >= 3,
@@ -4241,14 +4259,16 @@ export class PartnersService {
       hotel['check_out_time'],
     );
 
-    const sections = {
+    const sections: Record<string, boolean> = {
       general: hasName && hasShortDescription && hasFullDescription,
       location: hasLocation,
       media: Number(media[0]?.count ?? 0) >= 3,
       amenities: Number(amenities[0]?.count ?? 0) >= 3,
       rules: hasRules,
-      rooms: Number(rooms[0]?.count ?? 0) > 0,
     };
+    if (!isRestaurant) {
+      sections.rooms = Number(rooms[0]?.count ?? 0) > 0;
+    }
     const missing = Object.entries(sections)
       .filter(([, complete]) => !complete)
       .map(([section]) => section);

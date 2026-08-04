@@ -18,6 +18,14 @@ import {
   type RequestWithActor,
 } from './actor';
 
+type HttpRequestWithActor = RequestWithActor & {
+  method?: string;
+  originalUrl?: string;
+  url?: string;
+};
+
+const LIMITED_PARTNER_STATUSES = new Set(['blocked', 'suspended']);
+
 /**
  * Rol asosidagi himoya (RBAC).
  *
@@ -48,7 +56,7 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<RequestWithActor>();
+    const request = context.switchToHttp().getRequest<HttpRequestWithActor>();
     const user = request.user ?? buildActorFromHeaders(request.headers);
 
     if (user) {
@@ -63,7 +71,7 @@ export class RolesGuard implements CanActivate {
     }
 
     await this.assertSessionActive(user);
-    await this.assertActorAllowed(user);
+    await this.assertActorAllowed(user, request);
 
     if (requiredRoles?.length && !hasRole(user, requiredRoles)) {
       throw new ForbiddenException('Bu amal uchun ruxsatingiz yoq.');
@@ -95,7 +103,10 @@ export class RolesGuard implements CanActivate {
     }
   }
 
-  private async assertActorAllowed(actor: RequestActor): Promise<void> {
+  private async assertActorAllowed(
+    actor: RequestActor,
+    request: HttpRequestWithActor,
+  ): Promise<void> {
     if (actor.actorType === 'user') {
       const rows = await this.pg.query<{ status: string }>(
         `SELECT status FROM users WHERE id = $1 LIMIT 1`,
@@ -111,18 +122,70 @@ export class RolesGuard implements CanActivate {
     }
 
     if (actor.actorType === 'partner') {
+      if (!actor.organizationId) {
+        throw new ForbiddenException({
+          code: 'PARTNER_ORGANIZATION_REQUIRED',
+          message: 'Partner tashkiloti aniqlanmadi',
+        });
+      }
+
       const rows = await this.pg.query<{ status: string }>(
         `SELECT status FROM partner_organizations WHERE id = $1 LIMIT 1`,
         [actor.organizationId],
       );
 
-      if (rows.length > 0 && rows[0].status !== 'approved') {
+      const status = rows[0]?.status;
+      if (!status || status === 'approved') {
+        return;
+      }
+
+      if (
+        LIMITED_PARTNER_STATUSES.has(status) &&
+        this.isLimitedPartnerRouteAllowed(request)
+      ) {
+        return;
+      }
+
+      if (status === 'blocked') {
         throw new ForbiddenException({
-          code: 'PARTNER_NOT_ACTIVE',
-          message: 'Hamkor tashkilot faol emas',
+          code: 'PARTNER_BLOCKED',
+          message:
+            'Hamkor access bloklangan. Faqat profil va yordam chatidan foydalanish mumkin.',
         });
       }
+
+      if (status === 'suspended') {
+        throw new ForbiddenException({
+          code: 'PARTNER_SUSPENDED',
+          message:
+            "Hamkor access vaqtincha to'xtatilgan. Faqat profil va yordam chatidan foydalanish mumkin.",
+        });
+      }
+
+      throw new ForbiddenException({
+        code: 'PARTNER_NOT_ACTIVE',
+        message: 'Hamkor tashkilot faol emas',
+      });
     }
+  }
+
+  private isLimitedPartnerRouteAllowed(request: HttpRequestWithActor): boolean {
+    const rawPath = String(request.originalUrl ?? request.url ?? '');
+    const path = rawPath
+      .split('?')[0]
+      .replace(/^\/api\/backend/i, '')
+      .replace(/^\/v\d+(?=\/)/i, '');
+
+    return (
+      path === '/partners/profile' ||
+      path === '/partner/profile' ||
+      path === '/partners/application/status' ||
+      path === '/partner/application/status' ||
+      path.startsWith('/support/tickets') ||
+      path === '/auth/logout' ||
+      path === '/auth/partner/logout' ||
+      path === '/auth/sessions'
+    );
   }
 }
 
