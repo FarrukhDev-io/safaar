@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import type { ProfileView } from "@/types/view";
+import { AvatarForm } from "./AvatarForm";
 
 export function ProfileForm({
   locale,
@@ -26,8 +27,10 @@ export function ProfileForm({
   );
 
   return (
-    <form action={action} className="flex flex-col gap-4">
-      <input type="hidden" name="locale" value={locale} />
+    <div className="flex flex-col gap-6">
+      <AvatarForm profile={profile} dict={dict} />
+      <form action={action} className="flex flex-col gap-4">
+        <input type="hidden" name="locale" value={locale} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
@@ -82,5 +85,6 @@ export function ProfileForm({
         </Button>
       </div>
     </form>
+    </div>
   );
 }

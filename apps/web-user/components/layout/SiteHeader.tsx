@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Hotel, MountainSnow, UtensilsCrossed, Car, Compass, ShieldCheck } from "lucide-react";
+import { Hotel, MountainSnow, UtensilsCrossed, Car } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import { logoutAction } from "@/lib/auth/actions";

@@ -57,13 +57,8 @@ export default async function CheckoutPage({
     getCheckoutHotel(locale, hotelId),
   ]);
 
-  if (!session) {
-    const query = new URLSearchParams({ hotelId, roomId });
-    if (checkIn) query.set("checkIn", checkIn);
-    if (checkOut) query.set("checkOut", checkOut);
-    query.set("guests", String(guests));
-    const next = `/${locale}/booking?${query.toString()}`;
-    redirect(`/${locale}/login?next=${encodeURIComponent(next)}`);
+  if (false) {
+    // Session is not required for guest checkout.
   }
 
   const room = hotel?.rooms.find((r) => r.id === roomId);
@@ -82,6 +77,7 @@ export default async function CheckoutPage({
         hotelName={hotel.name}
         room={{ id: room.id, name: room.name, priceSum: room.priceSum }}
         defaults={{ checkIn, checkOut, guests }}
+        isGuest={!session}
       />
     </main>
   );

@@ -23,6 +23,7 @@ export interface MapContainerProps {
   hoveredItemId?: string | null;
   selectedItemId?: string | null;
   onSelectItem?: (item: MapMarkerItem) => void;
+  onBoundsChange?: (bounds: { neLat: number; neLng: number; swLat: number; swLng: number }) => void;
   center?: [number, number];
   zoom?: number;
   className?: string;
@@ -73,6 +74,7 @@ export function MapContainer({
   hoveredItemId,
   selectedItemId,
   onSelectItem,
+  onBoundsChange,
   center = [41.2995, 69.2401],
   zoom = 12,
   className = "h-[550px] w-full rounded-3xl overflow-hidden border border-slate-200/80 bg-card shadow-xl dark:border-slate-800 dark:bg-slate-900",
@@ -80,6 +82,11 @@ export function MapContainer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
+  const onBoundsChangeRef = useRef(onBoundsChange);
+
+  useEffect(() => {
+    onBoundsChangeRef.current = onBoundsChange;
+  }, [onBoundsChange]);
 
   // Initialize Map
   useEffect(() => {
@@ -107,6 +114,18 @@ export function MapContainer({
     }).addTo(map);
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
+
+    map.on("moveend", () => {
+      if (onBoundsChangeRef.current) {
+        const bounds = map.getBounds();
+        onBoundsChangeRef.current({
+          neLat: bounds.getNorthEast().lat,
+          neLng: bounds.getNorthEast().lng,
+          swLat: bounds.getSouthWest().lat,
+          swLng: bounds.getSouthWest().lng,
+        });
+      }
+    });
 
     mapRef.current = map;
 

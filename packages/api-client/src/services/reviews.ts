@@ -33,4 +33,32 @@ export const reviewsService = {
     );
     return mapReviews(raw);
   },
+
+  /** `POST /reviews` — sharh yaratish. */
+  async createReview(data: { targetType: string; targetId: string; rating: number; body: string; photos?: string[] }, options?: { token?: string }): Promise<ReviewView> {
+    const raw = await rawApi.post<unknown>(
+      "/reviews",
+      {
+        target_type: data.targetType,
+        target_id: data.targetId,
+        rating: data.rating,
+        body: data.body,
+        photos: data.photos,
+      },
+      options,
+    );
+    return toReviewView(camelizeKeys(raw) as any);
+  },
+
+  /** `POST /reviews/photos` — sharh uchun rasmlar yuklash. */
+  async uploadReviewPhotos(files: File[], options?: { token?: string }): Promise<string[]> {
+    const formData = new FormData();
+    files.forEach((file) => formData.append("files", file));
+    
+    const raw: any = await rawApi.post<unknown>("/reviews/photos", formData, {
+      ...options,
+      // let FormData set Content-Type
+    });
+    return raw.urls ?? [];
+  },
 };

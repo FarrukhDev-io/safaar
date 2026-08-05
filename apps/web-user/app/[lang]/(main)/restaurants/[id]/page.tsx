@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { isLocale, type Locale } from "@/i18n/config";
+import { isLocale } from "@/i18n/config";
 import { api, ApiRequestError } from "@/lib/api";
 import { BackButton } from "@/components/ui/BackButton";
 import { Badge } from "@/components/ui/Badge";
@@ -39,7 +39,7 @@ export default async function RestaurantDetailPage({
   let restaurant;
   try {
     restaurant = await api.catalog.getRestaurant(id, locale);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof ApiRequestError && error.statusCode === 404) {
       notFound();
     }

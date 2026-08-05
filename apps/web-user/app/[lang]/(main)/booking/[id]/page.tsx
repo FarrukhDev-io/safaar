@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -13,6 +13,7 @@ import { formatSum } from "@/lib/money";
 import { BackButton } from "@/components/ui/BackButton";
 import { RetryPaymentForm } from "./_components/RetryPaymentForm";
 import { BookingActions } from "./_components/BookingActions";
+import { BookingChat } from "./_components/BookingChat";
 import type { BookingView } from "@/types/view";
 import type { PaymentProvider } from "@/lib/services/payments/payments";
 
@@ -194,11 +195,16 @@ export default async function BookingDetailPage({
         bookingId={booking.id}
         totalSum={booking.totalSum}
         paymentMethod={payment?.provider || "online"}
+        token={session?.accessToken}
         dict={{
           voucher: dict.voucher,
           backHome: dict.backHome,
         }}
       />
+
+      <section className="mt-8">
+        <BookingChat bookingId={booking.id} token={session?.accessToken} />
+      </section>
     </main>
   );
 }

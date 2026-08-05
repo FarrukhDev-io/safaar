@@ -7,6 +7,7 @@ import { createBookingAction, type CheckoutState } from "@/lib/booking/actions";
 import { formatSum } from "@/lib/money";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { PaymentSelector } from "@/components/features/checkout/PaymentSelector";
 import { trackBookingStarted } from "@/lib/services/analytics/tracker";
 
@@ -27,13 +28,15 @@ export function CheckoutForm({
   hotelName,
   room,
   defaults,
+  isGuest = false,
 }: {
   locale: Locale;
-  dict: CheckoutDict;
+  dict: CheckoutDict & { firstName?: string; lastName?: string; email?: string; phone?: string };
   hotelId: string;
   hotelName: string;
   room: { id: string; name: string; priceSum: number };
   defaults: { checkIn: string; checkOut: string; guests: number };
+  isGuest?: boolean;
 }) {
   const [checkIn, setCheckIn] = useState(defaults.checkIn);
   const [checkOut, setCheckOut] = useState(defaults.checkOut);
@@ -67,36 +70,80 @@ export function CheckoutForm({
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm">
           <h2 className="text-lg font-semibold">{dict.guestDetails}</h2>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">{dict.fullName}</span>
-            <Input
-              name="fullName"
-              autoComplete="name"
-              placeholder={dict.fullNamePlaceholder}
-            />
-          </label>
+          
+          {isGuest ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium">{dict.firstName || "Ism"}</span>
+                <Input
+                  name="firstName"
+                  autoComplete="given-name"
+                  required
+                  placeholder={dict.firstName || "Ism"}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium">{dict.lastName || "Familiya"}</span>
+                <Input
+                  name="lastName"
+                  autoComplete="family-name"
+                  required
+                  placeholder={dict.lastName || "Familiya"}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium">{dict.email || "Elektron pochta"}</span>
+                <Input
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  required
+                  placeholder="example@mail.com"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium">{dict.phone || "Telefon raqami"}</span>
+                <Input
+                  type="tel"
+                  name="phone"
+                  autoComplete="tel"
+                  required
+                  placeholder="+998 90 123 45 67"
+                />
+              </label>
+            </div>
+          ) : (
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">{dict.fullName}</span>
+              <Input
+                name="fullName"
+                autoComplete="name"
+                placeholder={dict.fullNamePlaceholder}
+              />
+            </label>
+          )}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">{dict.checkIn}</span>
-              <Input
-                type="date"
-                name="checkIn"
-                required
+            <div className="flex flex-col gap-1">
+              <DatePicker
+                locale={locale}
+                label={dict.checkIn}
                 value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
+                onChange={setCheckIn}
+                min={new Date().toISOString().split("T")[0]}
               />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">{dict.checkOut}</span>
-              <Input
-                type="date"
-                name="checkOut"
-                required
-                min={checkIn || undefined}
+              <input type="hidden" name="checkIn" value={checkIn} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <DatePicker
+                locale={locale}
+                label={dict.checkOut}
                 value={checkOut}
-                onChange={(e) => setCheckOut(e.target.value)}
+                onChange={setCheckOut}
+                min={checkIn || new Date().toISOString().split("T")[0]}
               />
-            </label>
+              <input type="hidden" name="checkOut" value={checkOut} />
+            </div>
             <label className="flex flex-col gap-1">
               <span className="text-sm font-medium">{dict.guests}</span>
               <Input

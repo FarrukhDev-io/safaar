@@ -7,23 +7,9 @@ import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
 import { Filter, ChevronDown } from "lucide-react";
 import { FilterSidebar } from "@/components/ui/FilterSidebar";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { FilterGroup } from "@/components/ui/FilterGroup";
 import { Button } from "@/components/ui/Button";
 
-const AMENITIES = [
-  { id: "pool", label: "Basseyn (Yopiq/Ochiq)" },
-  { id: "tapchan", label: "Tapchan (Chayxona)" },
-  { id: "sauna", label: "Sauna & Fin hammomi" },
-  { id: "wifi", label: "Yuqori tezlikdagi Wi-Fi" },
-  { id: "breakfast", label: "Nonushta (Breakfast)" },
-  { id: "billiards", label: "Bilyard xonasi" },
-] as const;
-
-const PAYMENT_TYPES = [
-  { id: "pay_at_property", label: "Joyida to'lash (Naqd/Karta)" },
-  { id: "online_payment", label: "Online to'lash (Click, Payme)" },
-] as const;
 
 export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
   const router = useRouter();
@@ -34,28 +20,6 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
   const [stars, setStars] = useState(searchParams.get("stars") ?? "");
   const [minPrice, setMinPrice] = useState(searchParams.get("min_price") ?? "");
   const [maxPrice, setMaxPrice] = useState(searchParams.get("max_price") ?? "");
-
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>(() => {
-    const raw = searchParams.get("amenities");
-    return raw ? raw.split(",") : [];
-  });
-
-  const [selectedPayments, setSelectedPayments] = useState<string[]>(() => {
-    const raw = searchParams.get("payment");
-    return raw ? raw.split(",") : [];
-  });
-
-  const toggleAmenity = useCallback((id: string) => {
-    setSelectedAmenities((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
-    );
-  }, []);
-
-  const togglePayment = useCallback((id: string) => {
-    setSelectedPayments((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
-  }, []);
 
   const push = useCallback(
     (params: URLSearchParams) => {
@@ -71,22 +35,18 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
     if (stars) params.set("stars", stars); else params.delete("stars");
     if (minPrice) params.set("min_price", minPrice); else params.delete("min_price");
     if (maxPrice) params.set("max_price", maxPrice); else params.delete("max_price");
-    if (selectedAmenities.length) params.set("amenities", selectedAmenities.join(",")); else params.delete("amenities");
-    if (selectedPayments.length) params.set("payment", selectedPayments.join(",")); else params.delete("payment");
     push(params);
     setOpen(false);
-  }, [searchParams, stars, minPrice, maxPrice, selectedAmenities, selectedPayments, push]);
+  }, [searchParams, stars, minPrice, maxPrice, push]);
 
   const reset = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
-    for (const key of ["stars", "min_price", "max_price", "amenities", "payment"]) {
+    for (const key of ["stars", "min_price", "max_price"]) {
       params.delete(key);
     }
     setStars("");
     setMinPrice("");
     setMaxPrice("");
-    setSelectedAmenities([]);
-    setSelectedPayments([]);
     push(params);
     setOpen(false);
   }, [searchParams, push]);
@@ -153,50 +113,6 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
               value={maxPrice}
               onChange={(e) => setMaxPrice(e.target.value)}
             />
-          </div>
-        </FilterGroup>
-
-        {/* Amenities group */}
-        <FilterGroup title="Qulayliklar">
-          <div className="flex flex-col gap-2">
-            {AMENITIES.map((item) => {
-              const checked = selectedAmenities.includes(item.id);
-              return (
-                <Checkbox
-                  key={item.id}
-                  checked={checked}
-                  onChange={() => toggleAmenity(item.id)}
-                  label={item.label}
-                  className={`flex-row-reverse justify-between items-center w-full rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
-                    checked
-                      ? "border-primary-500 bg-primary-50/50 !text-primary-900 dark:bg-primary-950/50 dark:!text-primary-300"
-                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300"
-                  }`}
-                />
-              );
-            })}
-          </div>
-        </FilterGroup>
-
-        {/* Payment types group */}
-        <FilterGroup title="To'lov turi">
-          <div className="flex flex-col gap-2">
-            {PAYMENT_TYPES.map((item) => {
-              const checked = selectedPayments.includes(item.id);
-              return (
-                <Checkbox
-                  key={item.id}
-                  checked={checked}
-                  onChange={() => togglePayment(item.id)}
-                  label={item.label}
-                  className={`flex-row-reverse justify-between items-center w-full rounded-lg border px-3 py-2 text-xs font-medium transition-all ${
-                    checked
-                      ? "border-primary-500 bg-primary-50/50 !text-primary-900 dark:bg-primary-950/50 dark:!text-primary-300"
-                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300"
-                  }`}
-                />
-              );
-            })}
           </div>
         </FilterGroup>
       </FilterSidebar>

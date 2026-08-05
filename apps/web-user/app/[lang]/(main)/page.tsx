@@ -11,7 +11,6 @@ import { CityCardsSection } from "@/components/features/home/CityCardsSection";
 
 import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotelsCarousel";
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
-import { PartnersShowcase } from "@/components/features/home/PartnersShowcase";
 import { PromoCodesSectionLive } from "@/components/features/home/PromoCodesSectionLive";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -37,7 +36,7 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [common, dict, cities, featuredResult, rawDeals, stats, promos] = await Promise.all([
+  const [common, dict, cities, featuredResult, rawDeals, , promos] = await Promise.all([
     getDictionary(locale, "common"),
     getDictionary(locale, "home"),
     api.catalog.getCities(locale),

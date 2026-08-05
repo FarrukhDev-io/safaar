@@ -12,7 +12,7 @@ export function SiteFooter({
 }) {
   const base = `/${locale}`;
   const year = new Date().getFullYear();
-  const footerData = dict.footer as any;
+  const footerData = dict.footer as Record<string, unknown>;
   const sections = footerData.sections || {
     platform: "Platforma",
     company: "Kompaniya",
