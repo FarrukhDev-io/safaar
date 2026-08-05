@@ -36,7 +36,7 @@ export interface CreateSessionInput {
   userAgent?: string;
 }
 
-class AuthSessionStore {
+export class AuthSessionStore {
   private pool: Pool | null = null;
 
   private getPool(): Pool {
@@ -47,7 +47,30 @@ class AuthSessionStore {
           'AuthSessionStore: DATABASE_URL is required for session persistence',
         );
       }
-      this.pool = new Pool({ connectionString: url, max: 3 });
+      const connectionTimeoutMillis = toPositiveInt(
+        process.env.AUTH_SESSION_DB_CONNECTION_TIMEOUT_MS ??
+          process.env.DB_CONNECTION_TIMEOUT_MS,
+        8_000,
+      );
+      const queryTimeoutMillis = toPositiveInt(
+        process.env.AUTH_SESSION_DB_QUERY_TIMEOUT_MS ??
+          process.env.DB_QUERY_TIMEOUT_MS,
+        8_000,
+      );
+      const idleTimeoutMillis = toPositiveInt(
+        process.env.AUTH_SESSION_DB_IDLE_TIMEOUT_MS ??
+          process.env.DB_IDLE_TIMEOUT_MS,
+        10_000,
+      );
+      const max = toPositiveInt(process.env.AUTH_SESSION_DB_POOL_MAX, 3);
+      this.pool = new Pool({
+        connectionString: url,
+        connectionTimeoutMillis,
+        idleTimeoutMillis,
+        query_timeout: queryTimeoutMillis,
+        statement_timeout: queryTimeoutMillis,
+        max,
+      });
     }
     return this.pool;
   }
@@ -127,10 +150,17 @@ class AuthSessionStore {
   }
 
   async isActive(id: string | undefined): Promise<boolean> {
-    const session = await this.get(id);
-    return Boolean(
-      session && !session.revokedAt && session.refreshExpiresAt > Date.now(),
+    if (!id) return false;
+    const rows = await this.query<{ active: number }>(
+      `SELECT 1 AS active
+       FROM auth_sessions
+       WHERE id = $1
+         AND revoked_at IS NULL
+         AND refresh_expires_at > $2
+       LIMIT 1`,
+      [id, Date.now()],
     );
+    return rows.length > 0;
   }
 
   async listForActor(actorId: string): Promise<AuthSessionRecord[]> {
@@ -228,3 +258,8 @@ class AuthSessionStore {
 }
 
 export const authSessionStore = new AuthSessionStore();
+
+function toPositiveInt(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}

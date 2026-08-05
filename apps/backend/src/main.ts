@@ -12,6 +12,10 @@ import { corsOriginsFromEnv } from './config/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const expressInstance = app.getHttpAdapter().getInstance() as {
+    disable?: (setting: string) => void;
+  };
+  expressInstance.disable?.('x-powered-by');
   const config = app.get(ConfigService);
   const apiPrefix = config.get<string>('API_PREFIX', 'v1');
   const uploadRoot = config.get<string>(
@@ -38,6 +42,10 @@ async function bootstrap() {
       // panel sozlamalarini (texnik xizmat rejimi kabi) yangilagandan
       // keyin eski qiymat keshdan "qaytib qolishi" mumkin edi.
       response.setHeader('Cache-Control', 'no-store');
+      response.setHeader(
+        'Permissions-Policy',
+        'camera=(), microphone=(), geolocation=(), payment=()',
+      );
       next();
     },
   );

@@ -73,10 +73,12 @@ export class PostgresService implements OnModuleDestroy {
         return result.rows;
       } catch (error) {
         lastError = error;
-        if (attempt < attempts - 1) {
+        if (attempt < attempts - 1 && isRetryablePostgresError(error)) {
           await new Promise((resolve) =>
             setTimeout(resolve, 300 * (attempt + 1)),
           );
+        } else {
+          break;
         }
       }
     }
@@ -147,6 +149,14 @@ function toPositiveInt(value: unknown, fallback: number): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+export function isRetryablePostgresError(error: unknown): boolean {
+  const code =
+    typeof error === 'object' && error !== null
+      ? String((error as { code?: unknown }).code ?? '')
+      : '';
+  return RETRYABLE_POSTGRES_ERROR_CODES.has(code);
+}
+
 function summarizeSql(sql: string): string {
   return sql
     .replace(/\s+/g, ' ')
@@ -154,3 +164,19 @@ function summarizeSql(sql: string): string {
     .slice(0, 180)
     .replace(/'(?:''|[^'])*'/g, "'?'");
 }
+
+const RETRYABLE_POSTGRES_ERROR_CODES = new Set([
+  '08000',
+  '08001',
+  '08003',
+  '08004',
+  '08006',
+  '08007',
+  '08P01',
+  '40001',
+  '40P01',
+  '53300',
+  '57P01',
+  '57P02',
+  '57P03',
+]);

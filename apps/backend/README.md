@@ -123,12 +123,32 @@ Backend-only local stack:
 docker compose -f docker-compose.backend.yml up --build
 ```
 
-This starts API, PostgreSQL, and Redis.
+This starts API, PostgreSQL, and Redis. Object storage uses the Cloudflare R2
+credentials from `apps/backend/.env`; Docker Compose does not define storage
+credentials directly.
+
+Required R2 storage environment:
+
+```text
+STORAGE_ENDPOINT
+STORAGE_REGION
+STORAGE_BUCKET_PUBLIC
+STORAGE_BUCKET_PRIVATE
+STORAGE_ACCESS_KEY_ID
+STORAGE_SECRET_ACCESS_KEY
+STORAGE_PUBLIC_BASE_URL
+STORAGE_FORCE_PATH_STYLE
+```
+
+For Cloudflare R2, `STORAGE_REGION` is usually `auto` and
+`STORAGE_FORCE_PATH_STYLE=true` is recommended. The backend validates both
+configured buckets during startup and logs bucket-access success or sanitized
+Cloudflare R2 errors.
 
 ## Current Implementation Notes
 
 The code now has the TZ API surface, DTO validation, Swagger setup, security
-headers, rate limiting, Prisma schema, Docker Compose, CI, and provider adapter
-contracts. The remaining production work is to replace the current in-memory
-services with Prisma repositories and connect real external credentials for
-Click, Payme, Uzcard, Humo, SMS, email, push, and object storage.
+headers, rate limiting, Prisma schema, Docker Compose, CI, Cloudflare R2 object
+storage, and provider adapter contracts. The remaining production work is to
+replace the current in-memory services with Prisma repositories and connect real
+external credentials for Click, Payme, Uzcard, Humo, SMS, email, and push.
