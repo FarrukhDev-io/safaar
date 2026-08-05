@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Param,
   Post,
   UploadedFile,
@@ -61,5 +62,14 @@ export class UploadsController {
     @Param('id') id: string,
   ) {
     return this.uploadsService.delete(actor, id);
+  }
+
+  @Get(':id/download')
+  @Roles(Role.USER, Role.PARTNER, Role.ADMIN, Role.SUPER_ADMIN)
+  download(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.uploadsService.download(actor, id);
   }
 }

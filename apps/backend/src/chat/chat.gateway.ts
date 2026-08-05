@@ -10,6 +10,8 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import type { RequestActor } from '../common/actor';
+import { corsOriginsFromEnv } from '../config/cors';
+import { authSessionStore } from '../auth/session-store';
 import { verifyJwt } from '../auth/security';
 import { ChatService } from './chat.service';
 
@@ -20,7 +22,7 @@ interface ChatSocket extends Socket {
 @WebSocketGateway({
   namespace: '/ws/chat',
   cors: {
-    origin: '*',
+    origin: corsOriginsFromEnv(process.env.CORS_ORIGINS),
     credentials: true,
   },
 })
@@ -32,9 +34,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(private readonly chatService: ChatService) {}
 
-  handleConnection(client: ChatSocket) {
+  async handleConnection(client: ChatSocket) {
     const actor = this.actorFromSocket(client);
-    if (!actor) {
+    if (!actor || !(await this.isSessionActive(actor))) {
       client.emit('server:error', {
         code: 'AUTH_TOKEN_INVALID',
         message: 'Chat uchun yaroqli token kerak',
@@ -142,6 +144,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       organizationId: payload.organization_id ?? undefined,
       sessionId: payload.session_id,
     };
+  }
+
+  private async isSessionActive(actor: RequestActor): Promise<boolean> {
+    if (!actor.sessionId) return false;
+    return authSessionStore.isActive(actor.sessionId);
   }
 
   private emitError(client: ChatSocket, error: unknown) {

@@ -2,10 +2,10 @@
 
 > **Bron qil, yo'lga chiq!** — O'zbekiston milliy turar joy va bron platformasi.
 
-| | |
-|---|---|
-| 🏨 Mehmonxona | 🏡 Dacha |
-| 🛖 Gostinka | 🏥 Sanatoriy |
+|                     |                       |
+| ------------------- | --------------------- |
+| 🏨 Mehmonxona       | 🏡 Dacha              |
+| 🛖 Gostinka         | 🏥 Sanatoriy          |
 | ⛰️ Tog' oromgohlari | 🚌 Avtobus chiptalari |
 
 ## Arxitektura
@@ -22,12 +22,12 @@ packages/
 
 ## Texnologiyalar
 
-| Qatlam | Texnologiya |
-|---|---|
+| Qatlam   | Texnologiya                                                |
+| -------- | ---------------------------------------------------------- |
 | Frontend | Next.js 16, React 19, Tailwind CSS v4, TypeScript (strict) |
-| Backend | NestJS, PostgreSQL (Neon), Redis |
-| Auth | JWT + Refresh Token, SMS OTP |
-| To'lov | Click, Payme, Uzcard, Humo |
+| Backend  | NestJS, PostgreSQL (Neon), Redis, Cloudflare R2            |
+| Auth     | JWT + Refresh Token, SMS OTP                               |
+| To'lov   | Click, Payme, Uzcard, Humo                                 |
 
 ## Boshlash
 
@@ -37,6 +37,16 @@ npm run build:types         # types paketini build qilish (birinchi)
 npm run dev:user            # web-user → localhost:3000
 npm run dev:backend         # backend  → localhost:4000
 ```
+
+Backend Docker stack:
+
+```bash
+docker compose -f docker-compose.backend.yml up --build
+```
+
+Bu stack PostgreSQL, Redis va API'ni ishga tushiradi. Fayl storage Cloudflare
+R2 orqali ishlaydi va qiymatlar `apps/backend/.env` ichidagi `STORAGE_*`
+o'zgaruvchilardan olinadi.
 
 ## Buyruqlar
 
@@ -55,4 +65,4 @@ npm run test                # testlar
 
 ---
 
-*SAFAAR Development Team*
+_SAFAAR Development Team_

@@ -6,11 +6,11 @@ services:
       POSTGRES_USER: uzbron
       POSTGRES_PASSWORD: uzbron
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - uzbron-postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U uzbron -d uzbron"]
+      test: ['CMD-SHELL', 'pg_isready -U uzbron -d uzbron']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -18,11 +18,11 @@ services:
   redis:
     image: redis:8
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - uzbron-redis:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,7 +32,7 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     env_file:
-      - apps/backend/.env.example
+      - apps/backend/.env
     environment:
       DATABASE_URL: postgresql://uzbron:uzbron@postgres:5432/uzbron
       REDIS_URL: redis://redis:6379/0
@@ -40,7 +40,7 @@ services:
       PORT: 4000
       API_PREFIX: v1
     ports:
-      - "4000:4000"
+      - '4000:4000'
     depends_on:
       postgres:
         condition: service_healthy
