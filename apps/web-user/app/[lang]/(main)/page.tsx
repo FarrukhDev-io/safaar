@@ -73,7 +73,7 @@ export default async function HomePage({
           </section>
 
           {cities.length > 0 && (
-            <div className="mx-auto mt-4 flex max-w-5xl flex-nowrap items-center justify-start sm:justify-center gap-1.5 overflow-x-auto px-4 sm:mt-6 sm:gap-2 pb-1 scrollbar-none">
+            <div className="mx-auto mt-4 flex max-w-5xl flex-nowrap items-center justify-start sm:justify-center gap-2 overflow-x-auto px-4 py-4 sm:mt-6 scrollbar-none">
               {cities.slice(0, 8).map((city) => (
                 <Link
                   key={city.id}
