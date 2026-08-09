@@ -132,6 +132,17 @@
     color: var(--brand-800);
   }
 
+  /* Prevent browser default focus outlines on click (especially for next/link navigation) */
+  a, button {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  a:focus:not(:focus-visible), button:focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
+  }
+
   input:focus, select:focus, textarea:focus {
     outline: none;
     box-shadow: 0 0 0 2px var(--brand-200);
