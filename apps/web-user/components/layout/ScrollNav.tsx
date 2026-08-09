@@ -27,6 +27,25 @@ function isActive(pathname: string, href: string, exact?: boolean): boolean {
   return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function getNavLinkClasses(active: boolean, mobile = false) {
+  return cn(
+    "font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
+    mobile ? "flex h-12 items-center gap-3 w-full rounded-2xl px-4 text-[15px]" : "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-base",
+    active
+      ? "border border-slate-300 bg-white text-slate-900 shadow-[0_3px_0_rgb(148,163,184),0_4px_8px_rgba(0,0,0,0.06)] -translate-y-[1px] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+      : "border border-transparent text-slate-900 hover:border-slate-300 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(148,163,184),0_4px_8px_rgba(0,0,0,0.06)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+  );
+}
+
+function getChildNavLinkClasses(active: boolean) {
+  return cn(
+    "flex items-center gap-2.5 font-bold transition-all duration-150 rounded-xl w-full h-11 px-3.5 text-[15px]",
+    active
+      ? "border border-slate-200 bg-white text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] -translate-y-[1px] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+      : "border border-transparent text-slate-900 hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+  );
+}
+
 function NavDropdown({ item, pathname }: { item: ScrollNavItem; pathname: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -81,16 +100,11 @@ function NavDropdown({ item, pathname }: { item: ScrollNavItem; pathname: string
         aria-expanded={open}
         aria-haspopup="true"
         aria-label={displayItem.label}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
-          active
-            ? "border border-white/60 bg-white/20 text-white shadow-xs"
-            : "text-white hover:bg-white/15 hover:text-white",
-        )}
+        className={getNavLinkClasses(active, false)}
       >
         {displayItem.icon}
         <span className="text-base font-bold tracking-wide">{displayItem.label}</span>
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform text-white/90", open && "rotate-180")} />
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform text-slate-400 dark:text-slate-500", open && "rotate-180")} />
       </button>
 
       {open && item.children && (
@@ -107,12 +121,7 @@ function NavDropdown({ item, pathname }: { item: ScrollNavItem; pathname: string
                 href={child.href}
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-all",
-                  childActive
-                    ? "bg-primary-500 text-white shadow-xs"
-                    : "text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800",
-                )}
+                className={getChildNavLinkClasses(childActive)}
               >
                 <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
                 <span className="text-sm font-bold">{child.label}</span>
@@ -166,12 +175,7 @@ function MobileAccordionGroup({
                 href={child.href}
                 onClick={onNavigate}
                 aria-current={childActive ? "page" : undefined}
-                className={cn(
-                  "flex h-11 items-center gap-3 rounded-xl px-3.5 text-[15px] font-bold transition-colors",
-                  childActive
-                    ? "border border-slate-200 bg-white text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] -translate-y-[1px] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                    : "border border-transparent text-slate-900 hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white",
-                )}
+                className={getChildNavLinkClasses(childActive)}
               >
                 <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
                 <span className="text-sm font-bold">{child.label}</span>
@@ -260,12 +264,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                     href={item.href}
                     onClick={() => setMenuOpen(false)}
                     aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "flex h-12 items-center gap-3 rounded-2xl px-4 text-[15px] font-bold transition-colors",
-                      active
-                        ? "border border-slate-200 bg-white text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] -translate-y-[1px] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                        : "border border-transparent text-slate-900 hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
-                    )}
+                    className={getNavLinkClasses(active, true)}
                   >
                     {item.icon && (
                       <span className="flex h-6 w-6 items-center justify-center">{item.icon}</span>
@@ -309,12 +308,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                   key={item.href}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
-                    active
-                      ? "border border-slate-300 bg-white text-slate-900 shadow-[0_3px_0_rgb(148,163,184),0_4px_8px_rgba(0,0,0,0.06)] -translate-y-[1px] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                      : "border border-transparent text-slate-900 hover:border-slate-300 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(148,163,184),0_4px_8px_rgba(0,0,0,0.06)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
-                  )}
+                  className={getNavLinkClasses(active, false)}
                 >
                   {item.icon}
                   <span className="text-base font-bold tracking-wide">{item.label}</span>

@@ -42,6 +42,26 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
 }
 
+export function buttonVariants({
+  variant = "primary",
+  size = "md",
+  rounded = "xl",
+  className,
+}: {
+  variant?: Variant;
+  size?: Size;
+  rounded?: Rounded;
+  className?: string;
+} = {}) {
+  return cn(
+    "inline-flex items-center justify-center gap-2 font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:pointer-events-none",
+    variantClasses[variant],
+    sizeClasses[size],
+    roundedClasses[rounded],
+    className,
+  );
+}
+
 export function Button({
   variant = "primary",
   size = "md",
@@ -54,13 +74,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={cn(
-        "inline-flex items-center justify-center gap-2 font-bold transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:pointer-events-none",
-        variantClasses[variant],
-        sizeClasses[size],
-        roundedClasses[rounded],
-        className,
-      )}
+      className={buttonVariants({ variant, size, rounded, className })}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       {...props}
