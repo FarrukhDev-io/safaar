@@ -66,7 +66,7 @@ export function AvatarForm({
         )}
       </div>
       <div className="flex gap-2">
-        <label className="relative cursor-pointer rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+        <label className="relative cursor-pointer rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
           <span>{dict?.upload || "Upload"}</span>
           <input
             type="file"

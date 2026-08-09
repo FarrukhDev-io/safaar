@@ -214,7 +214,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
   return (
     <>
       {/* ═══ Mobile header ═══ */}
-      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-sky-300/30 bg-[#013E94] px-4 text-white md:hidden shadow-xs backdrop-blur-md">
+      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-primary-300/30 bg-primary-900 px-4 text-white md:hidden shadow-xs backdrop-blur-md">
         <Link href={brandHref} className="font-black tracking-wide text-xl sm:text-2xl text-white">
           {brand}
         </Link>
@@ -290,7 +290,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       )}
 
       {/* ═══ Desktop navbar ═══ */}
-      <nav className="sticky top-0 z-100 hidden border-b border-sky-300/30 bg-[#013E94] shadow-md md:block">
+      <nav className="sticky top-0 z-100 hidden border-b border-primary-300/30 bg-primary-900 shadow-md md:block">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
           <Link href={brandHref} className="shrink-0 font-black tracking-wide text-xl sm:text-2xl text-white">
             {brand}
