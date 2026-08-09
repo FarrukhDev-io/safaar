@@ -78,7 +78,7 @@ export function LocaleSwitcher({
         <div
           role="listbox"
           aria-label="Tillar"
-          className="absolute right-0 top-full mt-2 w-40 rounded-2xl border border-slate-200 bg-card p-1.5 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute right-0 top-full mt-2 w-40 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_4px_0_rgb(226,232,240),0_10px_25px_rgba(0,0,0,0.1)] z-50 animate-in fade-in zoom-in-95 duration-100"
         >
           {locales.map((loc) => {
             const active = loc === current;
