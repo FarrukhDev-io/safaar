@@ -4,7 +4,6 @@
     
     font-family: inherit;
     text-transform: none;
-    color: #818e9e;
     min-width: 0;
     line-height: 1;
     display: inline-flex;
@@ -140,7 +139,6 @@
     &.shine,
     &:focus-visible {
         opacity: 1;
-        color: #3c5a80;
         box-shadow: var(--inset-shadow), var(--outer-shadow);
         &:has(.dropShadow) {
             box-shadow: var(--inset-shadow);

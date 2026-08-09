@@ -63,8 +63,9 @@ export function LocaleSwitcher({
         aria-expanded={open}
         aria-label="Tilni tanlash"
         className={cn(
-          "h-10 px-4 rounded-full text-[14px]",
-          !light && "text-white/90"
+          "h-10 px-4 rounded-full text-[14px] transition-colors",
+          "ring-1 ring-slate-200 shadow-md shadow-slate-300/50",
+          light ? "text-slate-700 hover:text-slate-900" : "text-white ring-white/20 shadow-black/40"
         )}
       >
         <Globe className="h-[18px] w-[18px] opacity-80" aria-hidden />

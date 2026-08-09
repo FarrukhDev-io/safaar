@@ -5,6 +5,8 @@ import type { CommonDict } from "@/i18n/dictionaries";
 import { logoutAction } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/cn";
+import styles from "@/components/ui/iridescent-button.module.css";
 import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
@@ -41,19 +43,23 @@ function AuthButtons({
     );
   }
 
+  const linkBaseClasses = cn(
+    "inline-flex items-center justify-center gap-2 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2",
+    "h-11 px-4.5 text-sm", // sizeClasses.md equivalent
+    "rounded-full text-black hover:text-black transition-colors",
+    styles.iridescent,
+    sizeClass
+  );
+
   return (
     <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
-      <Link
-        href={`${base}/login`}
-        className={buttonVariants({ variant: "secondary", rounded: "full", className: sizeClass })}
-      >
+      <Link href={`${base}/login`} className={linkBaseClasses}>
         {dict.actions.login}
+        <span className={styles.dropShadow} />
       </Link>
-      <Link
-        href={`${base}/register`}
-        className={buttonVariants({ variant: "primary", rounded: "full", className: sizeClass })}
-      >
+      <Link href={`${base}/register`} className={linkBaseClasses}>
         {dict.actions.register}
+        <span className={styles.dropShadow} />
       </Link>
     </div>
   );
