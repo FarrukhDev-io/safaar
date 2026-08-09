@@ -31,7 +31,7 @@ import styles from "@/components/ui/iridescent-button.module.css";
 
 function getNavLinkClasses(active: boolean, mobile = false) {
   return cn(
-    "font-bold transition-all duration-150 outline-none",
+    "font-bold transition-all duration-150 outline-none border-2 border-transparent",
     mobile ? "flex h-12 items-center gap-3 w-full rounded-2xl px-4 text-[15px]" : "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-base",
     active
       ? cn(styles.iridescent, "text-black hover:text-black")
@@ -41,7 +41,7 @@ function getNavLinkClasses(active: boolean, mobile = false) {
 
 function getChildNavLinkClasses(active: boolean) {
   return cn(
-    "flex items-center gap-2.5 font-bold transition-all duration-150 rounded-xl w-full h-11 px-3.5 text-[15px] outline-none",
+    "flex items-center gap-2.5 font-bold transition-all duration-150 rounded-xl w-full h-11 px-3.5 text-[15px] outline-none border-2 border-transparent",
     active
       ? cn(styles.iridescent, "text-black hover:text-black")
       : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
