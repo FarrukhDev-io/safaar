@@ -13,6 +13,7 @@ import type { EmailService } from '../infrastructure/email.service';
 import type { AppCacheService } from '../infrastructure/cache.service';
 import type { EmailMessage } from '../integrations/email/email-provider.interface';
 import { authSessionStore } from './session-store';
+import * as totp from './totp';
 
 describe('AuthService email and OAuth', () => {
   const originalEnv = { ...process.env };
@@ -324,5 +325,98 @@ describe('AuthService email and OAuth', () => {
       },
     });
     expect(cache.set).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column does not exist)', () => {
+  const pg = { query: jest.fn(), transaction: jest.fn() };
+  const jobs = { add: jest.fn() };
+  const email = { send: jest.fn() };
+  const cache = { get: jest.fn(), set: jest.fn(), take: jest.fn() };
+  let service: AuthService;
+  const adminActor = {
+    id: 'admin-1',
+    actorType: 'admin' as const,
+    role: 'SUPER_ADMIN' as never,
+    roles: [] as never[],
+    sessionId: 'session-1',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    pg.query.mockResolvedValue([{ id: 'admin-1', email: 'admin@safaar.uz' }]);
+    pg.transaction.mockImplementation(
+      (operation: (tx: PostgresTransaction) => unknown) =>
+        operation({ query: pg.query } as unknown as PostgresTransaction),
+    );
+    jest.spyOn(authSessionStore, 'revokeActor').mockResolvedValue(1);
+    service = new AuthService(
+      pg as unknown as PostgresService,
+      jobs as unknown as JobQueueService,
+      email as unknown as EmailService,
+      cache as unknown as AppCacheService,
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('admin2faSetup does not query the non-existent recovery_code_hashes column', async () => {
+    const result = await service.admin2faSetup(adminActor);
+
+    expect(result.setup_id).toBeDefined();
+    expect(result.recovery_codes).toHaveLength(8);
+    const [sql] = pg.query.mock.calls[0]!;
+    expect(sql).not.toContain('recovery_code_hashes');
+  });
+
+  it('admin2faConfirm writes totp_secret to admin_users and recovery codes to admin_recovery_codes (not a nonexistent column)', async () => {
+    jest.spyOn(totp, 'verifyTotpCode').mockReturnValue(true);
+
+    const setup = await service.admin2faSetup(adminActor);
+    pg.query.mockClear();
+
+    const result = await service.admin2faConfirm(adminActor, {
+      setup_id: setup.setup_id,
+      code: '123456',
+    });
+
+    expect(result).toEqual({ enabled: true });
+    expect(pg.transaction).toHaveBeenCalledTimes(1);
+
+    const calls = pg.query.mock.calls;
+    // calls[0] = pre-check SELECT; calls[1..3] = tranzaksiya ichidagi so'rovlar.
+    expect(calls[1]![0]).toContain('UPDATE admin_users');
+    expect(calls[1]![0]).not.toContain('recovery_code_hashes');
+    expect(calls[2]![0]).toContain('DELETE FROM admin_recovery_codes');
+    expect(calls[3]![0]).toContain('INSERT INTO admin_recovery_codes');
+    // 8 ta recovery kod, har biri (admin_id, code_hash) — 16 ta parametr.
+    expect((calls[3]![1] as unknown[]).length).toBe(16);
+  });
+
+  it('admin2faConfirm rejects an invalid TOTP code and writes nothing', async () => {
+    jest.spyOn(totp, 'verifyTotpCode').mockReturnValue(false);
+
+    const setup = await service.admin2faSetup(adminActor);
+    pg.query.mockClear();
+
+    await expect(
+      service.admin2faConfirm(adminActor, {
+        setup_id: setup.setup_id,
+        code: '000000',
+      }),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(pg.transaction).not.toHaveBeenCalled();
+  });
+
+  it('admin2faDisable clears totp_secret and deletes recovery codes (not a nonexistent column)', async () => {
+    const result = await service.admin2faDisable(adminActor);
+
+    expect(result).toEqual({ disabled: true, sessions_revoked: true });
+    const calls = pg.query.mock.calls;
+    expect(calls[1]![0]).toContain('UPDATE admin_users');
+    expect(calls[1]![0]).not.toContain('recovery_code_hashes');
+    expect(calls[2]![0]).toContain('DELETE FROM admin_recovery_codes');
   });
 });

@@ -203,6 +203,16 @@ export function partnerApiPepper(): string {
   return process.env.PARTNER_API_KEY_PEPPER ?? 'development-partner-api-pepper';
 }
 
+/**
+ * Hamkorga chiqadigan (outbound) webhook'larni imzolash uchun ishlatiladi
+ * — bu `paymentWebhookSecret()`dan (kiruvchi to'lov webhook'larini
+ * tekshirish) mantiqan alohida narsa, hozircha faqat ular tasodifan bir
+ * xil env o'zgaruvchini fallback sifatida ishlatishi mumkin.
+ */
+export function partnerWebhookSigningSecret(): string | undefined {
+  return process.env.PARTNER_WEBHOOK_SIGNING_SECRET || undefined;
+}
+
 export function base64UrlEncode(value: string | Buffer): string {
   return Buffer.from(value).toString('base64url');
 }
