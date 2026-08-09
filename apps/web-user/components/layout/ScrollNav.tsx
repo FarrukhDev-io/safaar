@@ -27,12 +27,14 @@ function isActive(pathname: string, href: string, exact?: boolean): boolean {
   return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+import styles from "@/components/ui/iridescent-button.module.css";
+
 function getNavLinkClasses(active: boolean, mobile = false) {
   return cn(
     "font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
     mobile ? "flex h-12 items-center gap-3 w-full rounded-2xl px-4 text-[15px]" : "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-base",
     active
-      ? "border border-slate-300 bg-white text-slate-900 shadow-[0_3px_0_rgb(148,163,184),0_4px_8px_rgba(0,0,0,0.06)] -translate-y-[1px] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+      ? cn(styles.iridescent, "text-black hover:text-black")
       : "border border-transparent text-slate-900 hover:border-slate-300 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(148,163,184),0_4px_8px_rgba(0,0,0,0.06)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
   );
 }
@@ -41,7 +43,7 @@ function getChildNavLinkClasses(active: boolean) {
   return cn(
     "flex items-center gap-2.5 font-bold transition-all duration-150 rounded-xl w-full h-11 px-3.5 text-[15px]",
     active
-      ? "border border-slate-200 bg-white text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] -translate-y-[1px] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+      ? cn(styles.iridescent, "text-black hover:text-black")
       : "border border-transparent text-slate-900 hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
   );
 }
@@ -105,6 +107,7 @@ function NavDropdown({ item, pathname }: { item: ScrollNavItem; pathname: string
         {displayItem.icon}
         <span className="text-base font-bold tracking-wide">{displayItem.label}</span>
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform text-slate-400 dark:text-slate-500", open && "rotate-180")} />
+        {active && <span className={styles.dropShadow} />}
       </button>
 
       {open && item.children && (
@@ -125,6 +128,7 @@ function NavDropdown({ item, pathname }: { item: ScrollNavItem; pathname: string
               >
                 <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
                 <span className="text-sm font-bold">{child.label}</span>
+                {childActive && <span className={styles.dropShadow} />}
               </Link>
             );
           })}
@@ -179,6 +183,7 @@ function MobileAccordionGroup({
               >
                 <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
                 <span className="text-sm font-bold">{child.label}</span>
+                {childActive && <span className={styles.dropShadow} />}
               </Link>
             );
           })}
@@ -270,6 +275,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                       <span className="flex h-6 w-6 items-center justify-center">{item.icon}</span>
                     )}
                     <span className="text-sm font-bold">{item.label}</span>
+                    {active && <span className={styles.dropShadow} />}
                   </Link>
                 );
               })}
@@ -312,6 +318,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                 >
                   {item.icon}
                   <span className="text-base font-bold tracking-wide">{item.label}</span>
+                  {active && <span className={styles.dropShadow} />}
                 </Link>
               );
             })}
