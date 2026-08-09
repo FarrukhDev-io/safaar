@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Hotel, MountainSnow, UtensilsCrossed, Car } from "lucide-react";
+// No icons needed for clean desktop layout
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import { logoutAction } from "@/lib/auth/actions";
@@ -25,14 +25,10 @@ export function SiteHeader({
   };
 
   const desktopItems: ScrollNavItem[] = [
-    {
-      href: `${base}/hotels`, label: dict.nav.hotels, icon: <Hotel className="h-4 w-4" />,
-    },
-    {
-      href: `${base}/transport`, label: navDict.transport ?? "Transport", icon: <Car className="h-4 w-4" />,
-    },
-    { href: `${base}/restaurants`, label: dict.nav.restaurants ?? "Restaurants", icon: <UtensilsCrossed className="h-4 w-4" /> },
-    { href: `${base}/attractions`, label: dict.nav.attractions, icon: <MountainSnow className="h-4 w-4" /> },
+    { href: `${base}/hotels`, label: dict.nav.hotels },
+    { href: `${base}/transport`, label: navDict.transport ?? "Transport" },
+    { href: `${base}/restaurants`, label: dict.nav.restaurants ?? "Restaurants" },
+    { href: `${base}/attractions`, label: dict.nav.attractions },
   ];
 
   const localeSwitcher = <LocaleSwitcher current={locale} />;

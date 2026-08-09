@@ -267,7 +267,9 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                         : "text-slate-900 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-800",
                     )}
                   >
-                    <span className="flex h-6 w-6 items-center justify-center">{item.icon}</span>
+                    {item.icon && (
+                      <span className="flex h-6 w-6 items-center justify-center">{item.icon}</span>
+                    )}
                     <span className="text-sm font-bold">{item.label}</span>
                   </Link>
                 );
