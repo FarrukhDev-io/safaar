@@ -214,8 +214,8 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
   return (
     <>
       {/* ═══ Mobile header ═══ */}
-      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-primary-300/30 bg-primary-900 px-4 text-white md:hidden shadow-xs backdrop-blur-md">
-        <Link href={brandHref} className="font-black tracking-wide text-xl sm:text-2xl text-white">
+      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 text-slate-900 md:hidden shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 dark:text-white">
+        <Link href={brandHref} className="font-black tracking-wide text-xl sm:text-2xl text-slate-900 dark:text-white">
           {brand}
         </Link>
         <button
@@ -223,7 +223,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
           onClick={() => setMenuOpen((v) => !v)}
           aria-expanded={menuOpen}
           aria-label={menuOpen ? "Menyuni yopish" : "Menyuni ochish"}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-slate-900 transition-colors hover:bg-slate-100 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -290,9 +290,9 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       )}
 
       {/* ═══ Desktop navbar ═══ */}
-      <nav className="sticky top-0 z-100 hidden border-b border-primary-300/30 bg-primary-900 shadow-md md:block">
+      <nav className="sticky top-0 z-100 hidden border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-md md:block dark:border-slate-800 dark:bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
-          <Link href={brandHref} className="shrink-0 font-black tracking-wide text-xl sm:text-2xl text-white">
+          <Link href={brandHref} className="shrink-0 font-black tracking-wide text-xl sm:text-2xl text-slate-900 dark:text-white">
             {brand}
           </Link>
 
@@ -308,10 +308,10 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+                    "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
                     active
-                      ? "border border-white/60 bg-white/20 text-white shadow-xs"
-                      : "text-white hover:bg-white/15 hover:text-white",
+                      ? "bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/30 dark:text-primary-400"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
                   )}
                 >
                   {item.icon}
