@@ -214,7 +214,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
   return (
     <>
       {/* ═══ Mobile header ═══ */}
-      <header className="sticky top-0 z-100 flex h-14 items-center justify-between rounded-b-3xl border-b border-slate-200 bg-white/95 px-4 text-slate-900 shadow-sm backdrop-blur-md md:hidden dark:border-slate-800 dark:bg-slate-950/95 dark:text-white">
+      <header className="sticky top-0 z-100 flex h-14 items-center justify-between rounded-b-3xl border-b border-slate-200/80 bg-white/95 px-4 text-slate-900 shadow-[inset_0_-4px_10px_rgba(0,0,0,0.02),0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden dark:border-slate-800 dark:bg-slate-950/95 dark:text-white">
         <Link href={brandHref} className="font-black tracking-wide text-xl sm:text-2xl text-slate-900 dark:text-white">
           {brand}
         </Link>
@@ -292,7 +292,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       )}
 
       {/* ═══ Desktop navbar ═══ */}
-      <nav className="sticky top-0 z-100 hidden rounded-b-3xl border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-md md:block dark:border-slate-800 dark:bg-slate-950/95">
+      <nav className="sticky top-0 z-100 hidden rounded-b-3xl border-b border-slate-200/80 bg-white/95 shadow-[inset_0_-4px_10px_rgba(0,0,0,0.02),0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md md:block dark:border-slate-800 dark:bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
           <Link href={brandHref} className="shrink-0 font-black tracking-wide text-xl sm:text-2xl text-slate-900 dark:text-white">
             {brand}
