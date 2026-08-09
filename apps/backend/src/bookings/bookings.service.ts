@@ -1,6 +1,9 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
@@ -8,7 +11,11 @@ import {
 import { randomUUID } from 'node:crypto';
 import { BookingStatus, Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
-import { PostgresService } from '../infrastructure/postgres.service';
+import { EmailService } from '../infrastructure/email.service';
+import {
+  PostgresService,
+  type PostgresTransaction,
+} from '../infrastructure/postgres.service';
 import { EventsService } from '../realtime/events.service';
 
 /**
@@ -67,9 +74,12 @@ interface BookingRow {
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     private readonly pg: PostgresService,
     private readonly events: EventsService,
+    private readonly emailService: EmailService,
   ) {}
 
   async createHotel(
@@ -89,12 +99,8 @@ export class BookingsService {
        WHERE h.id = $1 AND h.deleted_at IS NULL AND h.status = 'published'`,
       [hotelId],
     );
-    const [room] = await this.pg.query<HotelRoomRow>(
-      "SELECT id, base_price, hotel_id FROM hotel_rooms WHERE id = $1 AND hotel_id = $2 AND status = 'active' FOR UPDATE",
-      [roomId, hotelId],
-    );
 
-    if (!hotel || !room) {
+    if (!hotel) {
       throw new NotFoundException({
         code: 'ROOM_NOT_AVAILABLE',
         message: 'Tanlangan sanalar uchun xona mavjud emas',
@@ -103,9 +109,20 @@ export class BookingsService {
 
     const checkIn = String(dto.check_in ?? dto.checkIn ?? '');
     const checkOut = String(dto.check_out ?? dto.checkOut ?? '');
+    const checkInMs = Date.parse(checkIn);
+    const checkOutMs = Date.parse(checkOut);
+    if (
+      !Number.isFinite(checkInMs) ||
+      !Number.isFinite(checkOutMs) ||
+      checkOutMs <= checkInMs
+    ) {
+      throw new BadRequestException({
+        code: 'BOOKING_DATES_INVALID',
+        message: "check_in/check_out sanalari noto'g'ri",
+      });
+    }
     const nights = this.calculateNights(checkIn, checkOut);
     const rooms = Number(dto.rooms ?? 1);
-    const subtotal = Number(room.base_price) * nights * rooms;
     const firstName = this.optionalText(dto.firstName ?? dto.first_name);
     const lastName = this.optionalText(dto.lastName ?? dto.last_name);
     const fullName = this.optionalText(dto.fullName ?? dto.full_name);
@@ -126,39 +143,85 @@ export class BookingsService {
         ? 'restaurant'
         : 'hotel';
 
-    const booking = await this.createBooking(userId, {
-      type: bookingType,
-      partner_organization_id: hotel.partner_organization_id,
-      payment_method: this.paymentMethod(dto.payment_method),
-      confirmation_mode: this.confirmationMode(dto.confirmation_mode),
-      subtotal,
-      hotel_id: hotel.id,
-      trip_id: null,
-      guest_name: guestName,
-      guest_email: guestEmail,
-      guest_phone: guestPhone,
-      price_snapshot: {
+    // Xona qulfi + sana-ziddiyat tekshiruvi + INSERT bitta tranzaksiya
+    // ichida bo'lishi SHART — aks holda bir necha bir vaqtdagi so'rov
+    // bitta xonani bir necha marta "band qilib" yuborishi mumkin (avval
+    // shu yerda umuman himoya yo'q edi, `FOR UPDATE` tranzaksiyasiz
+    // qulf sifatida ishlamas edi). Pattern — hamkor walk-in bron kodida
+    // (`partners.service.ts createBooking`) allaqachon to'g'ri qo'llangan.
+    const { booking, payment } = await this.pg.transaction(async (tx) => {
+      const [room] = await tx.query<HotelRoomRow>(
+        "SELECT id, base_price, hotel_id FROM hotel_rooms WHERE id = $1 AND hotel_id = $2 AND status = 'active' FOR UPDATE",
+        [roomId, hotelId],
+      );
+
+      if (!room) {
+        throw new NotFoundException({
+          code: 'ROOM_NOT_AVAILABLE',
+          message: 'Tanlangan sanalar uchun xona mavjud emas',
+        });
+      }
+
+      const activeExclusions = [BS.CANCELLED, BS.EXPIRED, BS.COMPLETED];
+      const conflicts = await tx.query<{ id: string }>(
+        `SELECT id FROM bookings
+         WHERE room_id = $1::uuid
+           AND status NOT IN ($2, $3, $4)
+           AND check_in < $5::date
+           AND $6::date < check_out
+         LIMIT 1`,
+        [room.id, ...activeExclusions, checkOut, checkIn],
+      );
+
+      if (conflicts[0]) {
+        throw new ConflictException({
+          code: 'ROOM_ALREADY_BOOKED',
+          message: 'Tanlangan sanalar uchun xona allaqachon band qilingan',
+        });
+      }
+
+      const subtotal = Number(room.base_price) * nights * rooms;
+
+      const booking = await this.createBooking(tx, userId, {
+        type: bookingType,
+        partner_organization_id: hotel.partner_organization_id,
+        payment_method: this.paymentMethod(dto.payment_method),
+        confirmation_mode: this.confirmationMode(dto.confirmation_mode),
+        subtotal,
+        hotel_id: hotel.id,
+        trip_id: null,
         room_id: room.id,
         check_in: checkIn,
         check_out: checkOut,
-        nights,
-        rooms,
-        adults: Number(dto.adults ?? dto.guests ?? 1),
-        children: Number(dto.children ?? 0),
-        guest: {
-          first_name: firstName ?? null,
-          last_name: lastName ?? null,
-          name: guestName,
-          email: guestEmail,
-          phone: guestPhone,
+        guest_name: guestName,
+        guest_email: guestEmail,
+        guest_phone: guestPhone,
+        price_snapshot: {
+          room_id: room.id,
+          check_in: checkIn,
+          check_out: checkOut,
+          nights,
+          rooms,
+          adults: Number(dto.adults ?? dto.guests ?? 1),
+          children: Number(dto.children ?? 0),
+          guest: {
+            first_name: firstName ?? null,
+            last_name: lastName ?? null,
+            name: guestName,
+            email: guestEmail,
+            phone: guestPhone,
+          },
         },
-      },
+      });
+
+      const payment = await this.createPayment(tx, booking);
+      return { booking, payment };
     });
 
-    const payment = await this.createPayment(booking);
     this.events.bookingStatusChanged(booking);
     this.events.partnerDashboardUpdated(booking.partner_organization_id);
     this.events.adminDashboardUpdated();
+    void this.sendBookingConfirmationEmail(booking);
     return { booking, payment };
   }
 
@@ -181,30 +244,6 @@ export class BookingsService {
       });
     }
 
-    const seatCodes = Array.isArray(dto.seats)
-      ? dto.seats.map(String)
-      : (
-          await this.pg.query<{ seat_code: string }>(
-            "SELECT seat_code FROM trip_seats WHERE trip_id = $1 AND status = 'available' ORDER BY seat_code LIMIT 1",
-            [tripId],
-          )
-        ).map((s) => s.seat_code);
-
-    const seats = await this.pg.query<TripSeatRow>(
-      'SELECT * FROM trip_seats WHERE trip_id = $1 AND seat_code = ANY($2::text[]) FOR UPDATE',
-      [tripId, seatCodes],
-    );
-
-    if (
-      seats.length !== seatCodes.length ||
-      seats.some((seat) => seat.status !== 'available')
-    ) {
-      throw new UnprocessableEntityException({
-        code: 'SEAT_NOT_AVAILABLE',
-        message: "O'rindiq band",
-      });
-    }
-
     const [company] = await this.pg.query<BusCompanyRow>(
       'SELECT partner_organization_id FROM bus_companies WHERE id = $1',
       [trip.company_id],
@@ -216,35 +255,78 @@ export class BookingsService {
       });
     }
     const partnerOrganizationId = company.partner_organization_id;
-
-    const subtotal = seats.reduce((sum, seat) => sum + Number(seat.price), 0);
-
+    const requestedSeatCodes = Array.isArray(dto.seats)
+      ? dto.seats.map(String)
+      : null;
     const expiresAt = new Date(Date.now() + 15 * 60_000);
 
-    const booking = await this.createBooking(currentActor.id, {
-      type: 'bus',
-      partner_organization_id: partnerOrganizationId,
-      payment_method: this.paymentMethod(dto.payment_method),
-      confirmation_mode: this.confirmationMode(dto.confirmation_mode),
-      subtotal,
-      hotel_id: null,
-      trip_id: trip.id,
-      expires_at: expiresAt.toISOString(),
-      price_snapshot: {
-        seats: seats.map((s) => s.seat_code),
-        passengers: dto.passengers ?? [],
-      },
+    // O'rindiq qulfi + bandlik tekshiruvi + bron/to'lov yozish bitta
+    // tranzaksiya ichida bo'lishi SHART — aks holda ikkita bir vaqtdagi
+    // so'rov bitta o'rindiqni ikkalasiga ham "band qilib" berishi mumkin
+    // (avval `FOR UPDATE` tranzaksiyasiz qulf sifatida ishlamas edi —
+    // xuddi mehmonxona bron qilishdagi kabi, BUG-03'ning ikkinchisi).
+    const { booking, payment } = await this.pg.transaction(async (tx) => {
+      const seatCodes =
+        requestedSeatCodes ??
+        (
+          await tx.query<{ seat_code: string }>(
+            "SELECT seat_code FROM trip_seats WHERE trip_id = $1 AND status = 'available' ORDER BY seat_code LIMIT 1",
+            [tripId],
+          )
+        ).map((s) => s.seat_code);
+
+      if (seatCodes.length === 0) {
+        throw new UnprocessableEntityException({
+          code: 'SEAT_NOT_AVAILABLE',
+          message: "O'rindiq band",
+        });
+      }
+
+      const seats = await tx.query<TripSeatRow>(
+        'SELECT * FROM trip_seats WHERE trip_id = $1 AND seat_code = ANY($2::text[]) FOR UPDATE',
+        [tripId, seatCodes],
+      );
+
+      if (
+        seats.length !== seatCodes.length ||
+        seats.some((seat) => seat.status !== 'available')
+      ) {
+        throw new UnprocessableEntityException({
+          code: 'SEAT_NOT_AVAILABLE',
+          message: "O'rindiq band",
+        });
+      }
+
+      const subtotal = seats.reduce((sum, seat) => sum + Number(seat.price), 0);
+
+      const booking = await this.createBooking(tx, currentActor.id, {
+        type: 'bus',
+        partner_organization_id: partnerOrganizationId,
+        payment_method: this.paymentMethod(dto.payment_method),
+        confirmation_mode: this.confirmationMode(dto.confirmation_mode),
+        subtotal,
+        hotel_id: null,
+        trip_id: trip.id,
+        expires_at: expiresAt.toISOString(),
+        price_snapshot: {
+          seats: seats.map((s) => s.seat_code),
+          passengers: dto.passengers ?? [],
+        },
+      });
+
+      // O'rindiqlarni "band" deb belgilash — xuddi shu tranzaksiya
+      // ichida, hali qulf ushlab turilganda.
+      for (const seat of seats) {
+        await tx.query(
+          'UPDATE trip_seats SET status = $1, held_by_booking_id = $2, held_until = $3 WHERE id = $4',
+          ['held', booking.id, booking.expires_at, seat.id],
+        );
+      }
+
+      const payment = await this.createPayment(tx, booking);
+      return { booking, payment };
     });
 
-    // Mark seats as held
-    for (const seat of seats) {
-      await this.pg.query(
-        'UPDATE trip_seats SET status = $1, held_by_booking_id = $2, held_until = $3 WHERE id = $4',
-        ['held', booking.id, booking.expires_at, seat.id],
-      );
-    }
-
-    const payment = await this.createPayment(booking);
     this.events.bookingStatusChanged(booking);
     this.events.partnerDashboardUpdated(booking.partner_organization_id);
     this.events.adminDashboardUpdated();
@@ -260,9 +342,70 @@ export class BookingsService {
     return { ...booking, payment: payment ?? null };
   }
 
+  /**
+   * Login qilmagan (guest) mijoz o'z bronini xom ID orqali emas, balki
+   * booking_number + email juftligi orqali qidiradi. Ikkalasi ham to'g'ri
+   * kelmasa xuddi shu umumiy xabar qaytariladi — shu orqali "bron raqami
+   * mavjud, lekin email noto'g'ri" holatini tashqi kuzatuvchi bilib
+   * olmaydi (enumeration'ga qarshi).
+   */
+  async lookupBooking(bookingNumber: string, email: string) {
+    const normalizedNumber = bookingNumber.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedNumber || !normalizedEmail) {
+      throw new BadRequestException({
+        code: 'BOOKING_LOOKUP_INVALID',
+        message: 'Bron raqami va email kiritilishi shart',
+      });
+    }
+
+    const [booking] = await this.pg.query<BookingRow>(
+      `SELECT id, booking_number, type, status, currency, total_amount,
+              hotel_id, trip_id, check_in, check_out, slot_time,
+              guest_name, guest_email, created_at
+       FROM bookings
+       WHERE booking_number = $1 AND lower(guest_email) = $2
+       LIMIT 1`,
+      [normalizedNumber, normalizedEmail],
+    );
+
+    if (!booking) {
+      throw new NotFoundException({
+        code: 'BOOKING_NOT_FOUND',
+        message: "Bron topilmadi. Bron raqami va email'ni tekshiring",
+      });
+    }
+
+    const [payment] = await this.pg.query(
+      "SELECT status, provider, amount, currency FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [booking.id],
+    );
+
+    // Ichki moliyaviy maydonlar (commission_amount, partner_payable) va
+    // to'liq guest kontakt ma'lumotlari qaytarilmaydi — email orqali
+    // tasdiqlash JWT'dan zaifroq isbot, shuning uchun javob ataylab cheklangan.
+    return {
+      id: booking.id,
+      booking_number: booking.booking_number,
+      type: booking.type,
+      status: booking.status,
+      currency: booking.currency,
+      total_amount: booking.total_amount,
+      hotel_id: booking.hotel_id,
+      trip_id: booking.trip_id,
+      check_in: booking.check_in,
+      check_out: booking.check_out,
+      slot_time: booking.slot_time,
+      guest_name: booking.guest_name,
+      created_at: booking.created_at,
+      payment: payment ?? null,
+    };
+  }
+
   async retryPayment(actor: RequestActor | undefined, id: string) {
     const booking = await this.assertBooking(id, actor);
-    return this.createPayment(booking);
+    return this.createPayment(this.pg, booking);
   }
 
   async cancelPreview(actor: RequestActor | undefined, id: string) {
@@ -306,7 +449,8 @@ export class BookingsService {
     );
 
     await this.addStatusHistory(
-      updated as Parameters<typeof this.addStatusHistory>[0],
+      this.pg,
+      updated as Parameters<typeof this.addStatusHistory>[1],
       'cancelled',
       actor,
     );
@@ -445,6 +589,7 @@ export class BookingsService {
   }
 
   private async createBooking(
+    db: PostgresTransaction,
     userId: string | null,
     input: {
       type: 'hotel' | 'bus' | 'restaurant';
@@ -454,6 +599,9 @@ export class BookingsService {
       subtotal: number;
       hotel_id: string | null;
       trip_id: string | null;
+      room_id?: string | null;
+      check_in?: string | null;
+      check_out?: string | null;
       expires_at?: string;
       price_snapshot: Record<string, unknown>;
       guest_name?: string;
@@ -496,6 +644,9 @@ export class BookingsService {
       partner_payable: partnerPayable,
       hotel_id: input.hotel_id,
       trip_id: input.trip_id,
+      room_id: input.room_id ?? null,
+      check_in: input.check_in ?? null,
+      check_out: input.check_out ?? null,
       partner_confirmation_deadline: partnerConfirmationDeadline,
       expires_at: expiresAt,
       confirmed_at: null,
@@ -510,13 +661,13 @@ export class BookingsService {
       updated_at: now,
     };
 
-    await this.pg.query(
+    await db.query(
       `INSERT INTO bookings (
         id, booking_number, user_id, partner_organization_id,
         type, confirmation_mode, payment_method, status,
         currency, subtotal, discount_amount, bonus_amount, service_fee,
         total_amount, commission_amount, partner_payable,
-        hotel_id, trip_id,
+        hotel_id, trip_id, room_id, check_in, check_out,
         partner_confirmation_deadline, expires_at,
         confirmed_at, cancelled_at, cancel_reason_text,
         policy_snapshot, price_snapshot,
@@ -527,12 +678,12 @@ export class BookingsService {
         $5, $6, $7, $8,
         $9, $10, $11, $12, $13,
         $14, $15, $16,
-        $17, $18,
-        $19, $20,
-        $21, $22, $23,
-        $24, $25,
-        $26, $27, $28,
-        $29, $30
+        $17, $18, $19, $20::date, $21::date,
+        $22, $23,
+        $24, $25, $26,
+        $27, $28,
+        $29, $30, $31,
+        $32, $33
       )`,
       [
         bookingRow.id,
@@ -553,6 +704,9 @@ export class BookingsService {
         bookingRow.partner_payable,
         bookingRow.hotel_id,
         bookingRow.trip_id,
+        bookingRow.room_id,
+        bookingRow.check_in,
+        bookingRow.check_out,
         bookingRow.partner_confirmation_deadline,
         bookingRow.expires_at,
         bookingRow.confirmed_at,
@@ -568,18 +722,19 @@ export class BookingsService {
       ],
     );
 
-    await this.addStatusHistory(bookingRow, 'created');
+    await this.addStatusHistory(db, bookingRow, 'created');
 
     return bookingRow;
   }
 
   private async addStatusHistory(
+    db: PostgresTransaction,
     booking: { id: string; status: string },
     action: string,
     actor?: RequestActor,
   ) {
     const now = new Date().toISOString();
-    await this.pg.query(
+    await db.query(
       `INSERT INTO booking_status_history (id, booking_id, status, action, actor_type, actor_id, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
@@ -594,12 +749,52 @@ export class BookingsService {
     );
   }
 
-  private async createPayment(booking: {
+  /**
+   * Bron yaratilgach tasdiqlash xabari yuboriladi — guest (login qilmagan)
+   * mijoz uchun bu bron raqamini bilishning YAGONA yo'li, chunki `GET
+   * /bookings/:id` endi auth talab qiladi. Xatolik bron yaratishni
+   * to'xtatmasligi kerak (email provayder vaqtincha ishlamasa ham bron
+   * o'zi muvaffaqiyatli qolishi kerak), shuning uchun chaqiruvchi tomonda
+   * `await`siz, xatosi yutilgan holda ishlatiladi.
+   */
+  private async sendBookingConfirmationEmail(booking: {
     id: string;
+    booking_number: string;
+    guest_name?: string | null;
+    guest_email?: string | null;
     total_amount: number | string;
     currency: string;
-    payment_method: string;
   }) {
+    const to = (booking.guest_email ?? '').trim();
+    if (!to) {
+      return;
+    }
+
+    try {
+      await this.emailService.send({
+        to,
+        subject: `Safaar — bron tasdiqlandi (${booking.booking_number})`,
+        text: `Assalomu alaykum${booking.guest_name ? ', ' + booking.guest_name : ''}!\n\nBroningiz qabul qilindi.\nBron raqami: ${booking.booking_number}\nSumma: ${booking.total_amount} ${booking.currency}\n\nBronni keyinchalik tekshirish uchun saytda "Bronni topish" bo'limida bron raqami va shu email manzilingizni kiriting.`,
+        html: `<p>Assalomu alaykum${booking.guest_name ? ', ' + booking.guest_name : ''}!</p><p>Broningiz qabul qilindi.</p><p><b>Bron raqami:</b> ${booking.booking_number}<br/><b>Summa:</b> ${booking.total_amount} ${booking.currency}</p><p>Bronni keyinchalik tekshirish uchun saytda "Bronni topish" bo'limida bron raqami va shu email manzilingizni kiriting.</p>`,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Booking tasdiqlash emaili yuborilmadi (booking_id=${booking.id}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async createPayment(
+    db: PostgresTransaction,
+    booking: {
+      id: string;
+      total_amount: number | string;
+      currency: string;
+      payment_method: string;
+    },
+  ) {
     const id = randomUUID();
     const now = new Date().toISOString();
     const payment = {
@@ -614,7 +809,7 @@ export class BookingsService {
       updated_at: now,
     };
 
-    await this.pg.query(
+    await db.query(
       `INSERT INTO payments (id, booking_id, provider, status, amount, currency, payment_url, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
@@ -649,11 +844,17 @@ export class BookingsService {
       });
     }
 
-    if (
-      !actor ||
-      actor.role === Role.SUPER_ADMIN ||
-      actor.actorType === 'admin'
-    ) {
+    if (!actor) {
+      // Anonim (tokensiz) chaqiruv — bron egasini aniqlab bo'lmaydi, shuning
+      // uchun rad etiladi. Guest bronni ko'rish/qidirish uchun
+      // `POST /bookings/lookup` (booking_number + email) ishlatilishi kerak.
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+
+    if (actor.role === Role.SUPER_ADMIN || actor.actorType === 'admin') {
       return booking;
     }
 

@@ -1180,7 +1180,7 @@ model CmsEntry {
   title     Json?
   body      Json?
   status    String    @default("draft") @db.VarChar(32)
-  metadata  Json?
+  metadata  Json?     @default("{}")
   latitude  Decimal?  @db.Decimal(10, 7)
   longitude Decimal?  @db.Decimal(10, 7)
   publishedAt DateTime? @map("published_at") @db.Timestamptz

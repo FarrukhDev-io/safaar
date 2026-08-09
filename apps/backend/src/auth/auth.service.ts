@@ -173,7 +173,14 @@ export class AuthService {
       html: `<p>Safaar hamkor kabinetiga kirish kodingiz:</p><h2>${code ?? '******'}</h2>`,
     };
 
-    await this.emailService.send(message);
+    const delivery = await this.emailService.send(message);
+    if (!delivery.accepted) {
+      throw new ServiceUnavailableException({
+        code: 'EMAIL_DELIVERY_FAILED',
+        message: 'Tasdiqlash kodini emailga yuborib bo‘lmadi',
+      });
+    }
+
     await this.jobs.add(JOBS.SEND_EMAIL, message, {
       idempotencyKey: `partner-login-email:${response.challenge_id}`,
     });
@@ -822,9 +829,21 @@ export class AuthService {
 
   async partnerPhoneLogin(body: Record<string, unknown>) {
     const phone = this.normalizePhone(String(body.phone ?? ''));
-    if (!phone) {
+    const code = String(body.code ?? '').trim();
+    const challengeId = String(
+      body.challenge_id ?? body.chalenge_id ?? '',
+    ).trim();
+
+    if (!phone || !/^\d{6}$/.test(code)) {
       throw this.invalidCredentials();
     }
+
+    this.consumeOtp({
+      challengeId,
+      phone,
+      purpose: 'partner_login',
+      code,
+    });
 
     return this.issuePartnerTokensByPhone(phone);
   }
@@ -1434,7 +1453,7 @@ export class AuthService {
   private async findAdminUser(
     login: string,
   ): Promise<AdminUserRecord | undefined> {
-    const email = login === 'admin' ? 'admin@uzbron.uz' : login;
+    const email = login === 'admin' ? 'admin@safaar.uz' : login;
     const rows = await this.pg.query<DbRow>(
       `
         select id::text, email, password_hash, full_name, role, status,

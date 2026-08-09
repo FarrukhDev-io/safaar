@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
+  IsEmail,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -198,4 +199,15 @@ export class SendBookingMessageDto {
   @IsString()
   @IsNotEmpty()
   body!: string;
+}
+
+export class LookupBookingDto {
+  @ApiProperty({ example: 'SF-20260901-1234' })
+  @IsString()
+  @IsNotEmpty()
+  booking_number!: string;
+
+  @ApiProperty({ example: 'guest@example.com' })
+  @IsEmail()
+  email!: string;
 }

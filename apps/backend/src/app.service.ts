@@ -10,13 +10,13 @@ export class AppService {
   ) {}
 
   getHealth(): { status: string; service: string } {
-    return { status: 'ok', service: 'uzbron-api' };
+    return { status: 'ok', service: 'safaar-api' };
   }
 
   getLive() {
     return {
       status: 'ok',
-      service: 'uzbron-api',
+      service: 'safaar-api',
       check: 'live',
       timestamp: new Date().toISOString(),
     };
@@ -31,7 +31,7 @@ export class AppService {
 
     return {
       status: ready ? 'ok' : 'degraded',
-      service: 'uzbron-api',
+      service: 'safaar-api',
       check: 'ready',
       dependencies: {
         database,

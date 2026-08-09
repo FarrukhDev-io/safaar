@@ -7,8 +7,8 @@ const backendRoot = dirname(__dirname);
 const srcRoot = join(backendRoot, 'src');
 const outDir = __dirname;
 
-const collectionFile = join(outDir, 'UzBron_API.postman_collection.json');
-const environmentFile = join(outDir, 'UzBron_Local.postman_environment.json');
+const collectionFile = join(outDir, 'safaar_API.postman_collection.json');
+const environmentFile = join(outDir, 'safaar_Local.postman_environment.json');
 
 const controllerFiles = walk(srcRoot).filter((file) =>
   file.endsWith('.controller.ts'),
@@ -22,7 +22,7 @@ const routes = controllerFiles.flatMap(readControllerRoutes).sort((left, right) 
 
 const collection = {
   info: {
-    name: 'UzBron Backend API',
+    name: 'safaar Backend API',
     description:
       'Generated from NestJS controllers. Run auth requests first to populate tokens, then run the rest of the folders.',
     schema:
@@ -30,7 +30,7 @@ const collection = {
   },
   variable: [
     { key: 'baseUrl', value: 'http://localhost:4000/v1' },
-    { key: 'paymentWebhookSecret', value: 'uzbron-development-payment-secret' },
+    { key: 'paymentWebhookSecret', value: 'safaar-development-payment-secret' },
   ],
   event: [
     {
@@ -62,13 +62,13 @@ const collection = {
 };
 
 const environment = {
-  name: 'UzBron Local',
+  name: 'safaar Local',
   values: [
     variable('baseUrl', 'http://localhost:4000/v1'),
     variable('phone', '+998901234567'),
     variable('userOtpChallengeId', ''),
     variable('userOtpCode', ''),
-    variable('partnerEmail', 'partner@uzbron.uz'),
+    variable('partnerEmail', 'partner@safaar.uz'),
     variable('partnerPassword', 'password'),
     variable('adminUsername', 'admin'),
     variable('adminPassword', 'admin'),
@@ -83,7 +83,7 @@ const environment = {
     variable('adminAccessToken', ''),
     variable('adminRefreshToken', ''),
     variable('partnerApiKey', ''),
-    variable('paymentWebhookSecret', 'uzbron-development-payment-secret'),
+    variable('paymentWebhookSecret', 'safaar-development-payment-secret'),
     variable('userId', 'demo-user-id'),
     variable('partnerId', 'demo-partner-org-id'),
     variable('adminUserId', 'demo-admin-id'),
@@ -290,7 +290,7 @@ function headersFor(route, body) {
   }
   if (route.path.startsWith('/webhooks/')) {
     headers.push({
-      key: 'x-uzbron-mock-signature',
+      key: 'x-safaar-mock-signature',
       value: '{{paymentWebhookSignature}}',
     });
   }
@@ -384,7 +384,7 @@ function sampleBody(route) {
     return {
       first_name: 'Demo',
       last_name: 'User',
-      email: 'demo.user@uzbron.uz',
+      email: 'demo.user@safaar.uz',
       preferred_language: 'uz',
     };
   }
@@ -516,7 +516,7 @@ function sampleBody(route) {
     return { title: 'Postman broadcast', body: 'Test', audience: 'all' };
   }
   if (path === '/admin/admin-users') {
-    return { email: 'operator@uzbron.uz', role: 'SUPPORT_ADMIN', full_name: 'Operator' };
+    return { email: 'operator@safaar.uz', role: 'SUPPORT_ADMIN', full_name: 'Operator' };
   }
   if (path.includes('/admin-users/')) {
     return { status: 'active', role: 'SUPPORT_ADMIN' };
@@ -531,7 +531,7 @@ function sampleBody(route) {
     return { value: 'postman-test' };
   }
   if (path === '/partner/team') {
-    return { email: 'operator@partner.uzbron.uz', role: 'operator' };
+    return { email: 'operator@partner.safaar.uz', role: 'operator' };
   }
   if (path.includes('/partner/team/')) {
     return { role: 'operator', status: 'active' };
@@ -540,7 +540,7 @@ function sampleBody(route) {
     return { type: 'license', file_id: '{{uploadId}}' };
   }
   if (path.endsWith('/profile')) {
-    return { brand_name: 'UzBron Demo Partner', phone: '{{phone}}', address: 'Postman' };
+    return { brand_name: 'safaar Demo Partner', phone: '{{phone}}', address: 'Postman' };
   }
   if (path.endsWith('/hotels')) {
     return { name: 'Postman Hotel', city_id: 'city-samarkand', address: 'Postman street', stars: 4 };
@@ -582,7 +582,7 @@ function sampleBody(route) {
     return { name: 'Postman API key', scopes: ['bookings:read', 'bookings:write'] };
   }
   if (path.endsWith('/webhooks')) {
-    return { url: 'https://example.com/uzbron/webhook', events: ['booking.created'] };
+    return { url: 'https://example.com/safaar/webhook', events: ['booking.created'] };
   }
   if (path.startsWith('/partner-api/bookings/') && path.endsWith('/status')) {
     return { status: 'completed' };

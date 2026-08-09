@@ -67,7 +67,7 @@ function listingStatus(value: unknown): HotelListingStatus {
 
 /**
  * Hamkor (mehmonxona/avtobus kompaniyasi) kabineti xizmati.
- * partner.uzbron.uz uchun: xonalar, bronlar, moliya boshqaruvi.
+ * partner.safaar.uz uchun: xonalar, bronlar, moliya boshqaruvi.
  */
 @Injectable()
 export class PartnersService {

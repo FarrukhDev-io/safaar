@@ -41,6 +41,8 @@ interface EnvironmentConfig {
   SMTP_USER?: string;
   SMTP_PASS?: string;
   SMTP_FROM?: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_CALLBACK_URL?: string;
@@ -100,7 +102,7 @@ export function validateEnv(
 
   return {
     NODE_ENV: nodeEnv,
-    APP_NAME: String(config.APP_NAME ?? 'uzbron-api'),
+    APP_NAME: String(config.APP_NAME ?? 'safaar-api'),
     WEB_USER_URL: String(config.WEB_USER_URL ?? 'http://localhost:3000'),
     PORT: toNumber(config.PORT, 4000),
     API_PREFIX: String(config.API_PREFIX ?? 'v1'),
@@ -119,8 +121,8 @@ export function validateEnv(
     JWT_REFRESH_TTL: String(
       config.JWT_REFRESH_TTL ?? config.JWT_REFRESH_EXPIRES_IN ?? '30d',
     ),
-    JWT_ISSUER: String(config.JWT_ISSUER ?? 'uzbron-api'),
-    JWT_AUDIENCE: String(config.JWT_AUDIENCE ?? 'uzbron-clients'),
+    JWT_ISSUER: String(config.JWT_ISSUER ?? 'safaar-api'),
+    JWT_AUDIENCE: String(config.JWT_AUDIENCE ?? 'safaar-clients'),
     TOTP_ENCRYPTION_KEY: config.TOTP_ENCRYPTION_KEY
       ? String(config.TOTP_ENCRYPTION_KEY)
       : undefined,
@@ -175,6 +177,10 @@ export function validateEnv(
     SMTP_USER: config.SMTP_USER ? String(config.SMTP_USER) : undefined,
     SMTP_PASS: config.SMTP_PASS ? String(config.SMTP_PASS) : undefined,
     SMTP_FROM: config.SMTP_FROM ? String(config.SMTP_FROM) : undefined,
+    RESEND_API_KEY: config.RESEND_API_KEY
+      ? String(config.RESEND_API_KEY)
+      : undefined,
+    RESEND_FROM: config.RESEND_FROM ? String(config.RESEND_FROM) : undefined,
     GOOGLE_CLIENT_ID: config.GOOGLE_CLIENT_ID
       ? String(config.GOOGLE_CLIENT_ID)
       : undefined,

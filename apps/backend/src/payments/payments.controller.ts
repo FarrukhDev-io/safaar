@@ -32,6 +32,7 @@ export class PaymentsController {
 
   @Post('payments/:bookingId/create')
   @UseGuards(RolesGuard)
+  @Roles(Role.USER, Role.ADMIN, Role.SUPER_ADMIN)
   createPayment(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('bookingId') bookingId: string,

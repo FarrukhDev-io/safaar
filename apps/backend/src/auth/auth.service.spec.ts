@@ -92,6 +92,59 @@ describe('AuthService email and OAuth', () => {
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
+  it('does not report a partner OTP as sent when the provider rejects it', async () => {
+    pg.query.mockResolvedValueOnce([
+      {
+        id: '00000000-0000-4000-8000-000000000010',
+        organization_status: 'approved',
+      },
+    ]);
+    email.send.mockResolvedValueOnce({ accepted: false });
+
+    await expect(
+      service.sendPartnerEmailOtp('partner@example.com'),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+    expect(jobs.add).not.toHaveBeenCalled();
+  });
+
+  it('rejects a partner email login when the OTP code is invalid', async () => {
+    pg.query.mockResolvedValueOnce([
+      {
+        id: '00000000-0000-4000-8000-000000000010',
+        organization_status: 'approved',
+      },
+    ]);
+    const challenge = await service.sendPartnerEmailOtp('partner@example.com');
+    const createSession = jest
+      .spyOn(authSessionStore, 'create')
+      .mockResolvedValue({} as never);
+
+    await expect(
+      service.verifyPartnerEmailOtp({
+        email: 'partner@example.com',
+        code: '000000',
+        challenge_id: challenge.challenge_id,
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(pg.query).toHaveBeenCalledTimes(1);
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it('does not issue partner tokens through phone login without OTP', async () => {
+    const createSession = jest
+      .spyOn(authSessionStore, 'create')
+      .mockResolvedValue({} as never);
+
+    await expect(
+      service.partnerPhoneLogin({ phone: '+998901112201' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(pg.query).not.toHaveBeenCalled();
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
   it('verifies an email OTP and issues a user session', async () => {
     const challenge = await service.sendUserEmailOtp('login@example.com');
     const sentMessage = sentMessages[0];

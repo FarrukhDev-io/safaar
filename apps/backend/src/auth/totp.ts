@@ -30,7 +30,7 @@ export function createTotpSetup(accountName: string): TotpSetup {
   return {
     secret,
     encryptedSecret,
-    otpauthUrl: `otpauth://totp/UzBron:${encodeURIComponent(accountName)}?secret=${secret}&issuer=UzBron&algorithm=SHA1&digits=6&period=30`,
+    otpauthUrl: `otpauth://totp/safaar:${encodeURIComponent(accountName)}?secret=${secret}&issuer=safaar&algorithm=SHA1&digits=6&period=30`,
     recoveryCodes,
     recoveryCodeHashes: recoveryCodes.map(hashRecoveryCode),
   };
@@ -61,7 +61,7 @@ export function verifyTotpCode(
 export function hashRecoveryCode(code: string): string {
   return createHash('sha256')
     .update(
-      `${process.env.RECOVERY_CODE_PEPPER ?? 'uzbron-dev-recovery'}:${code}`,
+      `${process.env.RECOVERY_CODE_PEPPER ?? 'safaar-dev-recovery'}:${code}`,
     )
     .digest('hex');
 }
@@ -172,7 +172,7 @@ function encryptionKey(): Buffer {
     throw new Error('TOTP_ENCRYPTION_KEY production muhitida majburiy');
   }
 
-  return createHash('sha256').update('uzbron-development-totp-key').digest();
+  return createHash('sha256').update('safaar-development-totp-key').digest();
 }
 
 function timingSafeEqualString(a: string, b: string): boolean {

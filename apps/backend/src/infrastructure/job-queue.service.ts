@@ -36,7 +36,7 @@ export class JobQueueService implements OnModuleDestroy {
       config.get<string>('QUEUE_REDIS_URL') ?? config.get<string>('REDIS_URL');
 
     if (redisUrl) {
-      this.queue = new Queue('uzbron-background', {
+      this.queue = new Queue('safaar-background', {
         connection: redisConnection(redisUrl),
       });
     }

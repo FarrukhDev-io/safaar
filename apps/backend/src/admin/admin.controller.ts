@@ -441,6 +441,11 @@ export class AdminController {
     return this.adminService.cmsList(resource, query);
   }
 
+  @Get('cms/:resource/:id')
+  cmsOne(@Param('resource') resource: string, @Param('id') id: string) {
+    return this.adminService.cmsOne(resource, id);
+  }
+
   @Post('cms/:resource')
   @Permissions(Permission.CmsWrite)
   cmsCreate(
@@ -458,6 +463,12 @@ export class AdminController {
     @Body() body: Record<string, unknown>,
   ) {
     return this.adminService.cmsUpdate(resource, id, body);
+  }
+
+  @Delete('cms/:resource/:id')
+  @Permissions(Permission.CmsWrite)
+  cmsDelete(@Param('resource') resource: string, @Param('id') id: string) {
+    return this.adminService.cmsDelete(resource, id);
   }
 
   @Post('cms/:resource/:id/publish')

@@ -109,10 +109,10 @@ describe('Security regression tests', () => {
       .mockResolvedValueOnce([{ ...payment, status: 'paid' }]);
 
     const first = await payments.providerWebhook('click', 'complete', body, {
-      'x-uzbron-signature': signature,
+      'x-safaar-signature': signature,
     });
     const second = await payments.providerWebhook('click', 'complete', body, {
-      'x-uzbron-signature': signature,
+      'x-safaar-signature': signature,
     });
 
     expect(first).toMatchObject({

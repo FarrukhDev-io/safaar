@@ -16,7 +16,7 @@ export class SendOtpDto {
 }
 
 export class SendEmailOtpDto {
-  @ApiProperty({ example: 'user@uzbron.uz' })
+  @ApiProperty({ example: 'user@safaar.uz' })
   @IsEmail()
   email!: string;
 }
@@ -66,7 +66,7 @@ export class CompleteProfileDto {
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ example: 'user@uzbron.uz' })
+  @ApiPropertyOptional({ example: 'user@safaar.uz' })
   @IsOptional()
   @IsEmail()
   email?: string;
@@ -102,7 +102,7 @@ export class OAuthExchangeDto {
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'partner@uzbron.uz' })
+  @ApiProperty({ example: 'partner@safaar.uz' })
   @IsEmail()
   email!: string;
 
@@ -113,7 +113,7 @@ export class LoginDto {
 }
 
 export class UserLoginDto {
-  @ApiProperty({ example: 'user@uzbron.uz' })
+  @ApiProperty({ example: 'user@safaar.uz' })
   @IsEmail()
   email!: string;
 
@@ -124,7 +124,7 @@ export class UserLoginDto {
 }
 
 export class UserForgotPasswordDto {
-  @ApiProperty({ example: 'user@uzbron.uz' })
+  @ApiProperty({ example: 'user@safaar.uz' })
   @IsEmail()
   email!: string;
 }
@@ -132,7 +132,7 @@ export class UserForgotPasswordDto {
 export class UserVerifyResetCodeDto extends VerifyEmailOtpRequestDto {}
 
 export class UserResetPasswordDto {
-  @ApiProperty({ example: 'user@uzbron.uz' })
+  @ApiProperty({ example: 'user@safaar.uz' })
   @IsEmail()
   email!: string;
 
@@ -165,7 +165,7 @@ export class AdminLoginDto {
   @IsNotEmpty()
   username?: string;
 
-  @ApiPropertyOptional({ example: 'admin@uzbron.uz' })
+  @ApiPropertyOptional({ example: 'admin@safaar.uz' })
   @IsOptional()
   @IsEmail()
   email?: string;
@@ -177,7 +177,7 @@ export class AdminLoginDto {
 }
 
 export class ForgotPasswordDto {
-  @ApiProperty({ example: 'partner@uzbron.uz' })
+  @ApiProperty({ example: 'partner@safaar.uz' })
   @IsEmail()
   email!: string;
 }

@@ -18,7 +18,7 @@ describe('AppController', () => {
     it('should return status ok', () => {
       expect(appController.getHealth()).toEqual({
         status: 'ok',
-        service: 'uzbron-api',
+        service: 'safaar-api',
       });
     });
   });
