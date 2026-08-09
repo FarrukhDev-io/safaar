@@ -91,3 +91,7 @@ Foydalanuvchi profilidan turib o'z parolini yangilashi uchun.
 | Transport Booking API | 🟢 Past |
 
 Iltimos, har bir task bajarilganda `@safaar/types` paketini yangilab, `npm run build:types` ni ishga tushiring. Rahmat!
+
+
+#F4F8F8
+#EFEFEF

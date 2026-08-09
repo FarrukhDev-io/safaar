@@ -29,7 +29,7 @@
   --brand-accent-700: #c2410c;
 
   /* ── Single Unified Background & Card System ── */
-  --background: #f1f5f9;
+  --background: #efefef;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
@@ -37,9 +37,9 @@
   --popover-foreground: #0f172a;
   --primary: var(--brand-500);
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
+  --secondary: #efefef;
   --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
+  --muted: #efefef;
   --muted-foreground: #334155;
   --accent: #f8fafc;
   --accent-foreground: #0f172a;
