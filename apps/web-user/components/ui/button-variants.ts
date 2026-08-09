@@ -31,7 +31,7 @@ export const roundedClasses: Record<Rounded, string> = {
 };
 
 export const baseButtonClasses = 
-  "inline-flex items-center justify-center gap-2 font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 font-bold transition-all focus-visible:outline-none disabled:pointer-events-none";
 
 export function buttonVariants({
   variant = "primary",
