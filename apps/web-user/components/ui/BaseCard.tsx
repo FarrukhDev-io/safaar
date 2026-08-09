@@ -35,7 +35,7 @@ export function BaseCard({
 }: BaseCardProps) {
 
   const content = (
-    <article className={`flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-card shadow-md transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-primary-500/10 group-hover:border-primary-500/30 dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md ${className}`}>
+    <article className={`flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-card shadow-md dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md ${className}`}>
       {variant === "overlay" ? (
         /* Overlay variant (e.g. City Card) */
         <div className="relative aspect-[4/3] w-full overflow-hidden">
@@ -49,9 +49,9 @@ export function BaseCard({
               quality={85}
             />
           )}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent transition-opacity duration-300 group-hover:opacity-90" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           {badge && <div className="absolute left-3 top-3 z-10">{badge}</div>}
-          <div className="absolute inset-x-0 bottom-0 p-4 transition-transform duration-300 group-hover:-translate-y-1">
+          <div className="absolute inset-x-0 bottom-0 p-4">
             <div className="text-base font-bold text-white drop-shadow-md sm:text-lg">
               {title}
             </div>
@@ -72,17 +72,15 @@ export function BaseCard({
                 alt={imageAlt}
                 fill
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                 quality={85}
               />
             )}
-            {/* Soft overlay on hover to make text pop if needed, or just keep it clean */}
-            <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/[0.02]" />
             {badge && <div className="absolute left-3 top-3 z-10">{badge}</div>}
           </div>
 
           <div className="flex flex-col gap-1.5 px-5 pt-4 pb-2">
-            <div className="line-clamp-1 text-lg font-bold text-slate-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+            <div className="line-clamp-1 text-lg font-bold text-slate-900 dark:text-white">
               {title}
             </div>
             {subInfo && (
@@ -98,7 +96,7 @@ export function BaseCard({
           </div>
 
           {(footerLeft || footerRight) && (
-            <div className="mt-auto flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 transition-colors group-hover:border-slate-200">
+            <div className="mt-auto flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
               <div className="flex flex-col w-full sm:w-auto">{footerLeft}</div>
               {footerRight && <div className="w-full sm:w-auto flex justify-end [&>*]:w-full sm:[&>*]:w-auto">{footerRight}</div>}
             </div>
