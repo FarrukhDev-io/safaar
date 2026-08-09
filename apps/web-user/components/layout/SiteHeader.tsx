@@ -49,7 +49,7 @@ function AuthButtons({
       </Link>
       <Link
         href={`${base}/register`}
-        className={`inline-flex items-center justify-center rounded-full bg-primary-500 px-5 font-bold text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] transition-all duration-150 hover:bg-primary-600 hover:shadow-[0_3px_0_rgb(63,98,5),0_4px_12px_rgba(135,201,13,0.4)] active:translate-y-[3px] active:shadow-none ${isCol ? "h-11 text-base" : "h-10 text-sm"}`}
+        className={`inline-flex items-center justify-center rounded-full bg-primary-500 px-5 font-bold text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] transition-all duration-150 hover:bg-primary-400 hover:shadow-[0_3px_0_rgb(63,98,5),0_4px_12px_rgba(135,201,13,0.4)] active:translate-y-[3px] active:shadow-none ${isCol ? "h-11 text-base" : "h-10 text-sm"}`}
       >
         {dict.actions.register}
       </Link>
