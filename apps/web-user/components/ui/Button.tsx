@@ -2,7 +2,7 @@
 
 import type { ButtonHTMLAttributes } from "react";
 import { Loader2 } from "lucide-react";
-import { type Variant, type Size, type Rounded, buttonVariants, sizeClasses, roundedClasses } from "./button-variants";
+import { type Variant, type Size, type Rounded, buttonVariants, sizeClasses, roundedClasses, baseButtonClasses } from "./button-variants";
 import { cn } from "@/lib/cn";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -30,7 +30,8 @@ export function Button({
     return (
       <IridescentButton
         className={cn(
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60",
+          baseButtonClasses,
+          "disabled:opacity-60",
           sizeClasses[size],
           roundedClasses[rounded],
           styles.appleGreen,

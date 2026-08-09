@@ -4,7 +4,7 @@ import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import { logoutAction } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/Button";
-import { buttonVariants } from "@/components/ui/button-variants";
+import { buttonVariants, sizeClasses, roundedClasses, baseButtonClasses } from "@/components/ui/button-variants";
 import { cn } from "@/lib/cn";
 import styles from "@/components/ui/iridescent-button.module.css";
 import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
@@ -43,22 +43,17 @@ function AuthButtons({
     );
   }
 
-  const loginClasses = cn(
-    "inline-flex items-center justify-center gap-2 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2",
-    "h-11 px-4.5 text-sm", // sizeClasses.md equivalent
-    "rounded-full text-black hover:text-black transition-colors",
+  const baseAuthClasses = cn(
+    baseButtonClasses,
+    sizeClasses.md,
+    roundedClasses.full,
+    "transition-colors",
     styles.iridescent,
     sizeClass
   );
 
-  const registerClasses = cn(
-    "inline-flex items-center justify-center gap-2 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2",
-    "h-11 px-4.5 text-sm",
-    "rounded-full transition-colors",
-    styles.iridescent,
-    styles.appleGreen,
-    sizeClass
-  );
+  const loginClasses = cn(baseAuthClasses, "text-black hover:text-black");
+  const registerClasses = cn(baseAuthClasses, styles.appleGreen);
 
   return (
     <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>

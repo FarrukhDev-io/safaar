@@ -30,6 +30,9 @@ export const roundedClasses: Record<Rounded, string> = {
   sm: "rounded-sm",
 };
 
+export const baseButtonClasses = 
+  "inline-flex items-center justify-center gap-2 font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:pointer-events-none";
+
 export function buttonVariants({
   variant = "primary",
   size = "md",
@@ -42,7 +45,7 @@ export function buttonVariants({
   className?: string;
 } = {}) {
   return cn(
-    "inline-flex items-center justify-center gap-2 font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:pointer-events-none",
+    baseButtonClasses,
     variantClasses[variant],
     sizeClasses[size],
     roundedClasses[rounded],
