@@ -91,7 +91,7 @@ export function SearchBar({
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2">
           {/* 1. Shahar / Destinatsiya */}
           <div className={fieldWrapperClass}>
-            <MapPin className="h-5 w-5 shrink-0 text-primary-600" aria-hidden />
+            <MapPin className="h-5 w-5 shrink-0 text-primary-500" aria-hidden />
             <div className="min-w-0 flex-1">
               <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                 {dict.city}
@@ -109,7 +109,7 @@ export function SearchBar({
 
           {/* 2. Sanalar (Kirish va Chiqish) */}
           <div className={fieldWrapperClass}>
-            <Calendar className="h-5 w-5 shrink-0 text-primary-600" aria-hidden />
+            <Calendar className="h-5 w-5 shrink-0 text-primary-500" aria-hidden />
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <div className="min-w-0 flex-1">
                 <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
@@ -151,7 +151,7 @@ export function SearchBar({
           {/* 3. Mehmonlar soni */}
           <div className={fieldWrapperClass}>
             <div className="flex items-center gap-2.5">
-              <Users className="h-5 w-5 shrink-0 text-primary-600" aria-hidden />
+              <Users className="h-5 w-5 shrink-0 text-primary-500" aria-hidden />
               <div>
                 <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                   {dict.guests}
