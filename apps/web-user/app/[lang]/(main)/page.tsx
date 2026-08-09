@@ -78,12 +78,7 @@ export default async function HomePage({
                 <Link
                   key={city.id}
                   href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-                  className={buttonVariants({
-                    variant: "secondary",
-                    size: "md",
-                    rounded: "full",
-                    className: "shrink-0",
-                  })}
+                  className="shrink-0 rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-[0_0_10px_rgba(0,0,0,0.05)] transition-all duration-200 hover:border-primary-500 hover:text-primary-600 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95"
                 >
                   {city.name}
                 </Link>
