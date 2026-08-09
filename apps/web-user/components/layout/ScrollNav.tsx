@@ -214,7 +214,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
   return (
     <>
       {/* ═══ Mobile header ═══ */}
-      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 text-slate-900 md:hidden shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 dark:text-white">
+      <header className="sticky top-0 z-100 flex h-14 items-center justify-between rounded-b-3xl border-b border-slate-200 bg-white/95 px-4 text-slate-900 shadow-sm backdrop-blur-md md:hidden dark:border-slate-800 dark:bg-slate-950/95 dark:text-white">
         <Link href={brandHref} className="font-black tracking-wide text-xl sm:text-2xl text-slate-900 dark:text-white">
           {brand}
         </Link>
@@ -292,7 +292,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       )}
 
       {/* ═══ Desktop navbar ═══ */}
-      <nav className="sticky top-0 z-100 hidden border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-md md:block dark:border-slate-800 dark:bg-slate-950/95">
+      <nav className="sticky top-0 z-100 hidden rounded-b-3xl border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-md md:block dark:border-slate-800 dark:bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
           <Link href={brandHref} className="shrink-0 font-black tracking-wide text-xl sm:text-2xl text-slate-900 dark:text-white">
             {brand}
@@ -312,8 +312,8 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                   className={cn(
                     "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
                     active
-                      ? "border border-slate-200 bg-white text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] -translate-y-[1px] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                      : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
+                      ? "border border-slate-300 bg-white text-slate-900 shadow-[0_3px_0_rgb(148,163,184),0_4px_8px_rgba(0,0,0,0.06)] -translate-y-[1px] dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      : "border border-transparent text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(148,163,184),0_4px_8px_rgba(0,0,0,0.06)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
                   )}
                 >
                   {item.icon}
