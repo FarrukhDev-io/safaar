@@ -92,6 +92,5 @@ Foydalanuvchi profilidan turib o'z parolini yangilashi uchun.
 
 Iltimos, har bir task bajarilganda `@safaar/types` paketini yangilab, `npm run build:types` ni ishga tushiring. Rahmat!
 
-
-#F4F8F8
-#EFEFEF
+#7DB82C
+#69A00E
