@@ -62,14 +62,14 @@ export function LocaleSwitcher({
         aria-expanded={open}
         aria-label="Tilni tanlash"
         className={cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+          "inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
           light
-            ? "border border-slate-200 bg-card text-slate-900 shadow-btn hover:bg-slate-50"
+            ? "border border-slate-300 bg-card text-slate-900 shadow-xs hover:bg-slate-50"
             : "border border-white/40 bg-white/10 text-white shadow-xs backdrop-blur-md hover:bg-white/20 hover:border-white/60",
         )}
       >
-        <Globe className={cn("h-3.5 w-3.5", light ? "text-slate-600" : "text-white/90")} aria-hidden />
-        <span className={cn("text-xs font-bold uppercase tracking-wide", light ? "text-slate-900" : "text-white")}>
+        <Globe className={cn("h-4 w-4", light ? "text-slate-600" : "text-white/90")} aria-hidden />
+        <span className={cn("text-sm font-bold uppercase tracking-wide", light ? "text-slate-900" : "text-white")}>
           {current.toUpperCase()}
         </span>
       </button>
