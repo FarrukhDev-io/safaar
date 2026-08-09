@@ -43,7 +43,7 @@ function AuthButtons({
     <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
       <Link
         href={`${base}/login`}
-        className={`inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 font-bold text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] transition-all duration-150 hover:bg-slate-50 hover:text-primary-600 active:translate-y-[3px] active:shadow-none ${isCol ? "h-11 text-base" : "h-10 text-sm"}`}
+        className={`inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 font-bold text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] transition-all duration-150 hover:bg-slate-50 hover:text-primary-500 active:translate-y-[3px] active:shadow-none ${isCol ? "h-11 text-base" : "h-10 text-sm"}`}
       >
         {dict.actions.login}
       </Link>

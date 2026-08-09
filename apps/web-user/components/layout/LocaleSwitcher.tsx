@@ -68,8 +68,8 @@ export function LocaleSwitcher({
             : "border border-white/40 bg-white/10 text-white shadow-[0_3px_0_rgba(255,255,255,0.2),0_4px_8px_rgba(0,0,0,0.1)] backdrop-blur-md hover:bg-white/20 hover:border-white/60",
         )}
       >
-        <Globe className={cn("h-4 w-4 transition-colors", light ? "text-slate-600 group-hover:text-primary-600" : "text-white/90")} aria-hidden />
-        <span className={cn("text-sm font-bold uppercase tracking-wide transition-colors", light ? "text-slate-900 group-hover:text-primary-600" : "text-white")}>
+        <Globe className={cn("h-4 w-4 transition-colors", light ? "text-slate-600 group-hover:text-primary-500" : "text-white/90")} aria-hidden />
+        <span className={cn("text-sm font-bold uppercase tracking-wide transition-colors", light ? "text-slate-900 group-hover:text-primary-500" : "text-white")}>
           {current.toUpperCase()}
         </span>
       </button>

@@ -14,7 +14,7 @@ const variantClasses: Record<Variant, string> = {
   accent:
     "bg-accent-600 text-white shadow-[0_3px_0_rgb(180,83,9),0_4px_10px_rgba(245,158,11,0.3)] hover:shadow-[0_3px_0_rgb(146,64,14),0_4px_12px_rgba(245,158,11,0.4)] hover:bg-accent-500 active:translate-y-[3px] active:shadow-none transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
   secondary:
-    "border border-slate-200 bg-white text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:bg-slate-50 hover:text-primary-600 active:translate-y-[3px] active:shadow-none transition-all duration-150 disabled:bg-slate-50 disabled:border-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
+    "border border-slate-200 bg-white text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:bg-slate-50 hover:text-primary-500 active:translate-y-[3px] active:shadow-none transition-all duration-150 disabled:bg-slate-50 disabled:border-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
   ghost:
     "text-slate-700 hover:bg-slate-100 active:translate-y-[2px] transition-all duration-150 disabled:bg-transparent disabled:text-slate-300 disabled:translate-y-0",
 };
