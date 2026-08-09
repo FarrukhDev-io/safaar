@@ -62,14 +62,14 @@ export function LocaleSwitcher({
         aria-expanded={open}
         aria-label="Tilni tanlash"
         className={cn(
-          "group inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 active:translate-y-[3px] active:shadow-none",
+          "group inline-flex h-11 items-center gap-2 rounded-full px-5 text-[15px] font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 active:translate-y-[3px] active:shadow-none",
           light
             ? "border border-slate-200 bg-white shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:bg-slate-50"
             : "border border-white/40 bg-white/10 text-white shadow-[0_3px_0_rgba(255,255,255,0.2),0_4px_8px_rgba(0,0,0,0.1)] backdrop-blur-md hover:bg-white/20 hover:border-white/60",
         )}
       >
-        <Globe className={cn("h-4 w-4 transition-colors", light ? "text-slate-600 group-hover:text-primary-500" : "text-white/90")} aria-hidden />
-        <span className={cn("text-sm font-bold uppercase tracking-wide transition-colors", light ? "text-slate-900 group-hover:text-primary-500" : "text-white")}>
+        <Globe className={cn("h-[18px] w-[18px] transition-colors", light ? "text-slate-600 group-hover:text-primary-500" : "text-white/90")} aria-hidden />
+        <span className={cn("text-[15px] font-bold uppercase tracking-wide transition-colors", light ? "text-slate-900 group-hover:text-primary-500" : "text-white")}>
           {current.toUpperCase()}
         </span>
       </button>
