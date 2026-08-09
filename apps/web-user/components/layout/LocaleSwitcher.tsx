@@ -78,7 +78,7 @@ export function LocaleSwitcher({
         <div
           role="listbox"
           aria-label="Tillar"
-          className="absolute right-0 top-full mt-1.5 w-36 rounded-xl border border-slate-200 bg-card p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute right-0 top-full mt-2 w-40 rounded-2xl border border-slate-200 bg-card p-1.5 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100"
         >
           {locales.map((loc) => {
             const active = loc === current;
@@ -90,14 +90,16 @@ export function LocaleSwitcher({
                 aria-selected={active}
                 onClick={() => switchLocale(loc)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
+                  "flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
                   active
-                    ? "bg-primary-600 text-white shadow-xs"
-                    : "text-slate-900 hover:bg-slate-100",
+                    ? "bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/30 dark:text-primary-400"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
                 )}
               >
                 <span>{localeNames[loc]}</span>
-                <span className="uppercase text-[10px] opacity-75">{loc}</span>
+                <span className={cn("uppercase text-[11px] font-bold tracking-wider", active ? "opacity-100" : "opacity-60")}>
+                  {loc}
+                </span>
               </button>
             );
           })}
