@@ -6,7 +6,7 @@ export type Rounded = "full" | "2xl" | "xl" | "lg" | "md" | "sm";
 
 export const variantClasses: Record<Variant, string> = {
   primary:
-    "bg-primary-500 text-white shadow-[0_3px_0_rgb(86,132,23),0_4px_10px_rgba(125,184,44,0.3)] hover:shadow-[0_3px_0_rgb(71,109,19),0_4px_12px_rgba(125,184,44,0.4)] hover:bg-primary-600 active:translate-y-[3px] active:shadow-none transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
+    "bg-primary-500 text-white shadow-[0_3px_0_rgb(81,147,26),0_4px_10px_rgba(118,205,43,0.3)] hover:shadow-[0_3px_0_rgb(66,120,20),0_4px_12px_rgba(118,205,43,0.4)] hover:bg-primary-600 active:translate-y-[3px] active:shadow-none transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
   accent:
     "bg-accent-500 text-white shadow-[0_3px_0_rgb(180,83,9),0_4px_10px_rgba(245,158,11,0.3)] hover:shadow-[0_3px_0_rgb(146,64,14),0_4px_12px_rgba(245,158,11,0.4)] hover:bg-accent-600 active:translate-y-[3px] active:shadow-none transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
   secondary:
