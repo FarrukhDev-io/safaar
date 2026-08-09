@@ -38,7 +38,7 @@ export function PartnerTypeDisplay({ type }: { type: ExtendedPartnerType }) {
       break;
     case 'bus':
       icon = <Bus size={14} className="text-[var(--info)]" />;
-      label = 'Avtobus';
+      label = 'Mashina ijarasi';
       break;
     case 'restaurant':
       icon = <UtensilsCrossed size={14} className="text-[var(--accent)]" />;

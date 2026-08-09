@@ -66,7 +66,7 @@ export default function BookingLineChart({ data }: BookingLineChartProps) {
           strokeWidth={2.5}
           dot={false}
           activeDot={{ r: 5, fill: "#2ECC71", strokeWidth: 2, stroke: "white" }}
-          name="Avtobus"
+          name="Mashina Ijarasi"
         />
       </RechartsLineChart>
     </ResponsiveContainer>

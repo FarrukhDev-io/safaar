@@ -27,7 +27,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <span className="text-xl font-bold tracking-tight">Safaar Hamkor Kabineti</span>
           </div>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            Mehmonxona va avtobus hamkorlari uchun
+            Mehmonxona va mashina ijarasi hamkorlari uchun
           </p>
         </div>
         <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl shadow-zinc-900/5 dark:shadow-black/20">
