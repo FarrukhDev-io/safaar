@@ -11,8 +11,11 @@ import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import type { CityOption } from "@/types/view";
 import { trackSearchPerformed } from "@/lib/services/analytics/tracker";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 export type { PropertyType, SearchDefaults };
+
+const fieldWrapperClass = "flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5";
 
 export function SearchBar({
   locale,
@@ -82,12 +85,12 @@ export function SearchBar({
     <div className="mx-auto w-full max-w-4xl">
       <form
         onSubmit={handleSubmit}
-        className="rounded-3xl border border-slate-200/80 bg-card p-3.5 shadow-xl shadow-slate-200/50 transition-all duration-200 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-4"
+        className="rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-[0_4px_16px_rgba(0,0,0,0.15)] transition-all duration-200 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-4"
       >
         {/* Desktop grid layout & Mobile stack layout */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2">
           {/* 1. Shahar / Destinatsiya */}
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5">
+          <div className={fieldWrapperClass}>
             <MapPin className="h-5 w-5 shrink-0 text-primary-600" aria-hidden />
             <div className="min-w-0 flex-1">
               <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
@@ -102,10 +105,10 @@ export function SearchBar({
             </div>
           </div>
 
-          <div className="hidden h-9 w-px shrink-0 bg-slate-300 md:block" aria-hidden />
+          <div className="hidden h-9 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
           {/* 2. Sanalar (Kirish va Chiqish) */}
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5">
+          <div className={fieldWrapperClass}>
             <Calendar className="h-5 w-5 shrink-0 text-primary-600" aria-hidden />
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <div className="min-w-0 flex-1">
@@ -143,10 +146,10 @@ export function SearchBar({
             </div>
           </div>
 
-          <div className="hidden h-9 w-px shrink-0 bg-slate-300 md:block" aria-hidden />
+          <div className="hidden h-9 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
           {/* 3. Mehmonlar soni */}
-          <div className="flex items-center justify-between gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5">
+          <div className={fieldWrapperClass}>
             <div className="flex items-center gap-2.5">
               <Users className="h-5 w-5 shrink-0 text-primary-600" aria-hidden />
               <div>
@@ -162,10 +165,10 @@ export function SearchBar({
           <div className="shrink-0 pt-1 md:pt-0">
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition-all duration-150 hover:bg-primary-700 active:scale-[0.98] md:w-auto md:py-3"
+              className={buttonVariants({ variant: "primary", size: "lg", className: "w-full md:w-auto uppercase tracking-wide px-8" })}
             >
-              <Search className="h-4 w-4 stroke-[2.5]" aria-hidden />
-              <span className="uppercase tracking-wide">{dict.submit}</span>
+              <Search className="h-5 w-5 stroke-[2.5]" aria-hidden />
+              <span>{dict.submit}</span>
             </button>
           </div>
         </div>
