@@ -312,7 +312,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
                     active
-                      ? "border border-primary-200 bg-primary-50 text-primary-600 shadow-[0_3px_0_rgb(163,230,53),0_4px_8px_rgba(135,201,13,0.1)] active:translate-y-[3px] active:shadow-none dark:bg-primary-900/30 dark:text-primary-400"
+                      ? "border border-transparent bg-primary-500 text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] active:translate-y-[3px] active:shadow-none dark:bg-primary-600"
                       : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-primary-500 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400",
                   )}
                 >
