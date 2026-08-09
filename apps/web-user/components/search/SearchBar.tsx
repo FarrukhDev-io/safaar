@@ -11,7 +11,7 @@ import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import type { CityOption } from "@/types/view";
 import { trackSearchPerformed } from "@/lib/services/analytics/tracker";
-import { buttonVariants } from "@/components/ui/button-variants";
+import { Button } from "@/components/ui/Button";
 
 export type { PropertyType, SearchDefaults };
 
@@ -163,13 +163,15 @@ export function SearchBar({
 
           {/* 4. Qidirish tugmasi */}
           <div className="shrink-0 pt-1 md:pt-0">
-            <button
+            <Button
               type="submit"
-              className={buttonVariants({ variant: "primary", size: "lg", className: "w-full md:w-auto uppercase tracking-wide px-8" })}
+              variant="primary"
+              size="lg"
+              className="w-full md:w-auto uppercase tracking-wide px-8"
             >
               <Search className="h-5 w-5 stroke-[2.5]" aria-hidden />
               <span>{dict.submit}</span>
-            </button>
+            </Button>
           </div>
         </div>
       </form>
