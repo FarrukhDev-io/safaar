@@ -93,44 +93,23 @@ export function RestaurantBookingSection({
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:4000/v1/bookings/hotel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          hotel_id: restaurant.id,
-          hotelId: restaurant.id,
-          room_id: selectedTableId || restaurant.id,
-          roomId: selectedTableId || restaurant.id,
-          check_in: date,
-          checkIn: date,
-          check_out: date,
-          checkOut: date,
-          slot_time: slotTime,
-          slotTime: slotTime,
-          adults: guests,
-          totalPrice: totalAmount,
-          guest_name: guestName,
-          guestName,
-          guest_phone: guestPhone,
-          guestPhone,
-          guest_email: guestEmail,
-          guestEmail,
-          source: "web-user",
-          payment_method: paymentMethod === "card" ? "click" : "cash",
-        }),
+      const { api } = await import("@/lib/api");
+      const booking = await api.bookings.createHotelBooking({
+        hotelId: restaurant.id,
+        roomId: selectedTableId || restaurant.id,
+        checkIn: date,
+        checkOut: date,
+        slotTime: slotTime,
+        guests: guests,
+        totalPrice: totalAmount,
+        guestName,
+        guestPhone,
+        guestEmail,
+        source: "web-user",
+        paymentMethod: paymentMethod === "card" ? "click" : "cash",
       });
 
-      const json = await res.json();
-      if (!res.ok || json.success === false) {
-        throw new Error(json.error?.message || json.message || "Bron qilishda xatolik yuz berdi");
-      }
-
-      const bookingId =
-        json.data?.booking?.booking_number ||
-        json.data?.booking?.id ||
-        json.data?.bookingNumber ||
-        json.data?.id ||
-        "CONFIRMED";
+      const bookingId = booking.bookingNumber || booking.id || "CONFIRMED";
 
       setSuccessBookingId(bookingId);
       setShowPaymentModal(false);

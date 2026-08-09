@@ -129,7 +129,7 @@ export default function BusBookingsPage() {
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => exportToExcel(filtered, "Avtobus_bronlari")}>
+        <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => exportToExcel(filtered, "Ijara_bronlari")}>
           Eksport
         </Button>
       </div>
@@ -176,7 +176,7 @@ export default function BusBookingsPage() {
         data={paginated}
         keyField="id"
         onRowClick={(row) => router.push(`/bookings/${row.id}`)}
-        emptyMessage="Avtobus bronlari topilmadi"
+        emptyMessage="Ijara bronlari topilmadi"
       />
 
       <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />

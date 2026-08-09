@@ -37,10 +37,6 @@ export async function createBookingAction(
 
   const session = await getSession();
 
-  const firstName = String(formData.get('firstName') ?? '').trim();
-  const lastName = String(formData.get('lastName') ?? '').trim();
-  const email = String(formData.get('email') ?? '').trim();
-  const phone = String(formData.get('phone') ?? '').trim();
   const paymentMethod = String(formData.get('paymentMethod') ?? 'click') as
     | 'click'
     | 'payme'
@@ -48,10 +44,11 @@ export async function createBookingAction(
     | 'humo'
     | 'cash';
 
-  if (!firstName || !lastName || !email || !phone) {
-    return { error: 'GUEST_DETAILS_REQUIRED' };
-  }
-
+  // Guest (login qilmagan) mijoz uchun ism/familiya/email/telefon —
+  // `CheckoutForm`da `isGuest` bo'lsa HTML `required` orqali majburiy
+  // qilinadi; login qilgan mijoz esa faqat `fullName` yuboradi. Shuning
+  // uchun bu yerda ikkalasi ham ixtiyoriy — backend ham guest
+  // ma'lumotlarini majburiy talab qilmaydi.
   const input = {
     hotelId: String(formData.get('hotelId') ?? ''),
     roomId: String(formData.get('roomId') ?? ''),
@@ -59,11 +56,11 @@ export async function createBookingAction(
     checkOut: String(formData.get('checkOut') ?? ''),
     guests: Number(formData.get('guests') ?? 1),
     paymentMethod,
-    firstName,
-    lastName,
-    fullName: [firstName, lastName].join(' '),
-    email,
-    phone,
+    firstName: formData.get('firstName') ? String(formData.get('firstName')) : undefined,
+    lastName: formData.get('lastName') ? String(formData.get('lastName')) : undefined,
+    fullName: formData.get('fullName') ? String(formData.get('fullName')) : undefined,
+    email: formData.get('email') ? String(formData.get('email')) : undefined,
+    phone: formData.get('phone') ? String(formData.get('phone')) : undefined,
   };
   let bookingId = '';
   let checkoutUrl = '';

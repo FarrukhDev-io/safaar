@@ -34,7 +34,7 @@ export function SiteFooter({
   const sections = { ...defaultSections, ...footerData.sections };
 
   return (
-    <footer className="mt-auto bg-[#013E94] text-slate-300">
+    <footer className="mt-auto bg-slate-950 text-slate-300">
       <div className="mx-auto w-full max-w-[1400px] px-6 py-12 sm:px-8 lg:py-16">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-4 lg:gap-12">
           {/* Col 1: Brand & Intro */}

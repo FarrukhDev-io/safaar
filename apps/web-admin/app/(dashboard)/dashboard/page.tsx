@@ -89,7 +89,7 @@ export default function DashboardPage() {
                 color: "#1E3A5F",
               },
               {
-                name: "Avtobus",
+                name: "Mashina Ijarasi",
                 value: Math.round((busBookings.length / totalServiceBookings) * 100),
                 color: "#2ECC71",
               },

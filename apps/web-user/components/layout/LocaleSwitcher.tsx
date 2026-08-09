@@ -62,14 +62,14 @@ export function LocaleSwitcher({
         aria-expanded={open}
         aria-label="Tilni tanlash"
         className={cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+          "group inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 active:translate-y-[3px] active:shadow-none",
           light
-            ? "border border-slate-200 bg-card text-slate-900 shadow-btn hover:bg-slate-50"
-            : "border border-white/40 bg-white/10 text-white shadow-xs backdrop-blur-md hover:bg-white/20 hover:border-white/60",
+            ? "border border-slate-200 bg-white shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:bg-slate-50"
+            : "border border-white/40 bg-white/10 text-white shadow-[0_3px_0_rgba(255,255,255,0.2),0_4px_8px_rgba(0,0,0,0.1)] backdrop-blur-md hover:bg-white/20 hover:border-white/60",
         )}
       >
-        <Globe className={cn("h-3.5 w-3.5", light ? "text-slate-600" : "text-white/90")} aria-hidden />
-        <span className={cn("text-xs font-bold uppercase tracking-wide", light ? "text-slate-900" : "text-white")}>
+        <Globe className={cn("h-[18px] w-[18px] transition-colors", light ? "text-slate-600 group-hover:text-primary-500" : "text-white/90")} aria-hidden />
+        <span className={cn("text-base font-bold uppercase tracking-wide transition-colors", light ? "text-slate-900 group-hover:text-primary-500" : "text-white")}>
           {current.toUpperCase()}
         </span>
       </button>
@@ -78,7 +78,7 @@ export function LocaleSwitcher({
         <div
           role="listbox"
           aria-label="Tillar"
-          className="absolute right-0 top-full mt-1.5 w-36 rounded-xl border border-slate-200 bg-card p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute right-0 top-full mt-2 w-40 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_4px_0_rgb(226,232,240),0_10px_25px_rgba(0,0,0,0.1)] z-50 animate-in fade-in zoom-in-95 duration-100"
         >
           {locales.map((loc) => {
             const active = loc === current;
@@ -90,14 +90,16 @@ export function LocaleSwitcher({
                 aria-selected={active}
                 onClick={() => switchLocale(loc)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
+                  "flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
                   active
-                    ? "bg-primary-600 text-white shadow-xs"
-                    : "text-slate-900 hover:bg-slate-100",
+                    ? "bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/30 dark:text-primary-400"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
                 )}
               >
                 <span>{localeNames[loc]}</span>
-                <span className="uppercase text-[10px] opacity-75">{loc}</span>
+                <span className={cn("uppercase text-[11px] font-bold tracking-wider", active ? "opacity-100" : "opacity-60")}>
+                  {loc}
+                </span>
               </button>
             );
           })}

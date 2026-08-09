@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 export type ScrollNavItem = {
   label: string;
   href: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   exact?: boolean;
   children?: ScrollNavItem[];
 };
@@ -167,10 +167,10 @@ function MobileAccordionGroup({
                 onClick={onNavigate}
                 aria-current={childActive ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-colors",
+                  "flex h-11 items-center gap-3 rounded-xl px-3.5 text-[15px] font-bold transition-colors",
                   childActive
-                    ? "bg-primary-500 text-white shadow-xs"
-                    : "text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800",
+                    ? "border border-transparent bg-primary-500 text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] active:translate-y-[3px] active:shadow-none"
+                    : "border border-transparent text-slate-800 hover:border-slate-200 hover:bg-white hover:text-primary-500 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-primary-400",
                 )}
               >
                 <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
@@ -214,8 +214,8 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
   return (
     <>
       {/* ═══ Mobile header ═══ */}
-      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-sky-300/30 bg-[#013E94] px-4 text-white md:hidden shadow-xs backdrop-blur-md">
-        <Link href={brandHref} className="font-black tracking-wide text-xl sm:text-2xl text-white">
+      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 text-slate-900 md:hidden shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 dark:text-white">
+        <Link href={brandHref} className="font-black tracking-wide text-xl sm:text-2xl text-slate-900 dark:text-white">
           {brand}
         </Link>
         <button
@@ -223,7 +223,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
           onClick={() => setMenuOpen((v) => !v)}
           aria-expanded={menuOpen}
           aria-label={menuOpen ? "Menyuni yopish" : "Menyuni ochish"}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-slate-900 transition-colors hover:bg-slate-100 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -261,13 +261,15 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                     onClick={() => setMenuOpen(false)}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-colors",
+                      "flex h-12 items-center gap-3 rounded-2xl px-4 text-[15px] font-bold transition-colors",
                       active
-                        ? "bg-primary-500 text-white shadow-xs"
-                        : "text-slate-900 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-800",
+                        ? "border border-transparent bg-primary-500 text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] active:translate-y-[3px] active:shadow-none"
+                        : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-primary-500 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400",
                     )}
                   >
-                    <span className="flex h-6 w-6 items-center justify-center">{item.icon}</span>
+                    {item.icon && (
+                      <span className="flex h-6 w-6 items-center justify-center">{item.icon}</span>
+                    )}
                     <span className="text-sm font-bold">{item.label}</span>
                   </Link>
                 );
@@ -290,9 +292,9 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       )}
 
       {/* ═══ Desktop navbar ═══ */}
-      <nav className="sticky top-0 z-100 hidden border-b border-sky-300/30 bg-[#013E94] shadow-md md:block">
+      <nav className="sticky top-0 z-100 hidden border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-md md:block dark:border-slate-800 dark:bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
-          <Link href={brandHref} className="shrink-0 font-black tracking-wide text-xl sm:text-2xl text-white">
+          <Link href={brandHref} className="shrink-0 font-black tracking-wide text-xl sm:text-2xl text-slate-900 dark:text-white">
             {brand}
           </Link>
 
@@ -308,10 +310,10 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+                    "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
                     active
-                      ? "border border-white/60 bg-white/20 text-white shadow-xs"
-                      : "text-white hover:bg-white/15 hover:text-white",
+                      ? "border border-transparent bg-primary-500 text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] active:translate-y-[3px] active:shadow-none dark:bg-primary-600"
+                      : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-primary-500 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400",
                   )}
                 >
                   {item.icon}

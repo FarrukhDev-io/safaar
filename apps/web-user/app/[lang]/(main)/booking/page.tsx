@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { isLocale, type Locale } from '@/i18n/config';
 import { getDictionary } from '@/i18n/dictionaries';
+import { getSession } from '@/lib/auth/session';
 import { api, ApiRequestError } from '@/lib/api';
 import { CheckoutForm } from './_components/CheckoutForm';
 import { BackButton } from '@/components/ui/BackButton';
@@ -49,7 +50,8 @@ export default async function CheckoutPage({
     redirect(`/${locale}/hotels`);
   }
 
-  const [dict, hotel] = await Promise.all([
+  const [session, dict, hotel] = await Promise.all([
+    getSession(),
     getDictionary(locale, 'checkout'),
     getCheckoutHotel(locale, hotelId),
   ]);
@@ -72,6 +74,7 @@ export default async function CheckoutPage({
         hotelName={hotel.name}
         room={{ id: room.id, name: room.name, priceSum: room.priceSum }}
         defaults={{ checkIn, checkOut, guests }}
+        isGuest={!session}
       />
     </main>
   );

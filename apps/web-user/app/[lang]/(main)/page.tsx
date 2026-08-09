@@ -39,13 +39,14 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [common, dict, cities, featuredResult, rawDeals, promos] =
+  const [common, dict, cities, featuredResult, rawDeals, , promos] =
     await Promise.all([
       getDictionary(locale, 'common'),
       getDictionary(locale, 'home'),
       api.catalog.getCities(locale),
       api.hotels.getFeaturedHotels(locale, { limit: 4 }),
       api.cms.getDeals(locale),
+      api.cms.getPublicStats().catch(() => null),
       api.promos.listActive().catch(() => []),
     ]);
 

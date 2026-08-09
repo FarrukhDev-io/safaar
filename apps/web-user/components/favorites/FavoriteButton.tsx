@@ -11,7 +11,7 @@ import {
 } from "@/lib/account/favorites-actions";
 
 /**
- * Sevimli (♥) tugmasi — mehmonxona/avtobus detal sahifasida.
+ * Sevimli (♥) tugmasi — mehmonxona/mashina detal sahifasida.
  * Client komponent: holatni saqlaydi va server action'larni chaqiradi.
  */
 export function FavoriteButton({

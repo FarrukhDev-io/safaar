@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import Image from 'next/image';
 import { cn } from '@/lib/cn';
 
 export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -31,13 +30,15 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
         {...props}
       >
         {src ? (
-          <Image
+          // OAuth provayder (Google/Facebook) avatar rasmlari o'z
+          // domenlaridan keladi va ularni next.config.ts'ning
+          // remotePatterns ro'yxatiga oldindan qo'shib bo'lmaydi —
+          // shuning uchun next/image o'rniga oddiy <img> ishlatiladi.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={src}
             alt={alt || 'Avatar'}
-            fill
-            sizes="64px"
-            unoptimized
-            className="object-cover"
+            className="h-full w-full object-cover"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               const nextSibling = e.currentTarget

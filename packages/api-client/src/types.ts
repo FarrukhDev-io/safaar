@@ -72,6 +72,7 @@ export interface ProfileView {
   lastName: string;
   fullName: string;
   email: string;
+  avatarUrl?: string;
   bonusBalanceSum: number;
   preferredLanguage: string;
   status: string;

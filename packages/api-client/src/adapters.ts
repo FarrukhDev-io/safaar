@@ -180,6 +180,7 @@ export function toProfileView(raw: RawUser): ProfileView {
     lastName,
     fullName: fullName || (raw.phone ?? ""),
     email: raw.email ?? "",
+    avatarUrl: (raw as any).avatarUrl || (raw as any).avatar_url,
     bonusBalanceSum: tiyinToSum(raw.bonusBalance ?? 0),
     preferredLanguage: raw.preferredLanguage ?? "uz",
     status: raw.status ?? "active",

@@ -8,17 +8,17 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* ── Brand colors (Vibrant Action Blue based on #006CE4) ── */
-  --brand-50: #eef6ff;
-  --brand-100: #d9ebff;
-  --brand-200: #bdddff;
-  --brand-300: #8bc5ff;
-  --brand-400: #52a3ff;
-  --brand-500: #006CE4; /* Action Blue (Asosiy tugmalar, linklar) */
-  --brand-600: #0059c2; /* Hover uchun */
-  --brand-700: #004599;
-  --brand-800: #00316e;
-  --brand-900: #00204a;
+  /* ── Brand colors (Vibrant Lime Green based on #87C90D) ── */
+  --brand-50: #f4fce3;
+  --brand-100: #e5f8c2;
+  --brand-200: #cff194;
+  --brand-300: #b2e658;
+  --brand-400: #9dd832;
+  --brand-500: #87C90D; /* Asosiy yashil rang */
+  --brand-600: #68a005; /* Hover uchun */
+  --brand-700: #4f7b07;
+  --brand-800: #40610c;
+  --brand-900: #36510f;
 
   /* ── Brand Accent ── */
   --brand-accent-50: #fff7ed;
@@ -35,7 +35,7 @@
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #1e3a8a;
+  --primary: var(--brand-500);
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
@@ -46,7 +46,7 @@
   --destructive: #dc2626;
   --border: #cbd5e1;
   --input: #cbd5e1;
-  --ring: #3b82f6;
+  --ring: var(--brand-500);
   --radius: 0.625rem;
 }
 
