@@ -7,6 +7,56 @@ import { Button } from "@/components/ui/Button";
 import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
+function AuthButtons({
+  authed,
+  locale,
+  dict,
+  orientation = "horizontal",
+}: {
+  authed: boolean;
+  locale: Locale;
+  dict: CommonDict;
+  orientation?: "horizontal" | "vertical";
+}) {
+  const base = `/${locale}`;
+  const isCol = orientation === "vertical";
+
+  if (authed) {
+    return (
+      <div className={`flex gap-1.5 ${isCol ? "flex-col" : "items-center"}`}>
+        <Link
+          href={`${base}/account`}
+          className="inline-flex h-10 items-center justify-center rounded-full px-4 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100"
+        >
+          {dict.actions.account}
+        </Link>
+        <form action={logoutAction.bind(null, locale)} className={isCol ? "w-full flex" : ""}>
+          <Button size="sm" variant="secondary" type="submit" className={isCol ? "w-full flex-1" : ""}>
+            {dict.actions.logout}
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
+      <Link
+        href={`${base}/login`}
+        className={`inline-flex items-center justify-center rounded-full border border-slate-300 bg-card px-5 font-bold text-slate-900 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97] ${isCol ? "h-11 text-base" : "h-10 text-sm"}`}
+      >
+        {dict.actions.login}
+      </Link>
+      <Link
+        href={`${base}/register`}
+        className={`inline-flex items-center justify-center rounded-full bg-primary-500 px-5 font-bold text-white shadow-xs transition-all duration-150 hover:bg-primary-600 active:scale-[0.97] ${isCol ? "h-11 text-base" : "h-10 text-sm"}`}
+      >
+        {dict.actions.register}
+      </Link>
+    </div>
+  );
+}
+
 export function SiteHeader({
   locale,
   dict,
@@ -31,70 +81,9 @@ export function SiteHeader({
     { href: `${base}/attractions`, label: dict.nav.attractions },
   ];
 
-  const localeSwitcher = <LocaleSwitcher current={locale} />;
   const localeSwitcherLight = <LocaleSwitcher current={locale} light />;
-
-  const authActions = authed ? (
-    <div className="flex items-center gap-1.5">
-      <Link
-        href={`${base}/account`}
-        className="inline-flex h-10 items-center justify-center rounded-full px-4 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100"
-      >
-        {dict.actions.account}
-      </Link>
-      <form action={logoutAction.bind(null, locale)}>
-        <Button size="sm" variant="secondary" type="submit">
-          {dict.actions.logout}
-        </Button>
-      </form>
-    </div>
-  ) : (
-    <div className="flex items-center gap-2">
-      <Link
-        href={`/${locale}/login`}
-        className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-card px-5 text-sm font-bold text-slate-900 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97]"
-      >
-        {dict.actions.login}
-      </Link>
-      <Link
-        href={`/${locale}/register`}
-        className="inline-flex h-10 items-center justify-center rounded-full bg-primary-500 px-5 text-sm font-bold text-white shadow-xs transition-all duration-150 hover:bg-primary-600 active:scale-[0.97]"
-      >
-        {dict.actions.register}
-      </Link>
-    </div>
-  );
-
-  const authActionsLight = authed ? (
-    <div className="flex items-center gap-1.5">
-      <Link
-        href={`${base}/account`}
-        className="inline-flex h-10 items-center justify-center rounded-full px-4 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100"
-      >
-        {dict.actions.account}
-      </Link>
-      <form action={logoutAction.bind(null, locale)}>
-        <Button size="sm" variant="secondary" type="submit">
-          {dict.actions.logout}
-        </Button>
-      </form>
-    </div>
-  ) : (
-    <div className="flex flex-col gap-2">
-      <Link
-        href={`/${locale}/login`}
-        className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-card px-5 text-base font-bold text-slate-900 shadow-xs transition-all duration-150 hover:bg-slate-50 active:scale-[0.97]"
-      >
-        {dict.actions.login}
-      </Link>
-      <Link
-        href={`/${locale}/register`}
-        className="inline-flex h-11 items-center justify-center rounded-full bg-primary-500 px-5 text-base font-bold text-white shadow-xs transition-all duration-150 hover:bg-primary-600 active:scale-[0.97]"
-      >
-        {dict.actions.register}
-      </Link>
-    </div>
-  );
+  const authActions = <AuthButtons authed={authed} locale={locale} dict={dict} orientation="horizontal" />;
+  const authActionsLight = <AuthButtons authed={authed} locale={locale} dict={dict} orientation="vertical" />;
 
   const actions = (
     <div className="flex items-center gap-2">
