@@ -170,7 +170,7 @@ function MobileAccordionGroup({
                   "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-colors",
                   childActive
                     ? "bg-primary-500 text-white shadow-xs"
-                    : "text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800",
+                    : "text-slate-800 hover:bg-primary-50/50 hover:text-primary-500 active:scale-[0.98] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-primary-400",
                 )}
               >
                 <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
@@ -264,7 +264,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                       "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-colors",
                       active
                         ? "bg-primary-500 text-white shadow-xs"
-                        : "text-slate-900 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-800",
+                        : "text-slate-700 hover:bg-primary-50/50 hover:text-primary-500 active:scale-[0.98] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400",
                     )}
                   >
                     {item.icon && (
@@ -313,7 +313,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                     "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
                     active
                       ? "bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/30 dark:text-primary-400"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
+                      : "text-slate-700 hover:bg-primary-50/50 hover:text-primary-500 active:scale-[0.97] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400",
                   )}
                 >
                   {item.icon}
