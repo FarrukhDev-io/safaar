@@ -15,7 +15,7 @@
     outline-offset: max(2px, var(--brdr));
     
     border-radius: 99vw;
-    transition: all 0.33s var(--cubic-out);
+    transition: box-shadow 0.33s var(--cubic-out), border-color 0.33s var(--cubic-out), outline-color 0.33s var(--cubic-out), translate 0.33s var(--cubic-out);
     
     --brdr: 0.15em;
     border: max(2px, var(--brdr)) solid transparent;
@@ -55,7 +55,7 @@
         inset: min(-2px, calc(var(--brdr) * -1));
         border-radius: inherit;
         pointer-events: none;
-        transition: all 0.6s var(--cubic-in);
+        transition: opacity 0.6s var(--cubic-in), translate 0.6s var(--cubic-in), scale 0.6s var(--cubic-in);
         will-change: transform, opacity;
         transform: translateZ(0);
     }
@@ -167,7 +167,7 @@
     }
     
     &:active {
-        transition: all 0.1s var(--cubic-out);
+        transition: box-shadow 0.1s var(--cubic-out), border-color 0.1s var(--cubic-out), translate 0.1s var(--cubic-out);
         translate: 0 max(1px, 0.05em);
         
         border-color: oklch(0.99 0.01 257 / 70%);
@@ -184,7 +184,7 @@
     }
     
     &:active::after {
-        transition: all 0.1s var(--cubic-out);
+        transition: opacity 0.1s var(--cubic-out);
         opacity: 1;
     }
 }
