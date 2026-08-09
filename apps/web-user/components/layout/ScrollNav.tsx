@@ -167,7 +167,7 @@ function MobileAccordionGroup({
                 onClick={onNavigate}
                 aria-current={childActive ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-colors",
+                  "flex h-11 items-center gap-3 rounded-xl px-3.5 text-[15px] font-bold transition-colors",
                   childActive
                     ? "border border-transparent bg-primary-500 text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] active:translate-y-[3px] active:shadow-none"
                     : "border border-transparent text-slate-800 hover:border-slate-200 hover:bg-white hover:text-primary-500 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-primary-400",
@@ -261,7 +261,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                     onClick={() => setMenuOpen(false)}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-colors",
+                      "flex h-12 items-center gap-3 rounded-2xl px-4 text-[15px] font-bold transition-colors",
                       active
                         ? "border border-transparent bg-primary-500 text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] active:translate-y-[3px] active:shadow-none"
                         : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-primary-500 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400",
@@ -310,7 +310,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
+                    "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/80",
                     active
                       ? "border border-transparent bg-primary-500 text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] active:translate-y-[3px] active:shadow-none dark:bg-primary-600"
                       : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-white hover:text-primary-500 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400",
