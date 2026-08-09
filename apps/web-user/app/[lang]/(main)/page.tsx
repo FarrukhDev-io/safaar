@@ -80,9 +80,9 @@ export default async function HomePage({
                   href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
                   className={buttonVariants({
                     variant: "secondary",
-                    size: "sm",
+                    size: "md",
                     rounded: "full",
-                    className: "shrink-0 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)]",
+                    className: "shrink-0",
                   })}
                 >
                   {city.name}
