@@ -63,7 +63,7 @@ export function LocaleSwitcher({
         aria-expanded={open}
         aria-label="Tilni tanlash"
         className={cn(
-          "text-[14px]",
+          "h-10 px-4 rounded-full text-[14px]",
           !light && "text-white/90"
         )}
       >
