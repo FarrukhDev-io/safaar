@@ -232,6 +232,74 @@ export class UploadsService implements OnModuleInit {
     });
   }
 
+  /**
+   * Ichki (backend-generatsiya qilingan) hujjatlarni — masalan export
+   * fayllarini — R2'ning PRIVATE bucket'iga yozadi. Foydalanuvchi
+   * yuklamalaridan farqli o'laroq, bu yerda hech qanday content-type/hajm
+   * validatsiyasi qilinmaydi, chunki chaqiruvchi (server kodi) fayl
+   * mazmunini o'zi generatsiya qiladi, tashqi kirish emas.
+   */
+  async uploadDocument(
+    objectKey: string,
+    buffer: Buffer,
+    contentType: string,
+  ): Promise<{ objectKey: string }> {
+    const config = this.r2Config();
+    if (!config) {
+      throw new InternalServerErrorException({
+        code: 'OBJECT_STORAGE_ERROR',
+        message: "Fayl saqlash xizmati sozlanmagan (R2 konfiguratsiyasi yo'q)",
+      });
+    }
+
+    const target = this.r2TargetForBucket('document', config);
+    const client = this.r2Client(config);
+
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: target.bucket,
+          Key: objectKey,
+          Body: buffer,
+          ContentType: contentType,
+        }),
+      );
+    } catch (error) {
+      throw this.storageError('upload document', error);
+    }
+
+    return { objectKey };
+  }
+
+  /**
+   * `uploadDocument` orqali yozilgan ichki hujjat uchun vaqtinchalik
+   * (default 5 daqiqa) yuklab olish havolasi yaratadi.
+   */
+  async signDocumentDownload(
+    objectKey: string,
+    expiresInSeconds = 300,
+  ): Promise<string> {
+    const config = this.r2Config();
+    if (!config) {
+      throw new InternalServerErrorException({
+        code: 'OBJECT_STORAGE_ERROR',
+        message: "Fayl saqlash xizmati sozlanmagan (R2 konfiguratsiyasi yo'q)",
+      });
+    }
+
+    const target = this.r2TargetForBucket('document', config);
+
+    try {
+      return await getSignedUrl(
+        this.r2Client(config),
+        new GetObjectCommand({ Bucket: target.bucket, Key: objectKey }),
+        { expiresIn: expiresInSeconds },
+      );
+    } catch (error) {
+      throw this.storageError('create signed download URL', error);
+    }
+  }
+
   private assertUploadAllowed(
     type: 'image' | 'document',
     mimeType: string,

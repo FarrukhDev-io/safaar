@@ -344,3 +344,82 @@ describe('BookingsService.lookupBooking (guest — booking_number + email)', () 
     );
   });
 });
+
+describe('BookingsService.expireStaleBookings (regression: BUG-09 hold expiry)', () => {
+  let service: BookingsService;
+  let pg: jest.Mocked<Pick<PostgresService, 'query'>> & {
+    transaction: jest.Mock;
+  };
+  let events: {
+    bookingStatusChanged: jest.Mock;
+    partnerDashboardUpdated: jest.Mock;
+    adminDashboardUpdated: jest.Mock;
+  };
+
+  beforeEach(() => {
+    pg = {
+      query: jest.fn(),
+      transaction: jest.fn((operation: (tx: unknown) => unknown) =>
+        Promise.resolve(operation({ query: pg.query })),
+      ),
+    };
+    events = {
+      bookingStatusChanged: jest.fn(),
+      partnerDashboardUpdated: jest.fn(),
+      adminDashboardUpdated: jest.fn(),
+    };
+    service = new BookingsService(
+      pg as unknown as PostgresService,
+      events as unknown as EventsService,
+      { send: jest.fn() } as unknown as EmailService,
+    );
+  });
+
+  it("muddati o'tgan bronlarni 'expired'ga o'tkazadi, o'rindiqlarni bo'shatadi va hodisalarni yuboradi", async () => {
+    const expiredBooking = {
+      id: 'booking-1',
+      status: 'expired',
+      user_id: 'user-1',
+      partner_organization_id: 'partner-1',
+      total_amount: 50000,
+      currency: 'UZS',
+      payment_method: 'cash',
+    };
+    pg.query
+      // UPDATE bookings ... RETURNING *
+      .mockResolvedValueOnce([expiredBooking])
+      // UPDATE trip_seats ...
+      .mockResolvedValueOnce([])
+      // addStatusHistory INSERT
+      .mockResolvedValueOnce([]);
+
+    await service.expireStaleBookings();
+
+    expect(pg.transaction).toHaveBeenCalledTimes(1);
+    expect(events.bookingStatusChanged).toHaveBeenCalledWith(expiredBooking);
+    expect(events.partnerDashboardUpdated).toHaveBeenCalledWith('partner-1');
+    expect(events.adminDashboardUpdated).toHaveBeenCalled();
+
+    // O'rindiq bo'shatish so'rovi to'g'ri booking id bilan chaqirilganini
+    // tekshiramiz.
+    const seatReleaseCall = pg.query.mock.calls[1];
+    expect(seatReleaseCall[0]).toContain('trip_seats');
+    expect(seatReleaseCall[1]).toEqual([['booking-1']]);
+  });
+
+  it("hech qanday bron muddati o'tmagan bo'lsa hech narsa qilmaydi", async () => {
+    pg.query.mockResolvedValueOnce([]);
+
+    await service.expireStaleBookings();
+
+    expect(pg.query).toHaveBeenCalledTimes(1);
+    expect(events.bookingStatusChanged).not.toHaveBeenCalled();
+    expect(events.adminDashboardUpdated).not.toHaveBeenCalled();
+  });
+
+  it('xatolik yuz bersa jim qoladi (cron keyingi daqiqada qayta urinadi, ilova qulamaydi)', async () => {
+    pg.transaction.mockRejectedValueOnce(new Error('DB down'));
+
+    await expect(service.expireStaleBookings()).resolves.toBeUndefined();
+  });
+});

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { randomUUID } from 'node:crypto';
 
-type RedisConnectionOptions = {
+export type RedisConnectionOptions = {
   host: string;
   port: number;
   db?: number;
@@ -75,8 +75,15 @@ export class JobQueueService implements OnModuleDestroy {
     }
 
     try {
+      // BullMQ'ning custom jobId'sida ":" belgisiga ruxsat berilmaydi
+      // ("Custom Id cannot contain :"), lekin butun kod bo'ylab
+      // idempotencyKey'lar ":" bilan qurilgan (masalan
+      // `partner-export:${orgId}:${type}:${format}`) — shu sabab bu
+      // yerda BullMQ'ga yuborishdan oldin xavfsiz belgiga almashtiriladi.
+      // `job.id`ning o'zi (memoryJobs xaritasidagi idempotentlik kaliti)
+      // o'zgarishsiz qoladi.
       await this.queue.add(job.name, job.payload, {
-        jobId: job.id,
+        jobId: job.id.replace(/:/g, '_'),
         delay: options.delayMs,
         removeOnComplete: 1000,
         removeOnFail: 5000,
@@ -86,12 +93,13 @@ export class JobQueueService implements OnModuleDestroy {
           delay: 1000,
         },
       });
-    } catch {
+    } catch (error) {
       this.logger.warn(
         JSON.stringify({
           event: 'queue_enqueue_failed',
           job_name: job.name,
           job_id: job.id,
+          error: error instanceof Error ? error.message : String(error),
         }),
       );
     }
@@ -102,7 +110,7 @@ export class JobQueueService implements OnModuleDestroy {
   }
 }
 
-function redisConnection(redisUrl: string): RedisConnectionOptions {
+export function redisConnection(redisUrl: string): RedisConnectionOptions {
   const parsed = new URL(redisUrl);
   const database = Number(parsed.pathname.replace('/', ''));
 

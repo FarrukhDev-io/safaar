@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -29,6 +30,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { CurrencyModule } from './currency/currency.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ChatModule } from './chat/chat.module';
+import { JobsModule } from './jobs/jobs.module';
 import { validateEnv } from './config/env.validation';
 import { MaintenanceGuard } from './common/maintenance.guard';
 
@@ -50,7 +52,9 @@ import { MaintenanceGuard } from './common/maintenance.guard';
         limit: 120,
       },
     ]),
+    ScheduleModule.forRoot(),
     InfrastructureModule,
+    JobsModule,
     AuthModule,
     CatalogModule,
     UsersModule,

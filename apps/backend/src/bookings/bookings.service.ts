@@ -9,6 +9,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { BookingStatus, Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
 import { EmailService } from '../infrastructure/email.service';
@@ -62,6 +63,7 @@ interface BusCompanyRow {
 
 interface BookingRow {
   id: string;
+  status: string;
   user_id: string | null;
   partner_organization_id: string;
   total_amount: string | number;
@@ -81,6 +83,66 @@ export class BookingsService {
     private readonly events: EventsService,
     private readonly emailService: EmailService,
   ) {}
+
+  /**
+   * `expires_at`si o'tib ketgan, hali `pending`/`awaiting_payment`
+   * holatidagi bronlarni `expired`ga o'tkazadi va ularga bog'langan
+   * (avtobus) o'rindiqlarni bo'shatadi. Avval bu ustunlar yozilardi,
+   * lekin hech qanday jarayon o'qib harakat qilmasdi — bronlar/o'rindiqlar
+   * abadiy "band" holida qolib ketardi.
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async expireStaleBookings(): Promise<void> {
+    try {
+      const expired = await this.pg.transaction(async (tx) => {
+        const now = new Date().toISOString();
+        const rows = await tx.query<BookingRow>(
+          `UPDATE bookings
+           SET status = $1, updated_at = $2
+           WHERE status IN ($3, $4)
+             AND expires_at IS NOT NULL
+             AND expires_at < $2
+           RETURNING *`,
+          [BS.EXPIRED, now, BS.PENDING, BS.AWAITING_PAYMENT],
+        );
+
+        if (rows.length === 0) {
+          return rows;
+        }
+
+        const bookingIds = rows.map((row) => row.id);
+        await tx.query(
+          `UPDATE trip_seats
+           SET status = 'available', held_by_booking_id = NULL, held_until = NULL
+           WHERE held_by_booking_id = ANY($1::uuid[])`,
+          [bookingIds],
+        );
+
+        for (const row of rows) {
+          await this.addStatusHistory(tx, row, 'expired');
+        }
+
+        return rows;
+      });
+
+      for (const booking of expired) {
+        this.events.bookingStatusChanged(booking);
+        this.events.partnerDashboardUpdated(booking.partner_organization_id);
+      }
+      if (expired.length > 0) {
+        this.events.adminDashboardUpdated();
+        this.logger.log(
+          `${expired.length} ta muddati o'tgan bron 'expired'ga o'tkazildi`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Bron muddati tekshiruvida xatolik: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
 
   async createHotel(
     actor: RequestActor | undefined,

@@ -17,7 +17,10 @@ import {
 } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
 import { JOBS } from '../jobs/job-names';
-import { PostgresService } from '../infrastructure/postgres.service';
+import {
+  PostgresService,
+  type PostgresTransaction,
+} from '../infrastructure/postgres.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import { EmailService } from '../infrastructure/email.service';
 import { AppCacheService } from '../infrastructure/cache.service';
@@ -38,7 +41,6 @@ interface AdminUserRecord {
   roles: Role[];
   status: string;
   totp_secret?: string;
-  recovery_code_hashes?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -936,8 +938,7 @@ export class AuthService {
     const currentActor = this.requireActor(actor, 'admin');
 
     const rows = await this.pg.query<DbRow>(
-      `SELECT id::text, email, password_hash, full_name, role, status,
-              totp_secret, recovery_code_hashes, created_at, updated_at
+      `SELECT id::text, email
        FROM admin_users
        WHERE id = $1
        LIMIT 1`,
@@ -1007,20 +1008,50 @@ export class AuthService {
     }
 
     const now = new Date().toISOString();
-    await this.pg.query(
-      `UPDATE admin_users
-       SET totp_secret = $1, recovery_code_hashes = $2, updated_at = $3
-       WHERE id = $4`,
-      [
-        pending.setup.encryptedSecret,
-        pending.setup.recoveryCodeHashes,
-        now,
+    await this.pg.transaction(async (tx) => {
+      await tx.query(
+        `UPDATE admin_users
+         SET totp_secret = $1, updated_at = $2
+         WHERE id = $3`,
+        [pending.setup.encryptedSecret, now, currentActor.id],
+      );
+      // Qayta yoqilganda (avval o'chirilgan bo'lsa) eski, allaqachon
+      // ishlatilgan/eskirgan recovery kodlar qolib ketmasin.
+      await tx.query(`DELETE FROM admin_recovery_codes WHERE admin_id = $1`, [
         currentActor.id,
-      ],
-    );
+      ]);
+      await this.insertRecoveryCodes(
+        tx,
+        currentActor.id,
+        pending.setup.recoveryCodeHashes,
+      );
+    });
 
     this.pendingTotpSetups.delete(setupId);
     return { enabled: true };
+  }
+
+  private async insertRecoveryCodes(
+    tx: PostgresTransaction,
+    adminId: string,
+    hashes: string[],
+  ): Promise<void> {
+    if (hashes.length === 0) {
+      return;
+    }
+
+    const values: string[] = [];
+    const params: unknown[] = [];
+    hashes.forEach((hash, index) => {
+      const base = index * 2;
+      values.push(`($${base + 1}, $${base + 2})`);
+      params.push(adminId, hash);
+    });
+
+    await tx.query(
+      `INSERT INTO admin_recovery_codes (admin_id, code_hash) VALUES ${values.join(', ')}`,
+      params,
+    );
   }
 
   async admin2faDisable(actor: RequestActor | undefined) {
@@ -1039,12 +1070,17 @@ export class AuthService {
     }
 
     const now = new Date().toISOString();
-    await this.pg.query(
-      `UPDATE admin_users
-       SET totp_secret = NULL, recovery_code_hashes = '{}', updated_at = $1
-       WHERE id = $2`,
-      [now, currentActor.id],
-    );
+    await this.pg.transaction(async (tx) => {
+      await tx.query(
+        `UPDATE admin_users
+         SET totp_secret = NULL, updated_at = $1
+         WHERE id = $2`,
+        [now, currentActor.id],
+      );
+      await tx.query(`DELETE FROM admin_recovery_codes WHERE admin_id = $1`, [
+        currentActor.id,
+      ]);
+    });
 
     await authSessionStore.revokeActor(currentActor.id);
     return { disabled: true, sessions_revoked: true };
