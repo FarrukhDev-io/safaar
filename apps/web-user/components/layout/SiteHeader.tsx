@@ -43,7 +43,7 @@ function AuthButtons({
     );
   }
 
-  const linkBaseClasses = cn(
+  const loginClasses = cn(
     "inline-flex items-center justify-center gap-2 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2",
     "h-11 px-4.5 text-sm", // sizeClasses.md equivalent
     "rounded-full text-black hover:text-black transition-colors",
@@ -51,13 +51,22 @@ function AuthButtons({
     sizeClass
   );
 
+  const registerClasses = cn(
+    "inline-flex items-center justify-center gap-2 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2",
+    "h-11 px-4.5 text-sm",
+    "rounded-full transition-colors",
+    styles.iridescent,
+    styles.appleGreen,
+    sizeClass
+  );
+
   return (
     <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
-      <Link href={`${base}/login`} className={linkBaseClasses}>
+      <Link href={`${base}/login`} className={loginClasses}>
         {dict.actions.login}
         <span className={styles.dropShadow} />
       </Link>
-      <Link href={`${base}/register`} className={linkBaseClasses}>
+      <Link href={`${base}/register`} className={registerClasses}>
         {dict.actions.register}
         <span className={styles.dropShadow} />
       </Link>

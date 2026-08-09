@@ -14,6 +14,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 import { IridescentButton } from "./IridescentButton";
+import styles from "./iridescent-button.module.css";
 
 export function Button({
   variant = "primary",
@@ -29,10 +30,10 @@ export function Button({
     return (
       <IridescentButton
         className={cn(
-          "text-slate-800 hover:text-slate-900",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60",
           sizeClasses[size],
           roundedClasses[rounded],
+          styles.appleGreen,
           className
         )}
         disabled={disabled || loading}
