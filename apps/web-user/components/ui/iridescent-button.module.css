@@ -2,19 +2,16 @@
     --cubic-in: cubic-bezier(0.32, 0, 0.67, 0);
     --cubic-out: cubic-bezier(0.33, 1, 0.68, 1);
     
-    font-size: 1rem; /* Allows overriding via style or class font-size */
     font-family: inherit;
     text-transform: none;
     color: #818e9e;
     min-width: 0;
-    height: 2.5em;
     line-height: 1;
     display: inline-flex;
     justify-content: center;
     align-items: center;
     gap: 0.5em;
     position: relative;
-    padding: 0.5em 0.8em;
     outline: max(2px, calc(var(--brdr) * 0.75)) solid transparent;
     outline-offset: max(2px, var(--brdr));
     

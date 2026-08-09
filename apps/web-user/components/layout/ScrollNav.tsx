@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 export type ScrollNavItem = {
   label: string;
   href: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   exact?: boolean;
   children?: ScrollNavItem[];
 };
