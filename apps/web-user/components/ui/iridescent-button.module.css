@@ -9,9 +9,10 @@
     min-width: 8em;
     height: 3em;
     line-height: 1;
-    display: inline-grid;
+    display: inline-flex;
     justify-content: center;
     align-items: center;
+    gap: 0.5em;
     position: relative;
     padding: 0.5em 1.5em;
     outline: max(2px, calc(var(--brdr) * 0.75)) solid transparent;

@@ -13,7 +13,7 @@ export function SiteFooter({
   const base = `/${locale}`;
   const year = new Date().getFullYear();
   const footerData = dict.footer as Record<string, unknown>;
-  const sections = footerData.sections || {
+  const sections = (footerData.sections as Record<string, string>) || {
     platform: "Platforma",
     company: "Kompaniya",
     partners: "Hamkorlik",

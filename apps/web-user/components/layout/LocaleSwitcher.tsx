@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Globe } from "lucide-react";
 import { locales, localeNames, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
+import { IridescentButton } from "@/components/ui/IridescentButton";
 
 export function LocaleSwitcher({
   current,
@@ -55,24 +56,22 @@ export function LocaleSwitcher({
 
   return (
     <div ref={ref} className="relative inline-block text-left">
-      <button
+      <IridescentButton
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Tilni tanlash"
         className={cn(
-          "group inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-base font-bold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 active:translate-y-[3px] active:shadow-none",
-          light
-            ? "border border-slate-200 bg-white shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:bg-slate-50"
-            : "border border-white/40 bg-white/10 text-white shadow-[0_3px_0_rgba(255,255,255,0.2),0_4px_8px_rgba(0,0,0,0.1)] backdrop-blur-md hover:bg-white/20 hover:border-white/60",
+          "text-[14px]",
+          !light && "text-white/90"
         )}
       >
-        <Globe className={cn("h-[18px] w-[18px] transition-colors", light ? "text-slate-600 group-hover:text-primary-500" : "text-white/90")} aria-hidden />
-        <span className={cn("text-base font-bold uppercase tracking-wide transition-colors", light ? "text-slate-900 group-hover:text-primary-500" : "text-white")}>
-          {current.toUpperCase()}
+        <Globe className="h-[18px] w-[18px] opacity-80" aria-hidden />
+        <span className="font-bold uppercase tracking-wide">
+          {current}
         </span>
-      </button>
+      </IridescentButton>
 
       {open && (
         <div
