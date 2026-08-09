@@ -11,7 +11,6 @@ import { CityCardsSection } from "@/components/features/home/CityCardsSection";
 
 import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotelsCarousel";
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
-import { PromoCodesSectionLive } from "@/components/features/home/PromoCodesSectionLive";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 export const dynamic = "force-dynamic";
@@ -36,14 +35,13 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [common, dict, cities, featuredResult, rawDeals, , promos] = await Promise.all([
+  const [common, dict, cities, featuredResult, rawDeals] = await Promise.all([
     getDictionary(locale, "common"),
     getDictionary(locale, "home"),
     api.catalog.getCities(locale),
     api.hotels.getFeaturedHotels(locale, { limit: 4 }),
     api.cms.getDeals(locale),
     api.cms.getPublicStats().catch(() => null),
-    api.promos.listActive().catch(() => []),
   ]);
 
   const hotels = featuredResult.items;
@@ -107,8 +105,7 @@ export default async function HomePage({
         </Suspense>
       </div>
 
-      {/* EKRAN 3: Promo-kodlar (real-time) */}
-      <PromoCodesSectionLive initialPromos={promos} />
+
 
       {/* EKRAN 4: City Cards */}
       <div className="py-10 sm:py-16 md:py-20">
