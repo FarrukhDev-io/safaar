@@ -35,7 +35,7 @@ function getNavLinkClasses(active: boolean, mobile = false) {
     mobile ? "flex h-12 items-center gap-3 w-full rounded-2xl px-4 text-[15px]" : "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-base",
     active
       ? cn(styles.iridescent, "text-black hover:text-black")
-      : "border border-transparent text-slate-900 hover:border-slate-300 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(148,163,184),0_4px_8px_rgba(0,0,0,0.06)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+      : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
   );
 }
 
@@ -44,7 +44,7 @@ function getChildNavLinkClasses(active: boolean) {
     "flex items-center gap-2.5 font-bold transition-all duration-150 rounded-xl w-full h-11 px-3.5 text-[15px]",
     active
       ? cn(styles.iridescent, "text-black hover:text-black")
-      : "border border-transparent text-slate-900 hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+      : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
   );
 }
 
