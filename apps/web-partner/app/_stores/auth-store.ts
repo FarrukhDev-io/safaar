@@ -5,7 +5,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AuthTokens, Role } from '@safaar/types';
 import type { PartnerAccessStatus } from '../_lib/api/endpoints/access';
 
-export const AUTH_STORAGE_KEY = 'uzbron-partner-auth';
+export const AUTH_STORAGE_KEY = 'safaar-partner-auth';
 
 export interface AuthUser {
   id: string;

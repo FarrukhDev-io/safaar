@@ -3,6 +3,27 @@ import { notFound } from "next/navigation";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { Card, CardBody } from "@/components/ui/Card";
+import { api, ApiRequestError } from "@/lib/api";
+
+const ABOUT_PAGE_SLUGS: Record<Locale, string[]> = {
+  uz: ["biz-haqimizda", "about"],
+  ru: ["o-nas", "about"],
+  en: ["about", "biz-haqimizda"],
+};
+
+async function getCmsAboutPage(locale: Locale) {
+  for (const slug of ABOUT_PAGE_SLUGS[locale]) {
+    try {
+      return await api.cms.getPage(locale, slug);
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.statusCode === 404) {
+        continue;
+      }
+      return null;
+    }
+  }
+  return null;
+}
 
 export async function generateMetadata({
   params,
@@ -11,8 +32,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { lang } = await params;
   if (!isLocale(lang)) return {};
-  const dict = await getDictionary(lang as Locale, "static");
-  return { title: dict.about.title };
+  const locale = lang as Locale;
+  const [dict, cmsPage] = await Promise.all([
+    getDictionary(locale, "static"),
+    getCmsAboutPage(locale),
+  ]);
+  return {
+    title: cmsPage?.seoTitle || cmsPage?.title || dict.about.title,
+    description: cmsPage?.seoDescription || dict.about.intro,
+  };
 }
 
 export default async function AboutPage({
@@ -24,18 +52,23 @@ export default async function AboutPage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const dict = await getDictionary(locale, "static");
+  const [dict, cmsPage] = await Promise.all([
+    getDictionary(locale, "static"),
+    getCmsAboutPage(locale),
+  ]);
   const { about } = dict;
+  const title = cmsPage?.title || about.title;
+  const intro = cmsPage?.content || about.intro;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-6 py-12">
       {/* Hero */}
       <section className="flex flex-col gap-3">
         <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl dark:text-white">
-          {about.title}
+          {title}
         </h1>
-        <p className="max-w-3xl text-lg text-slate-600 dark:text-slate-400">
-          {about.intro}
+        <p className="max-w-3xl whitespace-pre-line text-lg text-slate-600 dark:text-slate-400">
+          {intro}
         </p>
       </section>
 

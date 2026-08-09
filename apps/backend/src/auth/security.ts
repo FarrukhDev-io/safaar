@@ -34,8 +34,8 @@ export interface JwtSecurityConfig {
 }
 
 const minProductionSecretLength = 32;
-const defaultIssuer = 'uzbron-api';
-const defaultAudience = 'uzbron-clients';
+const defaultIssuer = 'safaar-api';
+const defaultAudience = 'safaar-clients';
 
 export function nodeEnv(): string {
   return String(process.env.NODE_ENV ?? 'development');
@@ -167,7 +167,7 @@ export function verifyJwt(
 }
 
 export function hashSecret(value: string, pepper = ''): string {
-  return createHmac('sha256', pepper || 'uzbron-local-pepper')
+  return createHmac('sha256', pepper || 'safaar-local-pepper')
     .update(value)
     .digest('hex');
 }

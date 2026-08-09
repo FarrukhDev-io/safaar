@@ -134,3 +134,15 @@ export interface PromoView {
   discountValue: number;
   validUntil: string;
 }
+
+export interface CmsPageView {
+  id: string;
+  slug: string;
+  title: string;
+  content: string;
+  status: string;
+  publishedAt: string;
+  updatedAt: string;
+  seoTitle: string;
+  seoDescription: string;
+}

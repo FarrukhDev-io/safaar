@@ -14,9 +14,9 @@ values
   (
     'general',
     jsonb_build_object(
-      'app_name', 'UzBron',
+      'app_name', 'safaar',
       'timezone', 'Asia/Tashkent',
-      'support_email', 'support@uzbron.uz',
+      'support_email', 'support@safaar.uz',
       'maintenance_mode', false
     )
   ),

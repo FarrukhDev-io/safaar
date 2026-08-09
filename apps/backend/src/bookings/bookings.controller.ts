@@ -1,5 +1,14 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Role } from '@safaar/types';
 import { CurrentActor, type RequestActor } from '../common/actor';
 import { Roles } from '../common/roles.decorator';
@@ -9,6 +18,7 @@ import {
   CancelBookingDto,
   CreateBusBookingDto,
   CreateHotelBookingDto,
+  LookupBookingDto,
   SendBookingMessageDto,
 } from './dto/booking.dto';
 
@@ -18,7 +28,12 @@ import {
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  // Guest checkout ataylab login talab qilmaydi (mahsulot qarori), lekin
+  // ID/vaqt asosidagi suiiste'mol (masalan, bitta xonani minglab soxta
+  // bron bilan "bandlash") oldini olish uchun bu marshrutga qat'iyroq
+  // limit qo'yilgan — global 120/min o'rniga 10/min/IP.
   @Post('hotel')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   createHotel(
     @CurrentActor() actor: RequestActor | undefined,
     @Body() dto: CreateHotelBookingDto,
@@ -41,7 +56,20 @@ export class BookingsController {
     );
   }
 
+  // Guest (login qilmagan) mijoz uchun — xom ID emas, bron raqami + email
+  // juftligi orqali qidirish. Ikkalasi to'g'ri kelishi shart bo'lgani
+  // uchun ID'ni bilishning o'zi yetarli emas (BUG-01 fix'idan keyingi
+  // to'g'ri guest-lookup yo'li). Suiiste'mol/enumeration'ga qarshi
+  // qat'iy limit.
+  @Post('lookup')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  lookupBooking(@Body() dto: LookupBookingDto) {
+    return this.bookingsService.lookupBooking(dto.booking_number, dto.email);
+  }
+
   @Get(':id')
+  @Roles(Role.USER, Role.PARTNER, Role.ADMIN, Role.SUPER_ADMIN)
   findOne(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('id') id: string,

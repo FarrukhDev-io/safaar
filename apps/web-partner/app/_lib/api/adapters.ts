@@ -318,7 +318,7 @@ function normalizeReservationSource(source?: string): ReservationSource {
   if (value && value in ReservationSource) {
     return ReservationSource[value as keyof typeof ReservationSource];
   }
-  return 'UZBRON' as ReservationSource;
+  return 'safaar' as ReservationSource;
 }
 
 function calculateNights(checkIn: string, checkOut: string): number {

@@ -9,7 +9,7 @@ import type { Column } from "@/components/ui/DataTable";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
-import { formatDate } from "@/lib/utils";
+import { extractApiErrorMessage, formatDate } from "@/lib/utils";
 
 type CmsArticleKind = CmsArticle["type"];
 type ManagedArticle = CmsArticle & {
@@ -22,6 +22,14 @@ interface CmsArticleManagerProps {
   addLabel: string;
   emptyMessage: string;
   loadItems: () => Promise<CmsArticle[]>;
+  publishOnSave?: boolean;
+  createItem?: (item: ManagedArticle) => Promise<CmsArticle>;
+  updateItem?: (id: string, item: ManagedArticle) => Promise<CmsArticle>;
+  setItemStatus?: (
+    id: string,
+    status: CmsArticle["status"],
+  ) => Promise<CmsArticle>;
+  deleteItem?: (id: string) => Promise<void>;
 }
 
 const TYPE_PREFIX: Record<CmsArticleKind, string> = {
@@ -51,13 +59,16 @@ function defaultBody(item: CmsArticle) {
   return `${item.title} haqida yangilik matni. Platformadagi o'zgarishlar va foydalanuvchilar uchun muhim ma'lumotlar shu yerda yoziladi.`;
 }
 
-function makeDraft(type: CmsArticleKind): ManagedArticle {
+function makeDraft(
+  type: CmsArticleKind,
+  status: CmsArticle["status"] = "draft",
+): ManagedArticle {
   return {
     id: `${TYPE_PREFIX[type]}-${Date.now().toString().slice(-6)}`,
     title: "",
     type,
     slug: "",
-    status: "draft",
+    status,
     publishedAt: "",
     body: "",
   };
@@ -69,9 +80,16 @@ export function CmsArticleManager({
   addLabel,
   emptyMessage,
   loadItems,
+  publishOnSave = false,
+  createItem,
+  updateItem,
+  setItemStatus,
+  deleteItem: deletePersistedItem,
 }: CmsArticleManagerProps) {
   const [items, setItems] = useState<ManagedArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ManagedArticle | null>(null);
   const [previewItem, setPreviewItem] = useState<ManagedArticle | null>(null);
 
@@ -83,8 +101,15 @@ export function CmsArticleManager({
         setItems(
           result
             .filter((item) => item.type === type)
-            .map((item) => ({ ...item, body: defaultBody(item) })),
+            .map((item) => ({ ...item, body: item.body ?? "" })),
         );
+      })
+      .catch((error) => {
+        if (mounted) {
+          toast.error(
+            extractApiErrorMessage(error, "Kontentni yuklab bo'lmadi"),
+          );
+        }
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -103,11 +128,16 @@ export function CmsArticleManager({
     [items],
   );
 
-  const openCreate = () => setEditingItem(makeDraft(type));
-  const openEdit = (item: ManagedArticle) => setEditingItem({ ...item });
+  const openCreate = () =>
+    setEditingItem(makeDraft(type, publishOnSave ? "published" : "draft"));
+  const openEdit = (item: ManagedArticle) =>
+    setEditingItem({
+      ...item,
+      status: publishOnSave ? "published" : item.status,
+    });
   const openPreview = (item: ManagedArticle) => setPreviewItem(item);
 
-  const saveItem = () => {
+  const saveItem = async () => {
     if (!editingItem) return;
 
     const titleValue = editingItem.title.trim();
@@ -119,30 +149,57 @@ export function CmsArticleManager({
       return;
     }
 
+    const exists = items.some((item) => item.id === editingItem.id);
+    const nextStatus = publishOnSave ? "published" : editingItem.status;
     const next: ManagedArticle = {
       ...editingItem,
       title: titleValue,
       slug: slugValue,
       body: bodyValue,
+      status: nextStatus,
       publishedAt:
-        editingItem.status === "published"
+        nextStatus === "published"
           ? editingItem.publishedAt || new Date().toISOString()
           : "",
     };
 
-    setItems((current) => {
-      const exists = current.some((item) => item.id === next.id);
-      return exists
-        ? current.map((item) => (item.id === next.id ? next : item))
-        : [next, ...current];
-    });
+    setSaving(true);
+    try {
+      const saved =
+        exists && updateItem
+          ? await updateItem(next.id, next)
+          : createItem
+            ? await createItem(next)
+            : next;
+      const persisted: ManagedArticle = {
+        ...saved,
+        body: saved.body ?? next.body,
+      };
 
-    setEditingItem(null);
-    toast.success("Kontent saqlandi");
+      setItems((current) => {
+        const currentHasItem = current.some((item) => item.id === next.id);
+        if (currentHasItem) {
+          return current.map((item) =>
+            item.id === next.id ? persisted : item,
+          );
+        }
+        return [persisted, ...current];
+      });
+      setEditingItem(null);
+      toast.success("Kontent saqlandi");
+    } catch (error) {
+      toast.error(
+        extractApiErrorMessage(error, "Kontentni saqlab bo'lmadi"),
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const toggleStatus = (item: ManagedArticle) => {
+  const toggleStatus = async (item: ManagedArticle) => {
     const nextStatus = item.status === "published" ? "draft" : "published";
+    const previous = item;
+
     setItems((current) =>
       current.map((entry) =>
         entry.id === item.id
@@ -155,15 +212,64 @@ export function CmsArticleManager({
           : entry,
       ),
     );
-    toast.success(
-      nextStatus === "published" ? "Kontent chop etildi" : "Kontent qoralamaga o'tkazildi",
-    );
+
+    if (!setItemStatus) {
+      toast.success(
+        nextStatus === "published"
+          ? "Kontent chop etildi"
+          : "Kontent qoralamaga o'tkazildi",
+      );
+      return;
+    }
+
+    setPendingId(item.id);
+    try {
+      const saved = await setItemStatus(item.id, nextStatus);
+      setItems((current) =>
+        current.map((entry) =>
+          entry.id === item.id
+            ? { ...saved, body: saved.body ?? entry.body }
+            : entry,
+        ),
+      );
+      toast.success(
+        nextStatus === "published"
+          ? "Kontent chop etildi"
+          : "Kontent qoralamaga o'tkazildi",
+      );
+    } catch (error) {
+      setItems((current) =>
+        current.map((entry) => (entry.id === item.id ? previous : entry)),
+      );
+      toast.error(
+        extractApiErrorMessage(error, "Holatni o'zgartirib bo'lmadi"),
+      );
+    } finally {
+      setPendingId(null);
+    }
   };
 
-  const deleteItem = (item: ManagedArticle) => {
+  const deleteItem = async (item: ManagedArticle) => {
     if (!confirm(`"${item.title}" o'chirilsinmi?`)) return;
     setItems((current) => current.filter((entry) => entry.id !== item.id));
-    toast.success("Kontent o'chirildi");
+
+    if (!deletePersistedItem) {
+      toast.success("Kontent o'chirildi");
+      return;
+    }
+
+    setPendingId(item.id);
+    try {
+      await deletePersistedItem(item.id);
+      toast.success("Kontent o'chirildi");
+    } catch (error) {
+      setItems((current) => [item, ...current]);
+      toast.error(
+        extractApiErrorMessage(error, "Kontentni o'chirib bo'lmadi"),
+      );
+    } finally {
+      setPendingId(null);
+    }
   };
 
   const columns: Column<ManagedArticle>[] = [
@@ -191,11 +297,12 @@ export function CmsArticleManager({
         <button
           type="button"
           onClick={() => toggleStatus(row)}
+          disabled={pendingId === row.id}
           className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
             row.status === "published"
               ? "bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20"
               : "bg-[var(--warning)]/10 text-[var(--warning)] hover:bg-[var(--warning)]/20"
-          }`}
+          } disabled:opacity-60 disabled:cursor-wait`}
         >
           {row.status === "published" ? "Chop etilgan" : "Qoralama"}
         </button>
@@ -234,8 +341,9 @@ export function CmsArticleManager({
           <button
             type="button"
             onClick={() => deleteItem(row)}
+            disabled={pendingId === row.id}
             title="O'chirish"
-            className="w-8 h-8 rounded flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10"
+            className="w-8 h-8 rounded flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10 disabled:opacity-60 disabled:cursor-wait"
           >
             <Trash2 size={14} />
           </button>
@@ -319,7 +427,7 @@ export function CmsArticleManager({
             <Button variant="ghost" onClick={() => setEditingItem(null)}>
               Bekor qilish
             </Button>
-            <Button icon={<Send size={14} />} onClick={saveItem}>
+            <Button icon={<Send size={14} />} loading={saving} onClick={saveItem}>
               Saqlash
             </Button>
           </>

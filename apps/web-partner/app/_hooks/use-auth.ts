@@ -89,22 +89,13 @@ export function usePartnerEmailOtpRequest() {
         .getPartnerAccessStatus({
           email: normalizedEmail,
         })
-        .catch(() => ({ status: 'approved' as const, request: { type: 'hotel' } }));
+        .catch(() => {
+          throw new Error("Hamkorlik access holatini tekshirib bo'lmadi.");
+        });
 
       assertPartnerLoginAllowed(accessStatus.status);
 
-      let challenge;
-      try {
-        challenge = await auth.requestPartnerEmailOtp(normalizedEmail);
-      } catch (err) {
-        console.warn('Backend OTP request failed, switching to demo challenge', err);
-        challenge = {
-          sent: true,
-          challenge_id: 'demo-challenge-id',
-          expires_in_seconds: 300,
-          resend_after_seconds: 60,
-        };
-      }
+      const challenge = await auth.requestPartnerEmailOtp(normalizedEmail);
 
       return {
         email: normalizedEmail,
@@ -143,30 +134,11 @@ export function usePartnerEmailOtpVerify() {
       accessStatus?: PartnerAccessStatus;
     }) => {
       const normalizedEmail = email.trim().toLowerCase();
-      let tokens;
-      try {
-        if (challengeId === 'demo-challenge-id') {
-          throw new Error('Demo challenge mode');
-        }
-        tokens = await auth.verifyPartnerEmailOtp({
-          email: normalizedEmail,
-          code,
-          challenge_id: challengeId,
-        });
-      } catch (err) {
-        console.warn('Backend OTP verify failed, fallback to backend phone login token', err);
-        try {
-          tokens = await auth.partnerPhoneLogin('+998901112201');
-        } catch {
-          tokens = {
-            accessToken: 'demo-access-token',
-            refreshToken: 'demo-refresh-token',
-            organization_id: '00000000-0000-3001-0000-000000000001',
-            organization_status: 'approved',
-            partner_role: 'owner',
-          };
-        }
-      }
+      const tokens = await auth.verifyPartnerEmailOtp({
+        email: normalizedEmail,
+        code,
+        challenge_id: challengeId,
+      });
 
       const finalAccessStatus = statusFromTokens(
         tokens,

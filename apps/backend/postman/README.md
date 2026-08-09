@@ -1,14 +1,14 @@
-# UzBron Postman Tests
+# safaar Postman Tests
 
 Import these two files into Postman:
 
-- `UzBron_API.postman_collection.json`
-- `UzBron_Local.postman_environment.json`
+- `safaar_API.postman_collection.json`
+- `safaar_Local.postman_environment.json`
 
 Run order for local testing:
 
 1. Start backend: `npm run dev:backend`
-2. Select the `UzBron Local` environment.
+2. Select the `safaar Local` environment.
 3. Run `POST /auth/user/send-otp`.
 4. Run `POST /auth/user/verify-otp`; it stores `userAccessToken`.
 5. Run `POST /auth/partner/login`; it stores `partnerAccessToken`.
@@ -23,7 +23,7 @@ Every request has Postman tests that check:
 - JSON response shape when a body exists;
 - important auth/create requests save IDs and tokens into environment variables.
 
-Webhook requests generate `x-uzbron-mock-signature` in a pre-request script.
+Webhook requests generate `x-safaar-mock-signature` in a pre-request script.
 If your backend uses another `PAYMENT_WEBHOOK_SECRET`, update
 `paymentWebhookSecret` in the Postman environment.
 

@@ -1,6 +1,6 @@
-# UzBron Backend
+# safaar Backend
 
-NestJS API for the UzBron platform. The API serves user, partner, and admin
+NestJS API for the safaar platform. The API serves user, partner, and admin
 clients from one modular backend.
 
 ## Run
@@ -54,7 +54,7 @@ npm run security:hash-password -w @safaar/backend -- "new-password"
 ```
 
 Payment webhooks in local/mock mode require
-`x-uzbron-mock-signature = HMAC_SHA256(provider.event.eventKey.payload, PAYMENT_WEBHOOK_SECRET)`.
+`x-safaar-mock-signature = HMAC_SHA256(provider.event.eventKey.payload, PAYMENT_WEBHOOK_SECRET)`.
 Real provider integrations intentionally fail closed until the official provider
 signature algorithms are implemented.
 

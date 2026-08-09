@@ -91,7 +91,7 @@ export function buildUnitTypeDistribution(
 }
 
 const SOURCE_LABEL: Record<ReservationSource, string> = {
-  [ReservationSource.UZBRON]: 'Safaar',
+  [ReservationSource.safaar]: 'Safaar',
   [ReservationSource.WALK_IN]: 'Walk-in',
   [ReservationSource.PHONE]: 'Telefon',
   [ReservationSource.BOOKING_COM]: 'Booking.com',

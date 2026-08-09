@@ -11,6 +11,11 @@ export default function CmsPagesPage() {
       addLabel="Sahifa qo'shish"
       emptyMessage="Sahifalar topilmadi"
       loadItems={AdminApi.getCmsPages}
+      publishOnSave
+      createItem={AdminApi.createCmsPage}
+      updateItem={AdminApi.updateCmsPage}
+      setItemStatus={AdminApi.setCmsPageStatus}
+      deleteItem={AdminApi.deleteCmsPage}
     />
   );
 }

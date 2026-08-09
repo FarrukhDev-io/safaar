@@ -24,7 +24,7 @@ export enum RoomStatus {
 
 /** Bron manbai. */
 export enum ReservationSource {
-  UZBRON = "UZBRON",
+  safaar = "safaar",
   WALK_IN = "WALK_IN",
   PHONE = "PHONE",
   BOOKING_COM = "BOOKING_COM",

@@ -75,7 +75,7 @@ function storedOrganizationId(): string | undefined {
   if (typeof window === 'undefined') return undefined;
   try {
     const auth = JSON.parse(
-      localStorage.getItem('uzbron-partner-auth') || '{}',
+      localStorage.getItem('safaar-partner-auth') || '{}',
     );
     if (auth?.state?.user?.organizationId) {
       return auth.state.user.organizationId;

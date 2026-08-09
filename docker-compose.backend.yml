@@ -2,15 +2,15 @@ services:
   postgres:
     image: postgres:18
     environment:
-      POSTGRES_DB: uzbron
-      POSTGRES_USER: uzbron
-      POSTGRES_PASSWORD: uzbron
+      POSTGRES_DB: safaar
+      POSTGRES_USER: safaar
+      POSTGRES_PASSWORD: safaar
     ports:
       - '5432:5432'
     volumes:
-      - uzbron-postgres:/var/lib/postgresql/data
+      - safaar-postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U uzbron -d uzbron']
+      test: ['CMD-SHELL', 'pg_isready -U safaar -d safaar']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -20,7 +20,7 @@ services:
     ports:
       - '6379:6379'
     volumes:
-      - uzbron-redis:/data
+      - safaar-redis:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
@@ -34,7 +34,7 @@ services:
     env_file:
       - apps/backend/.env
     environment:
-      DATABASE_URL: postgresql://uzbron:uzbron@postgres:5432/uzbron
+      DATABASE_URL: postgresql://safaar:safaar@postgres:5432/safaar
       REDIS_URL: redis://redis:6379/0
       QUEUE_REDIS_URL: redis://redis:6379/1
       PORT: 4000
@@ -48,5 +48,5 @@ services:
         condition: service_healthy
 
 volumes:
-  uzbron-postgres:
-  uzbron-redis:
+  safaar-postgres:
+  safaar-redis:

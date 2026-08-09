@@ -65,9 +65,9 @@ export function LoginForm() {
     }
 
     const code = String(values.code ?? '').trim();
-    if (code.length < 4) {
+    if (code.length !== 6) {
       form.setError('code', {
-        message: 'Emailga yuborilgan kodni kiriting',
+        message: 'Emailga yuborilgan 6 xonali kodni kiriting',
       });
       return;
     }

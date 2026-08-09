@@ -609,13 +609,22 @@ function toCmsArticle(row: ApiRecord, type?: CmsArticle['type']): CmsArticle {
 
   return {
     id: asString(row.id),
-    title: localizedText(row.title, asString(row.slug, 'Kontent')),
+    title: localizedText(
+      row.title ?? row.title_i18n ?? row.titleText ?? row.title_text,
+      asString(row.slug, 'Kontent'),
+    ),
     type: articleType,
     slug: asString(row.slug),
-    status: asString(row.status) === 'published' ? 'published' : 'draft',
+    status:
+      asString(row.status) === 'published' || asString(row.status) === 'active'
+        ? 'published'
+        : 'draft',
     publishedAt: asString(
       row.publishedAt ?? row.published_at ?? row.created_at,
       new Date().toISOString(),
+    ),
+    body: localizedText(
+      row.body ?? row.body_i18n ?? row.content ?? row.bodyText ?? row.body_text,
     ),
   };
 }
@@ -880,6 +889,21 @@ function cmsBannerPayload(banner: Omit<CmsBanner, 'id'> | Partial<CmsBanner>) {
       order: banner.order ?? 0,
     },
   };
+}
+
+function cmsArticlePayload(article: Partial<CmsArticle>) {
+  return {
+    slug: article.slug,
+    title: { uz: article.title ?? '' },
+    body: { uz: article.body ?? '' },
+    status: article.status ?? 'draft',
+  };
+}
+
+function isNotFoundError(error: unknown): boolean {
+  const record = asRecord(error);
+  const response = asRecord(record.response);
+  return response.status === 404;
 }
 
 export const AdminApi = {
@@ -1229,6 +1253,41 @@ export const AdminApi = {
   },
   deleteCmsBanner: async (id: string): Promise<void> => {
     await apiClient.post(`/admin/cms/banners/${id}/archive`);
+  },
+  createCmsPage: async (article: Partial<CmsArticle>): Promise<CmsArticle> => {
+    const { data } = await apiClient.post(
+      '/admin/cms/pages',
+      cmsArticlePayload(article),
+    );
+    return toCmsArticle(asRecord(data), 'page');
+  },
+  updateCmsPage: async (
+    id: string,
+    article: Partial<CmsArticle>,
+  ): Promise<CmsArticle> => {
+    const { data } = await apiClient.patch(
+      `/admin/cms/pages/${id}`,
+      cmsArticlePayload(article),
+    );
+    return toCmsArticle(asRecord(data), 'page');
+  },
+  setCmsPageStatus: async (
+    id: string,
+    status: CmsArticle['status'],
+  ): Promise<CmsArticle> => {
+    const action = status === 'published' ? 'publish' : 'unpublish';
+    const { data } = await apiClient.post(`/admin/cms/pages/${id}/${action}`);
+    return toCmsArticle(asRecord(data), 'page');
+  },
+  deleteCmsPage: async (id: string): Promise<void> => {
+    try {
+      await apiClient.delete(`/admin/cms/pages/${id}`);
+    } catch (error) {
+      if (!isNotFoundError(error)) {
+        throw error;
+      }
+      await apiClient.post(`/admin/cms/pages/${id}/archive`);
+    }
   },
 
   // Catalog

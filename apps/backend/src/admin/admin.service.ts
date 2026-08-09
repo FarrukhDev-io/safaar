@@ -26,9 +26,9 @@ type DbRow = Record<string, unknown>;
 
 const DEFAULT_ADMIN_SETTINGS: Record<string, Record<string, unknown>> = {
   general: {
-    app_name: 'UzBron',
+    app_name: 'safaar',
     timezone: 'Asia/Tashkent',
-    support_email: 'support@uzbron.uz',
+    support_email: 'support@safaar.uz',
     maintenance_mode: false,
   },
   finance: {
@@ -79,6 +79,18 @@ function cmsTypesForResource(resource: string): string[] {
   return [resource.replace(/s$/, '')];
 }
 
+function cmsSlugify(value: string, fallback: string): string {
+  const slug = value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/^\/+/, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || fallback;
+}
+
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     value,
@@ -118,6 +130,161 @@ function localizedObject(value: unknown): Record<string, string | null> {
 function localizedLabel(value: unknown, fallback: string): string {
   const localized = localizedObject(value);
   return localized.uz ?? localized.ru ?? localized.en ?? fallback;
+}
+
+const CMS_TEXT_KEYS = {
+  title: ['title', 'name', 'heading', 'question'],
+  body: ['body', 'content', 'description', 'answer'],
+} as const;
+
+const CMS_RESERVED_METADATA_KEYS = new Set([
+  'id',
+  'type',
+  'resource',
+  'slug',
+  'title',
+  'name',
+  'heading',
+  'question',
+  'body',
+  'content',
+  'description',
+  'answer',
+  'status',
+  'state',
+  'metadata',
+  'published_at',
+  'publishedAt',
+]);
+
+function firstDefined(
+  body: Record<string, unknown>,
+  keys: readonly string[],
+): unknown {
+  for (const key of keys) {
+    if (body[key] !== undefined) {
+      return body[key];
+    }
+  }
+  return undefined;
+}
+
+function normalizeCmsLocalizedField(
+  body: Record<string, unknown>,
+  keys: readonly string[],
+  fallback = '',
+): Record<string, string | null> {
+  const localized = localizedObject(firstDefined(body, keys) ?? fallback);
+  const next = { ...localized };
+
+  for (const key of keys) {
+    const uz = body[`${key}_uz`] ?? body[`${key}Uz`];
+    const ru = body[`${key}_ru`] ?? body[`${key}Ru`];
+    const en = body[`${key}_en`] ?? body[`${key}En`];
+    if (uz !== undefined) next.uz = uz == null ? null : String(uz);
+    if (ru !== undefined) next.ru = ru == null ? null : String(ru);
+    if (en !== undefined) next.en = en == null ? null : String(en);
+  }
+
+  return {
+    uz: next.uz?.trim() ? next.uz.trim() : null,
+    ru: next.ru?.trim() ? next.ru.trim() : null,
+    en: next.en?.trim() ? next.en.trim() : null,
+  };
+}
+
+function normalizeCmsStatus(value: unknown, fallback = 'draft'): string {
+  const status = String(value ?? fallback)
+    .trim()
+    .toLowerCase();
+  if (
+    status === 'draft' ||
+    status === 'published' ||
+    status === 'active' ||
+    status === 'archived'
+  ) {
+    return status;
+  }
+  return fallback;
+}
+
+function isCmsLocalizedKey(key: string): boolean {
+  return /^(title|name|heading|question|body|content|description|answer)(_?(uz|ru|en)|Uz|Ru|En)$/.test(
+    key,
+  );
+}
+
+function normalizeCmsMetadata(
+  body: Record<string, unknown>,
+): Record<string, unknown> {
+  const metadata = { ...objectValue(body.metadata) };
+  for (const [key, value] of Object.entries(body)) {
+    if (
+      value !== undefined &&
+      !CMS_RESERVED_METADATA_KEYS.has(key) &&
+      !isCmsLocalizedKey(key)
+    ) {
+      metadata[key] = value;
+    }
+  }
+  return metadata;
+}
+
+function normalizeCmsPayload(resource: string, body: Record<string, unknown>) {
+  const type = cmsTypesForResource(resource)[0];
+  const title = normalizeCmsLocalizedField(body, CMS_TEXT_KEYS.title);
+  const titleText = localizedLabel(title, type);
+  const slug = cmsSlugify(
+    String(body.slug ?? titleText ?? `${type}-${Date.now()}`),
+    `${type}-${Date.now()}`,
+  );
+  const content = normalizeCmsLocalizedField(body, CMS_TEXT_KEYS.body);
+  const defaultStatus = type === 'page' ? 'published' : 'draft';
+  const status = normalizeCmsStatus(body.status ?? body.state, defaultStatus);
+  const rawPublishedAt = body.published_at ?? body.publishedAt;
+
+  return {
+    type,
+    slug,
+    title,
+    body: content,
+    status,
+    metadata: normalizeCmsMetadata(body),
+    publishedAt: rawPublishedAt ? String(rawPublishedAt) : null,
+  };
+}
+
+function cmsOrderValue(metadata: Record<string, unknown>): number {
+  return numberValue(metadata.order ?? metadata.sortOrder);
+}
+
+function cmsAdminDto(row: DbRow) {
+  const metadata = objectValue(row['metadata']);
+  const titleI18n = localizedObject(row['title_i18n'] ?? row['title']);
+  const bodyI18n = localizedObject(row['body_i18n'] ?? row['body']);
+  const slug = String(row['slug'] ?? '');
+  const title = localizedLabel(titleI18n, slug || String(row['type'] ?? ''));
+  const body = localizedLabel(bodyI18n, '');
+
+  return {
+    id: row['id'],
+    type: row['type'],
+    slug,
+    url: slug ? `/${slug}` : '',
+    title,
+    title_i18n: titleI18n,
+    body,
+    body_i18n: bodyI18n,
+    content: body,
+    status: row['status'],
+    metadata,
+    image_url: metadata.image_url ?? metadata.imageUrl ?? '',
+    link: metadata.link ?? '',
+    order: cmsOrderValue(metadata),
+    published_at: row['published_at'],
+    created_at: row['created_at'],
+    updated_at: row['updated_at'],
+  };
 }
 
 function nullableNumber(value: unknown): number | null {
@@ -312,7 +479,7 @@ function normalizeWithdrawalStatus(
 }
 
 /**
- * Super Admin xizmati — admin.uzbron.uz.
+ * Super Admin xizmati — admin.safaar.uz.
  * Platforma statistikasi, hamkor tasdiqlash, moliya hisobotlari.
  */
 @Injectable()
@@ -2728,84 +2895,203 @@ export class AdminService {
 
   async cmsList(resource: string, query: QueryLike = {}) {
     const types = cmsTypesForResource(resource);
-    return this.rows(
+    const rows = await this.rows(
       `
         select
           id::text,
           type,
           slug,
-          coalesce(title ->> 'uz', slug, type) as title,
-          coalesce(body ->> 'uz', '') as body,
+          title as title_i18n,
+          body as body_i18n,
           status,
           metadata,
-          metadata ->> 'imageUrl' as image_url,
-          metadata ->> 'link' as link,
-          coalesce((metadata ->> 'order')::int, 0) as "order",
           published_at,
           created_at,
           updated_at
         from cms_entries
         where type = any($1::text[])
           and status <> 'archived'
-        order by coalesce((metadata ->> 'order')::int, 9999), created_at desc
+        order by
+          coalesce(
+            case when metadata ->> 'order' ~ '^-?[0-9]+$' then (metadata ->> 'order')::int end,
+            case when metadata ->> 'sortOrder' ~ '^-?[0-9]+$' then (metadata ->> 'sortOrder')::int end,
+            9999
+          ),
+          created_at desc
         ${this.limitClause(query)}
       `,
       [types],
     );
+    return rows.map(cmsAdminDto);
+  }
+
+  async cmsOne(resource: string, id: string) {
+    const types = cmsTypesForResource(resource);
+    const condition = isUuid(id) ? 'id = $2::uuid' : 'slug = $2';
+    const rows = await this.rows(
+      `
+        select
+          id::text,
+          type,
+          slug,
+          title as title_i18n,
+          body as body_i18n,
+          status,
+          metadata,
+          published_at,
+          created_at,
+          updated_at
+        from cms_entries
+        where type = any($1::text[])
+          and ${condition}
+          and status <> 'archived'
+        limit 1
+      `,
+      [types, id],
+    );
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'CMS_ENTRY_NOT_FOUND',
+        message: 'CMS sahifa topilmadi',
+      });
+    }
+    return cmsAdminDto(rows[0]);
   }
 
   async cmsCreate(resource: string, body: Record<string, unknown>) {
-    const types = cmsTypesForResource(resource);
-    const type = types[0];
-    const slug = String(body.slug ?? body.title ?? `${type}-${Date.now()}`);
+    const payload = normalizeCmsPayload(resource, body);
 
-    const rows = await this.rows(
-      `insert into cms_entries (type, slug, title, body, status, metadata)
-       values ($1, $2, ($3)::jsonb, ($4)::jsonb, 'draft', ($5)::jsonb)
-       returning id::text, type, slug, title, body, status, metadata, published_at, created_at, updated_at`,
-      [
-        type,
-        slug,
-        JSON.stringify(body.title ?? {}),
-        JSON.stringify(body.body ?? {}),
-        JSON.stringify(body.metadata ?? {}),
-      ],
-    );
+    let rows: DbRow[];
+    try {
+      rows = await this.rows(
+        `insert into cms_entries (id, type, slug, title, body, status, metadata, published_at, updated_at)
+         values (
+           gen_random_uuid(),
+           $1,
+           $2,
+           ($3)::jsonb,
+           ($4)::jsonb,
+           $5::text,
+           ($6)::jsonb,
+           case when $5::text in ('published', 'active') then coalesce($7::timestamptz, now()) else $7::timestamptz end,
+           now()
+         )
+         returning id::text, type, slug, title as title_i18n, body as body_i18n, status, metadata, published_at, created_at, updated_at`,
+        [
+          payload.type,
+          payload.slug,
+          JSON.stringify(payload.title),
+          JSON.stringify(payload.body),
+          payload.status,
+          JSON.stringify(payload.metadata),
+          payload.publishedAt,
+        ],
+      );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException({
+          code: 'CMS_ENTRY_EXISTS',
+          message: `"${payload.slug}" slug allaqachon mavjud. Boshqa slug tanlang.`,
+        });
+      }
+      throw error;
+    }
 
     void this.cache.delByPattern('cms:*');
     this.invalidateAdminCache();
-    return rows[0];
+    return cmsAdminDto(rows[0]);
   }
 
   async cmsUpdate(resource: string, id: string, body: Record<string, unknown>) {
-    const rows = await this.rows(
-      `update cms_entries
-       set slug = coalesce(nullif($2, ''), slug),
-           title = case when ($3)::jsonb = '{}'::jsonb then title else ($3)::jsonb end,
-           body = case when ($4)::jsonb = '{}'::jsonb then body else ($4)::jsonb end,
-           metadata = case when ($5)::jsonb = '{}'::jsonb then metadata else metadata || ($5)::jsonb end,
-           published_at = case when ($6)::timestamptz is not null then ($6)::timestamptz else published_at end,
-           updated_at = now()
-       where id = $1::uuid
-       returning id::text, type, slug, title, body, status, metadata, published_at, created_at, updated_at`,
-      [
-        id,
-        body.slug ? String(body.slug) : null,
-        JSON.stringify(body.title ?? {}),
-        JSON.stringify(body.body ?? {}),
-        JSON.stringify(body.metadata ?? {}),
-        body.published_at ? String(body.published_at) : null,
-      ],
+    const types = cmsTypesForResource(resource);
+    const hasTitle = CMS_TEXT_KEYS.title.some(
+      (key) =>
+        body[key] !== undefined ||
+        body[`${key}_uz`] !== undefined ||
+        body[`${key}_ru`] !== undefined ||
+        body[`${key}_en`] !== undefined ||
+        body[`${key}Uz`] !== undefined ||
+        body[`${key}Ru`] !== undefined ||
+        body[`${key}En`] !== undefined,
     );
+    const hasBody = CMS_TEXT_KEYS.body.some(
+      (key) =>
+        body[key] !== undefined ||
+        body[`${key}_uz`] !== undefined ||
+        body[`${key}_ru`] !== undefined ||
+        body[`${key}_en`] !== undefined ||
+        body[`${key}Uz`] !== undefined ||
+        body[`${key}Ru`] !== undefined ||
+        body[`${key}En`] !== undefined,
+    );
+    const metadata = normalizeCmsMetadata(body);
+    const hasMetadata = Object.keys(metadata).length > 0;
+    const status =
+      body.status !== undefined || body.state !== undefined
+        ? normalizeCmsStatus(body.status ?? body.state)
+        : null;
+    const slug = body.slug ? cmsSlugify(String(body.slug), '') : null;
+    const publishedAt = body.published_at ?? body.publishedAt;
+
+    let rows: DbRow[];
+    try {
+      rows = await this.rows(
+        `update cms_entries
+         set slug = coalesce(nullif($3, ''), slug),
+             title = case when $4::boolean then ($5)::jsonb else title end,
+             body = case when $6::boolean then ($7)::jsonb else body end,
+             metadata = case
+               when $8::boolean then coalesce(metadata, '{}'::jsonb) || ($9)::jsonb
+               else metadata
+             end,
+             status = coalesce($10::text, status),
+             published_at = case
+               when $10::text in ('published', 'active') then coalesce($11::timestamptz, published_at, now())
+               when $11::timestamptz is not null then $11::timestamptz
+               else published_at
+             end,
+             updated_at = now()
+         where id = $1::uuid
+           and type = any($2::text[])
+         returning id::text, type, slug, title as title_i18n, body as body_i18n, status, metadata, published_at, created_at, updated_at`,
+        [
+          id,
+          types,
+          slug,
+          hasTitle,
+          JSON.stringify(normalizeCmsLocalizedField(body, CMS_TEXT_KEYS.title)),
+          hasBody,
+          JSON.stringify(normalizeCmsLocalizedField(body, CMS_TEXT_KEYS.body)),
+          hasMetadata,
+          JSON.stringify(metadata),
+          status,
+          publishedAt ? String(publishedAt) : null,
+        ],
+      );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException({
+          code: 'CMS_ENTRY_EXISTS',
+          message: `"${slug ?? id}" slug allaqachon mavjud. Boshqa slug tanlang.`,
+        });
+      }
+      throw error;
+    }
+
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'CMS_ENTRY_NOT_FOUND',
+        message: 'CMS sahifa topilmadi',
+      });
+    }
 
     void this.cache.delByPattern('cms:*');
     this.invalidateAdminCache();
-    return (
-      rows[0] ?? { id, resource, ...body, updated_at: new Date().toISOString() }
-    );
+    return cmsAdminDto(rows[0]);
   }
 
   async cmsAction(resource: string, id: string, action: string) {
+    const types = cmsTypesForResource(resource);
     const statusMap: Record<string, string> = {
       publish: 'published',
       unpublish: 'draft',
@@ -2816,24 +3102,29 @@ export class AdminService {
 
     const rows = await this.rows(
       `update cms_entries
-       set status = $2,
-           published_at = case when $2 = 'published' then coalesce(published_at, now()) else published_at end,
+       set status = $2::text,
+           published_at = case when $2::text = 'published' then coalesce(published_at, now()) else published_at end,
            updated_at = now()
        where id = $1::uuid
-       returning id::text, type, slug, title, status, metadata, published_at, created_at, updated_at`,
-      [id, newStatus],
+         and type = any($3::text[])
+       returning id::text, type, slug, title as title_i18n, body as body_i18n, status, metadata, published_at, created_at, updated_at`,
+      [id, newStatus, types],
     );
+
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'CMS_ENTRY_NOT_FOUND',
+        message: 'CMS sahifa topilmadi',
+      });
+    }
 
     void this.cache.delByPattern('cms:*');
     this.invalidateAdminCache();
-    return (
-      rows[0] ?? {
-        id,
-        resource,
-        action,
-        processed_at: new Date().toISOString(),
-      }
-    );
+    return cmsAdminDto(rows[0]);
+  }
+
+  async cmsDelete(resource: string, id: string) {
+    return this.cmsAction(resource, id, 'archive');
   }
 
   async cmsTranslation(
@@ -2882,7 +3173,7 @@ export class AdminService {
   }
 
   async promoCreate(body: Record<string, unknown>) {
-    const code = String(body.code ?? 'UZBRON10').toUpperCase();
+    const code = String(body.code ?? 'safaar10').toUpperCase();
     const validUntilRaw = body.validUntil ?? body.valid_until;
     const validUntilDate = validUntilRaw
       ? new Date(String(validUntilRaw))
@@ -3474,8 +3765,8 @@ export class AdminService {
 
   async notificationBroadcastCreate(body: Record<string, unknown>) {
     const rows = await this.rows(
-      `insert into cms_entries (type, slug, title, body, status, metadata)
-       values ('broadcast', $1, ($2)::jsonb, ($3)::jsonb, 'draft', ($4)::jsonb)
+      `insert into cms_entries (id, type, slug, title, body, status, metadata, updated_at)
+       values (gen_random_uuid(), 'broadcast', $1, ($2)::jsonb, ($3)::jsonb, 'draft', ($4)::jsonb, now())
        returning id::text, type, slug, title, body, status, metadata, created_at, updated_at`,
       [
         `broadcast-${randomUUID().slice(0, 8)}`,
@@ -3523,7 +3814,7 @@ export class AdminService {
 
     const rows = await this.rows(
       `update cms_entries
-       set status = $2, updated_at = now()
+       set status = $2::text, updated_at = now()
        where id = $1::uuid
        returning id::text, status, updated_at`,
       [id, newStatus],

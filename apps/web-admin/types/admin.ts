@@ -365,6 +365,7 @@ export interface CmsArticle {
   slug: string;
   status: 'published' | 'draft';
   publishedAt: string;
+  body?: string;
 }
 
 /* ────────────────────────────────────────────
