@@ -189,15 +189,15 @@
     }
 }
 
-.appleGreen {
+.brandPrimary {
     background: 
         linear-gradient( to bottom, 
-            #82dd36, 
-            #76cd2b 33%, 
-            #63a923) padding-box,
+            #60a5fa, 
+            #3b82f6 33%, 
+            #2563eb) padding-box,
         linear-gradient( 165deg, 
-            #94f53f 25%, 
-            #a1ff4a) border-box;
+            #93c5fd 25%, 
+            #bfdbfe) border-box;
             
     --inset-shadow:
         inset 0 0 0 0 rgba(255,255,255,0),
@@ -208,13 +208,13 @@
     color: white !important;
 }
 
-.appleGreen:hover,
-.appleGreen.shine,
-.appleGreen:focus-visible {
+.brandPrimary:hover,
+.brandPrimary.shine,
+.brandPrimary:focus-visible {
     color: white !important;
 }
 
-.appleGreen::after {
+.brandPrimary::after {
     box-shadow: 
         inset 0 -0.3em 2px 1px rgba(255,255,255, 0.3),
         inset 0 -0.3em 0.25em rgba(255,255,255, 0.3),
@@ -223,20 +223,20 @@
         inset 0 -0.3em 1em rgba(255,255,255, 0.3);
 }
 
-.appleGreen:hover::after,
-.appleGreen.shine::after,
-.appleGreen:focus-visible::after {
+.brandPrimary:hover::after,
+.brandPrimary.shine::after,
+.brandPrimary:focus-visible::after {
     opacity: 0.4 !important;
 }
 
-.appleGreen:hover::before,
-.appleGreen.shine::before,
-.appleGreen:focus-visible::before {
+.brandPrimary:hover::before,
+.brandPrimary.shine::before,
+.brandPrimary:focus-visible::before {
     opacity: 0.3 !important;
 }
 
-.appleGreen:hover .dropShadow::after,
-.appleGreen.shine .dropShadow::after,
-.appleGreen:focus-visible .dropShadow::after {
+.brandPrimary:hover .dropShadow::after,
+.brandPrimary.shine .dropShadow::after,
+.brandPrimary:focus-visible .dropShadow::after {
     opacity: 0.4 !important;
 }

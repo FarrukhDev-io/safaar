@@ -53,7 +53,7 @@ function AuthButtons({
   );
 
   const loginClasses = cn(baseAuthClasses, "text-black hover:text-black");
-  const registerClasses = cn(baseAuthClasses, styles.appleGreen);
+  const registerClasses = cn(baseAuthClasses, styles.brandPrimary);
 
   return (
     <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
