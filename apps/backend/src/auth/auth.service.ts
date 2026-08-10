@@ -618,6 +618,7 @@ export class AuthService {
       .trim()
       .toLowerCase();
     const password = String(body.password ?? '');
+    const lockoutKey = await this.assertNotLockedOut('partner', email);
     const partnerUser = await this.findPartnerUser(email);
 
     if (
@@ -625,8 +626,10 @@ export class AuthService {
       partnerUser.status !== 'active' ||
       !(await this.verifyPassword(partnerUser.password_hash, password))
     ) {
+      await this.recordFailedLogin(lockoutKey);
       throw this.invalidCredentials();
     }
+    await this.resetLoginAttempts(lockoutKey);
 
     const orgRows = await this.pg.query<DbRow>(
       `SELECT id::text, status
@@ -668,6 +671,8 @@ export class AuthService {
       throw this.invalidCredentials();
     }
 
+    const lockoutKey = await this.assertNotLockedOut('user', email);
+
     const rows = await this.pg.query<DbRow>(
       `SELECT id::text, email, first_name, last_name, status::text, password_hash
        FROM users
@@ -678,6 +683,7 @@ export class AuthService {
     const user = rows[0];
 
     if (!user || user['status'] !== 'active') {
+      await this.recordFailedLogin(lockoutKey);
       throw this.invalidCredentials();
     }
 
@@ -689,8 +695,10 @@ export class AuthService {
     }
 
     if (!(await this.verifyPassword(String(user['password_hash']), password))) {
+      await this.recordFailedLogin(lockoutKey);
       throw this.invalidCredentials();
     }
+    await this.resetLoginAttempts(lockoutKey);
 
     await this.pg.query(
       `UPDATE users SET last_login_at = $2, updated_at = $2
@@ -864,6 +872,7 @@ export class AuthService {
       .trim()
       .toLowerCase();
     const password = String(body.password ?? '');
+    const lockoutKey = await this.assertNotLockedOut('admin', login);
     const admin = await this.findAdminUser(login);
 
     if (
@@ -871,8 +880,10 @@ export class AuthService {
       admin.status !== 'active' ||
       !(await this.verifyPassword(admin.password_hash, password))
     ) {
+      await this.recordFailedLogin(lockoutKey);
       throw this.invalidCredentials();
     }
+    await this.resetLoginAttempts(lockoutKey);
 
     if (!admin.totp_secret) {
       return {
@@ -1926,6 +1937,39 @@ export class AuthService {
       code: 'AUTH_INVALID_CREDENTIALS',
       message: 'Login/parol noto\u2018g\u2018ri',
     });
+  }
+
+  private static readonly MAX_LOGIN_ATTEMPTS = 5;
+  private static readonly LOGIN_LOCKOUT_TTL_SECONDS = 15 * 60;
+
+  private loginAttemptsKey(actorType: string, identifier: string): string {
+    return `login_attempts:${actorType}:${identifier.trim().toLowerCase()}`;
+  }
+
+  private async assertNotLockedOut(
+    actorType: string,
+    identifier: string,
+  ): Promise<string> {
+    const key = this.loginAttemptsKey(actorType, identifier);
+    const attempts = (await this.cache.get<number>(key)) ?? 0;
+    if (attempts >= AuthService.MAX_LOGIN_ATTEMPTS) {
+      throw new UnauthorizedException({
+        code: 'AUTH_ACCOUNT_LOCKED',
+        message: `Juda ko\u2018p muvaffaqiyatsiz urinish. ${Math.ceil(
+          AuthService.LOGIN_LOCKOUT_TTL_SECONDS / 60,
+        )} daqiqadan so\u2018ng qayta urinib ko\u2018ring`,
+      });
+    }
+    return key;
+  }
+
+  private async recordFailedLogin(key: string): Promise<void> {
+    const attempts = (await this.cache.get<number>(key)) ?? 0;
+    await this.cache.set(key, attempts + 1, AuthService.LOGIN_LOCKOUT_TTL_SECONDS);
+  }
+
+  private async resetLoginAttempts(key: string): Promise<void> {
+    await this.cache.del(key);
   }
 
   private normalizePhone(phone: string): string {

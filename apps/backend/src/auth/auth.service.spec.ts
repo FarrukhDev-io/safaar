@@ -14,6 +14,9 @@ import type { AppCacheService } from '../infrastructure/cache.service';
 import type { EmailMessage } from '../integrations/email/email-provider.interface';
 import { authSessionStore } from './session-store';
 import * as totp from './totp';
+import * as argon2 from 'argon2';
+
+jest.mock('argon2');
 
 describe('AuthService email and OAuth', () => {
   const originalEnv = { ...process.env };
@@ -418,5 +421,180 @@ describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column 
     expect(calls[1]![0]).toContain('UPDATE admin_users');
     expect(calls[1]![0]).not.toContain('recovery_code_hashes');
     expect(calls[2]![0]).toContain('DELETE FROM admin_recovery_codes');
+  });
+});
+
+describe('AuthService login lockout (HIGH: no minimum password length / no login throttle / no account lockout)', () => {
+  const pg = { query: jest.fn(), transaction: jest.fn() };
+  const jobs = { add: jest.fn() };
+  const email = { send: jest.fn() };
+  let store: Map<string, { value: unknown; expiresAt: number }>;
+  const cache = {
+    get: jest.fn((key: string) => {
+      const entry = store.get(key);
+      if (!entry || entry.expiresAt < Date.now()) {
+        return Promise.resolve(undefined);
+      }
+      return Promise.resolve(entry.value);
+    }),
+    set: jest.fn((key: string, value: unknown, ttlSeconds: number) => {
+      store.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+      return Promise.resolve(undefined);
+    }),
+    del: jest.fn((key: string) => {
+      store.delete(key);
+      return Promise.resolve(undefined);
+    }),
+  };
+  let service: AuthService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (argon2.verify as jest.Mock).mockReset();
+    store = new Map();
+    pg.transaction.mockImplementation(
+      (operation: (tx: PostgresTransaction) => unknown) =>
+        operation({ query: pg.query } as unknown as PostgresTransaction),
+    );
+    jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
+    service = new AuthService(
+      pg as unknown as PostgresService,
+      jobs as unknown as JobQueueService,
+      email as unknown as EmailService,
+      cache as unknown as AppCacheService,
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('locks out user login after 5 failed attempts for the same email', async () => {
+    pg.query.mockResolvedValue([]);
+
+    for (let i = 0; i < 5; i += 1) {
+      await expect(
+        service.userLogin({ email: 'victim@safaar.uz', password: 'wrong' }),
+      ).rejects.toMatchObject({
+        status: 401,
+        response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+      });
+    }
+
+    await expect(
+      service.userLogin({ email: 'victim@safaar.uz', password: 'wrong' }),
+    ).rejects.toMatchObject({
+      status: 401,
+      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }),
+    });
+  });
+
+  it('does not lock out a different email after another one fails repeatedly', async () => {
+    pg.query.mockResolvedValue([]);
+    for (let i = 0; i < 5; i += 1) {
+      await expect(
+        service.userLogin({ email: 'victim@safaar.uz', password: 'wrong' }),
+      ).rejects.toMatchObject({ status: 401 });
+    }
+
+    pg.query.mockResolvedValueOnce([
+      {
+        id: 'u1',
+        email: 'other@safaar.uz',
+        status: 'active',
+        password_hash: 'hash',
+      },
+    ]);
+    (argon2.verify as jest.Mock).mockResolvedValue(true);
+    pg.query.mockResolvedValueOnce([]);
+
+    await expect(
+      service.userLogin({ email: 'other@safaar.uz', password: 'correct' }),
+    ).resolves.toBeDefined();
+  });
+
+  it('resets the failed-attempt counter on a successful user login', async () => {
+    pg.query.mockResolvedValue([]);
+    for (let i = 0; i < 4; i += 1) {
+      await expect(
+        service.userLogin({ email: 'user@safaar.uz', password: 'wrong' }),
+      ).rejects.toMatchObject({ status: 401 });
+    }
+
+    pg.query.mockResolvedValueOnce([
+      {
+        id: 'u1',
+        email: 'user@safaar.uz',
+        status: 'active',
+        password_hash: 'hash',
+      },
+    ]);
+    (argon2.verify as jest.Mock).mockResolvedValueOnce(true);
+    pg.query.mockResolvedValueOnce([]);
+
+    await expect(
+      service.userLogin({ email: 'user@safaar.uz', password: 'correct' }),
+    ).resolves.toBeDefined();
+
+    pg.query.mockResolvedValue([]);
+    for (let i = 0; i < 4; i += 1) {
+      await expect(
+        service.userLogin({ email: 'user@safaar.uz', password: 'wrong' }),
+      ).rejects.toMatchObject({
+        status: 401,
+        response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+      });
+    }
+  });
+
+  it('locks out partner login after 5 failed attempts for the same email', async () => {
+    pg.query.mockResolvedValue([]);
+
+    for (let i = 0; i < 5; i += 1) {
+      await expect(
+        service.partnerLogin({ email: 'partner@safaar.uz', password: 'wrong' }),
+      ).rejects.toMatchObject({ status: 401 });
+    }
+
+    await expect(
+      service.partnerLogin({ email: 'partner@safaar.uz', password: 'wrong' }),
+    ).rejects.toMatchObject({
+      status: 401,
+      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }),
+    });
+  });
+
+  it('locks out admin login after 5 failed attempts for the same identifier', async () => {
+    pg.query.mockResolvedValue([]);
+
+    for (let i = 0; i < 5; i += 1) {
+      await expect(
+        service.adminLogin({ username: 'admin', password: 'wrong' }),
+      ).rejects.toMatchObject({ status: 401 });
+    }
+
+    await expect(
+      service.adminLogin({ username: 'admin', password: 'wrong' }),
+    ).rejects.toMatchObject({
+      status: 401,
+      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }),
+    });
+  });
+
+  it('keeps user- and partner-login lockout counters independent for the same email', async () => {
+    pg.query.mockResolvedValue([]);
+    for (let i = 0; i < 5; i += 1) {
+      await expect(
+        service.userLogin({ email: 'shared@safaar.uz', password: 'wrong' }),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+      });
+    }
+
+    await expect(
+      service.partnerLogin({ email: 'shared@safaar.uz', password: 'wrong' }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+    });
   });
 });
