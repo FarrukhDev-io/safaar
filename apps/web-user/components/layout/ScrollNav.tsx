@@ -248,7 +248,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
           />
           <nav
             aria-label="Mobil navigatsiya"
-            className="fixed inset-x-3 top-16 z-100 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-3xl border border-slate-200 bg-card p-4 shadow-2xl md:hidden animate-in fade-in slide-in-from-top-2 duration-150 dark:border-slate-800 dark:bg-slate-900"
+            className="fixed inset-x-3 top-16 z-100 max-h-[calc(100vh-5rem)] overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-200 bg-card p-4 shadow-2xl md:hidden animate-in fade-in slide-in-from-top-2 duration-150 dark:border-slate-800 dark:bg-slate-900"
           >
             <div className="space-y-1">
               {items.map((item) => {
