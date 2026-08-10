@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Role } from '@safaar/types';
 import type { Request, Response } from 'express';
 import { CurrentActor, type RequestActor } from '../common/actor';
@@ -45,31 +46,37 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('user/send-otp')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   requestEmailOtp(@Body() dto: SendEmailOtpDto) {
     return this.authService.sendUserEmailOtp(dto.email);
   }
 
   @Post('user/verify-otp')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   verifyEmailOtp(@Body() dto: VerifyEmailOtpRequestDto) {
     return this.authService.verifyUserEmailOtp(dto);
   }
 
   @Post('otp/request')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   requestOtpAlias(@Body() dto: SendOtpDto) {
     return this.authService.sendPartnerOtp(dto.phone);
   }
 
   @Post('partner/email-otp/request')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   requestPartnerEmailOtp(@Body() body: Record<string, unknown>) {
     return this.authService.sendPartnerEmailOtp(String(body.email ?? ''));
   }
 
   @Post('otp/verify')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   verifyOtpAlias(@Body() dto: VerifyOtpRequestDto) {
     return this.authService.verifyPartnerOtp(dto);
   }
 
   @Post('partner/email-otp/verify')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   verifyPartnerEmailOtp(@Body() body: Record<string, unknown>) {
     return this.authService.verifyPartnerEmailOtp(body);
   }
@@ -88,6 +95,7 @@ export class AuthController {
   }
 
   @Post('user/login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   userLogin(@Body() body: UserLoginDto) {
     return this.authService.userLogin(
       body as unknown as Record<string, unknown>,
@@ -95,11 +103,13 @@ export class AuthController {
   }
 
   @Post('user/forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   userForgotPassword(@Body() body: UserForgotPasswordDto) {
     return this.authService.userForgotPassword(body.email);
   }
 
   @Post('user/verify-reset-code')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   userVerifyResetCode(@Body() body: UserVerifyResetCodeDto) {
     return this.authService.userVerifyPasswordResetCode({
       email: body.email,
@@ -109,6 +119,7 @@ export class AuthController {
   }
 
   @Post('user/reset-password')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   userResetPassword(@Body() body: UserResetPasswordDto) {
     return this.authService.userResetPassword({
       email: body.email,
@@ -197,6 +208,7 @@ export class AuthController {
   }
 
   @Post('partner/login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   partnerLogin(@Body() body: LoginDto) {
     return this.authService.partnerLogin(
       body as unknown as Record<string, unknown>,
@@ -204,16 +216,19 @@ export class AuthController {
   }
 
   @Post('partner/phone-login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   partnerPhoneLogin(@Body() body: Record<string, unknown>) {
     return this.authService.partnerPhoneLogin(body);
   }
 
   @Post('partner/email-login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   partnerEmailLogin(@Body() body: Record<string, unknown>) {
     return this.authService.partnerEmailLogin(body);
   }
 
   @Post('partner/forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   partnerForgotPassword(@Body() body: ForgotPasswordDto) {
     return this.authService.passwordResetRequest(
       'partner',
@@ -222,6 +237,7 @@ export class AuthController {
   }
 
   @Post('partner/reset-password')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   partnerResetPassword(@Body() body: ResetPasswordDto) {
     return this.authService.passwordResetConfirm(
       'partner',
@@ -230,6 +246,7 @@ export class AuthController {
   }
 
   @Post('admin/login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   adminLogin(@Body() body: AdminLoginDto) {
     return this.authService.adminLogin(
       body as unknown as Record<string, unknown>,
@@ -237,6 +254,7 @@ export class AuthController {
   }
 
   @Post('admin/verify-2fa')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   adminVerify2fa(@Body() body: Verify2faDto) {
     return this.authService.adminVerify2fa(
       body as unknown as Record<string, unknown>,

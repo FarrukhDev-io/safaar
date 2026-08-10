@@ -6,7 +6,25 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
+  MinLength,
 } from 'class-validator';
+
+/**
+ * Yangi parol o'rnatiladigan barcha joylarda (ro'yxatdan o'tish, parolni
+ * tiklash) qo'llaniladi — LOGIN uchun emas (login'da mavjud parol shunchaki
+ * tekshiriladi, uzunlik/murakkablik talabi u yerga tegishli emas).
+ */
+function IsStrongPassword() {
+  return function (target: object, propertyKey: string) {
+    MinLength(8, {
+      message: "Parol kamida 8 ta belgidan iborat bo'lishi kerak",
+    })(target, propertyKey);
+    Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
+      message: 'Parolda kamida bitta harf va bitta raqam bo‘lishi kerak',
+    })(target, propertyKey);
+  };
+}
 
 export class SendOtpDto {
   @ApiProperty({ example: '+998901234567' })
@@ -74,6 +92,7 @@ export class CompleteProfileDto {
   @ApiPropertyOptional({ example: 'P@ssw0rd!' })
   @IsOptional()
   @IsString()
+  @IsStrongPassword()
   password?: string;
 
   @ApiPropertyOptional({ enum: ['uz', 'ru', 'en'] })
@@ -155,6 +174,7 @@ export class UserResetPasswordDto {
   @ApiProperty({ example: 'N3wP@ssw0rd!' })
   @IsString()
   @IsNotEmpty()
+  @IsStrongPassword()
   password!: string;
 }
 
@@ -191,6 +211,7 @@ export class ResetPasswordDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
+  @IsStrongPassword()
   password!: string;
 }
 
