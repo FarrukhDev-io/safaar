@@ -10,10 +10,15 @@ import {
 } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { PwaInstallBanner } from "@/components/pwa/PwaInstallBanner";
 import dynamic from "next/dynamic";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { Toaster } from "sonner";
 import { config } from "@/lib/config";
+
+const LiveSupportWidget = dynamic(
+  () => import("@/components/chat/LiveSupportWidget").then((mod) => mod.LiveSupportWidget)
+);
 
 const inter = Inter({
   variable: "--font-inter",
@@ -98,6 +103,8 @@ export default async function LangLayout({
             {children}
             <Toaster position="top-right" richColors />
             <ServiceWorkerRegister />
+            <PwaInstallBanner />
+            <LiveSupportWidget />
           </div>
         </AnalyticsProvider>
       </body>
