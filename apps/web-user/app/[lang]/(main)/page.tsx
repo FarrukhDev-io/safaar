@@ -40,7 +40,7 @@ export default async function HomePage({
     getDictionary(locale, "common"),
     getDictionary(locale, "home"),
     api.catalog.getCities(locale),
-    api.hotels.getFeaturedHotels(locale, { limit: 4 }),
+    api.hotels.getFeaturedHotels(locale, { limit: 10 }),
     api.cms.getDeals(locale),
     api.cms.getPublicStats().catch(() => null),
   ]);
@@ -66,21 +66,21 @@ export default async function HomePage({
         <Hero dict={dict.hero} />
 
         <div className="relative z-40">
-          <section id="search-section" className="bg-transparent pb-10 pt-6 sm:pb-14 sm:pt-8">
+          <section id="search-section" className="bg-transparent pb-4 pt-2 sm:pb-6 sm:pt-4">
             <div className="mx-auto max-w-4xl px-4">
               <SearchBar locale={locale} dict={common.search} cities={cities} />
             </div>
           </section>
 
           {cities.length > 0 && (
-            <div className="mx-auto mt-4 flex max-w-5xl flex-nowrap items-center justify-start sm:justify-center gap-2 overflow-x-auto px-4 py-4 sm:mt-6 scrollbar-none">
+            <div className="mx-auto mt-2 flex max-w-5xl flex-nowrap items-center justify-start sm:justify-center gap-2 overflow-x-auto px-4 py-2 sm:mt-4 scrollbar-none">
               {cities.slice(0, 8).map((city) => (
                 <Link
                   key={city.id}
                   href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-                  className="shrink-0 rounded-full border-2 border-transparent bg-white/60 backdrop-blur-md px-6 py-2.5 text-[14px] font-bold text-slate-700 shadow-sm ring-1 ring-slate-200/50 transition-all duration-300 hover:bg-white hover:text-primary-600 hover:shadow-md hover:ring-primary-500/50 active:scale-95"
+                  className="shrink-0 rounded-full border border-slate-300 bg-white px-7 py-3 text-[15px] font-bold text-slate-800 shadow transition-all duration-300 hover:border-slate-400 hover:text-primary-600 hover:shadow-md active:scale-[0.98]"
                 >
-                  {city.name}
+                  <span className="capitalize">{city.name}</span>
                 </Link>
               ))}
             </div>

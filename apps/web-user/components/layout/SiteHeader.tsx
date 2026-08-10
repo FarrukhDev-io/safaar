@@ -4,9 +4,8 @@ import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import { logoutAction } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/Button";
-import { buttonVariants, sizeClasses, roundedClasses, baseButtonClasses } from "@/components/ui/button-variants";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/cn";
-import styles from "@/components/ui/iridescent-button.module.css";
 import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
@@ -43,27 +42,25 @@ function AuthButtons({
     );
   }
 
-  const baseAuthClasses = cn(
-    baseButtonClasses,
-    sizeClasses.md,
-    roundedClasses.full,
-    "transition-colors",
-    styles.iridescent,
-    sizeClass
-  );
-
-  const loginClasses = cn(baseAuthClasses, "text-black hover:text-black");
-  const registerClasses = cn(baseAuthClasses, styles.brandPrimary);
+  const loginClasses = buttonVariants({ 
+    variant: "secondary", 
+    rounded: "full", 
+    className: cn(sizeClass, "!h-10 min-h-[40px] px-4 text-[15px] font-bold") 
+  });
+  
+  const registerClasses = buttonVariants({ 
+    variant: "primary", 
+    rounded: "full", 
+    className: cn(sizeClass, "!h-10 min-h-[40px] px-4 text-[15px] font-bold") 
+  });
 
   return (
     <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
       <Link href={`${base}/login`} className={loginClasses}>
         {dict.actions.login}
-        <span className={styles.dropShadow} />
       </Link>
       <Link href={`${base}/register`} className={registerClasses}>
         {dict.actions.register}
-        <span className={styles.dropShadow} />
       </Link>
     </div>
   );

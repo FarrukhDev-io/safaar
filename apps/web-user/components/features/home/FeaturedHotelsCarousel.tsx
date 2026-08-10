@@ -22,7 +22,7 @@ export function FeaturedHotelsCarousel({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  const cards = hotels.slice(0, 4);
+  const cards = hotels;
 
   const updateScrollButtons = useCallback(() => {
     const el = ref.current;

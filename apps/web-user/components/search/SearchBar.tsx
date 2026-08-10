@@ -85,13 +85,13 @@ export function SearchBar({
     <div className="mx-auto w-full max-w-5xl">
       <form
         onSubmit={handleSubmit}
-        className="relative flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-xl shadow-slate-200/40 transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-full md:p-2 sm:p-4"
+        className="relative flex flex-col gap-3 rounded-3xl border border-slate-300 bg-white p-3.5 shadow-xl shadow-slate-300/40 transition-all duration-300 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-full md:p-2 sm:p-4"
       >
         {/* 1. Shahar / Destinatsiya */}
         <div className={fieldWrapperClass}>
-          <MapPin className="h-5 w-5 shrink-0 text-slate-400 group-hover:text-primary-500 transition-colors" aria-hidden />
+          <MapPin className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
               {dict.city}
             </span>
             <CityPicker
@@ -105,42 +105,46 @@ export function SearchBar({
 
         <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
-        {/* 2. Sanalar (Kirish va Chiqish) */}
+        {/* 2. Kirish sanasi */}
         <div className={fieldWrapperClass}>
-          <Calendar className="h-5 w-5 shrink-0 text-slate-400 group-hover:text-primary-500 transition-colors" aria-hidden />
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <div className="min-w-0 flex-1">
-              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                {dict.checkIn}
-              </span>
-              <DatePicker
-                locale={locale}
-                label=""
-                value={checkIn}
-                min={today}
-                icon={null}
-                compact
-                onChange={(iso) => {
-                  setCheckIn(iso);
-                  if (checkOut && iso > checkOut) setCheckOut("");
-                }}
-              />
-            </div>
-            <span className="text-xs font-bold text-slate-300">—</span>
-            <div className="min-w-0 flex-1">
-              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                {dict.checkOut}
-              </span>
-              <DatePicker
-                locale={locale}
-                label=""
-                value={checkOut}
-                min={checkIn || today}
-                icon={null}
-                compact
-                onChange={setCheckOut}
-              />
-            </div>
+          <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
+              {dict.checkIn}
+            </span>
+            <DatePicker
+              locale={locale}
+              label=""
+              value={checkIn}
+              min={today}
+              icon={null}
+              compact
+              onChange={(iso) => {
+                setCheckIn(iso);
+                if (checkOut && iso > checkOut) setCheckOut("");
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
+
+        {/* 3. Chiqish sanasi */}
+        <div className={fieldWrapperClass}>
+          <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
+              {dict.checkOut}
+            </span>
+            <DatePicker
+              locale={locale}
+              label=""
+              value={checkOut}
+              min={checkIn || today}
+              icon={null}
+              compact
+              onChange={setCheckOut}
+            />
           </div>
         </div>
 
@@ -149,9 +153,9 @@ export function SearchBar({
         {/* 3. Mehmonlar soni */}
         <div className={fieldWrapperClass}>
           <div className="flex w-full items-center gap-3">
-            <Users className="h-5 w-5 shrink-0 text-slate-400 group-hover:text-primary-500 transition-colors" aria-hidden />
+            <Users className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
             <div className="flex-1">
-              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                 {dict.guests}
               </span>
               <GuestPicker value={guests} onChange={setGuests} />
@@ -165,6 +169,7 @@ export function SearchBar({
             type="submit"
             variant="primary"
             size="lg"
+            rounded="full"
             className="w-full md:w-auto uppercase tracking-wide px-8 h-12 md:h-14"
           >
             <Search className="h-5 w-5 stroke-[2.5]" aria-hidden />
