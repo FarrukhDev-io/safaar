@@ -155,3 +155,98 @@ Javob: `{ "disabled": true, "sessions_revoked": true }`
 | `/v1/auth/admin/2fa/disable` | POST | Ha (login token) | 2FA'ni o'chirish (barcha sessiyalarni bekor qiladi) |
 
 Savol chiqsa yozing — rahmat!
+
+---
+---
+
+# Qo'shimcha vazifa: Admin va Partner panellarda backendda bor, frontendda yo'q funksiyalar
+
+Backend va frontend to'liq audit qilindi. Quyidagilar — backend tomonda TO'LIQ ishlab chiqilgan va ishlaydigan, lekin frontendda hech qanday ekrani/tugmasi yo'q funksiyalar. Deyarli hech qayerda mock/soxta ma'lumot bilan ishlash holati topilmadi — muammo har doim UI'ning umuman yo'qligida.
+
+Har bir band uchun: qaysi endpoint(lar), backendda qayerda (`fayl:qator`), va nima qilishi kerakligi ko'rsatilgan.
+
+## A) Admin panel (`apps/web-admin`)
+
+### A1. Admin xodimlar va ruxsatlar boshqaruvi — butunlay yo'q
+- `GET/POST /v1/admin/admin-users`, `PATCH /v1/admin/admin-users/:id`, `PATCH /v1/admin/admin-users/:id/status`, `POST /v1/admin/admin-users/:id/reset-2fa` — `admin.controller.ts:656-689`
+- `GET /v1/admin/roles`, `PATCH /v1/admin/roles/:id/permissions` — `admin.controller.ts:691-703`
+- Kerak: boshqa admin/moderator akkauntlarni yaratish, ro'yxatini ko'rish, holatini o'zgartirish, huquqlarini (rol) tahrirlash, kerak bo'lsa 2FA'sini reset qilish uchun sahifa.
+
+### A2. Bildirishnoma/broadcast yuborish — butunlay yo'q
+- `POST /v1/admin/notifications/broadcast`, `GET /v1/admin/notifications/broadcasts`, `GET /v1/admin/notifications/broadcasts/:id`, `POST /v1/admin/notifications/broadcasts/:id/:action` — `admin.controller.ts:632-654`
+- Kerak: barcha foydalanuvchilarga (yoki segmentga) push/in-app xabar yozib yuborish, yuborilgan xabarlar tarixini ko'rish ekrani.
+
+### A3. To'lovlar va qaytarishlar (refund) — butunlay yo'q
+- `GET /v1/admin/payments`, `GET /v1/admin/payments/:id`, `POST /v1/admin/payments/:id/reconcile` — `admin.controller.ts:323-337`
+- `GET /v1/admin/refunds`, `GET /v1/admin/refunds/:id`, `POST /v1/admin/refunds/:id/approve|reject|retry` — `admin.controller.ts:339-365`
+- Kerak: to'lovlar ro'yxati/detali, refund navbatini ko'rish va tasdiqlash/rad etish/qayta urinish tugmalari.
+
+### A4. Moliya bo'limi — chuqurroq funksiyalar ulanmagan
+- `GET /v1/admin/finance/overview`, `GET /v1/admin/finance/revenue-chart` — `admin.controller.ts:367-374` (hozir `finance/overview/page.tsx` bu o'rniga umumiy dashboard statistikasidan foydalanadi — to'g'ridan-to'g'ri shu endpointlarga o'tkazish kerak)
+- `GET /v1/admin/finance/provider-reconciliation` — `admin.controller.ts:382-385` (to'lov provayderi bilan solishtirish hisoboti — UI yo'q)
+- `POST /v1/admin/finance/export`, `POST /v1/admin/finance/tax-report-export` — `admin.controller.ts:387-396` (`finance/reports/page.tsx` hozir faqat client-side Excel export qiladi, real backend export'ga ulanmagan)
+- `GET /v1/admin/finance/documents`, `POST /v1/admin/finance/documents/:id/regenerate` — `admin.controller.ts:398-406` (invoys/hujjat generatsiyasi — UI yo'q)
+- `POST /v1/admin/withdrawals/:id/mark-paid` — `admin.controller.ts:430-434` (`finance/withdrawals` sahifasida faqat approve/reject bor, "to'landi" deb belgilash tugmasi yo'q)
+
+### A5. Hamkor moliyaviy balansi (ledger) — yo'q
+- `GET /v1/admin/partners/:id/ledger`, `POST /v1/admin/partners/:id/adjustment` — `admin.controller.ts:199-212`
+- Kerak: hamkor detali sahifasida balans tarixi (ledger) tab va qo'lda tuzatish (adjustment) formasi.
+
+### A6. Hamkor arizalari — qo'shimcha amallar yo'q
+- `POST /v1/admin/partners/:id/request-information` — `admin.controller.ts:155-168` ("qo'shimcha ma'lumot so'rash" tugmasi yo'q)
+- `POST /v1/admin/partners/export` — `admin.controller.ts:214-217` (arizalar ro'yxatini export qilish tugmasi yo'q)
+
+### A7. Boshqa butunlay yo'q sahifalar
+- `GET /v1/admin/trips`, `GET /v1/admin/trips/:id`, `POST /v1/admin/trips/:id/cancel` — `admin.controller.ts:267-280` (tur/sayohat bronlarini boshqarish — hech qanday ekran yo'q)
+- `GET /v1/admin/bus-companies`, `PATCH /v1/admin/bus-companies/:id/status` — `admin.controller.ts:282-293` (avtobus operatorlarini tasdiqlash/boshqarish — bron sahifasi bor, lekin operator boshqaruvi yo'q)
+- `PATCH /v1/admin/hotels/:id/visibility` — `admin.controller.ts:253-265` (e'lonni rad etmasdan vaqtincha yashirish — hozir faqat publish/reject bor)
+- `GET /v1/admin/promos/:id/stats` — `admin.controller.ts:543-546` (promo-kod ishlatilish statistikasi — UI yo'q)
+- `GET /v1/admin/analytics/dashboard` (`SUPER_ADMIN` only) — `analytics.controller.ts:43-53` (alohida analitika sahifasi umuman yo'q)
+- `PATCH /v1/admin/settings/providers/:provider`, `POST /v1/admin/settings/providers/:provider/test` — `admin.controller.ts:725-737` (Click/Payme/Uzcard/Humo kalitlarini sozlash va ulanishni tekshirish — sozlamalar sahifasida provayderlar tab'i yo'q)
+- `GET /v1/admin/users/:id/audit`, `POST /v1/admin/users/:id/message`, `POST /v1/admin/users/message`, `POST /v1/admin/users/export` — `admin.controller.ts:89-119` (foydalanuvchi audit-tarixi, unga xabar yuborish, ommaviy xabar/eksport — foydalanuvchi detali sahifasida yo'q)
+- `POST /v1/admin/support/tickets/:id/:action` — `admin.controller.ts:616-625` (status/xabardan tashqari boshqa ticket amallari — ishlatilmagan)
+
+## B) Partner panel (`apps/web-partner`)
+
+Bronlar, xonalar/joylar CRUD, rasm yuklash, walk-in bron yaratish, check-in/xona biriktirish/checkout, support ticketlari — bularning barchasi to'liq ishlaydi, tegilmang.
+
+### B1. Jamoa/xodimlar boshqaruvi — butunlay yo'q
+- `GET/POST /v1/partner/team`, `PATCH/DELETE /v1/partner/team/:id` — `partners.controller.ts:43-71`
+- Kerak: `settings` bo'limida "Jamoa" tab'i — xodim taklif qilish, rolini belgilash, o'chirish.
+
+### B2. Hujjatlar/verifikatsiya — butunlay yo'q
+- `GET/POST /v1/partner/documents` — `partners.controller.ts:73-84`
+- Kerak: litsenziya/hujjat yuklash va holatini ko'rish ekrani.
+
+### B3. Ariza holatini kuzatish/qayta topshirish — yo'q
+- `POST /v1/partner/application/submit`, `GET /v1/partner/application/status`, `POST /v1/partner/application/resubmit` — `partners.controller.ts:86-99`
+- Kerak: rad etilgan arizani tuzatib qayta yuborish imkoni (hozir faqat ro'yxatdan o'tishdagi bir martalik forma bor).
+
+### B4. Transport/avtobus biznes turi — butunlay yo'q (eng katta bo'shliq)
+- `GET/POST /v1/partner/vehicles`, `PATCH /v1/partner/vehicles/:id`, `POST /v1/partner/vehicles/:id/seat-layout` — `partners.controller.ts:394-577`
+- `GET/POST /v1/partner/routes`, `PATCH /v1/partner/routes/:id`
+- `GET/POST /v1/partner/trips`, `PATCH /v1/partner/trips/:id`, `POST /v1/partner/trips/:id/cancel`, `GET /v1/partner/trips/:id/seats`
+- Bron sub-amallari: `board`/`complete`, `cash-collected`/`cash-reversal`
+- Backend: `partners.service.ts:2132-2434, 3058-3095`
+- Kerak: ro'yxatdan o'tishda "bus" turi tanlash mumkin, lekin unga mos butun dashboard (transport vositalari, yo'nalishlar, reyslar, o'rindiq xaritasi, naqd pul hisoboti) yo'q — bu alohida katta bo'lim sifatida rejalashtirilishi kerak.
+
+### B5. Moliya/pul yechish — dashboard bor, asosiy vositalar yo'q
+- `GET /v1/partner/finance/overview|ledger|chart` — `partners.controller.ts:578-631`
+- `POST/GET /v1/partner/withdrawals` (pul yechish so'rovi)
+- `GET /v1/partner/finance/documents`, `GET /v1/partner/finance/documents/:id/download`
+- `POST /v1/partner/exports/finance`, `POST /v1/partner/exports/bookings`
+- Hozir: "Hisobotlar" sahifasi buning o'rniga bron ma'lumotlaridan o'zi client-side hisoblab chiqadi (`app/_lib/domain/reports.ts`). Hamkor pul yechish so'rovi yubora olmaydi, balans hisobotini yuklab ololmaydi — bu tezkor tuzatilishi kerak bo'lgan muhim bo'shliq.
+
+### B6. Dasturchi/API kirish — butunlay yo'q
+- `GET/POST /v1/partner/api-keys`, `DELETE /v1/partner/api-keys/:id`
+- `GET/POST /v1/partner/webhooks`, `PATCH/DELETE /v1/partner/webhooks/:id`, `POST /v1/partner/webhooks/:id/test`, `GET /v1/partner/webhooks/:id/deliveries`, `POST /v1/partner/webhooks/deliveries/:id/retry`
+- Backend: `partners.controller.ts:641-714`, `partners.service.ts:3286-3503`
+- Kerak: sozlamalarda "Dasturchi" bo'limi — API kalit yaratish/o'chirish, webhook manzillarini boshqarish va test qilish.
+
+### B7. Inventar/blackout kunlar — chetlab o'tilgan
+- `GET/PUT /v1/partner/hotels/:id/inventory`, `POST /v1/partner/hotels/:id/blackout-dates` — `partners.controller.ts:315-339`
+- Hozir: kalendar sahifasi xonalarni faqat client-side hisoblaydi (`app/(dashboard)/calendar/calendar-view.tsx`). Xonani ma'lum kunlarga "yopish" (blackout) imkoni yo'q.
+
+---
+
+Savol chiqsa yozing — rahmat!
