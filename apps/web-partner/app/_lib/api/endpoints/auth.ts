@@ -10,6 +10,13 @@ export interface PartnerEmailOtpRequestResponse {
   challenge_id: string;
   expires_in_seconds: number;
   resend_after_seconds: number;
+  /**
+   * Loyiha hali real email provayderga to'liq ulanmagan muhitlarda
+   * (`ENABLE_DEMO_AUTH=true`) backend kodni bu yerda ham qaytaradi —
+   * shunda tasdiqlash kodini haqiqiy emailga kirmasdan ko'rish mumkin.
+   * Productionda bu maydon hech qachon kelmaydi.
+   */
+  dev_code?: string;
 }
 
 export interface PartnerEmailOtpVerifyDto {

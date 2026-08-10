@@ -31,6 +31,7 @@ interface EmailChallenge {
   challengeId: string;
   partnerType?: string;
   accessStatus?: PartnerAccessStatus;
+  devCode?: string;
 }
 
 export function LoginForm() {
@@ -51,6 +52,7 @@ export function LoginForm() {
           challengeId: result.challengeId,
           partnerType: result.partnerType,
           accessStatus: result.accessStatus,
+          devCode: result.devCode,
         });
         form.setValue('email', result.email);
       } catch (error) {
@@ -134,6 +136,12 @@ export function LoginForm() {
           </p>
         )}
       </div>
+
+      {challenge?.devCode ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+          Dev kod: <strong className="tracking-[0.2em]">{challenge.devCode}</strong>
+        </p>
+      ) : null}
 
       {challenge ? (
         <div className="flex flex-col gap-1.5">

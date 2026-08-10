@@ -104,6 +104,7 @@ export function usePartnerEmailOtpRequest() {
         resendAfterSeconds: challenge.resend_after_seconds,
         partnerType: accessStatus.request?.type || 'hotel',
         accessStatus: accessStatus.status,
+        devCode: challenge.dev_code,
       };
     },
     onSuccess: () => {

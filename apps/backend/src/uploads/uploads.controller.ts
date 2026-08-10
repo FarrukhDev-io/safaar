@@ -18,6 +18,7 @@ import {
   UploadsService,
   type UploadedFile as UploadedFilePayload,
 } from './uploads.service';
+import { CreateMediaDto, PresignUploadDto } from './dto/upload.dto';
 
 @Controller('uploads')
 @UseGuards(RolesGuard)
@@ -31,7 +32,7 @@ export class UploadsController {
   @Roles(Role.USER, Role.PARTNER, Role.ADMIN, Role.SUPER_ADMIN)
   image(
     @CurrentActor() actor: RequestActor | undefined,
-    @Body() body: Record<string, unknown>,
+    @Body() body: CreateMediaDto,
     @UploadedFile() file?: UploadedFilePayload,
   ) {
     return this.uploadsService.create(actor, 'image', body, file);
@@ -41,7 +42,7 @@ export class UploadsController {
   @Roles(Role.PARTNER, Role.ADMIN, Role.SUPER_ADMIN)
   document(
     @CurrentActor() actor: RequestActor | undefined,
-    @Body() body: Record<string, unknown>,
+    @Body() body: CreateMediaDto,
   ) {
     return this.uploadsService.create(actor, 'document', body);
   }
@@ -50,7 +51,7 @@ export class UploadsController {
   @Roles(Role.USER, Role.PARTNER, Role.ADMIN, Role.SUPER_ADMIN)
   presign(
     @CurrentActor() actor: RequestActor | undefined,
-    @Body() body: Record<string, unknown>,
+    @Body() body: PresignUploadDto,
   ) {
     return this.uploadsService.presign(actor, body);
   }

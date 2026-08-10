@@ -61,6 +61,7 @@ export class WebhookDeliveryService {
       headers['X-Safaar-Signature'] = hmacSha256(body, globalSecret);
     }
 
+    let deliveryError: Error | undefined;
     try {
       const response = await fetch(delivery.url, {
         method: 'POST',
@@ -85,10 +86,22 @@ export class WebhookDeliveryService {
           response.status,
           truncatedBody,
         );
+        deliveryError = new Error(
+          `Webhook endpoint ${response.status} bilan javob berdi`,
+        );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.markResult(deliveryId, 'failed', null, message);
+      deliveryError = error instanceof Error ? error : new Error(message);
+    }
+
+    if (deliveryError) {
+      // Qayta uloqtiramiz — aks holda BullMQ bu job'ni "completed" deb
+      // hisoblaydi va attempts/backoff hech qachon ishga tushmaydi (C-4),
+      // holbuki webhook yetkazishning butun maqsadi — vaqtincha
+      // ishlamayotgan hamkor endpoint'iga avtomatik qayta urinishdir.
+      throw deliveryError;
     }
   }
 

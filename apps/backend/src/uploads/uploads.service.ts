@@ -23,6 +23,18 @@ import { dirname, join } from 'node:path';
 import type { RequestActor } from '../common/actor';
 import { PostgresService } from '../infrastructure/postgres.service';
 
+// `CreateMediaDto`/`PresignUploadDto` (controller'dan) va boshqa
+// xizmatlardan keladigan oddiy obyektlar (masalan hotel rasm yuklash
+// oqimi) — ikkalasi ham shu minimal maydonlar to'plamiga mos keladi.
+interface MediaInputFields {
+  url?: unknown;
+  mime_type?: unknown;
+  mimeType?: unknown;
+  size?: unknown;
+  type?: unknown;
+  filename?: unknown;
+}
+
 export interface UploadedFile {
   buffer: Buffer;
   originalname: string;
@@ -74,7 +86,7 @@ export class UploadsService implements OnModuleInit {
   async create(
     actor: RequestActor | undefined,
     type: 'image' | 'document',
-    body: Record<string, unknown>,
+    body: MediaInputFields,
     file?: UploadedFile,
   ) {
     const currentActor = this.requireActor(actor);
@@ -91,7 +103,7 @@ export class UploadsService implements OnModuleInit {
     ownerType: string,
     ownerId: string,
     type: 'image' | 'document',
-    body: Record<string, unknown>,
+    body: MediaInputFields,
     file: UploadedFile,
     options: StoreMediaOptions = {},
   ) {
@@ -100,7 +112,7 @@ export class UploadsService implements OnModuleInit {
 
   async presign(
     actor: RequestActor | undefined,
-    body: Record<string, unknown>,
+    body: MediaInputFields,
   ) {
     const currentActor = this.requireActor(actor);
     const type =
@@ -389,7 +401,7 @@ export class UploadsService implements OnModuleInit {
     ownerType: string,
     ownerId: string,
     type: 'image' | 'document',
-    body: Record<string, unknown>,
+    body: MediaInputFields,
     file?: UploadedFile,
     options: StoreMediaOptions = {},
   ) {

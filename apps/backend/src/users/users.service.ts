@@ -12,6 +12,7 @@ import {
 } from '../common/pagination';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
+import type { SetAvatarDto, UpdateProfileDto } from './dto/user.dto';
 
 type UserRow = Record<string, unknown>;
 
@@ -58,7 +59,7 @@ export class UsersService {
 
   async updateProfile(
     actor: RequestActor | undefined,
-    body: Record<string, unknown>,
+    body: UpdateProfileDto,
   ) {
     const currentActor = this.requireActor(actor);
     const sets: string[] = [];
@@ -99,10 +100,7 @@ export class UsersService {
     return this.publicUser(user);
   }
 
-  async setAvatar(
-    actor: RequestActor | undefined,
-    body: Record<string, unknown>,
-  ) {
+  async setAvatar(actor: RequestActor | undefined, body: SetAvatarDto) {
     const currentActor = this.requireActor(actor);
     const mediaId = String(body.media_id ?? body.mediaId ?? '').trim();
     if (!mediaId) {
@@ -320,10 +318,17 @@ export class UsersService {
       created_at: now,
       updated_at: now,
     };
-    await this.pg.query(
+    // Bir xil foydalanuvchi uchun parallel/takroriy so'rovlar cheksiz
+    // "queued" duplikat qator yaratavermasligi uchun — DB'dagi qisman
+    // UNIQUE indeks (faqat queued/processing statusiga) ON CONFLICT
+    // orqali hurmat qilinadi.
+    const inserted = await this.pg.query(
       `INSERT INTO export_jobs
          (id, owner_type, owner_id, type, format, status, created_at, updated_at)
-       VALUES ($1, 'user', $2, $3, $4, $5, $6, $7)`,
+       VALUES ($1, 'user', $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (owner_type, owner_id, type, format) WHERE status IN ('queued', 'processing')
+       DO NOTHING
+       RETURNING id`,
       [
         job.id,
         job.owner_id,
@@ -334,6 +339,17 @@ export class UsersService {
         job.updated_at,
       ],
     );
+    if (inserted.length === 0) {
+      const [existing] = await this.pg.query(
+        `SELECT * FROM export_jobs
+         WHERE owner_type = 'user' AND owner_id = $1 AND type = $2 AND format = $3
+           AND status IN ('queued', 'processing')
+         ORDER BY created_at DESC LIMIT 1`,
+        [job.owner_id, job.type, job.format],
+      );
+      return existing;
+    }
+
     await this.jobs.add(
       'user-data-export',
       { export_id: job.id, user_id: currentActor.id },
