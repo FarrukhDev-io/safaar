@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PostgresService } from '../infrastructure/postgres.service';
+import type { ValidatePromoDto } from './dto/promo.dto';
 
 interface PromoRow {
   id: string;
@@ -35,7 +36,7 @@ export class PromosService {
   }
 
   /** `POST /promos/validate` — checkout'da promo-kodni tekshiradi. */
-  async validate(body: Record<string, unknown>) {
+  async validate(body: ValidatePromoDto) {
     const code = String(body.code ?? '')
       .trim()
       .toUpperCase();
@@ -60,6 +61,43 @@ export class PromosService {
       discount_type: valid ? promo.discount_type : null,
       discount_value: valid ? Number(promo.discount_value) : 0,
     };
+  }
+
+  /**
+   * Promo-kodni "sarflaydi" — used_count'ni atomik (bir SQL so'rovda,
+   * limitni tekshirib) oshiradi. Bron/checkout oqimi promo-kodni haqiqatan
+   * qo'llagan paytda shu metod chaqirilishi kerak (validate() faqat
+   * o'qish uchun — u hech narsani oshirmaydi, aks holda promo shunchaki
+   * tekshirilganda ham "ishlatilgan" bo'lib qolar edi).
+   *
+   * Limit tugagan yoki promo topilmasa `false` qaytaradi — chaqiruvchi
+   * shu holatda bron yaratishni davom ettirmasligi kerak.
+   */
+  async redeem(code: string): Promise<boolean> {
+    const slug = String(code ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+    if (!slug) {
+      return false;
+    }
+
+    const rows = await this.rows(
+      `update cms_entries
+       set metadata = jsonb_set(
+         metadata,
+         '{usedCount}',
+         to_jsonb(coalesce((metadata ->> 'usedCount')::int, 0) + 1)
+       )
+       where type = 'promo' and status = 'published' and slug = $1
+         and coalesce(published_at, created_at + interval '30 days') > now()
+         and coalesce((metadata ->> 'usedCount')::int, 0)
+             < coalesce((metadata ->> 'usageLimit')::int, 0)
+       returning id::text`,
+      [slug],
+    );
+
+    return rows.length > 0;
   }
 
   /** `GET /promos` — hozir amal qiladigan promo-kodlar ro'yxati (ommaviy). */

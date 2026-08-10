@@ -14,12 +14,35 @@ interface ErrorBody {
   fields?: unknown;
 }
 
+// Postgres SQLSTATE "22" sinfi — "Data Exception" (masalan 22P02 = noto'g'ri
+// UUID/matn formati, 22007 = noto'g'ri sana formati) — bular DOIM mijoz
+// yuborgan noto'g'ri qiymatdan kelib chiqadi, hech qachon server xatosi
+// emas. Ilgari bular ParseUUIDPipe kabi validatsiya bo'lmagani sababli
+// to'g'ridan-to'g'ri SQL qatlamigacha yetib borib, umumiy 500 sifatida
+// chiqar edi — endi markazlashtirilgan holda 400'ga aylantiriladi.
+function isPostgresDataException(exception: unknown): boolean {
+  const code =
+    typeof exception === 'object' && exception !== null && 'code' in exception
+      ? String((exception as { code?: unknown }).code)
+      : undefined;
+  return Boolean(code && code.startsWith('22'));
+}
+
 function normalizeError(exception: unknown): {
   status: number;
   code: string;
   message: string;
   fields: unknown;
 } {
+  if (isPostgresDataException(exception)) {
+    return {
+      status: HttpStatus.BAD_REQUEST,
+      code: 'INVALID_INPUT',
+      message: "So'rovdagi qiymatlardan biri noto'g'ri formatda",
+      fields: null,
+    };
+  }
+
   if (exception instanceof HttpException) {
     const status = exception.getStatus();
     const response = exception.getResponse();

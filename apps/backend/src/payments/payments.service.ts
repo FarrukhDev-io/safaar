@@ -9,7 +9,10 @@ import {
 import { randomUUID } from 'node:crypto';
 import { Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
-import { PostgresService } from '../infrastructure/postgres.service';
+import {
+  PostgresService,
+  type PostgresTransaction,
+} from '../infrastructure/postgres.service';
 import {
   hmacSha256,
   paymentWebhookSecret,
@@ -38,6 +41,7 @@ export interface PaymentRow {
 }
 
 interface PaymentEventRow {
+  id: string;
   payment_id?: string | null;
   processed_at?: string;
 }
@@ -108,89 +112,113 @@ export class PaymentsService {
 
     const payloadHash = hmacSha256(this.stableStringify(body), secret);
 
-    const [existingEvent] = await this.pg.query<PaymentEventRow>(
-      'SELECT * FROM payment_events WHERE event_key = $1',
-      [eventKey],
-    );
-    if (existingEvent) {
-      const payment = existingEvent.payment_id
-        ? (
-            await this.pg.query<PaymentRow>(
-              'SELECT * FROM payments WHERE id = $1',
-              [existingEvent.payment_id],
-            )
-          )[0]
-        : undefined;
+    return this.pg.transaction(async (tx) => {
+      // event_key ustidagi UNIQUE constraint + ON CONFLICT DO NOTHING —
+      // bir xil webhook parallel/qayta kelsa ham faqat bitta so'rov uni
+      // "yutib oladi", qolganlari 500 bermasdan duplicate:true qaytaradi.
+      const claimed = await tx.query<PaymentEventRow>(
+        `INSERT INTO payment_events (id, provider, event_type, event_key, payload, payload_hash, processed_at)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+         ON CONFLICT (event_key) DO NOTHING
+         RETURNING *`,
+        [
+          randomUUID(),
+          provider,
+          event,
+          eventKey,
+          JSON.stringify(body),
+          payloadHash,
+          new Date().toISOString(),
+        ],
+      );
+
+      if (claimed.length === 0) {
+        const [existingEvent] = await tx.query<PaymentEventRow>(
+          'SELECT * FROM payment_events WHERE event_key = $1',
+          [eventKey],
+        );
+        const payment = existingEvent?.payment_id
+          ? (
+              await tx.query<PaymentRow>(
+                'SELECT * FROM payments WHERE id = $1',
+                [existingEvent.payment_id],
+              )
+            )[0]
+          : undefined;
+        return {
+          provider,
+          event,
+          accepted: true,
+          duplicate: true,
+          payment,
+          processed_at: existingEvent?.processed_at,
+        };
+      }
+
+      const eventRow = claimed[0]!;
+
+      const bookingId = String(
+        body.booking_id ?? body.bookingId ?? body.account ?? '',
+      );
+      const paymentRows = bookingId
+        ? await tx.query<PaymentRow>(
+            'SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+            [bookingId],
+          )
+        : [];
+      const [payment] = paymentRows;
+
+      if (!payment) {
+        throw new NotFoundException({
+          code: 'PAYMENT_NOT_FOUND',
+          message: 'Webhook uchun payment topilmadi',
+        });
+      }
+
+      this.assertPaymentMatchesPayload(payment, body);
+
+      const now = new Date().toISOString();
+      const newStatus = event === 'prepare' ? 'processing' : 'paid';
+      const providerReference = String(
+        body.transaction_id ?? body.id ?? eventKey,
+      );
+
+      await tx.query(
+        'UPDATE payments SET status = $1, provider_reference = $2, updated_at = $3 WHERE id = $4',
+        [newStatus, providerReference, now, payment.id],
+      );
+
+      await tx.query(
+        'UPDATE payment_events SET payment_id = $1 WHERE id = $2',
+        [payment.id, eventRow.id],
+      );
+
+      if (newStatus === 'paid') {
+        // To'lov muvaffaqiyatli bo'lgach, bron endi hold-expiry cron
+        // tomonidan avtomatik "expired"ga o'tkazilmasligi kerak — aks
+        // holda mijoz to'lagan bron soat/kunlik joyni yo'qotib qo'yishi
+        // mumkin (bus o'rindig'i bo'lsa, boshqasiga qayta sotiladi).
+        await tx.query(
+          `UPDATE bookings SET expires_at = NULL, updated_at = $2
+           WHERE id = $1 AND status IN ('pending', 'awaiting_payment')`,
+          [payment.booking_id, now],
+        );
+      }
+
       return {
         provider,
         event,
         accepted: true,
-        duplicate: true,
-        payment,
-        processed_at: existingEvent.processed_at,
+        duplicate: false,
+        payment: {
+          ...payment,
+          status: newStatus,
+          provider_reference: providerReference,
+          updated_at: now,
+        },
+        processed_at: eventRow.processed_at,
       };
-    }
-
-    const bookingId = String(
-      body.booking_id ?? body.bookingId ?? body.account ?? '',
-    );
-    const paymentRows = bookingId
-      ? await this.pg.query<PaymentRow>(
-          'SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1',
-          [bookingId],
-        )
-      : [];
-    const [payment] = paymentRows;
-
-    if (!payment) {
-      throw new NotFoundException({
-        code: 'PAYMENT_NOT_FOUND',
-        message: 'Webhook uchun payment topilmadi',
-      });
-    }
-
-    this.assertPaymentMatchesPayload(payment, body);
-
-    const now = new Date().toISOString();
-    const newStatus = event === 'prepare' ? 'processing' : 'paid';
-    const providerReference = String(
-      body.transaction_id ?? body.id ?? eventKey,
-    );
-
-    await this.pg.query(
-      'UPDATE payments SET status = $1, provider_reference = $2, updated_at = $3 WHERE id = $4',
-      [newStatus, providerReference, now, payment.id],
-    );
-
-    const processedAt = new Date().toISOString();
-    await this.pg.query(
-      `INSERT INTO payment_events (id, provider, event_type, event_key, payload, payload_hash, payment_id, processed_at)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)`,
-      [
-        randomUUID(),
-        provider,
-        event,
-        eventKey,
-        JSON.stringify(body),
-        payloadHash,
-        payment.id,
-        processedAt,
-      ],
-    );
-
-    return {
-      provider,
-      event,
-      accepted: true,
-      duplicate: false,
-      payment: {
-        ...payment,
-        status: newStatus,
-        provider_reference: providerReference,
-        updated_at: now,
-      },
-      processed_at: processedAt,
-    };
+    });
   }
 
   private async assertBookingVisible(

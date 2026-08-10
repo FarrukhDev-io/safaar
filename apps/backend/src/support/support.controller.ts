@@ -4,6 +4,7 @@ import { CurrentActor, type RequestActor } from '../common/actor';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
 import { SupportService } from './support.service';
+import { CreateSupportMessageDto, CreateSupportTicketDto } from './dto/support.dto';
 
 @Controller('support/tickets')
 @UseGuards(RolesGuard)
@@ -14,7 +15,7 @@ export class SupportController {
   @Roles(Role.USER, Role.PARTNER)
   create(
     @CurrentActor() actor: RequestActor | undefined,
-    @Body() body: Record<string, unknown>,
+    @Body() body: CreateSupportTicketDto,
   ) {
     return this.supportService.create(actor, body);
   }
@@ -39,7 +40,7 @@ export class SupportController {
   message(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
+    @Body() body: CreateSupportMessageDto,
   ) {
     return this.supportService.message(actor, id, body);
   }

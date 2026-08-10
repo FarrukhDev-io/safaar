@@ -138,6 +138,7 @@ model User {
   emailVerifiedAt   DateTime?     @map("email_verified_at") @db.Timestamptz
   lastLoginAt       DateTime?     @map("last_login_at") @db.Timestamptz
   avatarMediaId     String?       @map("avatar_media_id") @db.Uuid
+  bonusBalance      Decimal?      @default(0) @map("bonus_balance") @db.Decimal
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz

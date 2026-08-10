@@ -102,6 +102,10 @@ export class BookingsService {
            WHERE status IN ($3, $4)
              AND expires_at IS NOT NULL
              AND expires_at < $2
+             AND NOT EXISTS (
+               SELECT 1 FROM payments p
+               WHERE p.booking_id = bookings.id AND p.status = 'paid'
+             )
            RETURNING *`,
           [BS.EXPIRED, now, BS.PENDING, BS.AWAITING_PAYMENT],
         );

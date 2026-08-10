@@ -403,3 +403,185 @@ describe('PartnersService frontend action endpoints', () => {
     });
   });
 });
+
+describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () => {
+  let service: PartnersService;
+  let pg: { query: jest.Mock; transaction: jest.Mock };
+  const actor: RequestActor = {
+    id: 'partner-user-1',
+    actorType: 'partner',
+    role: Role.PARTNER,
+    roles: [Role.PARTNER],
+    organizationId: 'org-1',
+    sessionId: 'session-1',
+  };
+
+  beforeEach(() => {
+    pg = { query: jest.fn(), transaction: jest.fn() };
+    pg.transaction.mockImplementation(
+      (operation: (tx: unknown) => unknown) =>
+        operation({ query: pg.query }),
+    );
+    service = new PartnersService(
+      pg as unknown as PostgresService,
+      { add: jest.fn() } as unknown as JobQueueService,
+    );
+  });
+
+  function mockBalanceQueries(grossAmount: number, alreadyCommitted: number) {
+    pg.query
+      .mockResolvedValueOnce([{ id: 'org-1' }]) // SELECT ... FOR UPDATE lock
+      .mockResolvedValueOnce([{ sum: String(grossAmount) }]) // gross bookings sum
+      .mockResolvedValueOnce([{ sum: String(alreadyCommitted) }]); // already requested/approved/paid
+  }
+
+  it('rejects a withdrawal that exceeds the available balance', async () => {
+    // gross=1,000,000 -> available = 700,000; nothing committed yet; asking for 700,001.
+    mockBalanceQueries(1_000_000, 0);
+
+    await expect(
+      service.withdrawal(actor, { amount: 700_001 }),
+    ).rejects.toMatchObject({
+      response: { code: 'WITHDRAWAL_EXCEEDS_BALANCE' },
+    });
+  });
+
+  it('rejects a second withdrawal once a prior one already committed the remaining balance', async () => {
+    // available = 700,000; 700,000 already requested; nothing left for a new 1 UZS request.
+    mockBalanceQueries(1_000_000, 700_000);
+
+    await expect(
+      service.withdrawal(actor, { amount: 1 }),
+    ).rejects.toMatchObject({
+      response: { code: 'WITHDRAWAL_EXCEEDS_BALANCE' },
+    });
+  });
+
+  it('allows a withdrawal that fits within the available balance', async () => {
+    mockBalanceQueries(1_000_000, 0);
+    pg.query.mockResolvedValueOnce([
+      { id: 'wr-1', amount: 700_000, status: 'requested' },
+    ]);
+
+    const result = await service.withdrawal(actor, { amount: 700_000 });
+    expect(result).toMatchObject({ id: 'wr-1', status: 'requested' });
+  });
+
+  it('locks the organization row before computing balance (serializes concurrent requests)', async () => {
+    mockBalanceQueries(1_000_000, 0);
+    pg.query.mockResolvedValueOnce([{ id: 'wr-1' }]);
+
+    await service.withdrawal(actor, { amount: 100 });
+
+    expect(pg.query.mock.calls[0]?.[0]).toContain('FOR UPDATE');
+  });
+});
+
+describe('PartnersService.createExport (regression: M-2 duplicate in-flight export rows)', () => {
+  let service: PartnersService;
+  let pg: { query: jest.Mock };
+  let jobs: { add: jest.Mock };
+  const actor: RequestActor = {
+    id: 'partner-user-1',
+    actorType: 'partner',
+    role: Role.PARTNER,
+    roles: [Role.PARTNER],
+    organizationId: 'org-1',
+    sessionId: 'session-1',
+  };
+
+  beforeEach(() => {
+    pg = { query: jest.fn() };
+    jobs = { add: jest.fn().mockResolvedValue(undefined) };
+    service = new PartnersService(
+      pg as unknown as PostgresService,
+      jobs as unknown as JobQueueService,
+    );
+  });
+
+  it('enqueues a job and returns the new row when no export is already in flight', async () => {
+    pg.query
+      .mockResolvedValueOnce([{ id: 'job-1' }]) // INSERT ... ON CONFLICT ... RETURNING id
+      .mockResolvedValueOnce([{ id: 'job-1', status: 'queued' }]); // SELECT * WHERE id
+
+    const result = await service.createExport(actor, 'finance', {
+      format: 'csv',
+    });
+
+    expect(jobs.add).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ id: 'job-1', status: 'queued' });
+  });
+
+  it('does not enqueue a second job and returns the existing row when one is already queued', async () => {
+    pg.query
+      .mockResolvedValueOnce([]) // INSERT ... ON CONFLICT DO NOTHING -> lost the race, 0 rows
+      .mockResolvedValueOnce([{ id: 'job-existing', status: 'queued' }]); // SELECT existing in-flight row
+
+    const result = await service.createExport(actor, 'finance', {
+      format: 'csv',
+    });
+
+    expect(jobs.add).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ id: 'job-existing', status: 'queued' });
+  });
+
+  it('the INSERT relies on the DB partial-unique-index conflict target, not a separate check-then-write', async () => {
+    pg.query
+      .mockResolvedValueOnce([{ id: 'job-1' }])
+      .mockResolvedValueOnce([{ id: 'job-1' }]);
+
+    await service.createExport(actor, 'finance', { format: 'csv' });
+
+    const [sql] = pg.query.mock.calls[0]!;
+    expect(String(sql)).toContain('ON CONFLICT');
+    expect(String(sql)).toContain("status IN ('queued', 'processing')");
+  });
+});
+
+describe('PartnersService.deleteTeamMember (regression: L-1 false success on cross-org/missing id)', () => {
+  let service: PartnersService;
+  let pg: { query: jest.Mock };
+  const actor: RequestActor = {
+    id: 'partner-user-1',
+    actorType: 'partner',
+    role: Role.PARTNER,
+    roles: [Role.PARTNER],
+    organizationId: 'org-1',
+    sessionId: 'session-1',
+  };
+
+  beforeEach(() => {
+    pg = { query: jest.fn() };
+    service = new PartnersService(
+      pg as unknown as PostgresService,
+      { add: jest.fn() } as unknown as JobQueueService,
+    );
+  });
+
+  it('404s instead of reporting fake success for a member outside the caller org', async () => {
+    pg.query.mockResolvedValueOnce([]); // WHERE organization_id filtered it out
+
+    await expect(
+      service.deleteTeamMember(actor, 'other-org-member-id'),
+    ).rejects.toMatchObject({
+      status: 404,
+      response: expect.objectContaining({ code: 'TEAM_MEMBER_NOT_FOUND' }),
+    });
+  });
+
+  it('404s for a nonexistent id', async () => {
+    pg.query.mockResolvedValueOnce([]);
+
+    await expect(
+      service.deleteTeamMember(actor, 'does-not-exist'),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('reports success when a real, in-org member is deleted', async () => {
+    pg.query.mockResolvedValueOnce([{ id: 'member-1' }]);
+
+    const result = await service.deleteTeamMember(actor, 'member-1');
+
+    expect(result).toEqual({ id: 'member-1', deleted: true });
+  });
+});

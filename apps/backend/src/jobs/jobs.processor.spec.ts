@@ -79,11 +79,13 @@ describe('JobsProcessor', () => {
       );
     });
 
-    it('marks the export failed (not stuck) when generation throws', async () => {
+    it('marks the export failed AND rethrows so BullMQ retry/backoff engages (regression: C-4)', async () => {
       pg.query.mockResolvedValueOnce([exportJobRow]).mockResolvedValueOnce([]);
       exportData.resolve.mockRejectedValueOnce(new Error('DB kutilmagan xato'));
 
-      await processor.process(job('user-data-export', { export_id: 'export-1' }));
+      await expect(
+        processor.process(job('user-data-export', { export_id: 'export-1' })),
+      ).rejects.toThrow('DB kutilmagan xato');
 
       expect(uploads.uploadDocument).not.toHaveBeenCalled();
       const updateCall = pg.query.mock.calls[1]!;

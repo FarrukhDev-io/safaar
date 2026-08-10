@@ -1,5 +1,6 @@
 import { Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
+import { authSessionStore } from '../auth/session-store';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import { PostgresService } from '../infrastructure/postgres.service';
@@ -490,5 +491,130 @@ describe('AdminService frontend action endpoints', () => {
       expect.stringContaining('type = any($3::text[])'),
       [pageId, 'archived', ['page']],
     );
+  });
+
+  it('creates an admin user without a DB NOT NULL violation (regression: H-1)', async () => {
+    pgMock.query.mockResolvedValueOnce([
+      {
+        id: '00000000-0000-0000-0000-0000000000aa',
+        email: 'new-admin@safaar.uz',
+        full_name: 'New Admin',
+        role: 'moderator',
+        status: 'active',
+        created_at: '2026-08-10T00:00:00.000Z',
+        updated_at: '2026-08-10T00:00:00.000Z',
+      },
+    ]);
+
+    const result = await service.adminUserCreate({
+      email: 'new-admin@safaar.uz',
+      full_name: 'New Admin',
+      role: 'moderator',
+    });
+
+    const [sql, params] = pgMock.query.mock.calls[0]!;
+    expect(String(sql)).toContain('gen_random_uuid()');
+    expect(String(sql)).toContain('password_hash');
+    const [email, passwordHash, fullName, role, updatedAt] = params as string[];
+    expect(email).toBe('new-admin@safaar.uz');
+    expect(passwordHash).toMatch(/^\$argon2/);
+    expect(fullName).toBe('New Admin');
+    expect(role).toBe('moderator');
+    expect(updatedAt).toEqual(expect.any(String));
+
+    // Vaqtinchalik parol faqat shu javobda bir marta qaytariladi va
+    // haqiqatan argon2-hash qilingan qiymatga mos kelishi kerak.
+    expect(result.temporary_password).toEqual(expect.any(String));
+    expect(result.temporary_password.length).toBeGreaterThan(8);
+  });
+
+  it('rejects admin user creation without an email', async () => {
+    await expect(
+      service.adminUserCreate({ full_name: 'No Email' }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(pgMock.query).not.toHaveBeenCalled();
+  });
+
+  it('creates an admin export job without a DB NOT NULL violation (regression: H-1)', async () => {
+    pgMock.query.mockResolvedValueOnce([
+      {
+        id: 'export-1',
+        owner_type: 'admin',
+        owner_id: actor.id,
+        type: 'admin-users',
+        format: 'xlsx',
+        status: 'queued',
+        created_at: '2026-08-10T00:00:00.000Z',
+        updated_at: '2026-08-10T00:00:00.000Z',
+      },
+    ]);
+
+    const job = await service.exportJob(actor, 'admin-users', 'xlsx');
+
+    const [sql, params] = pgMock.query.mock.calls[0]!;
+    expect(String(sql)).toContain('gen_random_uuid()');
+    expect(String(sql)).toContain('created_at');
+    expect(params).toEqual([actor.id, 'admin-users', 'xlsx', expect.any(String)]);
+    expect(job.id).toBe('export-1');
+  });
+
+  it('adminUserReset2fa actually clears totp_secret and recovery codes (regression: M-1 fake stub)', async () => {
+    const revokeSpy = jest
+      .spyOn(authSessionStore, 'revokeActor')
+      .mockResolvedValue(1);
+    pgMock.query
+      .mockResolvedValueOnce([{ id: 'target-admin-1' }]) // UPDATE ... RETURNING id
+      .mockResolvedValueOnce([]); // DELETE FROM admin_recovery_codes
+
+    const result = await service.adminUserReset2fa('target-admin-1');
+
+    expect(result).toEqual({
+      id: 'target-admin-1',
+      two_factor_reset: true,
+      sessions_revoked: true,
+    });
+    const [updateSql] = pgMock.query.mock.calls[0]!;
+    expect(String(updateSql)).toContain('totp_secret = null');
+    const [deleteSql] = pgMock.query.mock.calls[1]!;
+    expect(String(deleteSql)).toContain('delete from admin_recovery_codes');
+    expect(revokeSpy).toHaveBeenCalledWith('target-admin-1');
+
+    revokeSpy.mockRestore();
+  });
+
+  it('adminUserReset2fa 404s for a nonexistent admin instead of reporting fake success', async () => {
+    pgMock.query.mockResolvedValueOnce([]); // no row matched
+
+    await expect(
+      service.adminUserReset2fa('does-not-exist'),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('bookings() returns the standard paginated envelope, not a bare array (regression: M-4)', async () => {
+    pgMock.query.mockResolvedValueOnce([
+      { id: 'booking-1', status: 'confirmed', total_count: 3 },
+      { id: 'booking-2', status: 'pending', total_count: 3 },
+    ]);
+
+    const result = await service.bookings({ limit: '2', page: '1' });
+
+    expect(result).toMatchObject({
+      total: 3,
+      page: 1,
+      limit: 2,
+      total_pages: 2,
+    });
+    expect(result.items).toHaveLength(2);
+    // total_count — ichki paginatsiya ustuni — javobga chiqib ketmasligi kerak.
+    expect(result.items[0]).not.toHaveProperty('total_count');
+    expect(result.items[0]).toMatchObject({ id: 'booking-1' });
+  });
+
+  it('bookings() returns an empty envelope (not an error) when there are no rows', async () => {
+    pgMock.query.mockResolvedValueOnce([]);
+
+    const result = await service.bookings({});
+
+    expect(result).toMatchObject({ items: [], total: 0, total_pages: 1 });
   });
 });

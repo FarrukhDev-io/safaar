@@ -3,6 +3,7 @@ interface EnvironmentConfig {
   APP_NAME: string;
   WEB_USER_URL: string;
   PORT: number;
+  HOST: string;
   API_PREFIX: string;
   BUSINESS_TIMEZONE: string;
   DATABASE_URL?: string;
@@ -105,6 +106,7 @@ export function validateEnv(
     APP_NAME: String(config.APP_NAME ?? 'safaar-api'),
     WEB_USER_URL: String(config.WEB_USER_URL ?? 'http://localhost:3000'),
     PORT: toNumber(config.PORT, 4000),
+    HOST: String(config.HOST ?? '0.0.0.0'),
     API_PREFIX: String(config.API_PREFIX ?? 'v1'),
     BUSINESS_TIMEZONE: String(config.BUSINESS_TIMEZONE ?? 'Asia/Tashkent'),
     DATABASE_URL: config.DATABASE_URL ? String(config.DATABASE_URL) : undefined,
