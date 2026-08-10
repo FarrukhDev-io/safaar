@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -26,7 +27,9 @@ type PublicPartnerStatus =
   | 'new'
   | 'reviewing'
   | 'approved'
-  | 'rejected';
+  | 'rejected'
+  | 'blocked'
+  | 'suspended';
 
 function localizedText(body: Record<string, unknown>, key: string) {
   const value = String(
@@ -64,7 +67,7 @@ function listingStatus(value: unknown): HotelListingStatus {
 
 /**
  * Hamkor (mehmonxona/avtobus kompaniyasi) kabineti xizmati.
- * partner.uzbron.uz uchun: xonalar, bronlar, moliya boshqaruvi.
+ * partner.safaar.uz uchun: xonalar, bronlar, moliya boshqaruvi.
  */
 @Injectable()
 export class PartnersService {
@@ -507,11 +510,24 @@ export class PartnersService {
     const sortColumn = pagination.sortBy === 'stars' ? 'stars' : 'created_at';
     const orderDir = pagination.order === 'asc' ? 'ASC' : 'DESC';
 
+    // "Asosiy" e'lonni aniqlash tartibi: nashr qilingan (jonli, bron
+    // qilinadigan) e'lon har doim birinchi — u tasdiqlangach avtomatik
+    // tayyorlanadigan bo'sh "keyingi loyiha" qoralamasi asosiy bo'lib
+    // ko'rinmasligi kerak. Ammo draft hali ham rad etilgan (rejected)
+    // eski urinishdan ustun turadi — hamkor rad etilgandan keyin yangi
+    // qoralamasini ko'rishi kerak, o'lik "rejected" yozuvni emas.
     const rows = await this.pg.query(
       `SELECT * FROM hotels
        WHERE partner_organization_id = $1
          AND deleted_at IS NULL
-       ORDER BY CASE WHEN status = 'draft' THEN 0 ELSE 1 END,
+       ORDER BY CASE status
+                  WHEN 'published' THEN 0
+                  WHEN 'pending_review' THEN 1
+                  WHEN 'hidden' THEN 2
+                  WHEN 'draft' THEN 3
+                  WHEN 'rejected' THEN 4
+                  ELSE 5
+                END,
                 ${sortColumn} ${orderDir}
        LIMIT $2 OFFSET $3`,
       [organizationId, pagination.limit, pagination.offset],
@@ -526,7 +542,27 @@ export class PartnersService {
     const organizationId = this.organizationId(actor);
     const now = new Date().toISOString();
     const hotelId = randomUUID();
-    const nameUzInput = this.optionalString(body.name_uz ?? body.name);
+
+    // `city_id`/`address` bo'sh bo'lsa (masalan avtomatik "birinchi obyekt"
+    // yaratilganda) hamkor arizasidagi ma'lumotlar bilan to'ldiramiz —
+    // aks holda `hotels.city_id`/`address` NOT NULL cheklovi buziladi.
+    const [organization] = await this.pg.query<{
+      brand_name: string | null;
+      legal_name: string | null;
+      address: string | null;
+      city_id: string | null;
+    }>(
+      `select brand_name, legal_name, address, city_id::text
+       from partner_organizations where id = $1::uuid`,
+      [organizationId],
+    );
+
+    const nameUzInput = this.optionalString(
+      body.name_uz ??
+        body.name ??
+        organization?.brand_name ??
+        organization?.legal_name,
+    );
     if (!nameUzInput) {
       throw new BadRequestException({
         code: 'HOTEL_NAME_REQUIRED',
@@ -537,8 +573,23 @@ export class PartnersService {
     const nameRu = this.optionalString(body.name_ru ?? body.name) ?? nameUz;
     const nameEn = this.optionalString(body.name_en ?? body.name) ?? nameUz;
     const slug = String(body.slug ?? this.slugify(nameUz));
-    const cityId = String(body.city_id ?? '');
-    const address = String(body.address ?? '');
+    const cityId = String(body.city_id ?? organization?.city_id ?? '');
+    const address = String(body.address ?? organization?.address ?? '');
+
+    if (!cityId) {
+      throw new BadRequestException({
+        code: 'PARTNER_CITY_REQUIRED',
+        message:
+          "Hamkor arizasida shahar topilmadi. Avval profil ma'lumotlarini to'ldiring.",
+      });
+    }
+    if (!address) {
+      throw new BadRequestException({
+        code: 'PARTNER_ADDRESS_REQUIRED',
+        message:
+          "Hamkor arizasida manzil topilmadi. Avval profil ma'lumotlarini to'ldiring.",
+      });
+    }
     const latitude =
       body.latitude === undefined || body.latitude === null
         ? null
@@ -655,6 +706,66 @@ export class PartnersService {
       params,
     );
     return result[0];
+  }
+
+  /**
+   * Hamkor o'z e'lonini butunlay tozalab, boshidan to'ldirishni xohlasa
+   * ishlatiladi — nashr qilingan bo'lsa ham darhol yashiriladi (status:
+   * 'draft'), barcha rasm/qulaylik/xona ma'lumotlari o'chiriladi.
+   * Qaytarib bo'lmaydi, shuning uchun frontend albatta tasdiqlash so'raydi.
+   */
+  async resetHotel(actor: RequestActor | undefined, id: string) {
+    await this.assertHotel(id, actor);
+    const now = new Date().toISOString();
+
+    await this.pg.query(
+      `delete from hotel_amenities where hotel_id = $1::uuid`,
+      [id],
+    );
+    await this.pg.query(
+      `update media_files
+       set deleted_at = $2, is_cover = false
+       where owner_type = 'hotel'
+         and owner_id = $1::uuid
+         and deleted_at is null`,
+      [id, now],
+    );
+    await this.pg.query(`delete from hotel_rooms where hotel_id = $1::uuid`, [
+      id,
+    ]);
+    await this.pg.query(
+      `update hotel_translations
+       set name = '', short_description = '', description = '', updated_at = $2
+       where hotel_id = $1::uuid`,
+      [id, now],
+    );
+    const updatedRows = await this.pg.query(
+      `update hotels
+       set address = '', latitude = null, longitude = null, stars = 0,
+           status = 'draft', featured = false,
+           check_in_time = null, check_out_time = null,
+           cancellation_policy_id = null, cancellation_policy_code = 'MODERATE',
+           smoking_allowed = false, pets_allowed = false, children_allowed = true,
+           extra_fees = '[]'::jsonb, rules_completed_at = null,
+           submitted_at = null, submitted_by = null,
+           reviewed_at = null, reviewed_by = null, rejection_reason = null,
+           next_draft_prepared_at = null,
+           updated_at = $2
+       where id = $1::uuid
+       returning *`,
+      [id, now],
+    );
+
+    this.notifyListingChanged(updatedRows[0], actor, 'updated', [
+      'general',
+      'photos',
+      'amenities',
+      'rooms',
+      'rules',
+      'location',
+    ]);
+
+    return this.hotel(actor, id);
   }
 
   async submitHotelReview(actor: RequestActor | undefined, id: string) {
@@ -1865,8 +1976,9 @@ export class PartnersService {
       params.push(JSON.stringify(extraFees));
     }
     if (checkInTime !== undefined || checkOutTime !== undefined) {
-      const effectiveCheckIn = checkInTime ?? existing['check_in_time'];
-      const effectiveCheckOut = checkOutTime ?? existing['check_out_time'];
+      const existingTyped = existing as Record<string, unknown>;
+      const effectiveCheckIn = checkInTime ?? existingTyped['check_in_time'];
+      const effectiveCheckOut = checkOutTime ?? existingTyped['check_out_time'];
       const rulesComplete =
         Boolean(effectiveCheckIn && String(effectiveCheckIn).trim()) &&
         Boolean(effectiveCheckOut && String(effectiveCheckOut).trim());
@@ -1910,19 +2022,38 @@ export class PartnersService {
       ];
 
       // Resolve codes → UUIDs from the amenities table
-      const resolved = await this.pg.query<{ code: string; id: string }>(
+      let resolved = await this.pg.query<{ code: string; id: string }>(
         `SELECT code, id::text FROM amenities WHERE code = ANY($1::text[])`,
         [codes],
       );
-      const codeToId = new Map(resolved.map((r) => [r.code, r.id]));
+      let codeToId = new Map(resolved.map((r) => [r.code, r.id]));
       const unknownCodes = codes.filter((code) => !codeToId.has(code));
 
       if (unknownCodes.length > 0) {
-        throw new BadRequestException({
-          code: 'AMENITY_NOT_FOUND',
-          message: 'Qulayliklar katalogdan topilmadi',
-          fields: unknownCodes,
-        });
+        for (const code of unknownCodes) {
+          const id = randomUUID();
+          const now = new Date().toISOString();
+          const name = code
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+          await this.pg.query(
+            `INSERT INTO amenities (id, code, name, created_at, updated_at)
+             VALUES ($1::uuid, $2, ($3)::jsonb, $4, $5)
+             ON CONFLICT (code) DO NOTHING`,
+            [
+              id,
+              code,
+              JSON.stringify({ uz: name, ru: name, en: name }),
+              now,
+              now,
+            ],
+          );
+        }
+        resolved = await this.pg.query<{ code: string; id: string }>(
+          `SELECT code, id::text FROM amenities WHERE code = ANY($1::text[])`,
+          [codes],
+        );
+        codeToId = new Map(resolved.map((r) => [r.code, r.id]));
       }
 
       await this.pg.query(`DELETE FROM hotel_amenities WHERE hotel_id = $1`, [
@@ -1930,6 +2061,7 @@ export class PartnersService {
       ]);
       for (const code of codes) {
         const amenityId = codeToId.get(code);
+        if (!amenityId) continue;
         await this.pg.query(
           `INSERT INTO hotel_amenities (hotel_id, amenity_id)
            VALUES ($1::uuid, $2::uuid)
@@ -2328,8 +2460,9 @@ export class PartnersService {
 
     return this.pg.query(
       `SELECT b.*,
-              COALESCE(b.price_snapshot ->> 'check_in', b.policy_snapshot ->> 'check_in') AS check_in,
-              COALESCE(b.price_snapshot ->> 'check_out', b.policy_snapshot ->> 'check_out') AS check_out,
+              COALESCE(b.check_in, (b.price_snapshot ->> 'check_in')::date, (b.policy_snapshot ->> 'check_in')::date) AS check_in,
+              COALESCE(b.check_out, (b.price_snapshot ->> 'check_out')::date, (b.policy_snapshot ->> 'check_out')::date) AS check_out,
+              COALESCE(b.slot_time, (b.price_snapshot ->> 'slot_time')::time, (b.policy_snapshot ->> 'slot_time')::time) AS slot_time,
               COALESCE(b.price_snapshot ->> 'room_type_id', hr.room_type_id::text) AS room_type_id,
               COALESCE(b.price_snapshot ->> 'room_number', hr.code) AS room_number,
               COALESCE(rt.name ->> 'uz', rt.name ->> 'ru', rt.name ->> 'en') AS room_type_name,
@@ -2339,8 +2472,9 @@ export class PartnersService {
                 WHERE p.booking_id = b.id AND p.status = 'paid'
               ), 0) AS paid_amount,
               jsonb_build_object(
-                'check_in', COALESCE(b.price_snapshot ->> 'check_in', b.policy_snapshot ->> 'check_in'),
-                'check_out', COALESCE(b.price_snapshot ->> 'check_out', b.policy_snapshot ->> 'check_out'),
+                'check_in', COALESCE(b.check_in, (b.price_snapshot ->> 'check_in')::date, (b.policy_snapshot ->> 'check_in')::date),
+                'check_out', COALESCE(b.check_out, (b.price_snapshot ->> 'check_out')::date, (b.policy_snapshot ->> 'check_out')::date),
+                'slot_time', COALESCE(b.slot_time, (b.price_snapshot ->> 'slot_time')::time, (b.policy_snapshot ->> 'slot_time')::time),
                 'nights', COALESCE(
                   NULLIF(b.price_snapshot ->> 'nights', '')::int,
                   NULLIF(b.policy_snapshot ->> 'nights', '')::int
@@ -2361,7 +2495,7 @@ export class PartnersService {
        FROM bookings b
        LEFT JOIN users u ON u.id = b.user_id
        LEFT JOIN hotel_rooms hr
-         ON hr.id = NULLIF(b.price_snapshot ->> 'room_id', '')::uuid
+         ON hr.id = COALESCE(b.room_id, NULLIF(b.price_snapshot ->> 'room_id', '')::uuid)
        LEFT JOIN room_types rt
          ON rt.id = COALESCE(
            NULLIF(b.price_snapshot ->> 'room_type_id', '')::uuid,
@@ -2393,17 +2527,26 @@ export class PartnersService {
       'Xona turi tanlanishi kerak',
     );
 
-    // Validate hotel
-    const hotels = await this.pg.query(
-      `SELECT * FROM hotels WHERE id = $1 AND partner_organization_id = $2`,
+    // Validate hotel + hamkor turini aniqlash (restoranmi yoki yo'q)
+    const [hotel] = await this.pg.query<{
+      id: string;
+      check_in_time: string | null;
+      check_out_time: string | null;
+      partner_type: string;
+    }>(
+      `SELECT h.id::text, h.check_in_time, h.check_out_time, po.type::text AS partner_type
+       FROM hotels h
+       JOIN partner_organizations po ON po.id = h.partner_organization_id
+       WHERE h.id = $1 AND h.partner_organization_id = $2`,
       [hotelId, organizationId],
     );
-    if (!hotels[0]) {
+    if (!hotel) {
       throw new NotFoundException({
         code: 'ROOM_NOT_AVAILABLE',
         message: "Tanlangan hotel uchun ma'lumot topilmadi",
       });
     }
+    const isRestaurant = hotel.partner_type === 'restaurant';
 
     const [roomType] = await this.pg.query<{
       id: string;
@@ -2509,16 +2652,38 @@ export class PartnersService {
       'CHECK_IN_REQUIRED',
       'Kelish sanasi kiritilishi kerak',
     );
-    const checkOut = this.requiredString(
-      body.checkOut ?? body.check_out,
-      'CHECK_OUT_REQUIRED',
-      'Ketish sanasi kiritilishi kerak',
-    );
-    const nights = this.requiredPositiveInteger(
-      body.nights,
-      'NIGHTS_REQUIRED',
-      'Kechalar soni kiritilishi kerak',
-    );
+
+    let slotTime: string | null = null;
+    if (isRestaurant) {
+      slotTime = this.requiredString(
+        body.slotTime ?? body.slot_time,
+        'SLOT_TIME_REQUIRED',
+        'Vaqtni tanlang',
+      );
+      if (
+        (hotel.check_in_time && slotTime < hotel.check_in_time) ||
+        (hotel.check_out_time && slotTime >= hotel.check_out_time)
+      ) {
+        throw new BadRequestException({
+          code: 'SLOT_OUTSIDE_HOURS',
+          message: 'Tanlangan vaqt ish vaqtidan tashqarida',
+        });
+      }
+    }
+    const checkOut = isRestaurant
+      ? checkIn
+      : this.requiredString(
+          body.checkOut ?? body.check_out,
+          'CHECK_OUT_REQUIRED',
+          'Ketish sanasi kiritilishi kerak',
+        );
+    const nights = isRestaurant
+      ? 1
+      : this.requiredPositiveInteger(
+          body.nights,
+          'NIGHTS_REQUIRED',
+          'Kechalar soni kiritilishi kerak',
+        );
     const totalAmount = this.requiredNonNegativeNumber(
       body.totalPrice ?? body.total_amount,
       'TOTAL_AMOUNT_REQUIRED',
@@ -2553,9 +2718,7 @@ export class PartnersService {
       nights,
       adults,
       children,
-      ...(body.slotTime || body.slot_time
-        ? { slot_time: String(body.slotTime ?? body.slot_time) }
-        : {}),
+      ...(slotTime ? { slot_time: slotTime } : {}),
     };
     const priceSnapshot = {
       hotel_id: hotelId,
@@ -2563,10 +2726,7 @@ export class PartnersService {
       room_type_id: roomType.id,
       room_number: roomNumber,
       bed_id: bedId,
-      slot_time:
-        body.slotTime || body.slot_time
-          ? String(body.slotTime ?? body.slot_time)
-          : null,
+      slot_time: slotTime,
       check_in: checkIn,
       check_out: checkOut,
       nights,
@@ -2575,61 +2735,120 @@ export class PartnersService {
       base_price: Number(room?.base_price ?? roomType.base_price ?? 0),
       total_amount: totalAmount,
     };
-
-    // Insert booking
-    await this.pg.query(
-      `INSERT INTO bookings (
-         id, booking_number, user_id, partner_organization_id, type,
-         confirmation_mode, payment_method, status, currency, total_amount,
-         subtotal, discount_amount, bonus_amount, service_fee,
-         commission_amount, partner_payable, hotel_id, trip_id,
-         policy_snapshot, price_snapshot, guest_name, guest_email, guest_phone,
-         created_at, updated_at
-       )
-       VALUES (
-         $1, $2, $3, $4, $5,
-         $6, $7, $8, $9, $10,
-         $11, $12, $13, $14,
-         $15, $16, $17, $18,
-         $19::jsonb, $20::jsonb, $21, $22, $23,
-         $24, $25
-       )`,
-      [
-        bookingId,
-        bookingNumber,
-        null,
-        organizationId,
-        'hotel',
-        'instant_confirmation',
-        'cash',
-        BookingStatus.CONFIRMED.toLowerCase(),
-        'UZS',
-        totalAmount,
-        totalAmount,
-        0,
-        0,
-        0,
-        commissionAmount,
-        totalAmount - commissionAmount,
-        hotelId,
-        null,
-        JSON.stringify(policySnapshot),
-        JSON.stringify(priceSnapshot),
-        guestName || null,
-        guestEmail,
-        guestPhone || null,
-        now,
-        now,
-      ],
-    );
-
-    // Create payment
     const paymentId = randomUUID();
-    await this.pg.query(
-      `INSERT INTO payments (id, booking_id, provider, status, amount, currency, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [paymentId, bookingId, 'cash', 'paid', totalAmount, 'UZS', now, now],
-    );
+
+    // Xona/stol tanlangan bo'lsa — tranzaksiya ichida qatorni qulflab,
+    // ziddiyatni (bir xil xona/stol + bir xil sana/vaqt oralig'i) tekshiramiz.
+    // Bu — `SELECT ... FOR UPDATE`ni haqiqiy tranzaksiya ichida qilish orqali
+    // ikki xodim bir vaqtda bitta xona/stolni band qilishining oldini oladi
+    // (avval bunday himoya umuman yo'q edi).
+    await this.pg.transaction(async (tx) => {
+      if (room) {
+        const locked = await tx.query(
+          `SELECT id FROM hotel_rooms WHERE id = $1::uuid FOR UPDATE`,
+          [room.id],
+        );
+        if (!locked[0]) {
+          throw new NotFoundException({
+            code: 'ROOM_NOT_AVAILABLE',
+            message: 'Tanlangan xona topilmadi',
+          });
+        }
+
+        const activeStatuses = [
+          BookingStatus.CANCELLED.toLowerCase(),
+          BookingStatus.EXPIRED.toLowerCase(),
+          BookingStatus.COMPLETED.toLowerCase(),
+        ];
+        const conflicts = isRestaurant
+          ? await tx.query(
+              `SELECT id FROM bookings
+               WHERE room_id = $1::uuid
+                 AND status NOT IN ($2, $3, $4)
+                 AND check_in = $5::date
+                 AND slot_time IS NOT NULL
+                 AND slot_time < ($6::time + interval '90 minutes')
+                 AND $6::time < (slot_time + interval '90 minutes')
+               LIMIT 1`,
+              [room.id, ...activeStatuses, checkIn, slotTime],
+            )
+          : await tx.query(
+              `SELECT id FROM bookings
+               WHERE room_id = $1::uuid
+                 AND status NOT IN ($2, $3, $4)
+                 AND check_in < $5::date
+                 AND $6::date < check_out
+               LIMIT 1`,
+              [room.id, ...activeStatuses, checkOut, checkIn],
+            );
+        if (conflicts[0]) {
+          throw new ConflictException({
+            code: isRestaurant ? 'TABLE_ALREADY_BOOKED' : 'ROOM_ALREADY_BOOKED',
+            message: isRestaurant
+              ? 'Bu stol tanlangan vaqtda band'
+              : 'Bu xona tanlangan sanalarda band',
+          });
+        }
+      }
+
+      await tx.query(
+        `INSERT INTO bookings (
+           id, booking_number, user_id, partner_organization_id, type,
+           confirmation_mode, payment_method, status, currency, total_amount,
+           subtotal, discount_amount, bonus_amount, service_fee,
+           commission_amount, partner_payable, hotel_id, trip_id,
+           room_id, check_in, check_out, slot_time,
+           policy_snapshot, price_snapshot, guest_name, guest_email, guest_phone,
+           created_at, updated_at
+         )
+         VALUES (
+           $1, $2, $3, $4, $5,
+           $6, $7, $8, $9, $10,
+           $11, $12, $13, $14,
+           $15, $16, $17, $18,
+           $19, $20::date, $21::date, $22::time,
+           $23::jsonb, $24::jsonb, $25, $26, $27,
+           $28, $29
+         )`,
+        [
+          bookingId,
+          bookingNumber,
+          null,
+          organizationId,
+          isRestaurant ? 'restaurant' : 'hotel',
+          'instant_confirmation',
+          'cash',
+          BookingStatus.CONFIRMED.toLowerCase(),
+          'UZS',
+          totalAmount,
+          totalAmount,
+          0,
+          0,
+          0,
+          commissionAmount,
+          totalAmount - commissionAmount,
+          hotelId,
+          null,
+          room?.id ?? null,
+          checkIn,
+          checkOut,
+          slotTime,
+          JSON.stringify(policySnapshot),
+          JSON.stringify(priceSnapshot),
+          guestName || null,
+          guestEmail,
+          guestPhone || null,
+          now,
+          now,
+        ],
+      );
+
+      await tx.query(
+        `INSERT INTO payments (id, booking_id, provider, status, amount, currency, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [paymentId, bookingId, 'cash', 'paid', totalAmount, 'UZS', now, now],
+      );
+    });
 
     return this.booking(actor, bookingId);
   }
@@ -2638,8 +2857,9 @@ export class PartnersService {
     const organizationId = this.organizationId(actor);
     const bookings = await this.pg.query(
       `SELECT b.*,
-              COALESCE(b.price_snapshot ->> 'check_in', b.policy_snapshot ->> 'check_in') AS check_in,
-              COALESCE(b.price_snapshot ->> 'check_out', b.policy_snapshot ->> 'check_out') AS check_out,
+              COALESCE(b.check_in, (b.price_snapshot ->> 'check_in')::date, (b.policy_snapshot ->> 'check_in')::date) AS check_in,
+              COALESCE(b.check_out, (b.price_snapshot ->> 'check_out')::date, (b.policy_snapshot ->> 'check_out')::date) AS check_out,
+              COALESCE(b.slot_time, (b.price_snapshot ->> 'slot_time')::time, (b.policy_snapshot ->> 'slot_time')::time) AS slot_time,
               COALESCE(b.price_snapshot ->> 'room_type_id', hr.room_type_id::text) AS room_type_id,
               COALESCE(b.price_snapshot ->> 'room_number', hr.code) AS room_number,
               COALESCE(rt.name ->> 'uz', rt.name ->> 'ru', rt.name ->> 'en') AS room_type_name,
@@ -2649,8 +2869,9 @@ export class PartnersService {
                 WHERE p.booking_id = b.id AND p.status = 'paid'
               ), 0) AS paid_amount,
               jsonb_build_object(
-                'check_in', COALESCE(b.price_snapshot ->> 'check_in', b.policy_snapshot ->> 'check_in'),
-                'check_out', COALESCE(b.price_snapshot ->> 'check_out', b.policy_snapshot ->> 'check_out'),
+                'check_in', COALESCE(b.check_in, (b.price_snapshot ->> 'check_in')::date, (b.policy_snapshot ->> 'check_in')::date),
+                'check_out', COALESCE(b.check_out, (b.price_snapshot ->> 'check_out')::date, (b.policy_snapshot ->> 'check_out')::date),
+                'slot_time', COALESCE(b.slot_time, (b.price_snapshot ->> 'slot_time')::time, (b.policy_snapshot ->> 'slot_time')::time),
                 'nights', COALESCE(
                   NULLIF(b.price_snapshot ->> 'nights', '')::int,
                   NULLIF(b.policy_snapshot ->> 'nights', '')::int
@@ -2666,7 +2887,7 @@ export class PartnersService {
               ) AS item
        FROM bookings b
        LEFT JOIN hotel_rooms hr
-         ON hr.id = NULLIF(b.price_snapshot ->> 'room_id', '')::uuid
+         ON hr.id = COALESCE(b.room_id, NULLIF(b.price_snapshot ->> 'room_id', '')::uuid)
        LEFT JOIN room_types rt
          ON rt.id = COALESCE(
            NULLIF(b.price_snapshot ->> 'room_type_id', '')::uuid,
@@ -3650,6 +3871,12 @@ export class PartnersService {
     if (status === 'rejected') {
       return 'rejected';
     }
+    if (status === 'blocked') {
+      return 'blocked';
+    }
+    if (status === 'suspended') {
+      return 'suspended';
+    }
     if (status === 'under_review' || status === 'submitted') {
       return 'reviewing';
     }
@@ -3976,40 +4203,49 @@ export class PartnersService {
     id: string,
   ) {
     const hotel = await this.assertHotel(id, actor);
-    const [translations, media, amenities, rooms] = await Promise.all([
-      this.pg.query<{
-        name: string | null;
-        short_description: string | null;
-        description: string | null;
-      }>(
-        `SELECT name, short_description, description
-         FROM hotel_translations
-         WHERE hotel_id = $1::uuid`,
-        [id],
-      ),
-      this.pg.query<{ count: number }>(
-        `SELECT count(*)::int AS count
-         FROM media_files
-         WHERE owner_type = 'hotel'
-           AND owner_id = $1::uuid
-           AND deleted_at IS NULL
-           AND url IS NOT NULL`,
-        [id],
-      ),
-      this.pg.query<{ count: number }>(
-        `SELECT count(*)::int AS count
-         FROM hotel_amenities
-         WHERE hotel_id = $1::uuid`,
-        [id],
-      ),
-      this.pg.query<{ count: number }>(
-        `SELECT count(*)::int AS count
-         FROM hotel_rooms
-         WHERE hotel_id = $1::uuid
-           AND status = 'active'`,
-        [id],
-      ),
-    ]);
+    const [translations, media, amenities, rooms, partnerRows] =
+      await Promise.all([
+        this.pg.query<{
+          name: string | null;
+          short_description: string | null;
+          description: string | null;
+        }>(
+          `SELECT name, short_description, description
+           FROM hotel_translations
+           WHERE hotel_id = $1::uuid`,
+          [id],
+        ),
+        this.pg.query<{ count: number }>(
+          `SELECT count(*)::int AS count
+           FROM media_files
+           WHERE owner_type = 'hotel'
+             AND owner_id = $1::uuid
+             AND deleted_at IS NULL
+             AND url IS NOT NULL`,
+          [id],
+        ),
+        this.pg.query<{ count: number }>(
+          `SELECT count(*)::int AS count
+           FROM hotel_amenities
+           WHERE hotel_id = $1::uuid`,
+          [id],
+        ),
+        this.pg.query<{ count: number }>(
+          `SELECT count(*)::int AS count
+           FROM hotel_rooms
+           WHERE hotel_id = $1::uuid
+             AND status = 'active'`,
+          [id],
+        ),
+        this.pg.query<{ type: string }>(
+          `SELECT type::text
+           FROM partner_organizations
+           WHERE id = $1::uuid`,
+          [String(hotel['partner_organization_id'])],
+        ),
+      ]);
+    const isRestaurant =
+      String(partnerRows[0]?.type ?? '').toLowerCase() === 'restaurant';
 
     const hasName = translations.some(
       (row) => (row.name ?? '').trim().length >= 3,
@@ -4032,14 +4268,16 @@ export class PartnersService {
       hotel['check_out_time'],
     );
 
-    const sections = {
+    const sections: Record<string, boolean> = {
       general: hasName && hasShortDescription && hasFullDescription,
       location: hasLocation,
       media: Number(media[0]?.count ?? 0) >= 3,
       amenities: Number(amenities[0]?.count ?? 0) >= 3,
       rules: hasRules,
-      rooms: Number(rooms[0]?.count ?? 0) > 0,
     };
+    if (!isRestaurant) {
+      sections.rooms = Number(rooms[0]?.count ?? 0) > 0;
+    }
     const missing = Object.entries(sections)
       .filter(([, complete]) => !complete)
       .map(([section]) => section);

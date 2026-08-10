@@ -30,6 +30,11 @@ export class CmsController {
     return this.cmsService.one('news', slug);
   }
 
+  @Get('cms/pages')
+  pages() {
+    return this.cmsService.collection('pages');
+  }
+
   @Get('cms/pages/:slug')
   page(@Param('slug') slug: string) {
     return this.cmsService.one('pages', slug);

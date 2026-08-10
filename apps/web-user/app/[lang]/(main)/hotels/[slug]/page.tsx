@@ -121,7 +121,7 @@ export default async function Page({
   if (!hotel) {
     return (
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-16">
-        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-btn dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
           {dict.error}
         </p>
       </main>
@@ -138,50 +138,66 @@ export default async function Page({
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
-      <div className="flex items-center justify-between">
+    <>
+      {/* Back Button — main contentdan TASHQARIDA, chap tomonda sticky */}
+      <div className="fixed left-4 top-28 z-50 hidden xl:block">
         <BackButton />
-        <FavoriteButton
-          targetType="hotel"
-          targetId={hotel.id}
-          initialFavoriteId={favoriteId}
-          authed={!!session}
-          loginHref={`/${locale}/login?next=${encodeURIComponent(
-            `/${locale}/hotels/${slug}`,
-          )}`}
-          dict={favDict}
-        />
       </div>
 
-      <HotelGallery images={hotel.images} alt={hotel.name} />
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
+        {/* Back Button — mobil va tablet uchun (xl'dan kichik ekranlar) */}
+        <div className="xl:hidden">
+          <BackButton />
+        </div>
 
-      <header className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+        {/* Gallery */}
+        <div className="relative">
+          <HotelGallery images={hotel.images} alt={hotel.name} />
+
+        {/* Favorite Button - gallery ustida o'ng burchak */}
+        <div className="absolute right-4 top-4 z-10">
+          <FavoriteButton
+            targetType="hotel"
+            targetId={hotel.id}
+            initialFavoriteId={favoriteId}
+            authed={!!session}
+            loginHref={`/${locale}/login?next=${encodeURIComponent(
+              `/${locale}/hotels/${slug}`,
+            )}`}
+            dict={favDict}
+          />
+        </div>
+      </div>
+
+      <header className="flex flex-col gap-4 pb-2">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-1.5">
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl md:text-5xl">
               {hotel.name}
             </h1>
-            <p className="mt-1 flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
-              <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
+            <p className="flex items-center gap-1.5 text-base font-medium text-slate-600 dark:text-slate-400">
+              <MapPin className="h-5 w-5 shrink-0 text-slate-400" />
               {hotel.cityName}
-              {hotel.address ? ` · ${hotel.address}` : ''}
+              {hotel.address && <span className="opacity-60">· {hotel.address}</span>}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-1.5">
+              {hotel.stars > 0 && (
+                <span className="text-xl tracking-widest text-amber-500 drop-shadow-sm">
+                  {'★'.repeat(hotel.stars)}
+                </span>
+              )}
+            </div>
             {hotel.rating > 0 && (
               <Badge
                 variant="outline"
-                className="gap-1 px-3 py-1 text-sm text-amber-700 dark:text-amber-400"
+                className="gap-1.5 border-amber-200 bg-amber-50 px-4 py-1.5 text-sm font-extrabold text-amber-700 shadow-sm dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400"
               >
                 <Star className="h-4 w-4 fill-current text-amber-500" />
-                {hotel.rating.toFixed(1)}
+                <span>{hotel.rating.toFixed(1)}</span>
               </Badge>
-            )}
-            {hotel.stars > 0 && (
-              <span className="text-sm font-bold text-amber-500">
-                {'★'.repeat(hotel.stars)}
-              </span>
             )}
           </div>
         </div>
@@ -211,7 +227,7 @@ export default async function Page({
                   return (
                     <li
                       key={id}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-card px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
                     >
                       {Icon && (
                         <Icon className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />
@@ -253,19 +269,25 @@ export default async function Page({
                   )
                 : dict.noReviews}
             </p>
-            <ReviewsList reviews={reviews} dict={reviewsDict} locale={locale} />
+            <ReviewsList 
+              reviews={reviews} 
+              dict={reviewsDict} 
+              locale={locale} 
+              hotelId={hotel.id}
+              authed={!!session}
+              token={session?.accessToken}
+            />
           </section>
         </div>
 
-        <aside className="flex h-fit flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-md dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-24">
+        <aside className="flex h-fit flex-col gap-5 rounded-3xl border border-slate-200/60 bg-white/60 p-6 shadow-2xl shadow-slate-200/50 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-none lg:sticky lg:top-24">
           <div>
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            <span className="text-sm font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
               {dict.from}
             </span>
-            <p className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+            <p className="mt-1 flex items-end gap-1.5 text-3xl font-black tracking-tight text-slate-900 dark:text-white">
               {formatSum(hotel.minPriceSum)}
-              <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
-                {' '}
+              <span className="mb-1 text-sm font-medium text-slate-500 dark:text-slate-400">
                 / {dict.perNight}
               </span>
             </p>
@@ -308,5 +330,6 @@ export default async function Page({
         </aside>
       </div>
     </main>
+    </>
   );
 }

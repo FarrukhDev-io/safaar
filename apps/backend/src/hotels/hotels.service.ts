@@ -1,9 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  paginatedObject,
-  parsePagination,
-  type QueryLike,
-} from '../common/pagination';
+import { parsePagination, type QueryLike } from '../common/pagination';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { parseGeoBounds } from '../common/geo-bounds';
@@ -69,6 +65,14 @@ export class HotelsService {
       }
     }
 
+    const pagination = parsePagination(query, 'public', {
+      allowedSortBy: ['created_at', 'rating_average', 'stars', 'min_price'],
+      defaultSortBy: 'rating_average',
+    });
+    const limitParam = paramIndex++;
+    const offsetParam = paramIndex++;
+    params.push(pagination.limit, pagination.offset);
+
     const rows = await this.pg.query(
       `SELECT h.id::text, h.partner_organization_id::text, h.slug, h.city_id::text,
         h.address, h.latitude::float8, h.longitude::float8, h.stars,
@@ -77,14 +81,16 @@ export class HotelsService {
         h.created_at, h.updated_at,
         ht.name, ht.description,
         c.name as city_name, c.region_id::text,
-        rp.min_price::float8
+        rp.min_price::float8,
+        COUNT(*) OVER()::int AS total_count
       FROM hotels h
       JOIN partner_organizations po ON po.id = h.partner_organization_id
       LEFT JOIN hotel_translations ht ON ht.hotel_id = h.id AND ht.language = 'uz'
       LEFT JOIN cities c ON c.id = h.city_id
       LEFT JOIN (SELECT hotel_id, MIN(base_price) as min_price FROM hotel_rooms WHERE status = 'active' GROUP BY hotel_id) rp ON rp.hotel_id = h.id
       WHERE ${conditions.join(' AND ')}
-      ORDER BY h.rating_average DESC`,
+      ORDER BY ${hotelOrderBySql(pagination.sortBy, pagination.order)}
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
       params,
     );
 
@@ -118,12 +124,14 @@ export class HotelsService {
       min_price: Number(r.min_price || 0),
     }));
 
-    const pagination = parsePagination(query, 'public', {
-      allowedSortBy: ['created_at', 'rating_average', 'stars', 'min_price'],
-      defaultSortBy: 'rating_average',
-    });
-
-    return paginatedObject(mapped, pagination);
+    const total = totalCount(rows);
+    return {
+      items: mapped,
+      total,
+      page: pagination.page,
+      limit: pagination.limit,
+      total_pages: Math.max(1, Math.ceil(total / pagination.limit)),
+    };
   }
 
   async findOne(slugOrId: string) {
@@ -394,6 +402,25 @@ function localized(value: unknown): Record<string, string | null> {
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function totalCount(rows: unknown[]): number {
+  const firstRow = rows[0] as Record<string, unknown> | undefined;
+  const total = Number(firstRow?.total_count ?? 0);
+  return Number.isFinite(total) ? total : 0;
+}
+
+function hotelOrderBySql(sortBy: string, order: 'asc' | 'desc'): string {
+  const direction = order === 'asc' ? 'ASC' : 'DESC';
+  const column =
+    {
+      created_at: 'h.created_at',
+      rating_average: 'h.rating_average',
+      stars: 'h.stars',
+      min_price: 'COALESCE(rp.min_price, 0)',
+    }[sortBy] ?? 'h.rating_average';
+
+  return `${column} ${direction} NULLS LAST, h.created_at DESC, h.id ASC`;
 }
 
 function cacheKey(query: QueryLike): string {

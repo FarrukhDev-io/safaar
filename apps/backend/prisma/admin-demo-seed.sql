@@ -146,9 +146,9 @@ set amount = excluded.amount,
 
 insert into admin_users (id, email, password_hash, full_name, role, status, created_at, updated_at)
 values
-  ('00000000-0000-1006-0000-000000000001', 'admin@uzbron.uz', '$argon2id$v=19$m=65536,t=3,p=4$AokIMdarb3TjMvuuUgnv/g$E87tg32l3gKGSwB5THe/B9g257xCIKBBKcx0SfzkQqs', 'Demo Super Admin', 'super_admin', 'active', now(), now()),
-  ('00000000-0000-1006-0000-000000000002', 'finance@uzbron.uz', '$argon2id$v=19$m=65536,t=3,p=4$kbm7j4EfsP00pB5iE1cnNg$+5/F42A64FJ0hSJTq2Zc8sZPSOAGaSu5x37PMjMAC9g', 'Demo Finance Admin', 'finance_admin', 'active', now(), now()),
-  ('00000000-0000-1006-0000-000000000003', 'content@uzbron.uz', '$argon2id$v=19$m=65536,t=3,p=4$kbm7j4EfsP00pB5iE1cnNg$+5/F42A64FJ0hSJTq2Zc8sZPSOAGaSu5x37PMjMAC9g', 'Demo Content Admin', 'content_admin', 'active', now(), now())
+  ('00000000-0000-1006-0000-000000000001', 'admin@safaar.uz', '$argon2id$v=19$m=65536,t=3,p=4$AokIMdarb3TjMvuuUgnv/g$E87tg32l3gKGSwB5THe/B9g257xCIKBBKcx0SfzkQqs', 'Demo Super Admin', 'super_admin', 'active', now(), now()),
+  ('00000000-0000-1006-0000-000000000002', 'finance@safaar.uz', '$argon2id$v=19$m=65536,t=3,p=4$kbm7j4EfsP00pB5iE1cnNg$+5/F42A64FJ0hSJTq2Zc8sZPSOAGaSu5x37PMjMAC9g', 'Demo Finance Admin', 'finance_admin', 'active', now(), now()),
+  ('00000000-0000-1006-0000-000000000003', 'content@safaar.uz', '$argon2id$v=19$m=65536,t=3,p=4$kbm7j4EfsP00pB5iE1cnNg$+5/F42A64FJ0hSJTq2Zc8sZPSOAGaSu5x37PMjMAC9g', 'Demo Content Admin', 'content_admin', 'active', now(), now())
 on conflict (email) do update
 set password_hash = excluded.password_hash,
     full_name = excluded.full_name,
@@ -593,7 +593,7 @@ values
   ('00000000-0000-7005-0000-000000000001', 'banner', 'summer-discount', '{"uz":"Yozgi tatil uchun 20% chegirma"}', '{"uz":"Yozgi promo banner."}', 'published', '{"imageUrl":"/Uzbekistan-travel.jpeg","link":"/uz/hotels","order":1}', now() - interval '3 days', now(), now()),
   ('00000000-0000-7005-0000-000000000002', 'banner', 'samarkand-bus', '{"uz":"Samarqandga avtobus qatnovi"}', '{"uz":"Samarqand yo nalishi banner."}', 'published', '{"imageUrl":"/Samarkand-Registan-cinematic.jpeg","link":"/uz/transport","order":2}', now() - interval '2 days', now(), now()),
   ('00000000-0000-7005-0000-000000000003', 'news', 'yangi-mehmonxonalar-iyun', '{"uz":"Yangi mehmonxonalar qoshildi"}', '{"uz":"Platformaga yangi hamkor mehmonxonalar qoshildi."}', 'published', '{"category":"news"}', now() - interval '2 days', now(), now()),
-  ('00000000-0000-7005-0000-000000000004', 'page', 'about', '{"uz":"Biz haqimizda"}', '{"uz":"UzBron haqida demo sahifa."}', 'published', '{"menu":"footer"}', now() - interval '100 days', now(), now()),
+  ('00000000-0000-7005-0000-000000000004', 'page', 'about', '{"uz":"Biz haqimizda"}', '{"uz":"safaar haqida demo sahifa."}', 'published', '{"menu":"footer"}', now() - interval '100 days', now(), now()),
   ('00000000-0000-7005-0000-000000000005', 'promo', 'summer20', '{"uz":"SUMMER20"}', '{"uz":"20 foiz chegirma promo kodi."}', 'published', '{"discountType":"percent","discountValue":20,"usageLimit":100,"usedCount":45}', now() - interval '1 day', now(), now()),
   ('00000000-0000-7005-0000-000000000006', 'promo', 'welcome50', '{"uz":"WELCOME50"}', '{"uz":"50000 som chegirma promo kodi."}', 'published', '{"discountType":"fixed","discountValue":50000,"usageLimit":500,"usedCount":82}', now() - interval '1 day', now(), now())
 on conflict (type, slug) do update

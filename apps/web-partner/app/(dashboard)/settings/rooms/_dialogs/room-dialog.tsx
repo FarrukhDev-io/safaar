@@ -16,19 +16,19 @@ import {
   useRooms,
   useUpdateRoom,
 } from "../../../../_hooks/use-rooms";
-import { useRoomTypes } from "../../../../_hooks/use-room-types";
+import { useRoomTypes, useCreateRoomType } from "../../../../_hooks/use-room-types";
 import { useGenerateBeds } from "../../../../_hooks/use-beds";
 import { RoomStatus, type Room } from "../../../../_lib/domain/types";
 import { roomStatusLabel } from "../../../../_components/domain/room-status-badge";
-import { getPartnerLabels, hasBeds } from "../../../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBeds, hasBuses, isRestaurant } from "../../../../_lib/utils/partner-labels";
 
 const schema = z.object({
   number: z
     .string()
-    .min(1, "Raqamni kiriting")
-    .regex(/^[0-9]+$/, "Faqat raqamlar"),
+    .min(1, "Raqam/nomini kiriting"),
   floor: z.number().int().min(1).max(50),
-  roomTypeId: z.string().min(1, "Turini tanlang"),
+  roomTypeId: z.string().optional(),
+  capacity: z.number().int().min(1).max(50).optional(),
   status: z.enum(RoomStatus),
   isListed: z.boolean(),
   nightlyPrice: z.number().int().positive().optional(),
@@ -47,12 +47,15 @@ interface Props {
 export function RoomDialog({ open, onClose, editing }: Props) {
   const { data: roomTypes } = useRoomTypes();
   const { data: rooms } = useRooms();
+  const createRoomType = useCreateRoomType();
   const createRoom = useCreateRoom();
   const updateRoom = useUpdateRoom();
   const deleteRoom = useDeleteRoom();
   const generateBeds = useGenerateBeds();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const isHostel = hasBeds(partnerType);
+  const isBus = hasBuses(partnerType);
+  const restaurant = isRestaurant(partnerType);
   const labels = getPartnerLabels(partnerType);
   const unitCap = labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1);
 
@@ -62,6 +65,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
       number: "",
       floor: 1,
       roomTypeId: roomTypes[0]?.id ?? "",
+      capacity: undefined,
       status: RoomStatus.VACANT_CLEAN,
       isListed: true,
       nightlyPrice: undefined,
@@ -70,12 +74,14 @@ export function RoomDialog({ open, onClose, editing }: Props) {
 
   useEffect(() => {
     if (open) {
+      const rt = roomTypes.find((r) => r.id === editing?.roomTypeId);
       form.reset(
         editing
           ? {
               number: editing.number,
               floor: editing.floor,
               roomTypeId: editing.roomTypeId,
+              capacity: rt?.capacity ?? undefined,
               status: editing.status,
               isListed: editing.isListed,
               nightlyPrice: editing.nightlyPrice,
@@ -84,6 +90,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
               number: "",
               floor: 1,
               roomTypeId: roomTypes[0]?.id ?? "",
+              capacity: undefined,
               status: RoomStatus.VACANT_CLEAN,
               isListed: true,
               nightlyPrice: undefined,
@@ -100,14 +107,42 @@ export function RoomDialog({ open, onClose, editing }: Props) {
       toast.error(`${unitCap} ${values.number} allaqachon mavjud.`);
       return;
     }
+
     try {
+      let finalRoomTypeId = values.roomTypeId;
+
+      if (restaurant) {
+        if (!values.capacity) {
+          toast.error("Sig'imni kiriting (necha kishilik)");
+          return;
+        }
+        let matchedType = roomTypes.find((rt) => rt.capacity === values.capacity);
+        if (!matchedType) {
+          matchedType = await createRoomType.mutateAsync({
+            name: `${values.capacity} kishilik stol`,
+            capacity: values.capacity,
+            basePrice: 0,
+            amenities: [],
+          });
+        }
+        finalRoomTypeId = matchedType.id;
+      } else if (!finalRoomTypeId) {
+        toast.error("Turini tanlang");
+        return;
+      }
+
+      const submitValues = {
+        ...values,
+        roomTypeId: finalRoomTypeId,
+      };
+
       if (editing) {
-        await updateRoom.mutateAsync({ id: editing.id, values });
+        await updateRoom.mutateAsync({ id: editing.id, values: submitValues });
         toast.success(`${unitCap} ${values.number} yangilandi`);
       } else {
-        const created = await createRoom.mutateAsync(values);
+        const created = await createRoom.mutateAsync(submitValues as any);
         if (isHostel) {
-          const roomType = roomTypes.find((rt) => rt.id === values.roomTypeId);
+          const roomType = roomTypes.find((rt) => rt.id === finalRoomTypeId);
           await generateBeds.mutateAsync({
             roomId: created.id,
             count: roomType?.capacity ?? 1,
@@ -163,11 +198,10 @@ export function RoomDialog({ open, onClose, editing }: Props) {
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="r-number">{unitCap} raqami</Label>
+            <Label htmlFor="r-number">{isBus ? "Transport / Davlat raqami" : `${unitCap} raqami`}</Label>
             <Input
               id="r-number"
-              placeholder="101"
-              inputMode="numeric"
+              placeholder={isBus ? "01 A 777 AA" : "101"}
               aria-invalid={Boolean(err.number)}
               {...form.register("number")}
             />
@@ -175,39 +209,62 @@ export function RoomDialog({ open, onClose, editing }: Props) {
               <p className="text-xs text-red-600">{err.number.message}</p>
             )}
           </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="r-floor">{labels.floorSingular.charAt(0).toUpperCase() + labels.floorSingular.slice(1)}</Label>
-            <Input
-              id="r-floor"
-              type="number"
-              min={1}
-              max={50}
-              {...form.register("floor", { valueAsNumber: true })}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label htmlFor="r-type">{labels.unitTypeLabel}</Label>
-            <select
-              id="r-type"
-              className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"
-              {...form.register("roomTypeId")}
-            >
-              {roomTypes.length === 0 ? (
-                <option value="">{`Avval ${labels.unitTypeLabel.toLowerCase()}ni yarating`}</option>
-              ) : (
-                roomTypes.map((rt) => (
-                  <option key={rt.id} value={rt.id}>
-                    {rt.name} — {rt.basePrice.toLocaleString("uz-UZ")} so&apos;m
-                  </option>
-                ))
+          {!isBus && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="r-floor">{labels.floorSingular.charAt(0).toUpperCase() + labels.floorSingular.slice(1)}</Label>
+              <Input
+                id="r-floor"
+                type="number"
+                min={1}
+                max={50}
+                {...form.register("floor", { valueAsNumber: true })}
+              />
+            </div>
+          )}
+          {restaurant ? (
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label htmlFor="r-capacity">Sig'imi (necha kishilik)</Label>
+              <Input
+                id="r-capacity"
+                type="number"
+                min={1}
+                max={50}
+                placeholder="Masalan: 4"
+                aria-invalid={Boolean(err.capacity)}
+                {...form.register("capacity", {
+                  setValueAs: (v) =>
+                    v === "" || v === null || v === undefined
+                      ? undefined
+                      : Number(v),
+                })}
+              />
+              {err.capacity && (
+                <p className="text-xs text-red-600">{err.capacity.message}</p>
               )}
-            </select>
-            {err.roomTypeId && (
-              <p className="text-xs text-red-600">{err.roomTypeId.message}</p>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label htmlFor="r-type">{labels.unitTypeLabel}</Label>
+              <select
+                id="r-type"
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"
+                {...form.register("roomTypeId")}
+              >
+                {roomTypes.length === 0 ? (
+                  <option value="">{`Avval ${labels.unitTypeLabel.toLowerCase()}ni yarating`}</option>
+                ) : (
+                  roomTypes.map((rt) => (
+                    <option key={rt.id} value={rt.id}>
+                      {rt.name} — {rt.basePrice.toLocaleString("uz-UZ")} so&apos;m
+                    </option>
+                  ))
+                )}
+              </select>
+              {err.roomTypeId && (
+                <p className="text-xs text-red-600">{err.roomTypeId.message}</p>
+              )}
+            </div>
+          )}
 
           {editing && !isHostel && (
             <div className="flex flex-col gap-1.5">
@@ -226,31 +283,33 @@ export function RoomDialog({ open, onClose, editing }: Props) {
             </div>
           )}
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="r-price">
-              Maxsus narx <span className="text-[var(--muted-foreground)]">(ixtiyoriy)</span>
-            </Label>
-            <Input
-              id="r-price"
-              type="number"
-              min={0}
-              placeholder={
-                selectedRoomType
-                  ? `${selectedRoomType.basePrice.toLocaleString("uz-UZ")} so'm (${labels.unitTypeLabel.toLowerCase()} narxi)`
-                  : `${labels.unitTypeLabel} narxi ishlatiladi`
-              }
-              aria-invalid={Boolean(err.nightlyPrice)}
-              {...form.register("nightlyPrice", {
-                setValueAs: (v) =>
-                  v === "" || v === null || v === undefined
-                    ? undefined
-                    : Number(v),
-              })}
-            />
-            {err.nightlyPrice && (
-              <p className="text-xs text-red-600">{err.nightlyPrice.message}</p>
-            )}
-          </div>
+          {!restaurant && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="r-price">
+                Maxsus narx <span className="text-[var(--muted-foreground)]">(ixtiyoriy)</span>
+              </Label>
+              <Input
+                id="r-price"
+                type="number"
+                min={0}
+                placeholder={
+                  selectedRoomType
+                    ? `${selectedRoomType.basePrice.toLocaleString("uz-UZ")} so'm (${labels.unitTypeLabel.toLowerCase()} narxi)`
+                    : `${labels.unitTypeLabel} narxi ishlatiladi`
+                }
+                aria-invalid={Boolean(err.nightlyPrice)}
+                {...form.register("nightlyPrice", {
+                  setValueAs: (v) =>
+                    v === "" || v === null || v === undefined
+                      ? undefined
+                      : Number(v),
+                })}
+              />
+              {err.nightlyPrice && (
+                <p className="text-xs text-red-600">{err.nightlyPrice.message}</p>
+              )}
+            </div>
+          )}
 
           <label
             htmlFor="r-listed"
@@ -288,7 +347,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
             </Button>
             <Button
               type="submit"
-              disabled={roomTypes.length === 0 || submitting}
+              disabled={(roomTypes.length === 0 && !restaurant) || submitting}
             >
               {editing ? "Saqlash" : "Qo'shish"}
             </Button>

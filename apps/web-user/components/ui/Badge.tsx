@@ -12,7 +12,7 @@ export function Badge({
 }: BadgeProps) {
   const variants = {
     default:
-      "border-transparent bg-blue-600 text-white hover:bg-blue-700 font-bold",
+      "border-transparent bg-primary-600 text-white hover:bg-primary-700 font-bold",
     secondary:
       "border-transparent bg-slate-100 text-slate-900 hover:bg-slate-200 font-bold",
     destructive:

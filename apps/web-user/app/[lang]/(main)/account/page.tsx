@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { api } from "@/lib/api";
 import { Card, CardBody } from "@/components/ui/Card";
 import { ProfileForm } from "@/components/account/ProfileForm";
+import { SettingsForm } from "@/components/account/SettingsForm";
 import type { ProfileView } from "@/types/view";
 
 export default async function AccountProfilePage({
@@ -27,6 +28,7 @@ export default async function AccountProfilePage({
   }
 
   const profile: ProfileView = await api.users.getProfile({ token: session.accessToken });
+  const preferences = await api.users.getNotificationPreferences({ token: session.accessToken }).catch(() => null);
 
   const memberSince = (() => {
     const ts = Date.parse(profile.createdAt);
@@ -36,6 +38,7 @@ export default async function AccountProfilePage({
   })();
 
   return (
+    <div className="flex flex-col">
     <Card>
       <CardBody className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
@@ -47,5 +50,11 @@ export default async function AccountProfilePage({
         <ProfileForm locale={locale} profile={profile} dict={dict.profile} />
       </CardBody>
     </Card>
+    <Card className="mt-6">
+      <CardBody>
+        <SettingsForm preferences={preferences} />
+      </CardBody>
+    </Card>
+    </div>
   );
 }

@@ -8,17 +8,17 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* ── Brand colors ── */
-  --brand-50: #eff6ff;
-  --brand-100: #dbeafe;
-  --brand-200: #bfdbfe;
-  --brand-300: #93c5fd;
-  --brand-400: #60a5fa;
-  --brand-500: #3b82f6;
-  --brand-600: #1d4ed8;
-  --brand-700: #1e40af;
-  --brand-800: #1e3a8a;
-  --brand-900: #172554;
+  /* ── Brand colors (Vibrant Lime Green based on #87C90D) ── */
+  --brand-50: #f4fce3;
+  --brand-100: #e5f8c2;
+  --brand-200: #cff194;
+  --brand-300: #9BE659;
+  --brand-400: #88D943;
+  --brand-500: #76CD2B; /* Asosiy yashil rang */
+  --brand-600: #62B022; /* Hover uchun */
+  --brand-700: #51931A;
+  --brand-800: #427814;
+  --brand-900: #35600F;
 
   /* ── Brand Accent ── */
   --brand-accent-50: #fff7ed;
@@ -29,24 +29,24 @@
   --brand-accent-700: #c2410c;
 
   /* ── Single Unified Background & Card System ── */
-  --background: #ffffff;
+  --background: #efefef;
   --foreground: #0f172a;
-  --card: #f8fafc;
+  --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #1e3a8a;
+  --primary: var(--brand-500);
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
+  --secondary: #efefef;
   --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
+  --muted: #efefef;
   --muted-foreground: #334155;
   --accent: #f8fafc;
   --accent-foreground: #0f172a;
   --destructive: #dc2626;
   --border: #cbd5e1;
   --input: #cbd5e1;
-  --ring: #3b82f6;
+  --ring: var(--brand-500);
   --radius: 0.625rem;
 }
 
@@ -77,13 +77,15 @@
   --font-heading: var(--font-manrope), var(--font-inter), sans-serif;
 
   --shadow-card:
-    0 1px 2px rgba(15, 23, 42, 0.06),
-    0 6px 16px -4px rgba(15, 23, 42, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    0 2px 4px rgba(0, 0, 0, 0.12),
+    0 8px 24px -4px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08);
   --shadow-card-hover:
-    0 2px 4px rgba(15, 23, 42, 0.08),
-    0 18px 34px -10px rgba(15, 23, 42, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    0 4px 8px rgba(0, 0, 0, 0.15),
+    0 20px 40px -8px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12);
   --shadow-btn:
     0 1px 2px rgba(15, 23, 42, 0.12),
     0 3px 8px -1px rgba(15, 23, 42, 0.18),
@@ -128,6 +130,17 @@
   }
   a:not([class]):active {
     color: var(--brand-800);
+  }
+
+  /* Prevent browser default focus outlines on click (especially for next/link navigation) */
+  a, button {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  a:focus:not(:focus-visible), button:focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
   }
 
   input:focus, select:focus, textarea:focus {

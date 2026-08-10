@@ -25,7 +25,7 @@ interface TimelineStep {
   state: "done" | "current" | "pending" | "skipped";
 }
 
-function buildSteps(r: ReservationView, unitLabel: string): TimelineStep[] {
+function buildSteps(r: ReservationView, unitLabel: string, checkInLabel: string, checkOutLabel: string): TimelineStep[] {
   const cancelled = r.status === BookingStatus.CANCELLED;
   const completed = r.status === BookingStatus.COMPLETED;
   const inHouse = r.status === "IN_HOUSE";
@@ -52,7 +52,7 @@ function buildSteps(r: ReservationView, unitLabel: string): TimelineStep[] {
     {
       key: "checkin",
       icon: LogIn,
-      label: "Check-in",
+      label: checkInLabel,
       detail: r.roomNumber ? `${unitLabel} ${r.roomNumber}` : undefined,
       state: cancelled
         ? "skipped"
@@ -65,7 +65,7 @@ function buildSteps(r: ReservationView, unitLabel: string): TimelineStep[] {
     {
       key: "checkout",
       icon: LogOut,
-      label: "Check-out",
+      label: checkOutLabel,
       date: completed ? r.checkOut : undefined,
       state: cancelled
         ? "skipped"
@@ -96,7 +96,7 @@ export function ReservationTimeline({
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const unitCap = labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1);
-  const steps = buildSteps(reservation, unitCap);
+  const steps = buildSteps(reservation, unitCap, labels.checkInLabel, labels.checkOutLabel);
 
   return (
     <ol className="flex flex-col">

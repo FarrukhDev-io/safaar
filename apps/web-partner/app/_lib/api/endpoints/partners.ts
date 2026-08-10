@@ -87,6 +87,16 @@ export function updateHotel(
   });
 }
 
+export function resetHotel(id: string, token?: string | null) {
+  return request<BackendHotel>(
+    `/partners/hotels/${encodeURIComponent(id)}/reset`,
+    {
+      method: 'POST',
+      token,
+    },
+  );
+}
+
 export function submitHotelReview(id: string, token?: string | null) {
   return request<BackendHotel>(
     `/partners/hotels/${encodeURIComponent(id)}/submit-review`,

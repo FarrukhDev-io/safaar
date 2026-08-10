@@ -11,9 +11,8 @@ import { CityCardsSection } from "@/components/features/home/CityCardsSection";
 
 import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotelsCarousel";
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
-import { PartnersShowcase } from "@/components/features/home/PartnersShowcase";
-import { PromoCodesSectionLive } from "@/components/features/home/PromoCodesSectionLive";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 export const dynamic = "force-dynamic";
 
@@ -37,14 +36,13 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [common, dict, cities, featuredResult, rawDeals, stats, promos] = await Promise.all([
+  const [common, dict, cities, featuredResult, rawDeals] = await Promise.all([
     getDictionary(locale, "common"),
     getDictionary(locale, "home"),
     api.catalog.getCities(locale),
     api.hotels.getFeaturedHotels(locale, { limit: 4 }),
     api.cms.getDeals(locale),
     api.cms.getPublicStats().catch(() => null),
-    api.promos.listActive().catch(() => []),
   ]);
 
   const hotels = featuredResult.items;
@@ -75,12 +73,12 @@ export default async function HomePage({
           </section>
 
           {cities.length > 0 && (
-            <div className="mx-auto mt-4 flex max-w-5xl flex-nowrap items-center justify-start sm:justify-center gap-1.5 overflow-x-auto px-4 sm:mt-6 sm:gap-2 pb-1 scrollbar-none">
+            <div className="mx-auto mt-4 flex max-w-5xl flex-nowrap items-center justify-start sm:justify-center gap-2 overflow-x-auto px-4 py-4 sm:mt-6 scrollbar-none">
               {cities.slice(0, 8).map((city) => (
                 <Link
                   key={city.id}
                   href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-                  className="shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 active:scale-95 sm:px-5 sm:py-2.5 sm:text-sm"
+                  className="shrink-0 rounded-full border-2 border-transparent bg-white/60 backdrop-blur-md px-6 py-2.5 text-[14px] font-bold text-slate-700 shadow-sm ring-1 ring-slate-200/50 transition-all duration-300 hover:bg-white hover:text-primary-600 hover:shadow-md hover:ring-primary-500/50 active:scale-95"
                 >
                   {city.name}
                 </Link>
@@ -108,8 +106,7 @@ export default async function HomePage({
         </Suspense>
       </div>
 
-      {/* EKRAN 3: Promo-kodlar (real-time) */}
-      <PromoCodesSectionLive initialPromos={promos} />
+
 
       {/* EKRAN 4: City Cards */}
       <div className="py-10 sm:py-16 md:py-20">

@@ -100,7 +100,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               <StatusBadge status={String(booking.status)} statusMap={BOOKING_STATUS_MAP} />
             </div>
             <p className="text-sm text-[var(--text-muted)] mt-0.5">
-              {isHotel ? "Mehmonxona bron" : isRestaurant ? "Restoran bron" : "Avtobus bron"} · Yaratilgan: {formatDateTime(booking.createdAt)}
+              {isHotel ? "Mehmonxona bron" : isRestaurant ? "Restoran bron" : "Ijara bron"} · Yaratilgan: {formatDateTime(booking.createdAt)}
             </p>
           </div>
         </div>
@@ -161,7 +161,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex items-center gap-2 mb-4">
               {isHotel ? <Hotel size={18} className="text-[var(--primary)]" /> : isRestaurant ? <UtensilsCrossed size={18} className="text-[var(--accent)]" /> : <Bus size={18} className="text-[var(--accent)]" />}
               <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                {isHotel ? "Mehmonxona ma'lumotlari" : isRestaurant ? "Restoran ma'lumotlari" : "Avtobus ma'lumotlari"}
+                {isHotel ? "Mehmonxona ma'lumotlari" : isRestaurant ? "Restoran ma'lumotlari" : "Mashina ma'lumotlari"}
               </h3>
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -12,6 +12,10 @@ export interface HotelListParams {
   sort?: "price_asc" | "price_desc" | "rating";
   minPrice?: number;
   maxPrice?: number;
+  neLat?: number;
+  neLng?: number;
+  swLat?: number;
+  swLng?: number;
 }
 
 export interface HotelListResult {
@@ -46,6 +50,10 @@ export const hotelsService = {
         sort: params.sort,
         min_price: params.minPrice,
         max_price: params.maxPrice,
+        ne_lat: params.neLat,
+        ne_lng: params.neLng,
+        sw_lat: params.swLat,
+        sw_lng: params.swLng,
       },
       next: { revalidate: 60 },
     } as any);

@@ -19,7 +19,7 @@ import {
   useCreateWalkInReservation,
   useReservations,
 } from "../../_hooks/use-reservations";
-import { getPartnerLabels, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBuses, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 import { DEFAULT_SLOT_DURATION_MINUTES, buildTimeSlots, toMinutes } from "../../_lib/utils/time-slots";
 import {
   isValidPhone,
@@ -86,10 +86,14 @@ export function WalkInDialog({
   const unitCap = labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1);
   const dacha = isDacha(partnerType);
   const restaurant = isRestaurant(partnerType);
+  const isBus = hasBuses(partnerType);
 
-  const timeSlots = restaurant
+  let timeSlots = restaurant
     ? buildTimeSlots(listing.checkInTime, listing.checkOutTime)
     : [];
+  if (restaurant && timeSlots.length === 0) {
+    timeSlots = buildTimeSlots("09:00", "23:59");
+  }
   const dachaRoom = dacha ? rooms[0] : undefined;
 
   const defaultCheckIn = initialValues?.checkIn ?? TODAY_ISO;
@@ -231,12 +235,16 @@ export function WalkInDialog({
       open={open}
       onClose={onClose}
       title={labels.walkInTitle}
-      description="Resepsiyonga to'g'ridan-to'g'ri kelgan mehmon uchun."
+      description={
+        isBus
+          ? "Mijozga to'g'ridan-to'g'ri mashina ijaraga berish uchun."
+          : "Resepsiyonga to'g'ridan-to'g'ri kelgan mehmon uchun."
+      }
       size="lg"
     >
       <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-1.5 md:col-span-2">
-          <Label htmlFor="fullName">Mehmon FIO</Label>
+          <Label htmlFor="fullName">{isBus ? "Mijoz (Haydovchi) FIO" : "Mehmon FIO"}</Label>
           <Input
             id="fullName"
             placeholder="Aliyev Sherzod"
@@ -279,7 +287,9 @@ export function WalkInDialog({
               ) : (
                 roomTypes.map((rt) => (
                   <option key={rt.id} value={rt.id}>
-                    {rt.name} — {rt.basePrice.toLocaleString("uz-UZ")} so&apos;m
+                    {restaurant
+                      ? `${rt.capacity} kishilik`
+                      : `${rt.name} — ${rt.basePrice.toLocaleString("uz-UZ")} so'm`}
                   </option>
                 ))
               )}

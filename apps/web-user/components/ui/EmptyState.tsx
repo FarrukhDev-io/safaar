@@ -25,7 +25,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-xs dark:border-slate-800 dark:bg-slate-900 ${className}`}
+      className={`flex flex-col items-center justify-center rounded-3xl border border-slate-200/80 bg-card p-8 text-center shadow-xs dark:border-slate-800 dark:bg-slate-900 ${className}`}
     >
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
         {icon}

@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -13,6 +13,7 @@ import { formatSum } from "@/lib/money";
 import { BackButton } from "@/components/ui/BackButton";
 import { RetryPaymentForm } from "./_components/RetryPaymentForm";
 import { BookingActions } from "./_components/BookingActions";
+import { BookingChat } from "./_components/BookingChat";
 import type { BookingView } from "@/types/view";
 import type { PaymentProvider } from "@/lib/services/payments/payments";
 
@@ -22,9 +23,9 @@ function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-async function getBookingOrNull(id: string, token: string) {
+async function getBookingOrNull(id: string, token?: string) {
   try {
-    return await api.bookings.getBooking(id, { token });
+    return await api.bookings.getBooking(id, token ? { token } : undefined);
   } catch (error) {
     if (error instanceof ApiRequestError && error.statusCode === 404) {
       return null;
@@ -54,19 +55,15 @@ export default async function BookingDetailPage({
     getSession(),
   ]);
 
-  if (!session) {
-    redirect(`/${locale}/login?next=${encodeURIComponent(`/${locale}/booking/${id}`)}`);
-  }
-
   const booking: BookingView | null = await getBookingOrNull(
     id,
-    session.accessToken,
+    session?.accessToken,
   );
 
   if (!booking) {
     return (
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
-        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-btn dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
           {dict.error}
         </p>
       </main>
@@ -138,7 +135,7 @@ export default async function BookingDetailPage({
 
       <section
         aria-label="Receipt Summary"
-        className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -172,7 +169,7 @@ export default async function BookingDetailPage({
       </section>
 
       {(!isConfirmed && !isAwaitingCash) || isFailed ? (
-        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary-600 dark:text-primary-400" />
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -198,11 +195,16 @@ export default async function BookingDetailPage({
         bookingId={booking.id}
         totalSum={booking.totalSum}
         paymentMethod={payment?.provider || "online"}
+        token={session?.accessToken}
         dict={{
           voucher: dict.voucher,
           backHome: dict.backHome,
         }}
       />
+
+      <section className="mt-8">
+        <BookingChat bookingId={booking.id} token={session?.accessToken} />
+      </section>
     </main>
   );
 }

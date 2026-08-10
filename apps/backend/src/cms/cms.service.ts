@@ -22,6 +22,14 @@ function textValue(value: unknown, fallback = ''): string {
   return String(value ?? fallback);
 }
 
+function localizedText(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  const localized = objectValue(value);
+  return textValue(localized.uz ?? localized.ru ?? localized.en, fallback);
+}
+
 function numberValue(value: unknown, fallback = 0): number {
   const numeric = Number(value ?? fallback);
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -54,7 +62,11 @@ export class CmsService {
           WHERE type = ANY($1::text[])
             AND status IN ('published', 'active')
           ORDER BY
-            COALESCE((metadata ->> 'sortOrder')::int, (metadata ->> 'order')::int, 9999),
+            COALESCE(
+              CASE WHEN metadata ->> 'sortOrder' ~ '^-?[0-9]+$' THEN (metadata ->> 'sortOrder')::int END,
+              CASE WHEN metadata ->> 'order' ~ '^-?[0-9]+$' THEN (metadata ->> 'order')::int END,
+              9999
+            ),
             COALESCE(published_at, created_at) DESC
         `,
         [types],
@@ -65,25 +77,27 @@ export class CmsService {
 
   async one(name: string, slug: string) {
     const types = CMS_COLLECTION_TYPES[name] ?? [name.replace(/s$/, '')];
-    const rows = await this.postgres.query<CmsRow>(
-      `
-        SELECT id::text, type, slug, title, body, status, metadata,
-               published_at, created_at, updated_at
-        FROM cms_entries
-        WHERE type = ANY($1::text[])
-          AND slug = $2
-          AND status IN ('published', 'active')
-        LIMIT 1
-      `,
-      [types, slug],
-    );
-    if (!rows[0]) {
-      throw new NotFoundException({
-        code: 'CMS_ENTRY_NOT_FOUND',
-        message: 'CMS yozuvi topilmadi',
-      });
-    }
-    return this.cmsDto(rows[0]);
+    return this.cache.getOrSet(`cms:entry:${name}:${slug}`, 300, async () => {
+      const rows = await this.postgres.query<CmsRow>(
+        `
+          SELECT id::text, type, slug, title, body, status, metadata,
+                 published_at, created_at, updated_at
+          FROM cms_entries
+          WHERE type = ANY($1::text[])
+            AND slug = $2
+            AND status IN ('published', 'active')
+          LIMIT 1
+        `,
+        [types, slug],
+      );
+      if (!rows[0]) {
+        throw new NotFoundException({
+          code: 'CMS_ENTRY_NOT_FOUND',
+          message: 'CMS yozuvi topilmadi',
+        });
+      }
+      return this.cmsDto(rows[0]);
+    });
   }
 
   async offers() {
@@ -151,6 +165,8 @@ export class CmsService {
 
   private cmsDto(row: CmsRow) {
     const meta = objectValue(row.metadata);
+    const titleText = localizedText(row.title, textValue(row.slug));
+    const bodyText = localizedText(row.body);
     return {
       id: row.id,
       type: row.type,
@@ -158,6 +174,10 @@ export class CmsService {
       title: row.title,
       name: row.title,
       body: row.body,
+      title_text: titleText,
+      name_text: titleText,
+      body_text: bodyText,
+      content: bodyText,
       question: row.title,
       answer: row.body,
       status: row.status,
@@ -178,6 +198,9 @@ export class CmsService {
       order: numberValue(meta.order ?? meta.sortOrder),
       category_key: meta.category_key ?? meta.categoryKey ?? '',
       category_default: meta.category_default ?? meta.categoryDefault ?? '',
+      excerpt: meta.excerpt ?? meta.summary ?? '',
+      seo_title: meta.seo_title ?? meta.seoTitle ?? titleText,
+      seo_description: meta.seo_description ?? meta.seoDescription ?? '',
       best_time_to_visit: meta.best_time_to_visit ?? meta.bestTimeToVisit ?? '',
       cuisine: meta.cuisine ?? '',
       address: meta.address ?? '',

@@ -12,9 +12,13 @@ export class EmailService {
   private readonly from?: string;
   private readonly resendApiKey?: string;
   private readonly resendFrom?: string;
+  private readonly production: boolean;
   private transporter?: Transporter;
 
   constructor(config: ConfigService) {
+    this.production =
+      String(config.get<string>('NODE_ENV') ?? process.env.NODE_ENV) ===
+      'production';
     this.host = smtpHost(config.get<string>('SMTP_HOST'));
     this.port = Number(config.get<string>('SMTP_PORT') ?? 587);
     this.user = config.get<string>('SMTP_USER');
@@ -49,10 +53,7 @@ export class EmailService {
   }
 
   private async sendViaResend(message: EmailMessage) {
-    let fromAddress = this.resendFrom || this.from;
-    if (!fromAddress || fromAddress.includes('@gmail.com')) {
-      fromAddress = 'onboarding@resend.dev';
-    }
+    const fromAddress = this.resendSenderAddress();
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -77,7 +78,7 @@ export class EmailService {
     if (!response.ok) {
       throw new ServiceUnavailableException({
         code: 'EMAIL_SEND_FAILED',
-        message: body?.message ?? 'Email yuborib bo\'lmadi',
+        message: body?.message ?? "Email yuborib bo'lmadi",
       });
     }
 
@@ -85,6 +86,22 @@ export class EmailService {
       providerMessageId: body?.id ?? '',
       accepted: true,
     };
+  }
+
+  private resendSenderAddress(): string {
+    const configuredFrom = (this.resendFrom || this.from || '').trim();
+    if (configuredFrom && !isUnsupportedResendSender(configuredFrom)) {
+      return configuredFrom;
+    }
+
+    if (!this.production) {
+      return 'onboarding@resend.dev';
+    }
+
+    throw new ServiceUnavailableException({
+      code: 'EMAIL_SENDER_NOT_CONFIGURED',
+      message: 'Production email uchun verified RESEND_FROM sozlang',
+    });
   }
 
   private getTransporter() {
@@ -124,6 +141,15 @@ function smtpHost(value: string | undefined): string | undefined {
   }
 
   return host;
+}
+
+function isUnsupportedResendSender(value: string): boolean {
+  const lower = value.toLowerCase();
+  return (
+    lower.includes('@gmail.com') ||
+    lower.includes('@googlemail.com') ||
+    lower.includes('onboarding@resend.dev')
+  );
 }
 
 function parseMailResult(value: unknown) {

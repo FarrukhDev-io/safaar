@@ -26,6 +26,14 @@ interface EnvironmentConfig {
   SLOW_QUERY_MS: number;
   CACHE_ENABLED: string;
   CACHE_DEFAULT_TTL_SECONDS: number;
+  STORAGE_ENDPOINT?: string;
+  STORAGE_REGION: string;
+  STORAGE_BUCKET_PUBLIC?: string;
+  STORAGE_BUCKET_PRIVATE?: string;
+  STORAGE_ACCESS_KEY_ID?: string;
+  STORAGE_SECRET_ACCESS_KEY?: string;
+  STORAGE_PUBLIC_BASE_URL?: string;
+  STORAGE_FORCE_PATH_STYLE?: string;
   CORS_ORIGINS?: string;
   SWAGGER_ENABLED: string;
   SMTP_HOST?: string;
@@ -33,6 +41,8 @@ interface EnvironmentConfig {
   SMTP_USER?: string;
   SMTP_PASS?: string;
   SMTP_FROM?: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_CALLBACK_URL?: string;
@@ -92,7 +102,7 @@ export function validateEnv(
 
   return {
     NODE_ENV: nodeEnv,
-    APP_NAME: String(config.APP_NAME ?? 'uzbron-api'),
+    APP_NAME: String(config.APP_NAME ?? 'safaar-api'),
     WEB_USER_URL: String(config.WEB_USER_URL ?? 'http://localhost:3000'),
     PORT: toNumber(config.PORT, 4000),
     API_PREFIX: String(config.API_PREFIX ?? 'v1'),
@@ -111,8 +121,8 @@ export function validateEnv(
     JWT_REFRESH_TTL: String(
       config.JWT_REFRESH_TTL ?? config.JWT_REFRESH_EXPIRES_IN ?? '30d',
     ),
-    JWT_ISSUER: String(config.JWT_ISSUER ?? 'uzbron-api'),
-    JWT_AUDIENCE: String(config.JWT_AUDIENCE ?? 'uzbron-clients'),
+    JWT_ISSUER: String(config.JWT_ISSUER ?? 'safaar-api'),
+    JWT_AUDIENCE: String(config.JWT_AUDIENCE ?? 'safaar-clients'),
     TOTP_ENCRYPTION_KEY: config.TOTP_ENCRYPTION_KEY
       ? String(config.TOTP_ENCRYPTION_KEY)
       : undefined,
@@ -138,6 +148,28 @@ export function validateEnv(
     SLOW_QUERY_MS: toNumber(config.SLOW_QUERY_MS, 300),
     CACHE_ENABLED: String(config.CACHE_ENABLED ?? 'true'),
     CACHE_DEFAULT_TTL_SECONDS: toNumber(config.CACHE_DEFAULT_TTL_SECONDS, 300),
+    STORAGE_ENDPOINT: config.STORAGE_ENDPOINT
+      ? String(config.STORAGE_ENDPOINT)
+      : undefined,
+    STORAGE_REGION: String(config.STORAGE_REGION ?? 'auto'),
+    STORAGE_BUCKET_PUBLIC: config.STORAGE_BUCKET_PUBLIC
+      ? String(config.STORAGE_BUCKET_PUBLIC)
+      : undefined,
+    STORAGE_BUCKET_PRIVATE: config.STORAGE_BUCKET_PRIVATE
+      ? String(config.STORAGE_BUCKET_PRIVATE)
+      : undefined,
+    STORAGE_ACCESS_KEY_ID: config.STORAGE_ACCESS_KEY_ID
+      ? String(config.STORAGE_ACCESS_KEY_ID)
+      : undefined,
+    STORAGE_SECRET_ACCESS_KEY: config.STORAGE_SECRET_ACCESS_KEY
+      ? String(config.STORAGE_SECRET_ACCESS_KEY)
+      : undefined,
+    STORAGE_PUBLIC_BASE_URL: config.STORAGE_PUBLIC_BASE_URL
+      ? String(config.STORAGE_PUBLIC_BASE_URL)
+      : undefined,
+    STORAGE_FORCE_PATH_STYLE: config.STORAGE_FORCE_PATH_STYLE
+      ? String(config.STORAGE_FORCE_PATH_STYLE)
+      : undefined,
     CORS_ORIGINS: config.CORS_ORIGINS ? String(config.CORS_ORIGINS) : undefined,
     SWAGGER_ENABLED: String(config.SWAGGER_ENABLED ?? !production),
     SMTP_HOST: config.SMTP_HOST ? String(config.SMTP_HOST) : undefined,
@@ -145,6 +177,10 @@ export function validateEnv(
     SMTP_USER: config.SMTP_USER ? String(config.SMTP_USER) : undefined,
     SMTP_PASS: config.SMTP_PASS ? String(config.SMTP_PASS) : undefined,
     SMTP_FROM: config.SMTP_FROM ? String(config.SMTP_FROM) : undefined,
+    RESEND_API_KEY: config.RESEND_API_KEY
+      ? String(config.RESEND_API_KEY)
+      : undefined,
+    RESEND_FROM: config.RESEND_FROM ? String(config.RESEND_FROM) : undefined,
     GOOGLE_CLIENT_ID: config.GOOGLE_CLIENT_ID
       ? String(config.GOOGLE_CLIENT_ID)
       : undefined,

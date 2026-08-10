@@ -9,6 +9,7 @@ import { HotelCard } from "@/components/hotels/HotelCard";
 import { HotelsPagination } from "@/components/hotels/HotelsPagination";
 import { InteractiveMapView, type MapMarkerItem } from "@/components/features/map/InteractiveMapView";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { api } from "@/lib/api";
 import type { HotelListItem } from "@/types/view";
 
 export interface AccommodationListWithMapProps {
@@ -34,9 +35,12 @@ export function AccommodationListWithMap({
   const [hoveredHotelId, setHoveredHotelId] = useState<string | null>(null);
   const [selectedHotelId, setSelectedHotelId] = useState<string | null>(null);
 
+  const [mapModeItems, setMapModeItems] = useState<HotelListItem[] | null>(null);
+  const activeItems = viewMode === "map" && mapModeItems ? mapModeItems : items;
+
   const mapItems: MapMarkerItem[] = useMemo(
     () =>
-      items.map((h) => ({
+      activeItems.map((h) => ({
         id: h.id,
         name: h.name,
         cityName: h.cityName,
@@ -48,8 +52,23 @@ export function AccommodationListWithMap({
         lat: h.latitude,
         lng: h.longitude,
       })),
-    [items, locale]
+    [activeItems, locale]
   );
+
+  const handleBoundsChange = async (bounds: { neLat: number; neLng: number; swLat: number; swLng: number }) => {
+    try {
+      const response = await api.hotels.getHotels(locale, {
+        neLat: bounds.neLat,
+        neLng: bounds.neLng,
+        swLat: bounds.swLat,
+        swLng: bounds.swLng,
+        limit: 50,
+      });
+      setMapModeItems(response.items);
+    } catch (err) {
+      console.error("Failed to fetch hotels for new map bounds", err);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -65,7 +84,7 @@ export function AccommodationListWithMap({
             onClick={() => setViewMode("grid")}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
               viewMode === "grid"
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
+                ? "bg-card text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
                 : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
             }`}
           >
@@ -78,7 +97,7 @@ export function AccommodationListWithMap({
             onClick={() => setViewMode("map")}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
               viewMode === "map"
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
+                ? "bg-card text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
                 : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
             }`}
           >
@@ -101,13 +120,13 @@ export function AccommodationListWithMap({
           {/* List Column */}
           <div className="flex flex-col gap-4">
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-              {items.map((hotel) => (
+              {activeItems.map((hotel) => (
                 <div
                   key={hotel.id}
                   onMouseEnter={() => setHoveredHotelId(hotel.id)}
                   onMouseLeave={() => setHoveredHotelId(null)}
                   className={`transition-all duration-200 rounded-2xl ${
-                    selectedHotelId === hotel.id ? "ring-2 ring-blue-500 shadow-lg" : ""
+                    selectedHotelId === hotel.id ? "ring-2 ring-primary-500 shadow-lg" : ""
                   }`}
                 >
                   <HotelCard
@@ -135,6 +154,7 @@ export function AccommodationListWithMap({
               hoveredItemId={hoveredHotelId}
               selectedItemId={selectedHotelId}
               onSelectItem={(item) => setSelectedHotelId(item.id)}
+              onBoundsChange={handleBoundsChange}
               className="h-[450px] w-full lg:h-full rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800"
             />
           </div>

@@ -100,4 +100,45 @@ export const usersService = {
     const favorites = await this.getFavorites(options);
     return favorites.find((f) => f.targetId === targetId)?.id ?? null;
   },
+
+  /** `POST /me/avatar` — profil rasmini yuklash. */
+  async uploadAvatar(file: File, options?: { token?: string }): Promise<ProfileView> {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const raw = await rawApi.post<unknown>("/me/avatar", formData, {
+      ...options,
+      headers: {
+        // fetch yuborayotganda FormData bo'lsa Content-Type avtomatik qoyiladi,
+        // shuning uchun api-client da buni override qimaslik kerak (agar rawApi qollab quvvatlasa).
+      },
+    });
+    return toProfileView(camelizeKeys(raw));
+  },
+
+  /** `DELETE /me/avatar` — profil rasmini o'chirish. */
+  async deleteAvatar(options?: { token?: string }): Promise<ProfileView> {
+    const raw = await rawApi.delete<unknown>("/me/avatar", options);
+    return toProfileView(camelizeKeys(raw));
+  },
+
+  /** `GET /me/notifications/preferences` — bildirishnomalar sozlamalari. */
+  async getNotificationPreferences(options?: { token?: string }): Promise<any> {
+    return rawApi.get<any>("/me/notifications/preferences", options);
+  },
+
+  /** `PATCH /me/notifications/preferences` — bildirishnomalar sozlamalarini yangilash. */
+  async updateNotificationPreferences(data: any, options?: { token?: string }): Promise<any> {
+    return rawApi.patch<any>("/me/notifications/preferences", data, options);
+  },
+
+  /** `POST /me/data-export` — ma'lumotlarni eksport qilish so'rovi. */
+  async requestDataExport(options?: { token?: string }): Promise<void> {
+    await rawApi.post<unknown>("/me/data-export", {}, options);
+  },
+
+  /** `POST /me/delete-request` — akkauntni o'chirish so'rovi. */
+  async requestAccountDeletion(options?: { token?: string }): Promise<void> {
+    await rawApi.post<unknown>("/me/delete-request", {}, options);
+  },
 };

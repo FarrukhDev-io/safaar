@@ -8,7 +8,7 @@ import { HotelFilters } from "@/components/hotels/HotelFilters";
 import { HotelSortSelect } from "@/components/hotels/HotelSortSelect";
 import { ActiveFilters } from "@/components/hotels/ActiveFilters";
 import { Button } from "@/components/ui/Button";
-import { CategoryTabs } from "@/components/features/accommodation/CategoryTabs";
+import { AccommodationCategoryTabs } from "@/components/features/accommodation/AccommodationCategoryTabs";
 import { AccommodationListWithMap } from "@/components/features/accommodation/AccommodationListWithMap";
 import type { HotelListItem } from "@/types/view";
 
@@ -107,7 +107,7 @@ export async function AccommodationPage({
       />
       
       <div className="mt-2">
-        <CategoryTabs locale={locale} dict={common.nav} />
+        <AccommodationCategoryTabs locale={locale} dict={common.nav as Record<string, string>} />
       </div>
 
       <div className="flex flex-col gap-3">
@@ -136,7 +136,7 @@ export async function AccommodationPage({
 
         <section aria-label={dict.title}>
           {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 py-16 text-center shadow-btn dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 py-16 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <p className="font-medium text-slate-700 dark:text-slate-200">{dict.empty}</p>
               <p className="text-sm text-slate-500 dark:text-slate-400">{dict.emptyHint}</p>
               <Link href={clearedHref}>

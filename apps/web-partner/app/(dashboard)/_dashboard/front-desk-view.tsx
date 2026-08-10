@@ -11,6 +11,8 @@ import {
   Sparkles,
   Users,
   Wallet,
+  UtensilsCrossed,
+  BedDouble,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -39,7 +41,7 @@ import { useAuthStore } from "../../_stores/auth-store";
 import { TODAY_ISO } from "../../_lib/utils/date";
 import { formatDate, formatMoney } from "../../_lib/utils/format";
 import { cn } from "../../_lib/utils/cn";
-import { getPartnerLabels, isDacha } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 import type { ReservationView } from "../../_lib/domain/types";
 
 // "IN_HOUSE" — backend'da BookingStatus enum'da yo'q, lekin frontend'da qo'llaniladi
@@ -284,6 +286,7 @@ export function FrontDeskView() {
                   reservation={reservation}
                   labels={labels}
                   dacha={dacha}
+                  restaurant={isRestaurant(partnerType)}
                   onCheckIn={() => handleCheckIn(reservation)}
                   onCheckOut={() => handleCheckOut(reservation)}
                   onConfirm={() => handleConfirm(reservation)}
@@ -304,15 +307,14 @@ export function FrontDeskView() {
           <Card className="border-none shadow-sm ring-1 ring-zinc-200/50 dark:ring-zinc-800/50">
             <CardBody className="p-5 flex flex-col gap-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-brand-500" aria-hidden />
-                <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Navbatdagi vazifa</h2>
+                <Sparkles className="h-4 w-4 text-brand-600" aria-hidden />
+                <h2 className="text-sm font-semibold">Tezkor vazifa</h2>
               </div>
-
               {nextTask ? (
-                <NextTaskCard task={nextTask} labels={labels} dacha={dacha} />
+                <NextTaskCard task={nextTask} labels={labels} dacha={dacha} restaurant={isRestaurant(partnerType)} />
               ) : (
-                <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 p-4 text-sm text-center text-zinc-500 dark:text-zinc-400">
-                  Hozircha shoshilinch vazifa yo'q. 🎉
+                <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 p-4 text-center text-sm text-zinc-500">
+                  Hozircha shoshilinch vazifa yo'q.
                 </div>
               )}
             </CardBody>
@@ -455,6 +457,7 @@ function TaskCard({
   reservation,
   labels,
   dacha,
+  restaurant,
   onCheckIn,
   onCheckOut,
   onConfirm,
@@ -464,6 +467,7 @@ function TaskCard({
   reservation: ReservationView;
   labels: PartnerLabels;
   dacha: boolean;
+  restaurant?: boolean;
   onCheckIn: () => void;
   onCheckOut: () => void;
   onConfirm: () => void;
@@ -505,10 +509,12 @@ function TaskCard({
         </div>
 
         <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-500 dark:text-zinc-400">
-          {/* Unit type — dacha uchun bitta birlik bo'lgani sabab ko'rsatilmaydi */}
+          {/* Unit type */}
           {!dacha && reservation.roomTypeName && (
             <div className="flex items-center gap-1.5">
-              <span className="text-zinc-400">📋</span>
+              <span className="text-zinc-400">
+                {restaurant ? <UtensilsCrossed className="h-4 w-4" /> : <BedDouble className="h-4 w-4" />}
+              </span>
               <span>
                 {reservation.roomTypeName}
                 {reservation.roomNumber && (
@@ -517,7 +523,7 @@ function TaskCard({
                     {bed && ` · ${bed.label}`}
                   </strong>
                 )}
-                {reservation.slotTime && (
+                {reservation.slotTime && restaurant && (
                   <strong className="text-zinc-700 dark:text-zinc-300 ml-1">
                     · {reservation.slotTime}
                   </strong>
@@ -529,7 +535,7 @@ function TaskCard({
           <div className="flex items-center gap-1.5">
             <CalendarDays className="h-4 w-4 text-zinc-400" />
             <span>
-              {reservation.slotTime
+              {restaurant && reservation.slotTime
                 ? `${formatDate(reservation.checkIn)} · ${reservation.slotTime}`
                 : `${reservation.nights} kecha`}
             </span>
@@ -585,7 +591,7 @@ function TaskCard({
   );
 }
 
-function NextTaskCard({ task, labels, dacha }: { task: Task; labels: PartnerLabels; dacha: boolean }) {
+function NextTaskCard({ task, labels, dacha, restaurant }: { task: Task; labels: PartnerLabels; dacha: boolean; restaurant?: boolean }) {
   const meta = TASK_META[task.kind];
   const beds = useDataStore((s) => s.beds);
   const bed = task.reservation.bedId ? beds.find((b) => b.id === task.reservation.bedId) : undefined;
@@ -599,22 +605,35 @@ function NextTaskCard({ task, labels, dacha }: { task: Task; labels: PartnerLabe
   return (
     <Link
       href={`/reservations/${task.reservation.id}`}
-      className="group flex items-center gap-3 rounded-lg border border-zinc-200/60 bg-white p-3 transition-all hover:border-brand-300 hover:shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50"
+      className="group flex flex-col gap-3 rounded-lg border border-zinc-200/60 bg-zinc-50/50 p-4 transition-all duration-200 hover:border-brand-200 hover:bg-brand-50/50 hover:shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50 dark:hover:border-brand-900/50 dark:hover:bg-brand-900/20"
     >
-      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform group-hover:scale-105", meta.bgClass, meta.iconClass)}>
-        {meta.icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-brand-600 transition-colors">
-          {task.reservation.guest.fullName}
-        </p>
-        <p className="truncate text-xs text-zinc-500 mt-0.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className={cn("flex h-8 w-8 items-center justify-center rounded-full", meta.bgClass, meta.iconClass)}>
+            <span className="[&>svg]:h-4 [&>svg]:w-4">{meta.icon}</span>
+          </div>
+          <span className="font-semibold text-zinc-900 group-hover:text-brand-600 dark:text-zinc-100 dark:group-hover:text-brand-400">
+            {task.reservation.guest.fullName}
+          </span>
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
           {kindLabel}
-          {!dacha && task.reservation.roomTypeName && ` · ${task.reservation.roomTypeName}`}
-          {bed && ` · ${bed.label}`}
-          {task.reservation.slotTime && ` · ${task.reservation.slotTime}`}
-        </p>
+        </span>
       </div>
+
+      {!dacha && task.reservation.roomTypeName && (
+        <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <div className="flex h-5 w-5 items-center justify-center rounded bg-zinc-100 dark:bg-zinc-800">
+            {restaurant ? <UtensilsCrossed className="h-3 w-3" /> : <BedDouble className="h-3 w-3" />}
+          </div>
+          <span className="font-medium">
+            {task.reservation.roomTypeName}
+            {task.reservation.roomNumber && ` · ${task.reservation.roomNumber}`}
+            {bed && ` · ${bed.label}`}
+            {restaurant && task.reservation.slotTime && ` · ${task.reservation.slotTime}`}
+          </span>
+        </div>
+      )}
     </Link>
   );
 }

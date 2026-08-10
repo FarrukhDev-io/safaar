@@ -80,7 +80,7 @@ export default async function AccountFavoritesPage({
               href={`/${locale}/hotels/${hotel.slug}`}
               className="group block overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             >
-              <article className="flex h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-btn transition-all duration-200 hover:bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900">
+              <article className="flex h-full overflow-hidden rounded-2xl border border-slate-200 bg-card shadow-sm transition-all duration-200 hover:bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900">
                 <div className="relative aspect-square w-32 shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800">
                   {imageUrl ? (
                     <Image
@@ -96,7 +96,7 @@ export default async function AccountFavoritesPage({
                     </span>
                   )}
                   {hotel.rating > 0 && (
-                    <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full border border-slate-200 bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 shadow-btn backdrop-blur-xs dark:border-slate-700 dark:bg-slate-900/90 dark:text-amber-400">
+                    <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full border border-slate-200 bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 shadow-sm backdrop-blur-xs dark:border-slate-700 dark:bg-slate-900/90 dark:text-amber-400">
                       <Star className="h-3 w-3 fill-current" />
                       {hotel.rating.toFixed(1)}
                     </span>

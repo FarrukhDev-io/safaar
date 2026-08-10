@@ -56,9 +56,9 @@ describe('MaintenanceGuard', () => {
   it('allows GET requests during maintenance mode (read-only browsing stays available)', async () => {
     pgMock.query.mockResolvedValue([{ maintenance_mode: true }]);
 
-    await expect(
-      guard.canActivate(contextFor('/v1/hotels')),
-    ).resolves.toBe(true);
+    await expect(guard.canActivate(contextFor('/v1/hotels'))).resolves.toBe(
+      true,
+    );
     expect(pgMock.query).not.toHaveBeenCalled();
   });
 
@@ -102,9 +102,7 @@ describe('MaintenanceGuard', () => {
       guard.canActivate(contextFor('/v1/auth/user/send-otp', {}, 'POST')),
     ).resolves.toBe(true);
     await expect(
-      guard.canActivate(
-        contextFor('/v1/auth/oauth/exchange', {}, 'POST'),
-      ),
+      guard.canActivate(contextFor('/v1/auth/oauth/exchange', {}, 'POST')),
     ).resolves.toBe(true);
     expect(pgMock.query).not.toHaveBeenCalled();
   });

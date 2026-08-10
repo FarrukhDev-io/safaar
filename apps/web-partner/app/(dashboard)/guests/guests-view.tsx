@@ -12,7 +12,7 @@ import { useGuests } from "../../_hooks/use-guests";
 import { useReservations } from "../../_hooks/use-reservations";
 import { formatDate, formatMoney, formatPhone } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
-import { getPartnerLabels } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBuses } from "../../_lib/utils/partner-labels";
 
 export function GuestsView() {
   const { data } = useGuests();
@@ -63,12 +63,15 @@ export function GuestsView() {
 
   const vipCount = data.filter((g) => g.isVip).length;
 
+  const isBus = hasBuses(partnerType);
+  const guestPlural = isBus ? "Ijarachilar" : "Mijozlar";
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Mijoz"
-        title="Mijozlar"
-        description={`${labels.guestLabel} profili, tashriflar tarixi va VIP belgilash.`}
+        eyebrow={labels.guestLabel}
+        title={guestPlural}
+        description={`${labels.guestLabel} profili, ijaralar va xaridlar tarixi.`}
       />
 
       <div className="flex flex-wrap items-center gap-2">
@@ -83,7 +86,7 @@ export function GuestsView() {
             className="pl-9"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Mijozlar ichidan qidirish"
+            aria-label={`${guestPlural} ichidan qidirish`}
           />
         </div>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm hover:bg-[var(--surface-muted)]">
@@ -109,11 +112,11 @@ export function GuestsView() {
       {filtered.length === 0 ? (
         <EmptyState
           icon={<Users className="h-10 w-10" aria-hidden />}
-          title="Mijoz topilmadi"
+          title={`${labels.guestLabel} topilmadi`}
           description={
             vipOnly || query
               ? "Filterni o'zgartirib ko'ring yoki boshqa kalit so'z yozing."
-              : `${labels.guestLabel}lar kelganda shu yerda paydo bo'ladi.`
+              : `${labels.guestLabel}lar ijaraga olganda shu yerda paydo bo'ladi.`
           }
         />
       ) : (
@@ -121,11 +124,11 @@ export function GuestsView() {
           <table className="w-full text-sm">
             <thead className="border-b border-[var(--border)] bg-[var(--surface-muted)] text-left text-xs uppercase tracking-wide text-[var(--muted-foreground)]">
               <tr>
-                <th className="px-4 py-3">Mijoz</th>
+                <th className="px-4 py-3">{labels.guestLabel}</th>
                 <th className="px-4 py-3">Aloqa</th>
-                <th className="px-4 py-3">Tashriflar</th>
+                <th className="px-4 py-3">{isBus ? "Ijaralar" : "Tashriflar"}</th>
                 <th className="px-4 py-3">Sarflagan</th>
-                <th className="px-4 py-3">Oxirgi tashrif</th>
+                <th className="px-4 py-3">{isBus ? "Oxirgi ijara" : "Oxirgi tashrif"}</th>
                 <th className="px-4 py-3">Belgilar</th>
               </tr>
             </thead>

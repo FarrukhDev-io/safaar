@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ShieldCheck, Camera, User } from "lucide-react";
+import { ShieldCheck, Camera } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { ReviewsDict } from "@/i18n/dictionaries";
 import type { ReviewView } from "@/types/view";
 import { PhotoLightbox } from "./PhotoLightbox";
 import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
+import { api } from "@/lib/api";
 
 const LOCALE_TAG: Record<Locale, string> = {
   uz: "uz-UZ",
@@ -37,12 +39,56 @@ export function ReviewsList({
   reviews: initialReviews,
   dict,
   locale,
+  hotelId,
+  authed,
+  token,
 }: {
   reviews: ReviewView[];
   dict: ReviewsDict;
   locale: Locale;
+  hotelId?: string;
+  authed?: boolean;
+  token?: string;
 }) {
-  const reviewsList = initialReviews as ExtendedReview[];
+  const [reviewsList, setReviewsList] = useState<ExtendedReview[]>(initialReviews as ExtendedReview[]);
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [body, setBody] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hotelId || !token) return;
+    
+    setIsSubmitting(true);
+    try {
+      let uploadedPhotos: string[] = [];
+      if (files.length > 0) {
+        uploadedPhotos = await api.reviews.uploadReviewPhotos(files, { token });
+      }
+      
+      const newReview = await api.reviews.createReview({
+        targetType: "hotel",
+        targetId: hotelId,
+        rating,
+        body,
+        photos: uploadedPhotos.length > 0 ? uploadedPhotos : undefined,
+      }, { token });
+      
+      setReviewsList([newReview as ExtendedReview, ...reviewsList]);
+      setIsFormOpen(false);
+      setBody("");
+      setRating(5);
+      setFiles([]);
+    } catch (err) {
+      console.error(err);
+      alert("Sharh qoldirishda xatolik yuz berdi");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Lightbox state
   const [activePhotoList, setActivePhotoList] = useState<string[] | null>(null);
@@ -63,12 +109,12 @@ export function ReviewsList({
       : "0.0";
 
   return (
-    <section className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-card p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       {/* Header Summary & Rating Breakdown */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-6 dark:border-slate-800">
         <div className="flex items-center gap-5">
-          <div className="flex flex-col items-center justify-center rounded-2xl bg-blue-50 px-5 py-4 text-center dark:bg-blue-950/40">
-            <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-primary-50 px-5 py-4 text-center dark:bg-primary-950/40">
+            <span className="text-3xl font-extrabold text-primary-600 dark:text-primary-400">
               {avgOverall}
             </span>
             <div className="flex text-amber-400 my-1">
@@ -89,7 +135,65 @@ export function ReviewsList({
           </div>
         </div>
 
+        {authed && hotelId && !isFormOpen && (
+          <Button onClick={() => setIsFormOpen(true)} variant="primary">
+            Sharh qoldirish
+          </Button>
+        )}
       </div>
+
+      {isFormOpen && (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-800/40">
+          <h3 className="font-bold text-slate-900 dark:text-white">Sharh yozish</h3>
+          
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Baho (1-5)</label>
+            <select 
+              value={rating} 
+              onChange={(e) => setRating(Number(e.target.value))}
+              className="rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none dark:border-slate-700 dark:bg-slate-900"
+            >
+              {[5,4,3,2,1].map(num => <option key={num} value={num}>{num} Yulduz</option>)}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Sharh matni</label>
+            <textarea 
+              required
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={4}
+              className="rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none dark:border-slate-700 dark:bg-slate-900"
+              placeholder="O'z tajribangiz haqida yozing..."
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Rasmlar (ixtiyoriy)</label>
+            <input 
+              type="file" 
+              multiple 
+              accept="image/*"
+              onChange={(e) => {
+                if (e.target.files) {
+                  setFiles(Array.from(e.target.files));
+                }
+              }}
+              className="text-sm"
+            />
+          </div>
+
+          <div className="flex gap-2 justify-end mt-2">
+            <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)} disabled={isSubmitting}>
+              Bekor qilish
+            </Button>
+            <Button type="submit" variant="primary" disabled={isSubmitting}>
+              {isSubmitting ? "Yuborilmoqda..." : "Yuborish"}
+            </Button>
+          </div>
+        </form>
+      )}
 
       {/* Reviews List */}
       {reviewsList.length === 0 ? (

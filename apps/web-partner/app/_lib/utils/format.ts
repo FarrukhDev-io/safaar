@@ -1,13 +1,9 @@
 /**
  * UZS valyutasini lokalizatsiya bilan formatlash.
  * Misol: formatMoney(2400000) → "2 400 000 so'm"
- *
- * `toLocaleString("uz-UZ")` ishlatilmaydi — server (Node ICU) va brauzer
- * (Chromium ICU) ming xonalarni ajratuvchi belgini boshqacha tanlashi
- * mumkin (oddiy va uzilmas bo'shliq), bu esa React hydration mismatchiga
- * olib keladi. Shu sabab faqat oddiy string amallariga tayanamiz.
  */
-export function formatMoney(value: number): string {
+export function formatMoney(value: number | null | undefined): string {
+  if (value == null || isNaN(value)) return "0 so'm";
   const sign = value < 0 ? "-" : "";
   const digits = Math.trunc(Math.abs(value)).toString();
   const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
@@ -18,8 +14,10 @@ export function formatMoney(value: number): string {
  * Sanani O'zbekistondagi standartda formatlash.
  * Misol: formatDate("2026-06-27") → "27.06.2026"
  */
-export function formatDate(input: string | Date): string {
+export function formatDate(input: string | Date | null | undefined): string {
+  if (!input) return "—";
   const date = typeof input === "string" ? new Date(input) : input;
+  if (!(date instanceof Date) || isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("uz-UZ", {
     day: "2-digit",
     month: "2-digit",
@@ -28,8 +26,10 @@ export function formatDate(input: string | Date): string {
 }
 
 /** Sana va vaqt birgalikda. */
-export function formatDateTime(input: string | Date): string {
+export function formatDateTime(input: string | Date | null | undefined): string {
+  if (!input) return "—";
   const date = typeof input === "string" ? new Date(input) : input;
+  if (!(date instanceof Date) || isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("uz-UZ", {
     day: "2-digit",
     month: "2-digit",
@@ -43,7 +43,8 @@ export function formatDateTime(input: string | Date): string {
  * O'zbek telefon raqamini formatlash.
  * Misol: formatPhone("998901234567") → "+998 90 123 45 67"
  */
-export function formatPhone(phone: string): string {
+export function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return "—";
   const digits = phone.replace(/\D/g, "");
   if (digits.length !== 12 || !digits.startsWith("998")) return phone;
   return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(

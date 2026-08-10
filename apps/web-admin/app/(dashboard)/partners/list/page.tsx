@@ -161,7 +161,7 @@ export default function PartnersListPage() {
               { value: "motel", label: "Motel" },
               { value: "dacha", label: "Dacha" },
               { value: "restaurant", label: "Restoran" },
-              { value: "bus", label: "Avtobus" },
+              { value: "bus", label: "Mashina Ijarasi" },
             ]}
           />
         </div>

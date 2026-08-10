@@ -40,11 +40,11 @@ export function getNavGroups(partnerType: string): NavGroup[] {
   const type = partnerType?.toLowerCase() || "hotel";
   const labels = getPartnerLabels(type);
 
-  // 1. Avtobuslar / Transport hamkorlar uchun navigatsiya
+  // 1. Transport (Avtomobil va Reyslar) hamkorlar uchun navigatsiya
   if (type === "bus") {
     return [
       {
-        items: [{ label: "Reyting va Asosiy", href: "/", icon: ConciergeBell }],
+        items: [{ label: "Dispetcherlik", href: "/", icon: ConciergeBell }],
       },
       {
         title: "Sotuv",
@@ -53,14 +53,14 @@ export function getNavGroups(partnerType: string): NavGroup[] {
       {
         title: "Operatsion",
         items: [
-          { label: "Avtobuslar", href: "/rooms", icon: Bus }, // /rooms sahifasini Avtobuslar deb nomlaymiz
-          { label: "Yo'nalishlar", href: "/calendar", icon: Route }, // kalendarni Yo'nalishlar jadvali sifatida ishlatamiz
-          { label: "Chiptalar (Bronlar)", href: "/reservations", icon: Ticket },
+          { label: "Transport Parki", href: "/rooms", icon: Bus },
+          { label: "Qatnovlar Jadvali", href: "/calendar", icon: Route },
+          { label: "Bronlar va Chiptalar", href: "/reservations", icon: Ticket },
         ],
       },
       {
-        title: "Yo'lovchi",
-        items: [{ label: "Yo'lovchilar", href: "/guests", icon: Users }],
+        title: "Mijozlar",
+        items: [{ label: "Yo'lovchilar / Mijozlar", href: "/guests", icon: Users }],
       },
       {
         title: "Boshqaruv",

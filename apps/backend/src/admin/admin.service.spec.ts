@@ -69,6 +69,18 @@ describe('AdminService frontend action endpoints', () => {
     expect(result.status).toBe('deleted');
   });
 
+  it('lists only onboarding partner applications in requests', async () => {
+    pgMock.query.mockResolvedValue([]);
+
+    await service.partnerRequests();
+
+    const sql = String(pgMock.query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain("'submitted'");
+    expect(sql).toContain("'under_review'");
+    expect(sql).toContain("'more_information_required'");
+    expect(sql).not.toContain("po.status <> 'approved'");
+  });
+
   it('updates support status and appends an admin support message', async () => {
     pgMock.query.mockResolvedValue([{ status: 'closed' }]);
     const closed = await service.supportStatus(
@@ -368,7 +380,7 @@ describe('AdminService frontend action endpoints', () => {
 
     await expect(service.settings()).resolves.toMatchObject({
       general: {
-        app_name: 'UzBron',
+        app_name: 'safaar',
         support_email: 'help@safaar.uz',
         maintenance_mode: true,
       },
@@ -404,5 +416,79 @@ describe('AdminService frontend action endpoints', () => {
       bus_commission_rate: 11,
     });
     expect(pgMock.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('creates CMS pages from admin payloads for the public user panel', async () => {
+    pgMock.query.mockResolvedValueOnce([
+      {
+        id: '00000000-0000-7005-0000-000000000004',
+        type: 'page',
+        slug: 'about',
+        title_i18n: { uz: 'Biz haqimizda', ru: null, en: null },
+        body_i18n: { uz: 'Safaar haqida matn', ru: null, en: null },
+        status: 'published',
+        metadata: { menu: 'footer', seoTitle: 'Biz haqimizda' },
+        published_at: '2026-08-05T07:00:00.000Z',
+        created_at: '2026-08-05T07:00:00.000Z',
+        updated_at: '2026-08-05T07:00:00.000Z',
+      },
+    ]);
+
+    await expect(
+      service.cmsCreate('pages', {
+        slug: '/about',
+        title: 'Biz haqimizda',
+        body: 'Safaar haqida matn',
+        menu: 'footer',
+        seoTitle: 'Biz haqimizda',
+      }),
+    ).resolves.toMatchObject({
+      slug: 'about',
+      url: '/about',
+      title: 'Biz haqimizda',
+      body: 'Safaar haqida matn',
+      status: 'published',
+    });
+
+    expect(pgMock.query).toHaveBeenCalledWith(
+      expect.stringContaining('insert into cms_entries'),
+      [
+        'page',
+        'about',
+        JSON.stringify({ uz: 'Biz haqimizda', ru: null, en: null }),
+        JSON.stringify({ uz: 'Safaar haqida matn', ru: null, en: null }),
+        'published',
+        JSON.stringify({ menu: 'footer', seoTitle: 'Biz haqimizda' }),
+        null,
+      ],
+    );
+  });
+
+  it('archives CMS pages through the admin delete endpoint', async () => {
+    const pageId = '00000000-0000-7005-0000-000000000004';
+    pgMock.query.mockResolvedValueOnce([
+      {
+        id: pageId,
+        type: 'page',
+        slug: 'about',
+        title_i18n: { uz: 'Biz haqimizda' },
+        body_i18n: { uz: 'Safaar haqida matn' },
+        status: 'archived',
+        metadata: {},
+        published_at: '2026-08-05T07:00:00.000Z',
+        created_at: '2026-08-05T07:00:00.000Z',
+        updated_at: '2026-08-05T07:30:00.000Z',
+      },
+    ]);
+
+    await expect(service.cmsDelete('pages', pageId)).resolves.toMatchObject({
+      id: pageId,
+      status: 'archived',
+    });
+
+    expect(pgMock.query).toHaveBeenCalledWith(
+      expect.stringContaining('type = any($3::text[])'),
+      [pageId, 'archived', ['page']],
+    );
   });
 });

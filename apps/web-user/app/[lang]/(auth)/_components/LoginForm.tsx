@@ -187,7 +187,7 @@ export function LoginForm({
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
-              className="text-sm font-extrabold text-blue-700 hover:text-blue-800"
+              className="text-sm font-extrabold text-primary-700 hover:text-primary-800"
               onClick={() => {
                 setResetDone(false);
                 setMode("forgot-email");
@@ -197,7 +197,7 @@ export function LoginForm({
             </button>
           </div>
 
-          <Button type="submit" size="lg" loading={loggingIn} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+          <Button type="submit" size="lg" loading={loggingIn} className="rounded-xl bg-primary-600 font-bold text-white shadow-xs hover:bg-primary-700">
             {dict.login}
           </Button>
 
@@ -205,7 +205,7 @@ export function LoginForm({
             {dict.noAccount}{" "}
             <Link
               href={`/${locale}/register${next ? `?next=${encodeURIComponent(next)}` : ""}`}
-              className="font-extrabold text-blue-700 hover:text-blue-800"
+              className="font-extrabold text-primary-700 hover:text-primary-800"
             >
               {dict.register}
             </Link>
@@ -237,7 +237,7 @@ export function LoginForm({
               {authErrorMessageFor(resetRequestState.error, dict)}
             </p>
           )}
-          <Button type="submit" size="lg" loading={requestingReset} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+          <Button type="submit" size="lg" loading={requestingReset} className="rounded-xl bg-primary-600 font-bold text-white shadow-xs hover:bg-primary-700">
             {dict.sendCode}
           </Button>
           <BackToLoginButton dict={dict} onClick={() => setMode("login")} />
@@ -268,7 +268,7 @@ export function LoginForm({
               {authErrorMessageFor(resetCodeState.error, dict)}
             </p>
           )}
-          <Button type="submit" size="lg" loading={verifyingResetCode} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+          <Button type="submit" size="lg" loading={verifyingResetCode} className="rounded-xl bg-primary-600 font-bold text-white shadow-xs hover:bg-primary-700">
             {dict.verifyCode}
           </Button>
           <BackToLoginButton dict={dict} onClick={() => setMode("login")} />
@@ -308,7 +308,7 @@ export function LoginForm({
               {authErrorMessageFor(resetPasswordState.error, dict)}
             </p>
           )}
-          <Button type="submit" size="lg" loading={resettingPassword} className="rounded-xl bg-blue-600 font-bold text-white shadow-xs hover:bg-blue-700">
+          <Button type="submit" size="lg" loading={resettingPassword} className="rounded-xl bg-primary-600 font-bold text-white shadow-xs hover:bg-primary-700">
             {dict.saveNewPassword}
           </Button>
           <BackToLoginButton dict={dict} onClick={() => setMode("login")} />
@@ -337,7 +337,7 @@ function BackToLoginButton({
   return (
     <button
       type="button"
-      className="text-center text-sm font-extrabold text-blue-700 hover:text-blue-800"
+      className="text-center text-sm font-extrabold text-primary-700 hover:text-primary-800"
       onClick={onClick}
     >
       {dict.backToLogin}

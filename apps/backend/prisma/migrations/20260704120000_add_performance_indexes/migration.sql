@@ -1,4 +1,4 @@
--- Safe additive indexes for UzBron backend list/search/dashboard workloads.
+-- Safe additive indexes for safaar backend list/search/dashboard workloads.
 -- All indexes are non-destructive and preserve existing data.
 
 create index if not exists "users_status_created_at_idx" on "users" ("status", "created_at");

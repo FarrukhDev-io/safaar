@@ -70,7 +70,7 @@ export default function TopBar() {
     const PAGE_INFO: Record<string, { title: string; desc: string }> = {
       "/dashboard": { title: "Bosh panel", desc: "Platformaning umumiy ko'rsatkichlari va statistikasi" },
       "/users": { title: "Foydalanuvchilar", desc: "Mijozlar ro'yxati va ularning ma'lumotlarini boshqarish" },
-      "/partners/list": { title: "Hamkorlar ro'yxati", desc: "Tizimdagi barcha mehmonxona va avtobus hamkorlari" },
+      "/partners/list": { title: "Hamkorlar ro'yxati", desc: "Tizimdagi barcha mehmonxona va mashina ijarasi hamkorlari" },
       "/partners/requests": { title: "Yangi so'rovlar", desc: "Hamkorlik uchun kelib tushgan arizalar" },
       "/support": { title: "Yordam va Murojaatlar", desc: "Foydalanuvchilar va hamkorlardan kelgan xabarlar (Tickets)" },
       "/finance/overview": { title: "Moliyaviy ko'rsatkichlar", desc: "Kirim, chiqim va umumiy statistika" },
@@ -85,7 +85,7 @@ export default function TopBar() {
       "/catalog": { title: "Katalog", desc: "Joylashuv va qulayliklar katalogi" },
       "/audit": { title: "Harakatlar tarixi", desc: "Tizimdagi barcha amallar jurnali" },
       "/bookings/hotels": { title: "Mehmonxona bronlari", desc: "Barcha mehmonxona buyurtmalari ro'yxati" },
-      "/bookings/buses": { title: "Avtobus chiptalari", desc: "Barcha avtobus qatnovlari bo'yicha buyurtmalar" },
+      "/bookings/buses": { title: "Ijara bronlari", desc: "Barcha mashina ijarasi buyurtmalari" },
     };
     
     // Sort keys by length descending to match most specific paths first

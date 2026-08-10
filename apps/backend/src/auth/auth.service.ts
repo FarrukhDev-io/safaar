@@ -17,7 +17,10 @@ import {
 } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
 import { JOBS } from '../jobs/job-names';
-import { PostgresService } from '../infrastructure/postgres.service';
+import {
+  PostgresService,
+  type PostgresTransaction,
+} from '../infrastructure/postgres.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import { EmailService } from '../infrastructure/email.service';
 import { AppCacheService } from '../infrastructure/cache.service';
@@ -38,7 +41,6 @@ interface AdminUserRecord {
   roles: Role[];
   status: string;
   totp_secret?: string;
-  recovery_code_hashes?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -173,7 +175,14 @@ export class AuthService {
       html: `<p>Safaar hamkor kabinetiga kirish kodingiz:</p><h2>${code ?? '******'}</h2>`,
     };
 
-    await this.emailService.send(message);
+    const delivery = await this.emailService.send(message);
+    if (!delivery.accepted) {
+      throw new ServiceUnavailableException({
+        code: 'EMAIL_DELIVERY_FAILED',
+        message: 'Tasdiqlash kodini emailga yuborib bo‘lmadi',
+      });
+    }
+
     await this.jobs.add(JOBS.SEND_EMAIL, message, {
       idempotencyKey: `partner-login-email:${response.challenge_id}`,
     });
@@ -609,6 +618,7 @@ export class AuthService {
       .trim()
       .toLowerCase();
     const password = String(body.password ?? '');
+    const lockoutKey = await this.assertNotLockedOut('partner', email);
     const partnerUser = await this.findPartnerUser(email);
 
     if (
@@ -616,8 +626,10 @@ export class AuthService {
       partnerUser.status !== 'active' ||
       !(await this.verifyPassword(partnerUser.password_hash, password))
     ) {
+      await this.recordFailedLogin(lockoutKey);
       throw this.invalidCredentials();
     }
+    await this.resetLoginAttempts(lockoutKey);
 
     const orgRows = await this.pg.query<DbRow>(
       `SELECT id::text, status
@@ -628,7 +640,8 @@ export class AuthService {
     );
     const organization = orgRows[0];
 
-    if (!organization || organization['status'] !== 'approved') {
+    const organizationStatus = String(organization?.['status'] ?? '');
+    if (!this.isPartnerLoginStatusAllowed(organizationStatus)) {
       throw new UnauthorizedException({
         code: 'PARTNER_NOT_ACTIVE',
         message: 'Hamkor tashkilot faol emas',
@@ -643,6 +656,9 @@ export class AuthService {
         organizationId: partnerUser.organization_id,
       })),
       organization_id: partnerUser.organization_id,
+      organizationId: partnerUser.organization_id,
+      organization_status: organizationStatus,
+      organizationStatus,
       partner_role: partnerUser.role,
     };
   }
@@ -655,6 +671,8 @@ export class AuthService {
       throw this.invalidCredentials();
     }
 
+    const lockoutKey = await this.assertNotLockedOut('user', email);
+
     const rows = await this.pg.query<DbRow>(
       `SELECT id::text, email, first_name, last_name, status::text, password_hash
        FROM users
@@ -665,6 +683,7 @@ export class AuthService {
     const user = rows[0];
 
     if (!user || user['status'] !== 'active') {
+      await this.recordFailedLogin(lockoutKey);
       throw this.invalidCredentials();
     }
 
@@ -676,8 +695,10 @@ export class AuthService {
     }
 
     if (!(await this.verifyPassword(String(user['password_hash']), password))) {
+      await this.recordFailedLogin(lockoutKey);
       throw this.invalidCredentials();
     }
+    await this.resetLoginAttempts(lockoutKey);
 
     await this.pg.query(
       `UPDATE users SET last_login_at = $2, updated_at = $2
@@ -818,9 +839,21 @@ export class AuthService {
 
   async partnerPhoneLogin(body: Record<string, unknown>) {
     const phone = this.normalizePhone(String(body.phone ?? ''));
-    if (!phone) {
+    const code = String(body.code ?? '').trim();
+    const challengeId = String(
+      body.challenge_id ?? body.chalenge_id ?? '',
+    ).trim();
+
+    if (!phone || !/^\d{6}$/.test(code)) {
       throw this.invalidCredentials();
     }
+
+    this.consumeOtp({
+      challengeId,
+      phone,
+      purpose: 'partner_login',
+      code,
+    });
 
     return this.issuePartnerTokensByPhone(phone);
   }
@@ -839,6 +872,7 @@ export class AuthService {
       .trim()
       .toLowerCase();
     const password = String(body.password ?? '');
+    const lockoutKey = await this.assertNotLockedOut('admin', login);
     const admin = await this.findAdminUser(login);
 
     if (
@@ -846,8 +880,10 @@ export class AuthService {
       admin.status !== 'active' ||
       !(await this.verifyPassword(admin.password_hash, password))
     ) {
+      await this.recordFailedLogin(lockoutKey);
       throw this.invalidCredentials();
     }
+    await this.resetLoginAttempts(lockoutKey);
 
     if (!admin.totp_secret) {
       return {
@@ -913,8 +949,7 @@ export class AuthService {
     const currentActor = this.requireActor(actor, 'admin');
 
     const rows = await this.pg.query<DbRow>(
-      `SELECT id::text, email, password_hash, full_name, role, status,
-              totp_secret, recovery_code_hashes, created_at, updated_at
+      `SELECT id::text, email
        FROM admin_users
        WHERE id = $1
        LIMIT 1`,
@@ -984,20 +1019,50 @@ export class AuthService {
     }
 
     const now = new Date().toISOString();
-    await this.pg.query(
-      `UPDATE admin_users
-       SET totp_secret = $1, recovery_code_hashes = $2, updated_at = $3
-       WHERE id = $4`,
-      [
-        pending.setup.encryptedSecret,
-        pending.setup.recoveryCodeHashes,
-        now,
+    await this.pg.transaction(async (tx) => {
+      await tx.query(
+        `UPDATE admin_users
+         SET totp_secret = $1, updated_at = $2
+         WHERE id = $3`,
+        [pending.setup.encryptedSecret, now, currentActor.id],
+      );
+      // Qayta yoqilganda (avval o'chirilgan bo'lsa) eski, allaqachon
+      // ishlatilgan/eskirgan recovery kodlar qolib ketmasin.
+      await tx.query(`DELETE FROM admin_recovery_codes WHERE admin_id = $1`, [
         currentActor.id,
-      ],
-    );
+      ]);
+      await this.insertRecoveryCodes(
+        tx,
+        currentActor.id,
+        pending.setup.recoveryCodeHashes,
+      );
+    });
 
     this.pendingTotpSetups.delete(setupId);
     return { enabled: true };
+  }
+
+  private async insertRecoveryCodes(
+    tx: PostgresTransaction,
+    adminId: string,
+    hashes: string[],
+  ): Promise<void> {
+    if (hashes.length === 0) {
+      return;
+    }
+
+    const values: string[] = [];
+    const params: unknown[] = [];
+    hashes.forEach((hash, index) => {
+      const base = index * 2;
+      values.push(`($${base + 1}, $${base + 2})`);
+      params.push(adminId, hash);
+    });
+
+    await tx.query(
+      `INSERT INTO admin_recovery_codes (admin_id, code_hash) VALUES ${values.join(', ')}`,
+      params,
+    );
   }
 
   async admin2faDisable(actor: RequestActor | undefined) {
@@ -1016,12 +1081,17 @@ export class AuthService {
     }
 
     const now = new Date().toISOString();
-    await this.pg.query(
-      `UPDATE admin_users
-       SET totp_secret = NULL, recovery_code_hashes = '{}', updated_at = $1
-       WHERE id = $2`,
-      [now, currentActor.id],
-    );
+    await this.pg.transaction(async (tx) => {
+      await tx.query(
+        `UPDATE admin_users
+         SET totp_secret = NULL, updated_at = $1
+         WHERE id = $2`,
+        [now, currentActor.id],
+      );
+      await tx.query(`DELETE FROM admin_recovery_codes WHERE admin_id = $1`, [
+        currentActor.id,
+      ]);
+    });
 
     await authSessionStore.revokeActor(currentActor.id);
     return { disabled: true, sessions_revoked: true };
@@ -1280,6 +1350,9 @@ export class AuthService {
   private async issuePartnerTokensByPhone(phone: string): Promise<
     AuthTokens & {
       organization_id: string;
+      organizationId: string;
+      organization_status: string;
+      organizationStatus: string;
       partner_role: string;
     }
   > {
@@ -1303,12 +1376,13 @@ export class AuthService {
     );
     const row = rows[0];
 
-    if (!row || row['organization_status'] !== 'approved') {
+    if (!row || !this.isPartnerLoginStatusAllowed(row['organization_status'])) {
       throw new UnauthorizedException({
         code: 'PARTNER_NOT_ACTIVE',
         message: 'Hamkor tashkilot faol emas',
       });
     }
+    const organizationStatus = String(row['organization_status'] ?? '');
 
     if (row['user_status'] && row['user_status'] !== 'active') {
       throw this.invalidCredentials();
@@ -1325,6 +1399,9 @@ export class AuthService {
         organizationId,
       })),
       organization_id: organizationId,
+      organizationId,
+      organization_status: organizationStatus,
+      organizationStatus,
       partner_role: String(row['partner_role'] ?? 'owner'),
     };
   }
@@ -1333,6 +1410,8 @@ export class AuthService {
     AuthTokens & {
       organization_id: string;
       organizationId: string;
+      organization_status: string;
+      organizationStatus: string;
       partner_role: string;
     }
   > {
@@ -1357,12 +1436,13 @@ export class AuthService {
     );
     const row = rows[0];
 
-    if (!row || row['organization_status'] !== 'approved') {
+    if (!row || !this.isPartnerLoginStatusAllowed(row['organization_status'])) {
       throw new UnauthorizedException({
         code: 'PARTNER_NOT_ACTIVE',
         message: 'Hamkor tashkilot faol emas',
       });
     }
+    const organizationStatus = String(row['organization_status'] ?? '');
 
     if (row['user_status'] && row['user_status'] !== 'active') {
       throw this.invalidCredentials();
@@ -1380,6 +1460,8 @@ export class AuthService {
       })),
       organization_id: organizationId,
       organizationId,
+      organization_status: organizationStatus,
+      organizationStatus,
       partner_role: String(row['partner_role'] ?? 'owner'),
     };
   }
@@ -1387,19 +1469,21 @@ export class AuthService {
   private async assertApprovedPartnerEmail(email: string) {
     const rows = await this.pg.query<DbRow>(
       `
-        select po.id::text
+        select po.id::text, po.status::text as organization_status
         from partner_organizations po
         left join partner_users pu
           on pu.organization_id = po.id
          and pu.deleted_at is null
-        where po.status = 'approved'
-          and (lower(po.email) = lower($1) or lower(pu.email) = lower($1))
+        where lower(po.email) = lower($1) or lower(pu.email) = lower($1)
         limit 1
       `,
       [email],
     );
 
-    if (!rows[0]) {
+    if (
+      !rows[0] ||
+      !this.isPartnerLoginStatusAllowed(rows[0]['organization_status'])
+    ) {
       throw new UnauthorizedException({
         code: 'PARTNER_NOT_ACTIVE',
         message: 'Hamkor tashkilot faol emas',
@@ -1407,10 +1491,16 @@ export class AuthService {
     }
   }
 
+  private isPartnerLoginStatusAllowed(status: unknown): boolean {
+    return ['approved', 'blocked', 'suspended'].includes(
+      String(status ?? '').toLowerCase(),
+    );
+  }
+
   private async findAdminUser(
     login: string,
   ): Promise<AdminUserRecord | undefined> {
-    const email = login === 'admin' ? 'admin@uzbron.uz' : login;
+    const email = login === 'admin' ? 'admin@safaar.uz' : login;
     const rows = await this.pg.query<DbRow>(
       `
         select id::text, email, password_hash, full_name, role, status,
@@ -1847,6 +1937,39 @@ export class AuthService {
       code: 'AUTH_INVALID_CREDENTIALS',
       message: 'Login/parol noto\u2018g\u2018ri',
     });
+  }
+
+  private static readonly MAX_LOGIN_ATTEMPTS = 5;
+  private static readonly LOGIN_LOCKOUT_TTL_SECONDS = 15 * 60;
+
+  private loginAttemptsKey(actorType: string, identifier: string): string {
+    return `login_attempts:${actorType}:${identifier.trim().toLowerCase()}`;
+  }
+
+  private async assertNotLockedOut(
+    actorType: string,
+    identifier: string,
+  ): Promise<string> {
+    const key = this.loginAttemptsKey(actorType, identifier);
+    const attempts = (await this.cache.get<number>(key)) ?? 0;
+    if (attempts >= AuthService.MAX_LOGIN_ATTEMPTS) {
+      throw new UnauthorizedException({
+        code: 'AUTH_ACCOUNT_LOCKED',
+        message: `Juda ko\u2018p muvaffaqiyatsiz urinish. ${Math.ceil(
+          AuthService.LOGIN_LOCKOUT_TTL_SECONDS / 60,
+        )} daqiqadan so\u2018ng qayta urinib ko\u2018ring`,
+      });
+    }
+    return key;
+  }
+
+  private async recordFailedLogin(key: string): Promise<void> {
+    const attempts = (await this.cache.get<number>(key)) ?? 0;
+    await this.cache.set(key, attempts + 1, AuthService.LOGIN_LOCKOUT_TTL_SECONDS);
+  }
+
+  private async resetLoginAttempts(key: string): Promise<void> {
+    await this.cache.del(key);
   }
 
   private normalizePhone(phone: string): string {

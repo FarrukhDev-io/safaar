@@ -4,11 +4,11 @@
  * ruxsatlar shu rollar asosida ajratiladi.
  */
 export enum Role {
-  /** Mijoz — uzbron.uz */
+  /** Mijoz — safaar.uz */
   USER = "USER",
-  /** Hamkor (mehmonxona / avtobus kompaniyasi) — partner.uzbron.uz */
+  /** Hamkor (mehmonxona / avtobus kompaniyasi) — partner.safaar.uz */
   PARTNER = "PARTNER",
-  /** Platforma administratori — admin.uzbron.uz */
+  /** Platforma administratori — admin.safaar.uz */
   ADMIN = "ADMIN",
   /** Moliya bo'limi administratori */
   FINANCE_ADMIN = "FINANCE_ADMIN",

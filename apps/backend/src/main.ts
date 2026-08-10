@@ -12,6 +12,18 @@ import { corsOriginsFromEnv } from './config/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const expressInstance = app.getHttpAdapter().getInstance() as {
+    disable?: (setting: string) => void;
+    set?: (setting: string, value: unknown) => void;
+  };
+  expressInstance.disable?.('x-powered-by');
+  // Nginx/Railway kabi reverse-proxy orqasida ishga tushadi — bu
+  // bo'lmasa Express har doim proxy'ning o'z manzilini "mijoz IP"
+  // sifatida ko'radi va IP-asosidagi rate-limit (@nestjs/throttler)
+  // barcha foydalanuvchilar uchun bitta umumiy hovuzga aylanib qoladi.
+  // "1" — aynan bitta proxy qatlamiga ishonish (to'g'ridan-to'g'ri orqada
+  // turgan nginx/edge), undan uzoqroqdagi sarlavhalarga ishonilmaydi.
+  expressInstance.set?.('trust proxy', 1);
   const config = app.get(ConfigService);
   const apiPrefix = config.get<string>('API_PREFIX', 'v1');
   const uploadRoot = config.get<string>(
@@ -38,6 +50,10 @@ async function bootstrap() {
       // panel sozlamalarini (texnik xizmat rejimi kabi) yangilagandan
       // keyin eski qiymat keshdan "qaytib qolishi" mumkin edi.
       response.setHeader('Cache-Control', 'no-store');
+      response.setHeader(
+        'Permissions-Policy',
+        'camera=(), microphone=(), geolocation=(), payment=()',
+      );
       next();
     },
   );
@@ -71,8 +87,8 @@ async function bootstrap() {
 
   if (config.get<string>('SWAGGER_ENABLED', 'true') !== 'false') {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('UzBron API')
-      .setDescription('UzBron.uz user, partner and admin backend API')
+      .setTitle('safaar API')
+      .setDescription('safaar.uz user, partner and admin backend API')
       .setVersion('1.0')
       .addBearerAuth()
       .addApiKey(

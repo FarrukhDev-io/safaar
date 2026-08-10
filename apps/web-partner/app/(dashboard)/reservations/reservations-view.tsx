@@ -2,6 +2,7 @@
 
 import {
   BedDouble,
+  CarFront,
   CalendarCheck,
   CalendarPlus,
   CalendarRange,
@@ -41,7 +42,7 @@ import type { Bed, ReservationUiStatus, ReservationView } from "../../_lib/domai
 import { formatDate, formatMoney, formatPhone } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
 import { useDataStore } from "../../_stores/data-store";
-import { getPartnerLabels, isRestaurant } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBuses, isRestaurant } from "../../_lib/utils/partner-labels";
 
 type FilterKey = "all" | ReservationUiStatus;
 
@@ -501,6 +502,7 @@ function ReservationCard({
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const restaurant = isRestaurant(partnerType);
+  const isBus = hasBuses(partnerType);
 
   return (
     <Card interactive>
@@ -541,7 +543,7 @@ function ReservationCard({
             <div className="grid gap-3 sm:grid-cols-3">
               <MiniInfo
                 icon={<CalendarRange />}
-                label="Kelish"
+                label={isBus ? "Olib ketish vaqti" : "Kelish"}
                 value={
                   restaurant && reservation.slotTime
                     ? `${formatDate(reservation.checkIn)} · ${reservation.slotTime}`
@@ -550,15 +552,15 @@ function ReservationCard({
               />
               <MiniInfo
                 icon={<CalendarRange />}
-                label="Ketish"
+                label={isBus ? "Qaytarish vaqti" : "Ketish"}
                 value={
-                  restaurant
+                  isBus || restaurant
                     ? formatDate(reservation.checkOut)
                     : `${formatDate(reservation.checkOut)} · ${reservation.nights} kech.`
                 }
               />
               <MiniInfo
-                icon={restaurant ? <UtensilsCrossed /> : <BedDouble />}
+                icon={isBus ? <CarFront /> : restaurant ? <UtensilsCrossed /> : <BedDouble />}
                 label={labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1)}
                 value={`${reservation.roomTypeName}${
                   reservation.roomNumber ? ` · ${reservation.roomNumber}` : ""

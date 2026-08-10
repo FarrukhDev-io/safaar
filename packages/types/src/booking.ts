@@ -87,8 +87,18 @@ export interface Booking {
 
 export interface CreateBookingDto {
   hotelId: string;
-  roomTypeId: string;
+  roomId?: string;
+  roomTypeId?: string;
   checkIn: string;
   checkOut: string;
-  guests: number;
+  guests?: number;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  paymentMethod?: ApiPaymentMethod;
 }

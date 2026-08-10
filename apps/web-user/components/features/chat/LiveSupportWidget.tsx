@@ -123,7 +123,7 @@ export function LiveSupportWidget() {
           onClick={handleToggle}
           aria-label="Qo'llab-quvvatlash"
           aria-expanded={open}
-          className="relative flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-blue-500/30 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/40"
+          className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-2xl transition-all duration-300 hover:bg-primary-600 hover:scale-105 hover:shadow-primary-500/30 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-500/40"
         >
           {open ? (
             <X className="h-6 w-6 stroke-[2.5]" />
@@ -141,7 +141,7 @@ export function LiveSupportWidget() {
         >
           <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3.5 dark:border-slate-800 dark:bg-slate-800/80">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-white shadow-md">
                 <Headset className="h-5 w-5" />
               </div>
               <div className="flex flex-col">
@@ -200,7 +200,7 @@ export function LiveSupportWidget() {
                     }`}
                   >
                     {!isUser && (
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-950 dark:text-primary-300">
                         <Headset className="h-4 w-4" />
                       </div>
                     )}
@@ -208,7 +208,7 @@ export function LiveSupportWidget() {
                     <div
                       className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-xs ${
                         isUser
-                          ? "rounded-br-xs bg-blue-600 font-medium text-white"
+                          ? "rounded-br-xs bg-primary-500 font-medium text-white"
                           : "rounded-bl-xs border border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
                       }`}
                     >
@@ -216,7 +216,7 @@ export function LiveSupportWidget() {
                       {time && (
                         <span
                           className={`mt-1 block text-[10px] font-normal ${
-                            isUser ? "text-blue-100" : "text-slate-400"
+                            isUser ? "text-primary-100" : "text-slate-400"
                           }`}
                         >
                           {time}
@@ -243,7 +243,7 @@ export function LiveSupportWidget() {
             {authRequired && (
               <a
                 href={loginHref}
-                className="inline-flex w-fit rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700"
+                className="inline-flex w-fit rounded-xl bg-primary-500 px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary-600"
               >
                 Login
               </a>
@@ -254,7 +254,7 @@ export function LiveSupportWidget() {
 
           <form
             onSubmit={handleSend}
-            className="flex items-center gap-2 border-t border-slate-100 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+            className="flex items-center gap-2 border-t border-slate-100 bg-card p-3 dark:border-slate-800 dark:bg-slate-900"
           >
             <input
               type="text"
@@ -262,7 +262,7 @@ export function LiveSupportWidget() {
               onChange={(event) => setInputText(event.target.value)}
               placeholder="Xabaringizni yozing..."
               disabled={sending || authRequired}
-              className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-800 dark:text-white"
+              className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-800 dark:text-white"
             />
             <Button
               type="submit"

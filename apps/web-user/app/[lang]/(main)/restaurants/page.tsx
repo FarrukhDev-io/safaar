@@ -5,6 +5,8 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { api } from "@/lib/api";
 import { RestaurantsView } from "@/components/features/restaurants/RestaurantsView";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: {

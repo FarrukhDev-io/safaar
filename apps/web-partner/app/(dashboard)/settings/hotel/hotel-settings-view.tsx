@@ -24,6 +24,8 @@ import {
   useUpdateListingLocation,
 } from '../../../_hooks/use-listing';
 import { useAuthStore } from '../../../_stores/auth-store';
+import { getPartnerLabels } from '../../../_lib/utils/partner-labels';
+import { PageHeader } from '../../../_components/layout/page-header';
 
 const schema = z.object({
   name: z.string().min(2, 'Nom kamida 2 belgi'),
@@ -126,10 +128,17 @@ export function HotelSettingsView() {
     }
   });
 
+  const partnerType = useAuthStore((s) => s.user?.partnerType);
+  const labels = getPartnerLabels(partnerType);
   const err = form.formState.errors;
 
   return (
     <div className="flex flex-col gap-6">
+      <PageHeader
+        eyebrow="Kompaniya Sozlamalari"
+        title={`${labels.topbarSubtitle}`}
+        description="Tashuvchi hamkor yoki mehmonxona rekvizitlari, aloqa ma'lumotlari hamda manzilni boshqarish."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Asosiy ma'lumotlar</CardTitle>

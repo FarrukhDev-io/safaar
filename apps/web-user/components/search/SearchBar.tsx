@@ -11,8 +11,11 @@ import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import type { CityOption } from "@/types/view";
 import { trackSearchPerformed } from "@/lib/services/analytics/tracker";
+import { Button } from "@/components/ui/Button";
 
 export type { PropertyType, SearchDefaults };
+
+const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 md:rounded-full md:border-transparent md:bg-transparent md:px-6 md:py-3.5 md:hover:bg-slate-100 cursor-pointer";
 
 export function SearchBar({
   locale,
@@ -79,95 +82,94 @@ export function SearchBar({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="mx-auto w-full max-w-5xl">
       <form
         onSubmit={handleSubmit}
-        className="rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-xl shadow-slate-200/50 transition-all duration-200 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-4"
+        className="relative flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-xl shadow-slate-200/40 transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-full md:p-2 sm:p-4"
       >
-        {/* Desktop grid layout & Mobile stack layout */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2">
-          {/* 1. Shahar / Destinatsiya */}
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5">
-            <MapPin className="h-5 w-5 shrink-0 text-blue-600" aria-hidden />
+        {/* 1. Shahar / Destinatsiya */}
+        <div className={fieldWrapperClass}>
+          <MapPin className="h-5 w-5 shrink-0 text-slate-400 group-hover:text-primary-500 transition-colors" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+              {dict.city}
+            </span>
+            <CityPicker
+              cities={cities}
+              value={cityId}
+              onChange={setCityId}
+              placeholder={dict.cityPlaceholder}
+            />
+          </div>
+        </div>
+
+        <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
+
+        {/* 2. Sanalar (Kirish va Chiqish) */}
+        <div className={fieldWrapperClass}>
+          <Calendar className="h-5 w-5 shrink-0 text-slate-400 group-hover:text-primary-500 transition-colors" aria-hidden />
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <div className="min-w-0 flex-1">
-              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
-                {dict.city}
+              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                {dict.checkIn}
               </span>
-              <CityPicker
-                cities={cities}
-                value={cityId}
-                onChange={setCityId}
-                placeholder={dict.cityPlaceholder}
+              <DatePicker
+                locale={locale}
+                label=""
+                value={checkIn}
+                min={today}
+                icon={null}
+                compact
+                onChange={(iso) => {
+                  setCheckIn(iso);
+                  if (checkOut && iso > checkOut) setCheckOut("");
+                }}
+              />
+            </div>
+            <span className="text-xs font-bold text-slate-300">—</span>
+            <div className="min-w-0 flex-1">
+              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                {dict.checkOut}
+              </span>
+              <DatePicker
+                locale={locale}
+                label=""
+                value={checkOut}
+                min={checkIn || today}
+                icon={null}
+                compact
+                onChange={setCheckOut}
               />
             </div>
           </div>
+        </div>
 
-          <div className="hidden h-9 w-px shrink-0 bg-slate-300 md:block" aria-hidden />
+        <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
-          {/* 2. Sanalar (Kirish va Chiqish) */}
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5">
-            <Calendar className="h-5 w-5 shrink-0 text-blue-600" aria-hidden />
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
-                  {dict.checkIn}
-                </span>
-                <DatePicker
-                  locale={locale}
-                  label=""
-                  value={checkIn}
-                  min={today}
-                  icon={null}
-                  compact
-                  onChange={(iso) => {
-                    setCheckIn(iso);
-                    if (checkOut && iso > checkOut) setCheckOut("");
-                  }}
-                />
-              </div>
-              <span className="text-xs font-bold text-slate-400">—</span>
-              <div className="min-w-0 flex-1">
-                <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
-                  {dict.checkOut}
-                </span>
-                <DatePicker
-                  locale={locale}
-                  label=""
-                  value={checkOut}
-                  min={checkIn || today}
-                  icon={null}
-                  compact
-                  onChange={setCheckOut}
-                />
-              </div>
+        {/* 3. Mehmonlar soni */}
+        <div className={fieldWrapperClass}>
+          <div className="flex w-full items-center gap-3">
+            <Users className="h-5 w-5 shrink-0 text-slate-400 group-hover:text-primary-500 transition-colors" aria-hidden />
+            <div className="flex-1">
+              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                {dict.guests}
+              </span>
+              <GuestPicker value={guests} onChange={setGuests} />
             </div>
           </div>
+        </div>
 
-          <div className="hidden h-9 w-px shrink-0 bg-slate-300 md:block" aria-hidden />
-
-          {/* 3. Mehmonlar soni */}
-          <div className="flex items-center justify-between gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50 md:border-none md:bg-transparent md:p-1.5">
-            <div className="flex items-center gap-2.5">
-              <Users className="h-5 w-5 shrink-0 text-blue-600" aria-hidden />
-              <div>
-                <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
-                  {dict.guests}
-                </span>
-                <GuestPicker value={guests} onChange={setGuests} />
-              </div>
-            </div>
-          </div>
-
-          {/* 4. Qidirish tugmasi */}
-          <div className="shrink-0 pt-1 md:pt-0">
-            <button
-              type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-md transition-all duration-150 hover:bg-blue-700 active:scale-[0.98] md:w-auto md:py-3"
-            >
-              <Search className="h-4 w-4 stroke-[2.5]" aria-hidden />
-              <span className="uppercase tracking-wide">{dict.submit}</span>
-            </button>
-          </div>
+        {/* 4. Qidirish tugmasi */}
+        <div className="shrink-0 pt-1 md:pt-0 md:pl-2">
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            className="w-full md:w-auto uppercase tracking-wide px-8 h-12 md:h-14"
+          >
+            <Search className="h-5 w-5 stroke-[2.5]" aria-hidden />
+            <span>{dict.submit}</span>
+          </Button>
         </div>
       </form>
     </div>

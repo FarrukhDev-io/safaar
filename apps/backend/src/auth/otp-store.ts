@@ -116,7 +116,7 @@ class OtpStore {
   }
 
   private otpPepper(phone: string, purpose: OtpPurpose): string {
-    return `${process.env.OTP_PEPPER ?? 'uzbron-dev-otp-pepper'}:${purpose}:${phone}`;
+    return `${process.env.OTP_PEPPER ?? 'safaar-dev-otp-pepper'}:${purpose}:${phone}`;
   }
 }
 

@@ -20,7 +20,7 @@ type HeaderMap = Record<string, string | string[] | undefined>;
 
 interface BookingVisibilityRow {
   id: string;
-  user_id: string;
+  user_id: string | null;
   partner_organization_id: string;
   total_amount: string | number;
   currency: string;
@@ -207,11 +207,14 @@ export class PaymentsService {
         message: 'Bron topilmadi',
       });
     }
-    if (
-      !actor ||
-      actor.role === Role.SUPER_ADMIN ||
-      actor.actorType === 'admin'
-    ) {
+    if (!actor) {
+      // Anonim (tokensiz) chaqiruv — bron egasini aniqlab bo'lmaydi.
+      throw new UnauthorizedException({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Sessiya topilmadi yoki token yaroqsiz',
+      });
+    }
+    if (actor.role === Role.SUPER_ADMIN || actor.actorType === 'admin') {
       return booking;
     }
     if (actor.actorType === 'user' && booking.user_id === actor.id) {
@@ -238,7 +241,7 @@ export class PaymentsService {
     secret: string,
   ) {
     const signature = this.firstHeader(
-      headers['x-uzbron-signature'] ?? headers['x-signature'],
+      headers['x-safaar-signature'] ?? headers['x-signature'],
     );
     if (!signature) {
       throw new UnauthorizedException({

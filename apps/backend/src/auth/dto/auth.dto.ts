@@ -6,7 +6,25 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
+  MinLength,
 } from 'class-validator';
+
+/**
+ * Yangi parol o'rnatiladigan barcha joylarda (ro'yxatdan o'tish, parolni
+ * tiklash) qo'llaniladi — LOGIN uchun emas (login'da mavjud parol shunchaki
+ * tekshiriladi, uzunlik/murakkablik talabi u yerga tegishli emas).
+ */
+function IsStrongPassword() {
+  return function (target: object, propertyKey: string) {
+    MinLength(8, {
+      message: "Parol kamida 8 ta belgidan iborat bo'lishi kerak",
+    })(target, propertyKey);
+    Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
+      message: 'Parolda kamida bitta harf va bitta raqam bo‘lishi kerak',
+    })(target, propertyKey);
+  };
+}
 
 export class SendOtpDto {
   @ApiProperty({ example: '+998901234567' })
@@ -16,7 +34,7 @@ export class SendOtpDto {
 }
 
 export class SendEmailOtpDto {
-  @ApiProperty({ example: 'user@uzbron.uz' })
+  @ApiProperty({ example: 'user@safaar.uz' })
   @IsEmail()
   email!: string;
 }
@@ -66,7 +84,7 @@ export class CompleteProfileDto {
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ example: 'user@uzbron.uz' })
+  @ApiPropertyOptional({ example: 'user@safaar.uz' })
   @IsOptional()
   @IsEmail()
   email?: string;
@@ -74,6 +92,7 @@ export class CompleteProfileDto {
   @ApiPropertyOptional({ example: 'P@ssw0rd!' })
   @IsOptional()
   @IsString()
+  @IsStrongPassword()
   password?: string;
 
   @ApiPropertyOptional({ enum: ['uz', 'ru', 'en'] })
@@ -102,7 +121,7 @@ export class OAuthExchangeDto {
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'partner@uzbron.uz' })
+  @ApiProperty({ example: 'partner@safaar.uz' })
   @IsEmail()
   email!: string;
 
@@ -113,7 +132,7 @@ export class LoginDto {
 }
 
 export class UserLoginDto {
-  @ApiProperty({ example: 'user@uzbron.uz' })
+  @ApiProperty({ example: 'user@safaar.uz' })
   @IsEmail()
   email!: string;
 
@@ -124,7 +143,7 @@ export class UserLoginDto {
 }
 
 export class UserForgotPasswordDto {
-  @ApiProperty({ example: 'user@uzbron.uz' })
+  @ApiProperty({ example: 'user@safaar.uz' })
   @IsEmail()
   email!: string;
 }
@@ -132,7 +151,7 @@ export class UserForgotPasswordDto {
 export class UserVerifyResetCodeDto extends VerifyEmailOtpRequestDto {}
 
 export class UserResetPasswordDto {
-  @ApiProperty({ example: 'user@uzbron.uz' })
+  @ApiProperty({ example: 'user@safaar.uz' })
   @IsEmail()
   email!: string;
 
@@ -155,6 +174,7 @@ export class UserResetPasswordDto {
   @ApiProperty({ example: 'N3wP@ssw0rd!' })
   @IsString()
   @IsNotEmpty()
+  @IsStrongPassword()
   password!: string;
 }
 
@@ -165,7 +185,7 @@ export class AdminLoginDto {
   @IsNotEmpty()
   username?: string;
 
-  @ApiPropertyOptional({ example: 'admin@uzbron.uz' })
+  @ApiPropertyOptional({ example: 'admin@safaar.uz' })
   @IsOptional()
   @IsEmail()
   email?: string;
@@ -177,7 +197,7 @@ export class AdminLoginDto {
 }
 
 export class ForgotPasswordDto {
-  @ApiProperty({ example: 'partner@uzbron.uz' })
+  @ApiProperty({ example: 'partner@safaar.uz' })
   @IsEmail()
   email!: string;
 }
@@ -191,6 +211,7 @@ export class ResetPasswordDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
+  @IsStrongPassword()
   password!: string;
 }
 

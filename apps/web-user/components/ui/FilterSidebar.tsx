@@ -40,9 +40,9 @@ export function FilterSidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 lg:flex lg:sticky lg:top-24 lg:h-fit">
+      <aside className="hidden w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-card p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 lg:flex lg:sticky lg:top-24 lg:h-fit">
         <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
-          <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <Filter className="h-4 w-4 text-primary-600 dark:text-primary-400" />
           <h2 className="text-base font-extrabold uppercase tracking-wide text-slate-900 dark:text-white">
             {title}
           </h2>
@@ -83,11 +83,11 @@ export function FilterSidebar({
           />
 
           {/* Drawer content sheet */}
-          <div className="relative z-10 flex max-h-[85vh] w-full flex-col rounded-t-3xl border-t border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in slide-in-from-bottom duration-300">
+          <div className="relative z-10 flex max-h-[85vh] w-full flex-col rounded-t-3xl border-t border-slate-200 bg-card shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in slide-in-from-bottom duration-300">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
               <span className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <Filter className="h-4 w-4 text-primary-600 dark:text-primary-400" />
                 <h2 className="text-base font-extrabold uppercase tracking-wide text-slate-900 dark:text-white">
                   {title}
                 </h2>
