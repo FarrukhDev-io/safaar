@@ -113,6 +113,11 @@ export class JobsProcessor extends WorkerHost {
          WHERE id = $3::uuid`,
         [message.slice(0, 500), new Date().toISOString(), exportId],
       );
+      // Xatoni qayta uloqtiramiz — aks holda BullMQ bu job'ni "completed"
+      // deb hisoblaydi va queue.add()'ga berilgan attempts/backoff hech
+      // qachon ishga tushmaydi (C-4: worker jim to'xtab qolishi mumkin edi,
+      // hech qanday retry/alert bo'lmasdan).
+      throw error instanceof Error ? error : new Error(message);
     }
   }
 }

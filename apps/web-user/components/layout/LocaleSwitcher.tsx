@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Globe } from "lucide-react";
 import { locales, localeNames, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
-import { IridescentButton } from "@/components/ui/IridescentButton";
 
 export function LocaleSwitcher({
   current,
@@ -56,23 +55,25 @@ export function LocaleSwitcher({
 
   return (
     <div ref={ref} className="relative inline-block text-left">
-      <IridescentButton
+      <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Tilni tanlash"
         className={cn(
-          "h-10 px-4 rounded-full text-[14px] transition-colors",
-          "ring-1 ring-slate-200 shadow-md shadow-slate-300/50",
-          light ? "text-slate-700 hover:text-slate-900" : "text-white ring-white/20 shadow-black/40"
+          "inline-flex items-center justify-center gap-2",
+          "h-10 px-4 rounded-full text-[15px] font-bold transition-all duration-200 active:scale-[0.98]",
+          light 
+            ? "border border-slate-300 shadow hover:border-slate-400 hover:shadow-md text-slate-900 bg-white hover:bg-slate-50" 
+            : "text-white bg-slate-900/10 hover:bg-slate-900/20 ring-1 ring-white/20"
         )}
       >
         <Globe className="h-[18px] w-[18px] opacity-80" aria-hidden />
         <span className="font-bold uppercase tracking-wide">
           {current}
         </span>
-      </IridescentButton>
+      </button>
 
       {open && (
         <div

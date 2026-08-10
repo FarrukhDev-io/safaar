@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -109,11 +110,7 @@ export class AuthService {
   ) {}
 
   sendUserOtp(phone: string) {
-    void phone;
-    throw new ServiceUnavailableException({
-      code: 'SMS_PROVIDER_NOT_CONFIGURED',
-      message: 'SMS provayder ulanmagan',
-    });
+    return this.sendOtpDemoOrFail(this.normalizePhone(phone), 'user_login');
   }
 
   async sendUserEmailOtp(email: string) {
@@ -127,6 +124,11 @@ export class AuthService {
 
     const response = this.createOtpChallenge(normalizedEmail, 'user_login');
     const code = otpStore.getDeliveryCode(response.challenge_id);
+
+    if (this.isDemoAuthEnabled()) {
+      return { ...response, dev_code: code };
+    }
+
     const message = {
       to: normalizedEmail,
       subject: 'Safaar kirish kodi',
@@ -134,7 +136,7 @@ export class AuthService {
       html: `<p>Safaar hisobingizga kirish kodingiz:</p><h2>${code ?? '******'}</h2>`,
     };
 
-    const delivery = await this.emailService.send(message);
+    const delivery = await this.sendEmailOrFail(message);
     if (!delivery.accepted) {
       throw new ServiceUnavailableException({
         code: 'EMAIL_DELIVERY_FAILED',
@@ -151,11 +153,10 @@ export class AuthService {
   }
 
   sendPartnerOtp(phone: string) {
-    void phone;
-    throw new ServiceUnavailableException({
-      code: 'SMS_PROVIDER_NOT_CONFIGURED',
-      message: 'SMS provayder ulanmagan',
-    });
+    return this.sendOtpDemoOrFail(
+      this.normalizePhone(phone),
+      'partner_login',
+    );
   }
 
   async sendPartnerEmailOtp(email: string) {
@@ -168,6 +169,10 @@ export class AuthService {
     const response = this.createOtpChallenge(normalizedEmail, 'partner_login');
     const code = otpStore.getDeliveryCode(response.challenge_id);
 
+    if (this.isDemoAuthEnabled()) {
+      return { ...response, dev_code: code };
+    }
+
     const message = {
       to: normalizedEmail,
       subject: 'Safaar hamkor kabineti uchun kirish kodi',
@@ -175,7 +180,7 @@ export class AuthService {
       html: `<p>Safaar hamkor kabinetiga kirish kodingiz:</p><h2>${code ?? '******'}</h2>`,
     };
 
-    const delivery = await this.emailService.send(message);
+    const delivery = await this.sendEmailOrFail(message);
     if (!delivery.accepted) {
       throw new ServiceUnavailableException({
         code: 'EMAIL_DELIVERY_FAILED',
@@ -1930,6 +1935,56 @@ export class AuthService {
 
   private opaqueCodeHash(value: string): string {
     return createHash('sha256').update(value).digest('hex');
+  }
+
+  /**
+   * `emailService.send()` xato tashlasa (masalan SMTP host o'chgan/vaqt
+   * tugagan), buni ushlab, controller darajasida kutilgan
+   * `EMAIL_DELIVERY_FAILED` (503) xatosiga aylantiradi — aks holda
+   * bu tipsiz xato umumiy 500 sifatida chiqib ketardi.
+   */
+  private async sendEmailOrFail(
+    message: Parameters<EmailService['send']>[0],
+  ): ReturnType<EmailService['send']> {
+    try {
+      return await this.emailService.send(message);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new ServiceUnavailableException({
+        code: 'EMAIL_DELIVERY_FAILED',
+        message: 'Tasdiqlash kodini emailga yuborib bo‘lmadi',
+      });
+    }
+  }
+
+  /**
+   * Loyiha hali real SMS/email provayderga ulanmagan (development bosqichi).
+   * `ENABLE_DEMO_AUTH=true` bo'lsa (va NODE_ENV=production BO'LMASA — bu
+   * ikkinchi shart xato konfiguratsiyada ham demo rejim productionda
+   * yoqilib qolmasligi uchun qo'shimcha himoya), OTP kodi haqiqiy SMS/email
+   * o'rniga to'g'ridan-to'g'ri javobda (`dev_code`) qaytariladi — frontend
+   * uni ko'rsatib, verification oqimini providersiz sinab ko'rishi mumkin.
+   */
+  private isDemoAuthEnabled(): boolean {
+    if (String(process.env.NODE_ENV ?? '').toLowerCase() === 'production') {
+      return false;
+    }
+    return String(process.env.ENABLE_DEMO_AUTH ?? '').toLowerCase() === 'true';
+  }
+
+  private sendOtpDemoOrFail(phone: string, purpose: OtpPurpose) {
+    if (!this.isDemoAuthEnabled()) {
+      throw new ServiceUnavailableException({
+        code: 'SMS_PROVIDER_NOT_CONFIGURED',
+        message: 'SMS provayder ulanmagan',
+      });
+    }
+
+    const response = this.createOtpChallenge(phone, purpose);
+    const code = otpStore.getDeliveryCode(response.challenge_id);
+    return { ...response, dev_code: code };
   }
 
   private invalidCredentials() {

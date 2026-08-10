@@ -13,6 +13,8 @@
   "filters": {
     "title": "Filtrlar",
     "toggle": "Filtrlar",
+    "searchName": "Nomi bo'yicha",
+    "searchPlaceholder": "Masalan: Hilton",
     "stars": "Yulduzlar",
     "anyStars": "Barchasi",
     "starsValue": "{n}+ yulduz",

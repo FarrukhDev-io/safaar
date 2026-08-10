@@ -13,6 +13,8 @@
   "filters": {
     "title": "Фильтры",
     "toggle": "Фильтры",
+    "searchName": "Поиск по названию",
+    "searchPlaceholder": "Например: Hilton",
     "stars": "Звёзды",
     "anyStars": "Все",
     "starsValue": "{n}+ звёзд",

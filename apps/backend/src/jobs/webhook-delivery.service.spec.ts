@@ -46,7 +46,7 @@ describe('WebhookDeliveryService', () => {
     ]);
   });
 
-  it('marks delivery as failed on a non-2xx response', async () => {
+  it('marks delivery as failed on a non-2xx response AND rethrows so BullMQ retries (regression: C-4)', async () => {
     pg.query.mockResolvedValueOnce([deliveryRow]).mockResolvedValueOnce([]);
     fetchMock.mockResolvedValueOnce({
       ok: false,
@@ -54,18 +54,20 @@ describe('WebhookDeliveryService', () => {
       text: () => Promise.resolve('server error'),
     });
 
-    await service.deliver('delivery-1');
+    await expect(service.deliver('delivery-1')).rejects.toThrow();
 
     const updateCall = pg.query.mock.calls[1]!;
     expect((updateCall[1] as unknown[])[0]).toBe('failed');
     expect((updateCall[1] as unknown[])[1]).toBe(500);
   });
 
-  it('marks delivery as failed when the network request throws', async () => {
+  it('marks delivery as failed when the network request throws AND rethrows (regression: C-4)', async () => {
     pg.query.mockResolvedValueOnce([deliveryRow]).mockResolvedValueOnce([]);
     fetchMock.mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
-    await service.deliver('delivery-1');
+    await expect(service.deliver('delivery-1')).rejects.toThrow(
+      'ECONNREFUSED',
+    );
 
     const updateCall = pg.query.mock.calls[1]!;
     expect((updateCall[1] as unknown[])[0]).toBe('failed');

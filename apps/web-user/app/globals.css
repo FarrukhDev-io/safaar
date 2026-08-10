@@ -8,17 +8,17 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* ── Brand colors (Vibrant Lime Green based on #87C90D) ── */
-  --brand-50: #f4fce3;
-  --brand-100: #e5f8c2;
-  --brand-200: #cff194;
-  --brand-300: #9BE659;
-  --brand-400: #88D943;
-  --brand-500: #76CD2B; /* Asosiy yashil rang */
-  --brand-600: #62B022; /* Hover uchun */
-  --brand-700: #51931A;
-  --brand-800: #427814;
-  --brand-900: #35600F;
+  /* ── Brand colors (Darker Blue) ── */
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #3b82f6;
+  --brand-500: #2563eb; /* Asosiy to'q ko'k rang */
+  --brand-600: #1d4ed8; /* Hover uchun */
+  --brand-700: #1e40af;
+  --brand-800: #1e3a8a;
+  --brand-900: #172554;
 
   /* ── Brand Accent ── */
   --brand-accent-50: #fff7ed;

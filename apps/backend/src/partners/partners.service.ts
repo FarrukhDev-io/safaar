@@ -15,7 +15,10 @@ import {
   parsePagination,
   type QueryLike,
 } from '../common/pagination';
-import { PostgresService } from '../infrastructure/postgres.service';
+import {
+  PostgresService,
+  type PostgresTransaction,
+} from '../infrastructure/postgres.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import { hashSecret, partnerApiPepper, randomToken } from '../auth/security';
 import { randomUUID } from 'node:crypto';
@@ -241,12 +244,19 @@ export class PartnersService {
 
   async deleteTeamMember(actor: RequestActor | undefined, id: string) {
     const organizationId = this.organizationId(actor);
-    await this.pg.query(
+    const [member] = await this.pg.query(
       `UPDATE partner_users
        SET deleted_at = $1, status = 'deleted', updated_at = $1
-       WHERE id = $2 AND organization_id = $3 AND deleted_at IS NULL`,
+       WHERE id = $2 AND organization_id = $3 AND deleted_at IS NULL
+       RETURNING id::text`,
       [new Date().toISOString(), id, organizationId],
     );
+    if (!member) {
+      throw new NotFoundException({
+        code: 'TEAM_MEMBER_NOT_FOUND',
+        message: 'Jamoa aʼzosi topilmadi',
+      });
+    }
     return { id, deleted: true };
   }
 
@@ -3156,14 +3166,49 @@ export class PartnersService {
     }
 
     const now = new Date().toISOString();
-    const [request] = await this.pg.query(
-      `INSERT INTO withdrawal_requests
-         (id, organization_id, amount, currency, status, created_at, updated_at)
-       VALUES ($1, $2, $3, 'UZS', 'requested', $4, $5)
-       RETURNING *`,
-      [randomUUID(), organizationId, amount, now, now],
-    );
-    return request;
+    return this.pg.transaction(async (tx: PostgresTransaction) => {
+      // Tashkilot qatorini qulflab, shu tashkilot uchun parallel keladigan
+      // pul yechish so'rovlarini ketma-ket ishlashga majburlaymiz — aks
+      // holda ikkita so'rov bir vaqtda mavjud balansdan ortiq summani
+      // "ko'rib", ikkalasi ham muvaffaqiyatli yaratilishi mumkin edi.
+      await tx.query(
+        `SELECT id FROM partner_organizations WHERE id = $1 FOR UPDATE`,
+        [organizationId],
+      );
+
+      const [grossRow] = await tx.query<{ sum: string | null }>(
+        `SELECT COALESCE(SUM(total_amount), 0)::text as sum FROM bookings WHERE partner_organization_id = $1`,
+        [organizationId],
+      );
+      const availableBalance = Math.round(
+        Number(grossRow?.sum ?? 0) * 0.7,
+      );
+
+      const [committedRow] = await tx.query<{ sum: string | null }>(
+        `SELECT COALESCE(SUM(amount), 0)::text as sum
+         FROM withdrawal_requests
+         WHERE organization_id = $1 AND status IN ('requested', 'approved', 'paid')`,
+        [organizationId],
+      );
+      const alreadyCommitted = Number(committedRow?.sum ?? 0);
+      const remaining = availableBalance - alreadyCommitted;
+
+      if (amount > remaining) {
+        throw new BadRequestException({
+          code: 'WITHDRAWAL_EXCEEDS_BALANCE',
+          message: `Mavjud balans yetarli emas. Yechish mumkin: ${Math.max(remaining, 0)} UZS`,
+        });
+      }
+
+      const [request] = await tx.query(
+        `INSERT INTO withdrawal_requests
+           (id, organization_id, amount, currency, status, created_at, updated_at)
+         VALUES ($1, $2, $3, 'UZS', 'requested', $4, $5)
+         RETURNING *`,
+        [randomUUID(), organizationId, amount, now, now],
+      );
+      return request;
+    });
   }
 
   async withdrawals(actor: RequestActor | undefined, query: QueryLike = {}) {
@@ -3208,11 +3253,29 @@ export class PartnersService {
       : 'csv';
 
     const jobId = randomUUID();
-    await this.pg.query(
+    // Bir xil (tashkilot, type, format) uchun parallel/takroriy so'rovlar
+    // cheksiz "queued" duplikat qator yaratavermasligi uchun — DB'dagi
+    // qisman UNIQUE indeks (faqat queued/processing statusiga) ON
+    // CONFLICT orqali hurmat qilinadi.
+    const inserted = await this.pg.query(
       `INSERT INTO export_jobs (id, owner_type, owner_id, type, format, status, created_at, updated_at)
-       VALUES ($1, 'partner', $2, $3, $4, 'queued', $5, $6)`,
+       VALUES ($1, 'partner', $2, $3, $4, 'queued', $5, $6)
+       ON CONFLICT (owner_type, owner_id, type, format) WHERE status IN ('queued', 'processing')
+       DO NOTHING
+       RETURNING id`,
       [jobId, organizationId, type, format, now, now],
     );
+
+    if (inserted.length === 0) {
+      const [existing] = await this.pg.query(
+        `SELECT * FROM export_jobs
+         WHERE owner_type = 'partner' AND owner_id = $1 AND type = $2 AND format = $3
+           AND status IN ('queued', 'processing')
+         ORDER BY created_at DESC LIMIT 1`,
+        [organizationId, type, format],
+      );
+      return existing;
+    }
 
     await this.jobs.add(
       'partner-export',
@@ -3227,11 +3290,11 @@ export class PartnersService {
       },
     );
 
-    const jobs = await this.pg.query(
+    const [job] = await this.pg.query(
       `SELECT * FROM export_jobs WHERE id = $1`,
       [jobId],
     );
-    return jobs[0];
+    return job;
   }
 
   // ---------------------------------------------------------------------------

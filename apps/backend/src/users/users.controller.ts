@@ -14,6 +14,7 @@ import { CurrentActor, type RequestActor } from '../common/actor';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
 import { UsersService } from './users.service';
+import { SetAvatarDto, UpdateProfileDto } from './dto/user.dto';
 
 @Controller('me')
 @UseGuards(RolesGuard)
@@ -29,7 +30,7 @@ export class UsersController {
   @Patch()
   updateProfile(
     @CurrentActor() actor: RequestActor | undefined,
-    @Body() body: Record<string, unknown>,
+    @Body() body: UpdateProfileDto,
   ) {
     return this.usersService.updateProfile(actor, body);
   }
@@ -37,7 +38,7 @@ export class UsersController {
   @Post('avatar')
   uploadAvatar(
     @CurrentActor() actor: RequestActor | undefined,
-    @Body() body: Record<string, unknown>,
+    @Body() body: SetAvatarDto,
   ) {
     return this.usersService.setAvatar(actor, body);
   }

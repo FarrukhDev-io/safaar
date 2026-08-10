@@ -22,14 +22,30 @@ export class ExportsService {
     const now = new Date().toISOString();
     const id = randomUUID();
 
-    const [job] = await this.pg.query(
+    // Bir xil (owner, type, format) uchun parallel/takroriy so'rovlar
+    // cheksiz "queued" duplikat qator yaratavermasligi uchun — DB'dagi
+    // qisman UNIQUE indeks (faqat queued/processing statusiga) ON
+    // CONFLICT orqali hurmat qilinadi.
+    const inserted = await this.pg.query(
       `INSERT INTO export_jobs (id, owner_type, owner_id, type, format, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (owner_type, owner_id, type, format) WHERE status IN ('queued', 'processing')
+       DO NOTHING
        RETURNING *`,
       [id, 'system', ownerId, type, format, 'queued', now, now],
     );
+    if (inserted.length > 0) {
+      return inserted[0];
+    }
 
-    return job;
+    const [existing] = await this.pg.query(
+      `SELECT * FROM export_jobs
+       WHERE owner_type = 'system' AND owner_id = $1 AND type = $2 AND format = $3
+         AND status IN ('queued', 'processing')
+       ORDER BY created_at DESC LIMIT 1`,
+      [ownerId, type, format],
+    );
+    return existing;
   }
 
   async findOne(actor: RequestActor | undefined, id: string) {

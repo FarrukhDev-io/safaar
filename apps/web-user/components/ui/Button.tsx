@@ -13,8 +13,6 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
 }
 
-import { IridescentButton } from "./IridescentButton";
-import styles from "./iridescent-button.module.css";
 
 export function Button({
   variant = "primary",
@@ -26,29 +24,6 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
-  if (variant === "primary") {
-    return (
-      <IridescentButton
-        className={cn(
-          baseButtonClasses,
-          "disabled:opacity-60",
-          sizeClasses[size],
-          roundedClasses[rounded],
-          styles.appleGreen,
-          className
-        )}
-        disabled={disabled || loading}
-        aria-busy={loading || undefined}
-        {...props}
-      >
-        {loading && (
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-        )}
-        {children}
-      </IridescentButton>
-    );
-  }
-
   return (
     <button
       className={buttonVariants({ variant, size, rounded, className })}

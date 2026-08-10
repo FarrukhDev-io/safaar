@@ -124,6 +124,14 @@ export class EmailService {
         user: this.user,
         pass: this.pass,
       },
+      // Nodemailer'ning standart timeout'lari juda uzoq (taxminan 2 daqiqa) —
+      // SMTP host tarmoq darajasida "black hole" qilingan (masalan cloud
+      // egress cheklovi) holatda so'rov ishlov beruvchini shuncha vaqt band
+      // qilib turadi. Qisqa timeout bilan tezroq muvaffaqiyatsiz bo'lib,
+      // chaqiruvchiga aniq EMAIL_DELIVERY_FAILED xatosini qaytarish afzal.
+      connectionTimeout: 8_000,
+      greetingTimeout: 8_000,
+      socketTimeout: 8_000,
     });
 
     return this.transporter;

@@ -104,6 +104,15 @@ async function bootstrap() {
     });
   }
 
-  await app.listen(config.get<number>('PORT', 4000));
+  // HOST bo'sh bo'lsa (standart), Node barcha interfeyslarda (0.0.0.0)
+  // tinglaydi — bu Docker-compose kabi konteyner ortidagi joylashuvlar
+  // uchun kerak. Lekin nginx bilan bir xil serverda ishlaydigan joylashuv
+  // uchun (masalan production VM) HOST=127.0.0.1 qo'yilishi kerak — aks
+  // holda ilova porti to'g'ridan-to'g'ri tashqi tarmoqdan ochiq qolib,
+  // nginx'ning trust-proxy/rate-limit himoyasi butunlay chetlab
+  // o'tilishi mumkin (X-Forwarded-For soxtalashtirilib, throttling
+  // cheklovsiz aylanib o'tiladi).
+  const host = config.get<string>('HOST', '0.0.0.0');
+  await app.listen(config.get<number>('PORT', 4000), host);
 }
 void bootstrap();

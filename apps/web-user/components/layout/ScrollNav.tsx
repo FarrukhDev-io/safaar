@@ -27,24 +27,33 @@ function isActive(pathname: string, href: string, exact?: boolean): boolean {
   return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-import styles from "@/components/ui/iridescent-button.module.css";
+
 
 function getNavLinkClasses(active: boolean, mobile = false) {
+  if (mobile) {
+    return cn(
+      "font-extrabold transition-all duration-150 outline-none flex h-12 items-center gap-3 w-full rounded-2xl px-4 text-[15px]",
+      active
+        ? "bg-primary-50 text-primary-700 dark:bg-slate-800 dark:text-primary-400"
+        : "text-slate-900 hover:bg-slate-100/80 hover:text-primary-600 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
+    );
+  }
+  
   return cn(
-    "font-bold transition-all duration-150 outline-none border-2 border-transparent",
-    mobile ? "flex h-12 items-center gap-3 w-full rounded-2xl px-4 text-[15px]" : "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-base",
+    "relative inline-flex h-10 items-center justify-center gap-1.5 px-3 text-[15px] font-extrabold transition-colors duration-200 outline-none",
+    "after:absolute after:bottom-1 after:left-3 after:right-3 after:h-[2px] after:rounded-full after:transition-transform after:duration-300 after:origin-center",
     active
-      ? cn(styles.iridescent, "text-black hover:text-black")
-      : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
+      ? "text-primary-600 after:scale-x-100 after:bg-primary-600 dark:text-primary-400 dark:after:bg-primary-400"
+      : "text-slate-900 hover:text-primary-600 after:scale-x-0 hover:after:scale-x-100 after:bg-primary-600 dark:text-slate-200 dark:hover:text-primary-400 dark:after:bg-primary-400"
   );
 }
 
 function getChildNavLinkClasses(active: boolean) {
   return cn(
-    "flex items-center gap-2.5 font-bold transition-all duration-150 rounded-xl w-full h-11 px-3.5 text-[15px] outline-none border-2 border-transparent",
+    "flex items-center gap-2.5 font-bold transition-all duration-150 rounded-xl w-full h-11 px-3.5 text-[15px] outline-none",
     active
-      ? cn(styles.iridescent, "text-black hover:text-black")
-      : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
+      ? "bg-primary-50 text-primary-700 dark:bg-slate-800 dark:text-primary-400"
+      : "text-slate-900 hover:bg-slate-100/80 hover:text-primary-600 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
   );
 }
 
@@ -107,7 +116,7 @@ function NavDropdown({ item, pathname }: { item: ScrollNavItem; pathname: string
         {displayItem.icon}
         <span className="text-base font-bold tracking-wide">{displayItem.label}</span>
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform text-slate-400 dark:text-slate-500", open && "rotate-180")} />
-        {active && <span className={styles.dropShadow} />}
+
       </button>
 
       {open && item.children && (
@@ -128,7 +137,7 @@ function NavDropdown({ item, pathname }: { item: ScrollNavItem; pathname: string
               >
                 <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
                 <span className="text-sm font-bold">{child.label}</span>
-                {childActive && <span className={styles.dropShadow} />}
+
               </Link>
             );
           })}
@@ -183,7 +192,7 @@ function MobileAccordionGroup({
               >
                 <span className="flex h-5 w-5 items-center justify-center">{child.icon}</span>
                 <span className="text-sm font-bold">{child.label}</span>
-                {childActive && <span className={styles.dropShadow} />}
+
               </Link>
             );
           })}
@@ -248,7 +257,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
           />
           <nav
             aria-label="Mobil navigatsiya"
-            className="fixed inset-x-3 top-16 z-100 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-3xl border border-slate-200 bg-card p-4 shadow-2xl md:hidden animate-in fade-in slide-in-from-top-2 duration-150 dark:border-slate-800 dark:bg-slate-900"
+            className="fixed inset-x-3 top-16 z-100 max-h-[calc(100vh-5rem)] overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-200 bg-card p-4 shadow-2xl md:hidden animate-in fade-in slide-in-from-top-2 duration-150 dark:border-slate-800 dark:bg-slate-900"
           >
             <div className="space-y-1">
               {items.map((item) => {
@@ -275,7 +284,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                       <span className="flex h-6 w-6 items-center justify-center">{item.icon}</span>
                     )}
                     <span className="text-sm font-bold">{item.label}</span>
-                    {active && <span className={styles.dropShadow} />}
+
                   </Link>
                 );
               })}
@@ -318,7 +327,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                 >
                   {item.icon}
                   <span className="text-base font-bold tracking-wide">{item.label}</span>
-                  {active && <span className={styles.dropShadow} />}
+
                 </Link>
               );
             })}

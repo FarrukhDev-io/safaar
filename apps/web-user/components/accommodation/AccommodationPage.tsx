@@ -42,6 +42,7 @@ export async function AccommodationPage({
   title,
 }: AccommodationPageProps) {
   const cityId = one(sp.city_id);
+  const search = one(sp.search);
   const starsRaw = int(one(sp.stars));
   const stars =
     starsRaw !== undefined && starsRaw >= 1 && starsRaw <= 5
@@ -64,6 +65,7 @@ export async function AccommodationPage({
     api.catalog.getCities(locale),
     api.hotels.getHotels(locale, {
       cityId,
+      search,
       stars,
       minPrice,
       maxPrice,
@@ -81,6 +83,7 @@ export async function AccommodationPage({
 
   const currentParams: Record<string, string> = {};
   if (cityId) currentParams.city_id = cityId;
+  if (search) currentParams.search = search;
   if (stars !== undefined) currentParams.stars = String(stars);
   if (minPrice !== undefined) currentParams.min_price = String(minPrice);
   if (maxPrice !== undefined) currentParams.max_price = String(maxPrice);
@@ -91,6 +94,7 @@ export async function AccommodationPage({
 
   const clearedParams: Record<string, string> = {};
   if (cityId) clearedParams.city_id = cityId;
+  if (search) clearedParams.search = search;
   if (checkIn) clearedParams.check_in = checkIn;
   if (checkOut) clearedParams.check_out = checkOut;
   if (guests) clearedParams.guests = String(guests);

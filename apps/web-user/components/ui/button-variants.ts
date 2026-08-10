@@ -6,13 +6,13 @@ export type Rounded = "full" | "2xl" | "xl" | "lg" | "md" | "sm";
 
 export const variantClasses: Record<Variant, string> = {
   primary:
-    "bg-primary-500 text-white shadow-[0_3px_0_rgb(81,147,26),0_4px_10px_rgba(118,205,43,0.3)] hover:shadow-[0_3px_0_rgb(66,120,20),0_4px_12px_rgba(118,205,43,0.4)] hover:bg-primary-600 active:translate-y-[3px] active:shadow-none transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
+    "bg-primary-500 text-white shadow-sm hover:shadow-md hover:bg-primary-600 active:scale-[0.98] transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:scale-100",
   accent:
-    "bg-accent-500 text-white shadow-[0_3px_0_rgb(180,83,9),0_4px_10px_rgba(245,158,11,0.3)] hover:shadow-[0_3px_0_rgb(146,64,14),0_4px_12px_rgba(245,158,11,0.4)] hover:bg-accent-600 active:translate-y-[3px] active:shadow-none transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
+    "bg-accent-500 text-white shadow-sm hover:shadow-md hover:bg-accent-600 active:scale-[0.98] transition-all duration-150 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:scale-100",
   secondary:
-    "border border-slate-200 bg-white text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] hover:bg-slate-50 hover:text-primary-500 active:translate-y-[3px] active:shadow-none transition-all duration-150 disabled:bg-slate-50 disabled:border-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
+    "border border-slate-300 bg-white text-slate-900 shadow hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900 active:scale-[0.98] transition-all duration-150 disabled:bg-slate-50 disabled:border-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:scale-100",
   ghost:
-    "text-slate-700 hover:bg-slate-100 active:translate-y-[2px] transition-all duration-150 disabled:bg-transparent disabled:text-slate-300 disabled:translate-y-0",
+    "text-slate-700 hover:bg-slate-100 active:scale-[0.98] transition-all duration-150 disabled:bg-transparent disabled:text-slate-300 disabled:scale-100",
 };
 
 export const sizeClasses: Record<Size, string> = {

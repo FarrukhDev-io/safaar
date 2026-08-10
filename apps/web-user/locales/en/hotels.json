@@ -13,6 +13,8 @@
   "filters": {
     "title": "Filters",
     "toggle": "Filters",
+    "searchName": "Search by name",
+    "searchPlaceholder": "E.g. Hilton",
     "stars": "Stars",
     "anyStars": "All",
     "starsValue": "{n}+ stars",

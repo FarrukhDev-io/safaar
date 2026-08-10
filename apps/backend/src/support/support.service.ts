@@ -9,6 +9,10 @@ import { randomUUID } from 'node:crypto';
 import type { RequestActor } from '../common/actor';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { EventsService } from '../realtime/events.service';
+import type {
+  CreateSupportMessageDto,
+  CreateSupportTicketDto,
+} from './dto/support.dto';
 
 @Injectable()
 export class SupportService {
@@ -17,7 +21,7 @@ export class SupportService {
     private readonly events: EventsService,
   ) {}
 
-  async create(actor: RequestActor | undefined, body: Record<string, unknown>) {
+  async create(actor: RequestActor | undefined, body: CreateSupportTicketDto) {
     const a = this.requireActor(actor);
     const now = new Date().toISOString();
     const id = randomUUID();
@@ -86,7 +90,7 @@ export class SupportService {
   async message(
     actor: RequestActor | undefined,
     id: string,
-    body: Record<string, unknown>,
+    body: CreateSupportMessageDto,
   ) {
     await this.assertTicket(actor, id);
     const a = this.requireActor(actor);

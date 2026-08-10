@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { BookingStatus } from '@safaar/types';
 import { randomUUID } from 'node:crypto';
+import * as argon2 from 'argon2';
 import type { RequestActor } from '../common/actor';
 import {
   limitOffsetSql,
@@ -14,6 +15,8 @@ import {
   parsePagination,
   type QueryLike,
 } from '../common/pagination';
+import { randomToken } from '../auth/security';
+import { authSessionStore } from '../auth/session-store';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import {
@@ -1052,7 +1055,8 @@ export class AdminService {
         b.price_snapshot ->> 'route' as route,
         b.price_snapshot ->> 'companyName' as company_name,
         b.created_at,
-        b.updated_at
+        b.updated_at,
+        count(*) over()::int as total_count
       from bookings b
       left join users u on u.id = b.user_id
       left join partner_organizations po on po.id = b.partner_organization_id
@@ -1416,15 +1420,34 @@ export class AdminService {
     format: 'csv' | 'xlsx' | 'pdf',
   ) {
     const currentActor = this.requireActor(actor);
+    const now = new Date().toISOString();
 
+    // Bir xil (admin, type, format) uchun parallel/takroriy so'rovlar
+    // cheksiz "queued" duplikat qator yaratavermasligi uchun — DB'dagi
+    // qisman UNIQUE indeks (faqat queued/processing statusiga) ON
+    // CONFLICT orqali hurmat qilinadi.
     const rows = await this.rows(
-      `insert into export_jobs (owner_type, owner_id, type, format, status)
-       values ('admin', $1, $2, $3, 'queued')
+      `insert into export_jobs (id, owner_type, owner_id, type, format, status, created_at, updated_at)
+       values (gen_random_uuid(), 'admin', $1, $2, $3, 'queued', $4, $4)
+       on conflict (owner_type, owner_id, type, format) where status in ('queued', 'processing')
+       do nothing
        returning id::text, owner_type, owner_id::text, type, format, status, created_at, updated_at`,
-      [currentActor.id, type, format],
+      [currentActor.id, type, format, now],
     );
-    const job = rows[0];
 
+    if (rows.length === 0) {
+      const [existing] = await this.rows(
+        `select id::text, owner_type, owner_id::text, type, format, status, created_at, updated_at
+         from export_jobs
+         where owner_type = 'admin' and owner_id = $1 and type = $2 and format = $3
+           and status in ('queued', 'processing')
+         order by created_at desc limit 1`,
+        [currentActor.id, type, format],
+      );
+      return existing;
+    }
+
+    const job = rows[0];
     await this.jobs.add(
       'export',
       { export_id: job['id'], type, format, owner_id: currentActor.id },
@@ -2620,7 +2643,20 @@ export class AdminService {
   }
 
   async bookings(query: QueryLike = {}) {
-    return this.rows(`${this.dbBookingsSql()} ${this.limitClause(query)}`);
+    const pagination = this.adminPagination(query);
+    const rows = await this.rows(
+      `${this.dbBookingsSql()} ${this.limitClause(query)}`,
+    );
+    const total = Number(rows[0]?.['total_count'] ?? 0);
+    const items = rows.map(({ total_count: _totalCount, ...row }) => row);
+
+    return {
+      items,
+      total,
+      page: pagination.page,
+      limit: pagination.limit,
+      total_pages: Math.max(1, Math.ceil(total / pagination.limit)),
+    };
   }
 
   async booking(id: string) {
@@ -3833,18 +3869,37 @@ export class AdminService {
   }
 
   async adminUserCreate(body: Record<string, unknown>) {
+    const email = String(body.email ?? '')
+      .trim()
+      .toLowerCase();
+    if (!email) {
+      throw new BadRequestException({
+        code: 'ADMIN_EMAIL_REQUIRED',
+        message: 'Email kiritilishi shart',
+      });
+    }
+
+    // Vaqtinchalik parol generatsiya qilinadi va faqat shu javobda BIR
+    // MARTA qaytariladi (2FA setup'dagi recovery-kodlar bilan bir xil
+    // uslub) — yangi admin shu parol bilan kirib, keyin o'zgartiradi.
+    const temporaryPassword = randomToken(9);
+    const passwordHash = await argon2.hash(temporaryPassword);
+    const now = new Date().toISOString();
+
     const rows = await this.rows(
-      `insert into admin_users (email, full_name, role, status)
-       values ($1, $2, $3, 'active')
+      `insert into admin_users (id, email, password_hash, full_name, role, status, created_at, updated_at)
+       values (gen_random_uuid(), $1, $2, $3, $4, 'active', $5, $5)
        returning id::text, email, full_name, role, status, created_at, updated_at`,
       [
-        String(body.email ?? '').toLowerCase(),
+        email,
+        passwordHash,
         String(body.full_name ?? body.name ?? ''),
         String(body.role ?? 'moderator'),
+        now,
       ],
     );
     this.invalidateAdminCache();
-    return rows[0];
+    return { ...rows[0], temporary_password: temporaryPassword };
   }
 
   async adminUserUpdate(id: string, body: Record<string, unknown>) {
@@ -3885,8 +3940,30 @@ export class AdminService {
     );
   }
 
-  adminUserReset2fa(id: string) {
-    return { id, two_factor_reset: true };
+  async adminUserReset2fa(id: string) {
+    const now = new Date().toISOString();
+    const rows = await this.rows(
+      `update admin_users
+       set totp_secret = null, updated_at = $2
+       where id = $1::uuid
+       returning id::text`,
+      [id, now],
+    );
+
+    if (rows.length === 0) {
+      throw new NotFoundException({
+        code: 'ADMIN_USER_NOT_FOUND',
+        message: 'Admin foydalanuvchi topilmadi',
+      });
+    }
+
+    await this.postgres.query(
+      `delete from admin_recovery_codes where admin_id = $1::uuid`,
+      [id],
+    );
+    await authSessionStore.revokeActor(id);
+    this.invalidateAdminCache();
+    return { id, two_factor_reset: true, sessions_revoked: true };
   }
 
   roles() {
