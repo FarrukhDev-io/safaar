@@ -99,11 +99,13 @@ export default async function LangLayout({
     >
       <body className="flex min-h-full flex-col overflow-x-hidden bg-slate-100/60 text-slate-900 subpixel-antialiased dark:bg-slate-950 dark:text-slate-100">
         <AnalyticsProvider>
-          {children}
-          <Toaster position="top-right" richColors />
-          <ServiceWorkerRegister />
-          <PwaInstallBanner />
-          <LiveSupportWidget />
+          <div className="relative flex min-h-screen w-full max-w-[100vw] flex-col overflow-x-hidden">
+            {children}
+            <Toaster position="top-right" richColors />
+            <ServiceWorkerRegister />
+            <PwaInstallBanner />
+            <LiveSupportWidget />
+          </div>
         </AnalyticsProvider>
       </body>
     </html>
