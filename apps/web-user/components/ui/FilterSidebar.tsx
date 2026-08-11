@@ -40,7 +40,7 @@ export function FilterSidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-card p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 lg:flex lg:sticky lg:top-24 lg:h-fit">
+      <aside className="hidden w-full flex-col gap-4 rounded-2xl border border-slate-300 bg-card p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 lg:flex lg:sticky lg:top-24 lg:h-fit">
         <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
           <Filter className="h-4 w-4 text-primary-600 dark:text-primary-400" />
           <h2 className="text-base font-extrabold uppercase tracking-wide text-slate-900 dark:text-white">
