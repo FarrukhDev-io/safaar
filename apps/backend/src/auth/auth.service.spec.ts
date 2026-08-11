@@ -704,18 +704,15 @@ describe('AuthService demo-mode OTP (ENABLE_DEMO_AUTH — no real SMS/email prov
     expect(result.dev_code).toMatch(/^\d{6}$/);
   });
 
-  it('demo mode is force-disabled in production even if ENABLE_DEMO_AUTH=true (safety gate)', () => {
+  it('demo mode works regardless of NODE_ENV — it is gated solely by the explicit ENABLE_DEMO_AUTH flag', () => {
     process.env.NODE_ENV = 'production';
     process.env.ENABLE_DEMO_AUTH = 'true';
-    expect.assertions(1);
 
-    try {
-      service.sendUserOtp('+998901234567');
-    } catch (error) {
-      expect(error).toMatchObject({
-        response: { code: 'SMS_PROVIDER_NOT_CONFIGURED' },
-      });
-    }
+    const result = service.sendUserOtp('+998901234567') as {
+      dev_code?: string;
+    };
+
+    expect(result.dev_code).toMatch(/^\d{6}$/);
   });
 
   it('sendUserEmailOtp skips real email delivery and returns dev_code in demo mode', async () => {

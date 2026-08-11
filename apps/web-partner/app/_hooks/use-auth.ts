@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { access, auth } from '../_lib/api';
@@ -9,6 +9,7 @@ import type { PartnerLoginResponse } from '../_lib/api/endpoints/auth';
 import { isLimitedPartnerAccessStatus } from '../_lib/auth/access-status';
 import { buildPartnerSession } from '../_lib/auth/session';
 import { useAuthStore } from '../_stores/auth-store';
+import { useDataStore } from '../_stores/data-store';
 
 const LOGIN_ALLOWED_STATUSES = new Set<PartnerAccessStatus>([
   'approved',
@@ -177,9 +178,18 @@ export function usePartnerEmailOtpVerify() {
 export function useLogout() {
   const router = useRouter();
   const clearSession = useAuthStore((s) => s.clearSession);
+  const resetData = useDataStore((s) => s.reset);
+  const queryClient = useQueryClient();
 
   return () => {
     clearSession();
+    resetData();
+    // Boshqa hamkor tashkilotga (masalan boshqa biznes turi bilan) qayta
+    // kirilganda oldingi tashkilotning keshlangan e'lon/xona/bron
+    // ma'lumotlari ko'rinib qolmasligi uchun — session-expiry-handler.tsx
+    // avtomatik chiqishda buni allaqachon to'g'ri qilardi, qo'lda
+    // "Chiqish" tugmasida esa yetishmayotgan edi.
+    queryClient.clear();
     toast.success('Sessiya yakunlandi');
     router.replace('/login');
   };

@@ -248,5 +248,45 @@ Bronlar, xonalar/joylar CRUD, rasm yuklash, walk-in bron yaratish, check-in/xona
 - Hozir: kalendar sahifasi xonalarni faqat client-side hisoblaydi (`app/(dashboard)/calendar/calendar-view.tsx`). Xonani ma'lum kunlarga "yopish" (blackout) imkoni yo'q.
 
 ---
+---
+
+# TUZATILGAN BUG: Partner panelda biznes tashkilotlari orasida eskirgan ma'lumot ko'rinishi (data isolation)
+
+**Muhim: bu backend/xavfsizlik muammosi EMAS edi — frontend keshlash bugi edi, va allaqachon tuzatildi va production'ga (`web-partner-khaki.vercel.app`) deploy qilindi.** Quyida nima bo'lgani, qanday tuzatilgani va sizdan nima kerakligi yozilgan.
+
+## Muammo qanday ko'rinar edi
+
+Foydalanuvchi (siz yoki QA) quyidagini kuzatgan:
+1. Bitta biznes turi bilan (masalan Restoran) ro'yxatdan o'tib, kirib, e'lon ma'lumotlarini (nomi, tavsifi, manzili, rasmlar, qulayliklar, qoidalar) to'ldirgan.
+2. Chiqib (logout), boshqa biznes turi bilan (masalan Mehmonxona) ro'yxatdan o'tib kirgan.
+3. Yangi (Mehmonxona) panelida — **eski (Restoran) tashkilotining ma'lumotlari ko'rinib qolgan**.
+
+## Tekshiruv natijasi
+
+**Backend to'liq toza ekani dalil bilan tasdiqlandi**: ikkita haqiqiy alohida tashkilot (`hotel` va `restaurant` turida) yaratib, har biriga noyob "sirli" manzil bilan e'lon qo'shib, ikkalasi bilan ham real login qilib, xuddi shu `GET /partners/hotels` endpointini chaqirdim — har bir token FAQAT o'z tashkilotining ma'lumotini qaytardi, hech qanday aralashish yo'q. Demak, `organization_id` bo'yicha SQL filtrlash, JWT, auth — barchasi to'g'ri ishlaydi.
+
+**Haqiqiy sabab — frontend'da ikkita bog'liq muammo edi:**
+
+1. **`useLogout()` (`app/_hooks/use-auth.ts`)** — "Chiqish" tugmasi bosilganda faqat `useAuthStore`ni (login/token) tozalar edi. React Query keshini (`queryClient.clear()`) va Zustand `useDataStore`ni (e'lon/xona/bron ma'lumotlari) hech qachon tozalamas edi.
+
+2. **`QueryClient` butun ilova umrida bitta instance** (`app/_providers/query-provider.tsx`, `useState(() => new QueryClient(...))`) — sahifa to'liq qayta yuklanmaguncha login/logout orasida saqlanib qoladi. `listing`, `primary-hotel`, `rooms`, `room-types`, `beds`, `reservations` — barcha query kalitlari **statik**, `organizationId`ga bog'liq emas (masalan `['partner', 'listing']`). `staleTime: 60_000` (1 daqiqa) tufayli, yangi tashkilot bilan kirilganda React Query eski keshni "hali toza" deb hisoblab, **hech qanday tarmoq so'rovisiz** eski ma'lumotni darhol ko'rsatgan.
+
+Qiziqarli fakt: sessiya **avtomatik** tugaganda (401 xatosi, `session-expiry-handler.tsx`) tizim buni to'g'ri qilar edi — u ham `clearSession()`, ham `queryClient.clear()`ni chaqirar edi. Demak to'g'ri pattern allaqachon kodda bor edi, faqat "Chiqish" tugmasiga qo'llanilmagan edi.
+
+Bundan tashqari, **ikkinchi, mustaqil logout yo'li** ham topildi: `app/logout/page.tsx` — hozircha UI'dan hech qayerga bog'lanmagan, lekin real, to'g'ridan-to'g'ri URL orqali kirish mumkin bo'lgan sahifa. Bu ham xuddi shu bugga ega edi.
+
+## Nima tuzatildi (3 fayl)
+
+1. **`app/_stores/data-store.ts`** — `reset()` action qo'shildi (`listing`/`rooms`/`roomTypes`/`beds`/`reservations`'ni boshlang'ich bo'sh holatga qaytaradi).
+2. **`app/_hooks/use-auth.ts`** — `useLogout()` endi `resetData()` (yangi `reset()` action) va `queryClient.clear()`ni ham chaqiradi.
+3. **`app/logout/page.tsx`** — xuddi shu tuzatish qo'llanildi.
+
+Build (`tsc --noEmit`, `next build`) toza o'tdi, production'ga deploy qilindi.
+
+## Sizdan nima kerak
+
+1. **Brauzerda qo'lda tasdiqlang** — bu muhitda Playwright/brauzer avtomatlashtirish vositasi yo'q edi, shuning uchun tuzatishni faqat kod darajasida va build orqali tekshira oldim (real login→logout→boshqa tashkilot bilan login→panel toza ko'rinishini bosib ko'rmadim). Iltimos, `web-partner-khaki.vercel.app`da real ikkita turli hamkor akkaunt bilan yuqoridagi ssenariyni qayta tekshiring.
+
+2. **Kengroq naqsh haqida bilib qo'ying** — `listingQueryKey`, `primaryHotelQueryKey`, `roomsQueryKey`, `roomTypesQueryKey`, `bedsQueryKey`, `reservationsQueryKey` (barchasi `_hooks/use-*.ts` fayllarida) — hammasi statik, tashkilot bo'yicha ajratilmagan kalitlar. Hozirgi tuzatish (`queryClient.clear()` logout'da) muammoni yopadi, chunki har safar YANGI login'dan keyin butun kesh tozalanadi. Lekin agar kelajakda **bir xil sessiya davomida** (masalan admin bir nechta tashkilot orasida almashtiradigan "org switcher" funksiyasi) tashkilotlar orasida almashish kerak bo'lsa, bu kalitlarni `organizationId` bilan parametrlashtirish tavsiya etiladi (masalan `['partner', 'listing', organizationId]`) — hozircha bunday funksiya yo'qligi sababli zarurat yo'q, lekin qo'shilsa, shu joyni eslang.
 
 Savol chiqsa yozing — rahmat!

@@ -23,4 +23,14 @@ describe('validateEnv (regression: H-3 HOST var was silently dropped)', () => {
     const result = validateEnv(minimalProdConfig);
     expect(result.HOST).toBe('0.0.0.0');
   });
+
+  it('passes through an explicitly-set ENABLE_DEMO_AUTH value (regression: dev_code silently never worked because this var was dropped)', () => {
+    const result = validateEnv({ ...minimalProdConfig, ENABLE_DEMO_AUTH: 'true' });
+    expect(result.ENABLE_DEMO_AUTH).toBe('true');
+  });
+
+  it('defaults ENABLE_DEMO_AUTH to false when unset', () => {
+    const result = validateEnv(minimalProdConfig);
+    expect(result.ENABLE_DEMO_AUTH).toBe('false');
+  });
 });

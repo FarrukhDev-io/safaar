@@ -148,6 +148,13 @@ interface DataState {
   setBeds: (beds: Bed[]) => void;
   setReservations: (reservations: ReservationView[]) => void;
 
+  /**
+   * Boshqa hamkor tashkilotga (masalan chiqib, boshqa biznes turi bilan
+   * qayta kirganda) eski tashkilotning e'lon/xona/bron ma'lumotlari
+   * xotirada qolib ketmasligi uchun — logout paytida chaqiriladi.
+   */
+  reset: () => void;
+
   confirmReservation: (id: string) => void;
   rejectReservation: (id: string) => void;
   checkIn: (id: string) => void;
@@ -174,6 +181,16 @@ export const useDataStore = create<DataState>((set, get) => ({
   setRoomTypes: (roomTypes) => set({ roomTypes }),
   setBeds: (beds) => set({ beds }),
   setReservations: (reservations) => set({ reservations }),
+
+  reset: () =>
+    set({
+      reservations: [],
+      rooms: [],
+      roomTypes: [],
+      beds: [],
+      guests: [],
+      listing: emptyListing,
+    }),
 
   confirmReservation: (id) =>
     set((state) => ({

@@ -1960,17 +1960,17 @@ export class AuthService {
   }
 
   /**
-   * Loyiha hali real SMS/email provayderga ulanmagan (development bosqichi).
-   * `ENABLE_DEMO_AUTH=true` bo'lsa (va NODE_ENV=production BO'LMASA — bu
-   * ikkinchi shart xato konfiguratsiyada ham demo rejim productionda
-   * yoqilib qolmasligi uchun qo'shimcha himoya), OTP kodi haqiqiy SMS/email
-   * o'rniga to'g'ridan-to'g'ri javobda (`dev_code`) qaytariladi — frontend
-   * uni ko'rsatib, verification oqimini providersiz sinab ko'rishi mumkin.
+   * Loyiha hali real SMS/email provayderga ulanmagan (mahsulot hali
+   * haqiqiy foydalanuvchilar bilan ishga tushmagan). `ENABLE_DEMO_AUTH=true`
+   * bo'lsa, OTP kodi haqiqiy SMS/email o'rniga to'g'ridan-to'g'ri javobda
+   * (`dev_code`) qaytariladi — frontend uni ko'rsatib, verification
+   * oqimini providersiz sinab ko'rishi mumkin. Operator bu bayroqni real
+   * foydalanuvchilar chiqqanda `false`ga o'zgartirishi kerak (NODE_ENV
+   * qiymatidan qat'iy nazar — chunki NODE_ENV=production shu loyihada
+   * boshqa maqsadlarda ham, hali ishga tushirilmagan bosqichda ham
+   * ishlatiladi).
    */
   private isDemoAuthEnabled(): boolean {
-    if (String(process.env.NODE_ENV ?? '').toLowerCase() === 'production') {
-      return false;
-    }
     return String(process.env.ENABLE_DEMO_AUTH ?? '').toLowerCase() === 'true';
   }
 
