@@ -87,7 +87,9 @@ export default async function BookingDetailPage({
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
-      <BackButton className="fixed left-4 top-16 z-50 md:left-8 md:top-20" />
+      <div>
+        <BackButton />
+      </div>
 
       {isConfirmed ? (
         <div className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/40">

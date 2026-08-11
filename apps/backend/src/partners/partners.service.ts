@@ -582,7 +582,13 @@ export class PartnersService {
     const nameUz = nameUzInput;
     const nameRu = this.optionalString(body.name_ru ?? body.name) ?? nameUz;
     const nameEn = this.optionalString(body.name_en ?? body.name) ?? nameUz;
-    const slug = String(body.slug ?? this.slugify(nameUz));
+    // Slug global miqyosda unique (`hotels_slug_key`). Agar chaqiruvchi
+    // aniq slug bermasa (masalan avtomatik "Yangi obyekt" yaratilganda),
+    // nomdan hosil qilingan slug BARCHA hamkorlar uchun bir xil chiqadi —
+    // shu sabab hotelId bilan tuzlab, to'qnashuvni oldindan yo'q qilamiz.
+    const slug = body.slug
+      ? String(body.slug)
+      : `${this.slugify(nameUz)}-${hotelId.slice(0, 8)}`;
     const cityId = String(body.city_id ?? organization?.city_id ?? '');
     const address = String(body.address ?? organization?.address ?? '');
 

@@ -68,8 +68,10 @@ export default async function CheckoutPage({
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
-      <BackButton className="fixed left-4 top-16 z-50 md:left-8 md:top-20" />
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{dict.title}</h1>
+      <div className="flex items-center gap-4">
+        <BackButton />
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{dict.title}</h1>
+      </div>
       <CheckoutForm
         locale={locale}
         dict={dict}
