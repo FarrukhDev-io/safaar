@@ -9,7 +9,6 @@ const PUBLIC_PATHS = [
   "",
   "/hotels",
   "/dachas",
-  "/guesthouses",
   "/sanatoriums",
   "/resorts",
   "/restaurants",

@@ -7,7 +7,6 @@ import { AccommodationPage } from "@/components/accommodation/AccommodationPage"
 export type AccommodationRouteKey =
   | "hotels"
   | "dachas"
-  | "guesthouses"
   | "sanatoriums"
   | "resorts";
 

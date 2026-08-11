@@ -85,8 +85,8 @@ export function SiteHeader({
 
   const desktopItems: ScrollNavItem[] = [
     { href: `${base}/hotels`, label: dict.nav.hotels },
+    { href: `${base}/restaurants`, label: navDict.restaurants ?? "Restaurants" },
     { href: `${base}/transport`, label: navDict.transport ?? "Transport" },
-    { href: `${base}/restaurants`, label: dict.nav.restaurants ?? "Restaurants" },
     { href: `${base}/attractions`, label: dict.nav.attractions },
   ];
 

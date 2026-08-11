@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, Phone, MapPin, Camera, Send } from "lucide-react";
+import { Mail, MapPin, Camera, Send } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 
@@ -126,15 +126,6 @@ export function SiteFooter({
                 <span className="leading-relaxed">
                   O'zbekiston, Toshkent shahri,<br />Yunusobod tumani
                 </span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Phone className="h-4 w-4 shrink-0 text-white/70" />
-                <a
-                  href={`tel:${dict.footer.phone.replace(/\s+/g, "")}`}
-                  className="transition-colors hover:text-white hover:underline"
-                >
-                  {dict.footer.phone}
-                </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 shrink-0 text-white/70" />
