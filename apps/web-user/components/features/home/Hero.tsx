@@ -1,4 +1,5 @@
 import type { HomeDict } from "@/i18n/dictionaries";
+import HeroSectionTextHover from "@/components/animata/hero/hero-section-text-hover";
 
 export function Hero({ dict }: { dict: HomeDict["hero"] }) {
   return (
@@ -6,11 +7,11 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
       <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
         {/* Title */}
         <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-5xl md:text-6xl">
-          {dict.title}
+          <HeroSectionTextHover />
         </h1>
 
         {/* Subtitle */}
-        <p className="mx-auto mt-2 max-w-2xl text-base font-bold leading-relaxed text-slate-600 sm:text-lg md:text-xl">
+        <p className="mx-auto mt-4 max-w-2xl text-base font-bold leading-relaxed text-slate-600 sm:text-lg md:text-xl">
           {dict.subtitle}
         </p>
       </div>
