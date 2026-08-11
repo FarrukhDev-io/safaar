@@ -86,8 +86,13 @@ export default async function BookingDetailPage({
     paymentQuery === "cash" || payment?.status === "awaiting_cash";
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
-      <div>
+    <main className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
+      {/* Desktop Side Button */}
+      <div className="absolute -left-12 top-12 hidden lg:block">
+        <BackButton />
+      </div>
+
+      <div className="mb-2 lg:hidden">
         <BackButton />
       </div>
 
