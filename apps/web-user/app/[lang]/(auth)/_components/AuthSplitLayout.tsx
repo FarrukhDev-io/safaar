@@ -38,15 +38,9 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
 
           {/* Hero slogan / value proposition */}
           <div className="w-full flex justify-center items-center mt-6">
-            <MaskedHeading
-              text={dict.bannerTitle}
-              src="/Samarkand-Registan-cinematic.jpeg"
-              reveal="wipe"
-              duration={1.5}
-              align="center"
-              weight={800}
-              textScale={0.14}
-            />
+            <h2 className="text-3xl font-extrabold leading-tight tracking-tight lg:text-4xl text-white text-center animate-in fade-in slide-in-from-bottom-4 duration-1000 fill-mode-both delay-300">
+              {dict.bannerTitle}
+            </h2>
           </div>
         </div>
       </div>
