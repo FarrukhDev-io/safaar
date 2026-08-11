@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); async function main() { await prisma.$executeRaw`UPDATE cities SET name = jsonb_set(name, '{uz}', '"Toshkent"') WHERE name->>'uz' ILIKE '%Samantha%'`; console.log('Done'); } main();
