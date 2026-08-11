@@ -67,9 +67,16 @@ export default async function CheckoutPage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
-      <div className="flex items-center gap-4">
+    <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
+      {/* Desktop Side Button */}
+      <div className="absolute -left-12 top-8 hidden xl:block">
         <BackButton />
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="xl:hidden">
+          <BackButton />
+        </div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{dict.title}</h1>
       </div>
       <CheckoutForm
