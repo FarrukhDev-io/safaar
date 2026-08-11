@@ -22,6 +22,13 @@ export class HotelsService {
       "h.status = 'published'",
       'h.deleted_at IS NULL',
       "po.status = 'approved'",
+      // `hotels` jadvali barcha hamkor turlari (jumladan transport/restoran)
+      // uchun umumiy "e'lon" yozuvi sifatida ishlatiladi (masalan
+      // getPrimaryHotel() auto-create orqali). Faqat yashash joyi turidagi
+      // tashkilotlar shu ommaviy mehmonxonalar katalogida chiqishi kerak —
+      // aks holda transport/restoran e'lonlari noto'g'ri bo'limda chiqib
+      // qoladi.
+      "po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'mixed')",
     ];
     const params: unknown[] = [];
     let paramIndex = 1;
@@ -150,7 +157,8 @@ export class HotelsService {
       WHERE (h.id::text = $1 OR h.slug = $1)
         AND h.status = 'published'
         AND h.deleted_at IS NULL
-        AND po.status = 'approved'`,
+        AND po.status = 'approved'
+        AND po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'mixed')`,
       [slugOrId],
     );
 
