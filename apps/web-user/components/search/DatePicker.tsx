@@ -123,7 +123,7 @@ export function DatePicker({
   }
 
   return (
-    <div ref={ref} className="relative flex-1">
+    <div ref={ref} className="flex-1">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -131,8 +131,8 @@ export function DatePicker({
         aria-expanded={open}
         className={
           compact
-            ? "flex w-full items-center gap-2 text-left"
-            : "group flex w-full items-center gap-3 rounded-lg border border-slate-300 bg-card px-4 py-3 text-left transition-colors hover:border-slate-400"
+            ? "flex w-full items-center gap-2 text-left before:absolute before:inset-0 before:z-10"
+            : "group flex w-full items-center gap-3 rounded-lg border border-slate-300 bg-card px-4 py-3 text-left transition-colors hover:border-slate-400 before:absolute before:inset-0 before:z-10"
         }
         style={undefined}
       >

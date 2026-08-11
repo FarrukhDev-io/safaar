@@ -1,4 +1,4 @@
-export type PropertyType = "hotel" | "dacha" | "guesthouse" | "sanatorium" | "resort";
+export type PropertyType = "hotel" | "dacha" | "sanatorium" | "resort";
 
 export interface SearchDefaults {
   cityId?: string;

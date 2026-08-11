@@ -17,6 +17,7 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
   const searchParams = useSearchParams();
 
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") ?? "");
   const [stars, setStars] = useState(searchParams.get("stars") ?? "");
   const [minPrice, setMinPrice] = useState(searchParams.get("min_price") ?? "");
   const [maxPrice, setMaxPrice] = useState(searchParams.get("max_price") ?? "");
@@ -32,18 +33,20 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
 
   const apply = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
+    if (searchQuery) params.set("search", searchQuery); else params.delete("search");
     if (stars) params.set("stars", stars); else params.delete("stars");
     if (minPrice) params.set("min_price", minPrice); else params.delete("min_price");
     if (maxPrice) params.set("max_price", maxPrice); else params.delete("max_price");
     push(params);
     setOpen(false);
-  }, [searchParams, stars, minPrice, maxPrice, push]);
+  }, [searchParams, searchQuery, stars, minPrice, maxPrice, push]);
 
   const reset = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
-    for (const key of ["stars", "min_price", "max_price"]) {
+    for (const key of ["search", "stars", "min_price", "max_price"]) {
       params.delete(key);
     }
+    setSearchQuery("");
     setStars("");
     setMinPrice("");
     setMaxPrice("");
@@ -58,6 +61,7 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
         type="button"
         variant="secondary"
         size="md"
+        rounded="full"
         onClick={() => setOpen(true)}
         className="mb-4 lg:hidden"
       >
@@ -79,6 +83,17 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
         applyLabel={dict.filters.apply}
         resetLabel={dict.filters.reset}
       >
+        {/* Name Search */}
+        <FilterGroup title={dict.filters.searchName || "Nomi bo'yicha qidiruv"}>
+          <Input
+            type="text"
+            placeholder={dict.filters.searchPlaceholder || "Masalan: Hilton"}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
+          />
+        </FilterGroup>
+
         {/* Star Rating Group */}
         <FilterGroup title={dict.filters.stars}>
           <Select

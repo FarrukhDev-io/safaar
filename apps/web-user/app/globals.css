@@ -8,17 +8,17 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* ── Brand colors (Vibrant Lime Green based on #87C90D) ── */
-  --brand-50: #f4fce3;
-  --brand-100: #e5f8c2;
-  --brand-200: #cff194;
-  --brand-300: #b2e658;
-  --brand-400: #9dd832;
-  --brand-500: #87C90D; /* Asosiy yashil rang */
-  --brand-600: #68a005; /* Hover uchun */
-  --brand-700: #4f7b07;
-  --brand-800: #40610c;
-  --brand-900: #36510f;
+  /* ── Brand colors (Darker Blue) ── */
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #3b82f6;
+  --brand-500: #2563eb; /* Asosiy to'q ko'k rang */
+  --brand-600: #1d4ed8; /* Hover uchun */
+  --brand-700: #1e40af;
+  --brand-800: #1e3a8a;
+  --brand-900: #172554;
 
   /* ── Brand Accent ── */
   --brand-accent-50: #fff7ed;
@@ -29,7 +29,7 @@
   --brand-accent-700: #c2410c;
 
   /* ── Single Unified Background & Card System ── */
-  --background: #f1f5f9;
+  --background: #efefef;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
@@ -37,9 +37,9 @@
   --popover-foreground: #0f172a;
   --primary: var(--brand-500);
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
+  --secondary: #efefef;
   --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
+  --muted: #efefef;
   --muted-foreground: #334155;
   --accent: #f8fafc;
   --accent-foreground: #0f172a;
@@ -132,6 +132,17 @@
     color: var(--brand-800);
   }
 
+  /* Prevent browser default focus outlines on click (especially for next/link navigation) */
+  a, button {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  a:focus:not(:focus-visible), button:focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
+  }
+
   input:focus, select:focus, textarea:focus {
     outline: none;
     box-shadow: 0 0 0 2px var(--brand-200);
@@ -156,6 +167,15 @@
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+@keyframes shine {
+  0% {
+    background-position: 100%;
+  }
+  100% {
+    background-position: -100%;
+  }
 }
 
 @theme inline {

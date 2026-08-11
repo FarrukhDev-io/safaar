@@ -33,11 +33,11 @@ export function CityPicker({ cities, value, onChange, placeholder }: Props) {
   }, [open]);
 
   return (
-    <div ref={ref} className="relative w-full">
+    <div ref={ref} className="w-full">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-1 text-left focus:outline-hidden"
+        className="flex w-full items-center justify-between gap-1 text-left focus:outline-hidden before:absolute before:inset-0 before:z-10"
       >
         <span
           className={`truncate text-sm font-bold ${
@@ -54,7 +54,7 @@ export function CityPicker({ cities, value, onChange, placeholder }: Props) {
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-60 overflow-y-auto rounded-2xl border border-slate-200 bg-card p-1.5 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="absolute left-0 top-full z-50 mt-2 min-w-[240px] max-h-60 overflow-y-auto rounded-2xl border border-slate-200 bg-card p-1.5 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
           {cities.length === 0 && (
             <p className="px-3 py-4 text-center text-sm font-medium text-slate-500">—</p>
           )}

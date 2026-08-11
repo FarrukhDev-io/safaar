@@ -56,7 +56,7 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
-        className="flex h-10.5 w-full items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 focus-visible:border-primary-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500/20 active:bg-slate-50"
+        className="flex min-h-[44px] h-11 w-full items-center justify-between gap-2 rounded-full border border-slate-300 bg-white pl-5 pr-4 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 focus-visible:border-primary-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500/20 active:bg-slate-50"
       >
         <span className={cn("truncate", !selected && "text-slate-500 font-medium")}>
           {display}

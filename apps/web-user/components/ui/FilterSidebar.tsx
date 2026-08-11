@@ -40,7 +40,7 @@ export function FilterSidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-card p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 lg:flex lg:sticky lg:top-24 lg:h-fit">
+      <aside className="hidden w-full flex-col gap-4 rounded-2xl border border-slate-300 bg-card p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 lg:flex lg:sticky lg:top-24 lg:h-fit">
         <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
           <Filter className="h-4 w-4 text-primary-600 dark:text-primary-400" />
           <h2 className="text-base font-extrabold uppercase tracking-wide text-slate-900 dark:text-white">
@@ -56,7 +56,7 @@ export function FilterSidebar({
             variant="primary"
             size="sm"
             onClick={onApply}
-            className="flex-1 rounded-xl"
+            className="flex-1 rounded-full"
           >
             {applyLabel}
           </Button>
@@ -66,7 +66,7 @@ export function FilterSidebar({
             size="sm"
             onClick={onReset}
             aria-label={resetLabel}
-            className="rounded-xl"
+            className="rounded-full"
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
@@ -116,7 +116,7 @@ export function FilterSidebar({
                 variant="secondary"
                 size="md"
                 onClick={onReset}
-                className="flex-1 rounded-xl"
+                className="flex-1 rounded-full"
               >
                 <RotateCcw className="h-4 w-4" />
                 <span>{resetLabel}</span>
@@ -129,7 +129,7 @@ export function FilterSidebar({
                   onApply();
                   onClose();
                 }}
-                className="flex-1 rounded-xl"
+                className="flex-1 rounded-full"
               >
                 {applyLabel}
               </Button>

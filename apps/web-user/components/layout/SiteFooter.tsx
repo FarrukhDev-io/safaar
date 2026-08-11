@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Mail, Phone, MapPin, Camera, Send } from "lucide-react";
+import { Mail, MapPin, Camera, Send } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 type FooterSections = {
   platform?: string;
@@ -34,17 +35,12 @@ export function SiteFooter({
   const sections = { ...defaultSections, ...footerData.sections };
 
   return (
-    <footer className="mt-auto bg-slate-950 text-slate-300">
+    <footer className="mt-auto bg-black text-slate-300">
       <div className="mx-auto w-full max-w-[1400px] px-6 py-12 sm:px-8 lg:py-16">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-4 lg:gap-12">
           {/* Col 1: Brand & Intro */}
           <div className="flex flex-col gap-5">
-            <Link
-              href={base}
-              className="text-3xl font-black tracking-tight text-white transition-opacity hover:opacity-90"
-            >
-              {dict.brand}
-            </Link>
+            <BrandLogo href={base} brand={dict.brand} variant="dark" />
             <p className="text-sm leading-relaxed text-slate-300 pr-4">
               {dict.footer.tagline}
             </p>
@@ -139,15 +135,6 @@ export function SiteFooter({
                 <span className="leading-relaxed">
                   O'zbekiston, Toshkent shahri,<br />Yunusobod tumani
                 </span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Phone className="h-4 w-4 shrink-0 text-white/70" />
-                <a
-                  href={`tel:${dict.footer.phone.replace(/\s+/g, "")}`}
-                  className="transition-colors hover:text-white hover:underline"
-                >
-                  {dict.footer.phone}
-                </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 shrink-0 text-white/70" />

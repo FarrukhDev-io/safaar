@@ -1,11 +1,13 @@
 import Link from 'next/link';
 // No icons needed for clean desktop layout
-import type { Locale } from '@/i18n/config';
-import type { CommonDict } from '@/i18n/dictionaries';
-import { logoutAction } from '@/lib/auth/actions';
-import { Button } from '@/components/ui/Button';
-import { ScrollNav, type ScrollNavItem } from './ScrollNav';
-import { LocaleSwitcher } from './LocaleSwitcher';
+import type { Locale } from "@/i18n/config";
+import type { CommonDict } from "@/i18n/dictionaries";
+import { logoutAction } from "@/lib/auth/actions";
+import { Button } from "@/components/ui/Button";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/cn";
+import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
+import { LocaleSwitcher } from "./LocaleSwitcher";
 
 function AuthButtons({
   authed,
@@ -20,18 +22,19 @@ function AuthButtons({
 }) {
   const base = `/${locale}`;
   const isCol = orientation === "vertical";
+  const sizeClass = isCol ? "w-full min-h-[44px]" : "";
 
   if (authed) {
     return (
       <div className={`flex gap-1.5 ${isCol ? "flex-col" : "items-center"}`}>
         <Link
           href={`${base}/account`}
-          className="inline-flex h-10 items-center justify-center rounded-full px-4 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100"
+          className={buttonVariants({ variant: "ghost", rounded: "full", className: sizeClass })}
         >
           {dict.actions.account}
         </Link>
         <form action={logoutAction.bind(null, locale)} className={isCol ? "w-full flex" : ""}>
-          <Button size="sm" variant="secondary" type="submit" className={isCol ? "w-full flex-1" : ""}>
+          <Button size="sm" variant="secondary" rounded="full" type="submit" className={isCol ? "w-full flex-1 min-h-[44px]" : ""}>
             {dict.actions.logout}
           </Button>
         </form>
@@ -39,18 +42,24 @@ function AuthButtons({
     );
   }
 
+  const loginClasses = buttonVariants({ 
+    variant: "secondary", 
+    rounded: "full", 
+    className: cn(sizeClass, "!h-10 min-h-[40px] px-4 text-[15px] font-bold") 
+  });
+  
+  const registerClasses = buttonVariants({ 
+    variant: "primary", 
+    rounded: "full", 
+    className: cn(sizeClass, "!h-10 min-h-[40px] px-4 text-[15px] font-bold") 
+  });
+
   return (
     <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
-      <Link
-        href={`${base}/login`}
-        className={`inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 font-bold text-slate-900 shadow-[0_3px_0_rgb(203,213,225),0_4px_8px_rgba(0,0,0,0.04)] transition-all duration-150 hover:bg-slate-50 hover:text-primary-500 active:translate-y-[3px] active:shadow-none ${isCol ? "h-11 text-base" : "h-10 text-base"}`}
-      >
+      <Link href={`${base}/login`} className={loginClasses}>
         {dict.actions.login}
       </Link>
-      <Link
-        href={`${base}/register`}
-        className={`inline-flex items-center justify-center rounded-full bg-primary-500 px-4 font-bold text-white shadow-[0_3px_0_rgb(79,123,7),0_4px_10px_rgba(135,201,13,0.3)] transition-all duration-150 hover:bg-primary-400 hover:shadow-[0_3px_0_rgb(63,98,5),0_4px_12px_rgba(135,201,13,0.4)] active:translate-y-[3px] active:shadow-none ${isCol ? "h-11 text-base" : "h-10 text-base"}`}
-      >
+      <Link href={`${base}/register`} className={registerClasses}>
         {dict.actions.register}
       </Link>
     </div>
@@ -76,8 +85,8 @@ export function SiteHeader({
 
   const desktopItems: ScrollNavItem[] = [
     { href: `${base}/hotels`, label: dict.nav.hotels },
-    { href: `${base}/transport`, label: navDict.transport ?? 'Transport' },
-    { href: `${base}/restaurants`, label: dict.nav.restaurants ?? 'Restaurants' },
+    { href: `${base}/restaurants`, label: navDict.restaurants ?? "Restaurants" },
+    { href: `${base}/transport`, label: navDict.transport ?? "Transport" },
     { href: `${base}/attractions`, label: dict.nav.attractions },
   ];
 

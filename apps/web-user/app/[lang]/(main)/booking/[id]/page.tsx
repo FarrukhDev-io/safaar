@@ -63,7 +63,7 @@ export default async function BookingDetailPage({
   if (!booking) {
     return (
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
-        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-btn dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
           {dict.error}
         </p>
       </main>

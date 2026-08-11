@@ -5,6 +5,7 @@ import type { Locale, HotelListItem, HotelDetail } from "../types";
 
 export interface HotelListParams {
   cityId?: string;
+  search?: string;
   stars?: number;
   page?: number;
   limit?: number;
@@ -43,6 +44,7 @@ export const hotelsService = {
     const raw = await rawApi.get<unknown>("/hotels", {
       query: {
         city_id: params.cityId,
+        search: params.search,
         stars: params.stars,
         page: params.page,
         limit: params.limit,

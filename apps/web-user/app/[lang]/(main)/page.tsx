@@ -16,6 +16,7 @@ import {
 } from '@/components/features/home/DealsSection';
 import { PromoCodesSectionLive } from '@/components/features/home/PromoCodesSectionLive';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { buttonVariants } from '@/components/ui/button-variants';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,7 @@ export default async function HomePage({
       getDictionary(locale, 'common'),
       getDictionary(locale, 'home'),
       api.catalog.getCities(locale),
-      api.hotels.getFeaturedHotels(locale, { limit: 4 }),
+      api.hotels.getFeaturedHotels(locale, { limit: 10 }),
       api.cms.getDeals(locale),
       api.cms.getPublicStats().catch(() => null),
       api.promos.listActive().catch(() => []),
@@ -71,24 +72,21 @@ export default async function HomePage({
         <Hero dict={dict.hero} />
 
         <div className="relative z-40">
-          <section
-            id="search-section"
-            className="bg-transparent pb-10 pt-6 sm:pb-14 sm:pt-8"
-          >
+          <section id="search-section" className="bg-transparent pb-4 pt-2 sm:pb-6 sm:pt-4">
             <div className="mx-auto max-w-4xl px-4">
               <SearchBar locale={locale} dict={common.search} cities={cities} />
             </div>
           </section>
 
           {cities.length > 0 && (
-            <div className="mx-auto mt-4 flex max-w-5xl flex-nowrap items-center justify-start sm:justify-center gap-1.5 overflow-x-auto px-4 sm:mt-6 sm:gap-2 pb-1 scrollbar-none">
+            <div className="mx-auto mt-2 flex max-w-5xl flex-nowrap items-center justify-start sm:justify-center gap-2 overflow-x-auto px-4 py-2 sm:mt-4 scrollbar-none">
               {cities.slice(0, 8).map((city) => (
                 <Link
                   key={city.id}
                   href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-                  className="shrink-0 rounded-full border border-slate-200 bg-card px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-xs transition-all duration-150 hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 active:scale-95 sm:px-5 sm:py-2.5 sm:text-sm"
+                  className="shrink-0 rounded-full border border-slate-300 bg-white px-7 py-3 text-[15px] font-bold text-slate-800 shadow transition-all duration-300 hover:border-slate-400 hover:text-primary-600 hover:shadow-md active:scale-[0.98]"
                 >
-                  {city.name}
+                  <span className="capitalize">{city.name}</span>
                 </Link>
               ))}
             </div>

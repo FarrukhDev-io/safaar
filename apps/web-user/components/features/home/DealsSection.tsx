@@ -6,6 +6,7 @@ import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
 import { formatSum } from "@/lib/utils/money";
 import { BaseCard } from "@/components/ui/BaseCard";
+import { ShinyText } from "@/components/ui/ShinyText";
 
 export interface DealItem {
   id: string;
@@ -69,7 +70,7 @@ function DealCard({
         </>
       }
       footerRight={
-        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-all group-hover:border-primary-600 group-hover:bg-primary-600 group-hover:text-white dark:border-slate-700 dark:text-slate-300">
           <ArrowRight className="h-3.5 w-3.5" />
         </span>
       }
@@ -136,8 +137,8 @@ export function DealsSection({
   return (
     <section className="mx-auto w-full max-w-6xl px-4 sm:px-6">
       <div className="mb-4 sm:mb-5">
-        <h2 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-          {dict.title}
+        <h2 className="text-xl font-black tracking-tight sm:text-2xl">
+          <ShinyText>{dict.title}</ShinyText>
         </h2>
         <p className="mt-0.5 text-xs font-semibold text-slate-600 sm:text-sm dark:text-slate-400">
           {dict.subtitle}
