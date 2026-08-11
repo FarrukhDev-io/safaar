@@ -38,7 +38,7 @@ export default async function MainLayout({
   return (
     <RealtimeProvider accessToken={session?.accessToken ?? null}>
       {/* Site Preloader */}
-      <SplitRevealRoot backgroundColor="#0f172a" foregroundColor="#3b82f6" holdMs={800}>
+      <SplitRevealRoot ready={true} zIndex={999} backgroundColor="#0f172a" foregroundColor="#3b82f6" holdMs={800}>
         <SplitRevealOverlay>
           <SplitRevealShutter side="top" />
           <SplitRevealShutter side="bottom" />
