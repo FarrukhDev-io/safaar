@@ -13,6 +13,7 @@
     "@safaar/types": "*",
     "@types/leaflet": "^1.9.21",
     "clsx": "^2.1.1",
+    "gsap": "^3.15.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.22.0",
     "next": "16.2.9",
