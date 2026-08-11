@@ -3,6 +3,7 @@ import type { Locale } from "@/i18n/config";
 import type { AuthDict } from "@/i18n/dictionaries";
 import { BackButton } from "@/components/ui/BackButton";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
+import MaskedHeading from "@/components/reactbits/MaskedHeading";
 
 interface AuthSplitLayoutProps {
   children: ReactNode;
@@ -23,16 +24,30 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
         {/* Brand & Hero Slogan Grouped (Vertically Centered) */}
         <div className="my-auto max-w-md space-y-8 relative z-10">
           {/* Brand indicator */}
-          <div className="flex justify-center items-center gap-2">
-            <span className="text-4xl font-black tracking-wider text-white">
-              SAFAAR
-            </span>
+          <div className="flex justify-center items-center gap-2 w-full h-20">
+            <MaskedHeading
+              text="SAFAAR"
+              src="/Bukhara-old-city-golden-hour.jpeg"
+              reveal="rise"
+              duration={1.2}
+              align="center"
+              weight={900}
+              textScale={0.15}
+            />
           </div>
 
           {/* Hero slogan / value proposition */}
-          <h2 className="text-4xl font-extrabold leading-tight tracking-tight lg:text-5xl text-white">
-            {dict.bannerTitle}
-          </h2>
+          <div className="w-full h-32 flex justify-center items-center">
+            <MaskedHeading
+              text={dict.bannerTitle}
+              src="/Samarkand-Registan-cinematic.jpeg"
+              reveal="wipe"
+              duration={1.5}
+              align="center"
+              weight={800}
+              textScale={0.12}
+            />
+          </div>
         </div>
       </div>
 
