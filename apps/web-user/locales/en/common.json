@@ -5,7 +5,6 @@
     "home": "Home",
     "hotels": "Hotels",
     "dachas": "Dachas",
-    "guesthouses": "Guest Houses",
     "sanatoriums": "Sanatoriums",
     "resorts": "Resorts",
     "restaurants": "Restaurants",
@@ -29,8 +28,7 @@
   "propertyTypes": {
 
     "hotel": "Hotel",
-    "dacha": "Cottage",
-    "guesthouse": "Guesthouse",
+    "dacha": "Dacha",
     "sanatorium": "Sanatorium",
     "resort": "Resort"
   },

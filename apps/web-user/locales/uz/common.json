@@ -5,11 +5,10 @@
     "home": "Bosh",
     "hotels": "Mehmonxonalar",
     "dachas": "Dachalar",
-    "guesthouses": "Gostinkalar",
     "sanatoriums": "Sanatoriylar",
     "resorts": "Oromgohlar",
     "restaurants": "Restoranlar",
-    "attractions": "Attraksionlar",
+    "attractions": "Ko'ngilochar joylar",
     "transport": "Transport",
     "carRent": "Avto ijarasi",
     "transfers": "Aeroport Transfer",
@@ -30,7 +29,6 @@
 
     "hotel": "Mehmonxona",
     "dacha": "Dacha",
-    "guesthouse": "Gostinka",
     "sanatorium": "Sanatoriy",
     "resort": "Oromgoh"
   },

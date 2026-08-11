@@ -41,7 +41,6 @@ export function SearchBar({
   const typePathsReverse: Record<string, PropertyType> = {
     hotels: "hotel",
     dachas: "dacha",
-    guesthouses: "guesthouse",
     sanatoriums: "sanatorium",
     resorts: "resort",
   };
@@ -55,7 +54,6 @@ export function SearchBar({
   const typePaths: Record<PropertyType, string> = {
     hotel: `/${locale}/hotels`,
     dacha: `/${locale}/dachas`,
-    guesthouse: `/${locale}/guesthouses`,
     sanatorium: `/${locale}/sanatoriums`,
     resort: `/${locale}/resorts`,
   };

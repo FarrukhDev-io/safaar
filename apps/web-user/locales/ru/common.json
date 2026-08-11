@@ -5,7 +5,6 @@
     "home": "Главная",
     "hotels": "Отели",
     "dachas": "Дачи",
-    "guesthouses": "Гостевые дома",
     "sanatoriums": "Санатории",
     "resorts": "Курорты",
     "restaurants": "Рестораны",
@@ -30,7 +29,6 @@
 
     "hotel": "Отель",
     "dacha": "Дача",
-    "guesthouse": "Гостевой дом",
     "sanatorium": "Санаторий",
     "resort": "Курорт"
   },
