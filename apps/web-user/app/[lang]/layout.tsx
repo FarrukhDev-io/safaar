@@ -12,6 +12,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { PwaInstallBanner } from "@/components/pwa/PwaInstallBanner";
 import dynamic from "next/dynamic";
+import NextTopLoader from "nextjs-toploader";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { Toaster } from "sonner";
 import { config } from "@/lib/config";
@@ -98,6 +99,7 @@ export default async function LangLayout({
       className={`${inter.variable} ${manrope.variable} h-full overflow-x-hidden subpixel-antialiased`}
     >
       <body className="flex min-h-full flex-col overflow-x-hidden bg-slate-100/60 text-slate-900 subpixel-antialiased dark:bg-slate-950 dark:text-slate-100">
+        <NextTopLoader color="#0284c7" showSpinner={false} shadow="0 0 10px #0284c7,0 0 5px #0284c7" />
         <AnalyticsProvider>
           <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
             {children}
