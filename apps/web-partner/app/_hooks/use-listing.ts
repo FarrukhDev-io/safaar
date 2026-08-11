@@ -75,7 +75,7 @@ function useListingMutation<TVariables>(
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (variables: TVariables) => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       return mutationFn(hotel.id, accessToken, variables);
     },
     onSuccess: (listing) => {
@@ -149,7 +149,7 @@ export function useAddListingPhoto() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ file, draft }: { file: File; draft: PhotoDraft }) => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       const upload = await partners.uploadImage(file, accessToken);
       await partners.addHotelImage(
         hotel.id,
@@ -176,7 +176,7 @@ export function useDeleteListingPhoto() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (imageId: string) => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       await partners.deleteHotelImage(hotel.id, imageId, accessToken);
       return toListing(await partners.getHotel(hotel.id, accessToken));
     },
@@ -200,7 +200,7 @@ export function useUpdateListingPhoto() {
       imageId: string;
       values: Record<string, unknown>;
     }) => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       await partners.updateHotelImage(hotel.id, imageId, values, accessToken);
       return toListing(await partners.getHotel(hotel.id, accessToken));
     },

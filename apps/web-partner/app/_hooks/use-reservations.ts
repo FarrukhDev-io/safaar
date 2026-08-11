@@ -37,7 +37,7 @@ export function useCreateWalkInReservation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (draft: WalkInDraft) => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       return toReservation(
         await partners.createBooking(
           {

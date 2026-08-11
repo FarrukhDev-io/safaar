@@ -16,10 +16,11 @@ const EMPTY_BEDS: ReturnType<typeof toBed>[] = [];
 export function useBeds() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
   const setBeds = useDataStore((s) => s.setBeds);
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: bedsQueryKey,
     queryFn: async () => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       return (await partners.listBeds(hotel.id, accessToken)).map(toBed);
     },
     enabled: Boolean(accessToken),
@@ -37,7 +38,7 @@ export function useCreateBed() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (values: BedDraft) => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       return toBed(
         await partners.createBed(
           hotel.id,
@@ -77,7 +78,7 @@ export function useUpdateBed() {
       id: string;
       values: Partial<Omit<BedDraft, "roomId">>;
     }) => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       return toBed(await partners.updateBed(hotel.id, id, values, accessToken));
     },
     onMutate: async ({ id, values }) => {
@@ -123,7 +124,7 @@ export function useDeleteBed() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       return partners.deleteBed(hotel.id, id, accessToken);
     },
     onSuccess: () => {
@@ -137,7 +138,7 @@ export function useGenerateBeds() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ roomId, count }: { roomId: string; count: number }) => {
-      const hotel = await getPrimaryHotel(accessToken);
+      const hotel = await getPrimaryHotel(queryClient, accessToken);
       return partners.generateBeds(hotel.id, roomId, count, accessToken);
     },
     onSuccess: () => {
