@@ -30,7 +30,7 @@ export async function CityCardsSection({
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mb-4 sm:mb-6">
           <div className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-            <SoftBlurIn text={dict.title} holdMs={999999} />
+            <SoftBlurIn text={dict.title} className="h-8 sm:h-10" holdMs={999999} />
           </div>
           <p className="mt-0.5 text-xs font-semibold text-slate-600 sm:mt-1 sm:text-sm dark:text-slate-400">
             {dict.subtitle}
