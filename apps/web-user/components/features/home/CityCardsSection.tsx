@@ -1,7 +1,7 @@
 import { api } from "@/lib/api";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
-import { BaseCard } from "@/components/ui/BaseCard";
+import AccordionGallery from "@/components/ui/AccordionGallery";
 
 export async function CityCardsSection({
   locale,
@@ -13,7 +13,7 @@ export async function CityCardsSection({
   const raw = await api.catalog.getPopularCities(locale);
   const cities = raw
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .slice(0, 8)
+    .slice(0, 5)
     .map((city) => ({
       name: city.name,
       image: city.imageUrl,
@@ -39,19 +39,18 @@ export async function CityCardsSection({
           </p>
         </div>
 
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto scrollbar-none sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible">
-          {cities.map((city) => (
-            <div key={city.name} className="w-1/2 shrink-0 snap-start sm:w-auto">
-              <BaseCard
-                variant="overlay"
-                imageSrc={city.image}
-                imageAlt={city.name}
-                title={city.name}
-                subInfo={`${city.hotelCount} ${dict.hotels}`}
-                href={city.href}
-              />
-            </div>
-          ))}
+        <div className="mt-6 sm:mt-8 w-full max-w-full overflow-hidden">
+          <AccordionGallery
+            items={cities.map(city => ({
+              image: city.image,
+              label: `${city.name} • ${city.hotelCount} ${dict.hotels}`,
+              link: city.href,
+              alt: city.name,
+            }))}
+            height={400}
+            accentColor="#0284c7"
+            expandRatio={0.5}
+          />
         </div>
       </div>
     </section>
