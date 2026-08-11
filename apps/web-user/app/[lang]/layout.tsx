@@ -17,9 +17,6 @@ import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { Toaster } from "sonner";
 import { config } from "@/lib/config";
 
-const LiveSupportWidget = dynamic(
-  () => import("@/components/chat/LiveSupportWidget").then((mod) => mod.LiveSupportWidget)
-);
 
 const inter = Inter({
   variable: "--font-inter",
@@ -106,7 +103,6 @@ export default async function LangLayout({
             <Toaster position="top-right" richColors />
             <ServiceWorkerRegister />
             <PwaInstallBanner />
-            <LiveSupportWidget />
           </div>
         </AnalyticsProvider>
       </body>
