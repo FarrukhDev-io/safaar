@@ -99,7 +99,7 @@ export default async function LangLayout({
       className={`${inter.variable} ${manrope.variable} h-full overflow-x-hidden subpixel-antialiased`}
     >
       <body className="flex min-h-full flex-col overflow-x-hidden bg-slate-100/60 text-slate-900 subpixel-antialiased dark:bg-slate-950 dark:text-slate-100">
-        <NextTopLoader color="#0284c7" showSpinner={false} shadow="0 0 10px #0284c7,0 0 5px #0284c7" />
+        <NextTopLoader color="linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899)" showSpinner={false} shadow="0 0 10px #8b5cf6,0 0 5px #ec4899" />
         <AnalyticsProvider>
           <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
             {children}
