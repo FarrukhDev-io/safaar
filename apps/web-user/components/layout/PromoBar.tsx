@@ -50,16 +50,16 @@ export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
     <div
       role="region"
       aria-label="Aksiya va e'lonlar"
-      className="relative flex min-h-[36px] items-center justify-center border-b border-amber-300/30 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-8 py-1.5 text-center text-xs font-semibold text-white shadow-xs backdrop-blur-xs transition-all duration-300 sm:text-sm"
+      className="relative flex min-h-[36px] items-center justify-center border-b border-indigo-500/30 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-8 py-1.5 text-center text-xs font-semibold text-white shadow-md backdrop-blur-xs transition-all duration-300 sm:text-sm"
     >
       <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
         {badgeText ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-xs backdrop-blur-md sm:text-xs">
-            <Sparkles className="h-3 w-3 text-amber-200" aria-hidden />
+          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-400 shadow-xs backdrop-blur-md sm:text-xs">
+            <Sparkles className="h-3 w-3 text-amber-400" aria-hidden />
             {badgeText}
           </span>
         ) : (
-          <Sparkles className="h-3.5 w-3.5 text-amber-200 animate-pulse hidden sm:inline" aria-hidden />
+          <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-pulse hidden sm:inline" aria-hidden />
         )}
 
         <span className="line-clamp-1 drop-shadow-xs">{text}</span>
@@ -67,7 +67,7 @@ export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
         {config?.link && (
           <Link
             href={config.link}
-            className="ml-1 inline-flex items-center gap-0.5 rounded-sm font-bold text-white underline underline-offset-2 hover:text-amber-100 focus:outline-hidden focus:ring-1 focus:ring-white"
+            className="ml-1 inline-flex items-center gap-0.5 rounded-sm font-bold text-amber-400 underline underline-offset-2 hover:text-amber-300 focus:outline-hidden focus:ring-1 focus:ring-amber-400"
           >
             <span>{linkText || "Batafsil"}</span>
             <ArrowRight className="h-3 w-3" aria-hidden />
