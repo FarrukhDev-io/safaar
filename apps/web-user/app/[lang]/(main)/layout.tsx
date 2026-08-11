@@ -6,6 +6,7 @@ import { PromoBarLive } from "@/components/layout/PromoBarLive";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { getPromoBarConfig } from "@/lib/promo";
 import { RealtimeProvider } from "@/lib/services/realtime/socket-provider";
+import SplitReveal from "@/components/animata/preloader/split-reveal";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,15 @@ export default async function MainLayout({
 
   return (
     <RealtimeProvider accessToken={session?.accessToken ?? null}>
+      {/* Site Preloader */}
+      <SplitReveal backgroundColor="#0f172a" foregroundColor="#3b82f6" holdMs={800}>
+        <SplitReveal.Overlay>
+          <SplitReveal.Shutter side="top" />
+          <SplitReveal.Shutter side="bottom" />
+          <SplitReveal.Progress />
+        </SplitReveal.Overlay>
+      </SplitReveal>
+
       <PromoBarLive initialConfig={promoConfig} locale={locale} />
       <SiteHeader locale={locale} dict={common} authed={!!session} />
       <div className="flex flex-1 flex-col bg-slate-100/60 dark:bg-slate-950">{children}</div>
