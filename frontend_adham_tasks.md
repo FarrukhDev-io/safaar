@@ -229,6 +229,7 @@ Bronlar, xonalar/joylar CRUD, rasm yuklash, walk-in bron yaratish, check-in/xona
 - Bron sub-amallari: `board`/`complete`, `cash-collected`/`cash-reversal`
 - Backend: `partners.service.ts:2132-2434, 3058-3095`
 - Kerak: ro'yxatdan o'tishda "bus" turi tanlash mumkin, lekin unga mos butun dashboard (transport vositalari, yo'nalishlar, reyslar, o'rindiq xaritasi, naqd pul hisoboti) yo'q — bu alohida katta bo'lim sifatida rejalashtirilishi kerak.
+- **Jonli misolda tasdiqlandi (2026-08-11):** "transport" turi bilan ro'yxatdan o'tib, hozirgi umumiy "e'lon" oqimidan (Asosiy ma'lumot/Rasmlar/Joylashuv/Qoidalar — hotel'lar bilan bir xil ekran, faqat matnlar "Rent Car" deb almashtirilgan) foydalanib e'lon yaratilganda, u backend'dagi umumiy `hotels` jadvaliga yozilib qoladi (chunki `getPrimaryHotel()`/`createHotel` barcha hamkor turlari uchun bir xil). Natijada e'lon web-user'ning `/hotels` (mehmonxonalar) katalogida chiqib qolar edi, `/transport`da emas. **Backend tomondan tezkor tuzatish qilindi** — `GET /v1/hotels` (va `findOne`) endi faqat haqiqiy yashash-joyi turidagi tashkilotlarni (`hotel`/`hostel`/`guesthouse`/`motel`/`dacha`/`mixed`) qaytaradi, `bus`/`restaurant` chiqarib tashlandi (`hotels.service.ts`). Bu faqat **noto'g'ri joyda chiqib qolishning oldini oladi** — transport e'loni hali ham `/transport`da haqiqiy ravishda ko'RINMAYDI, chunki u yerdagi katalog hozircha statik/seed ma'lumot bilan ishlaydi va yuqoridagi B4 vazifasi (haqiqiy vehicles/routes/trips asosidagi dashboard va public transport katalogi) hali qurilmagan. Ya'ni bu B4'ning kattaroq ishini bekor qilmaydi, faqat simptomning zararli tomonini (noto'g'ri kategoriyada ko'rinish) yopadi.
 
 ### B5. Moliya/pul yechish — dashboard bor, asosiy vositalar yo'q
 - `GET /v1/partner/finance/overview|ledger|chart` — `partners.controller.ts:578-631`
@@ -250,42 +251,27 @@ Bronlar, xonalar/joylar CRUD, rasm yuklash, walk-in bron yaratish, check-in/xona
 ---
 ---
 
-# TUZATILGAN BUG: Partner panelda biznes tashkilotlari orasida eskirgan ma'lumot ko'rinishi (data isolation)
+# BUG: "Joylashuv" tahrirlagichida "Manzil" inputiga yozib bo'lmayapti
 
-**Muhim: bu backend/xavfsizlik muammosi EMAS edi — frontend keshlash bugi edi, va allaqachon tuzatildi va production'ga (`web-partner-khaki.vercel.app`) deploy qilindi.** Quyida nima bo'lgani, qanday tuzatilgani va sizdan nima kerakligi yozilgan.
+**Fayl:** `app/(dashboard)/listing/_editors/location-editor.tsx` — `id="listing-address"` input (~236-242 qatorlar), "Shahar" (disabled) inputidan keyingi, "Saqlash" tugmasi yonidagi maydon.
 
-## Muammo qanday ko'rinar edi
+Production'da (`web-partner-khaki.vercel.app`) shu inputga bosib matn kiritishga urinilganda, klaviatura kiritish qabul qilinmayapti/effektsiz. Skrinshotda: "Shahar" = "Jomboy" (disabled), "Manzil" fokusda (ko'k halqa bor — demak fokus to'g'ri tushayapti), lekin yozish ishlamayapti.
 
-Foydalanuvchi (siz yoki QA) quyidagini kuzatgan:
-1. Bitta biznes turi bilan (masalan Restoran) ro'yxatdan o'tib, kirib, e'lon ma'lumotlarini (nomi, tavsifi, manzili, rasmlar, qulayliklar, qoidalar) to'ldirgan.
-2. Chiqib (logout), boshqa biznes turi bilan (masalan Mehmonxona) ro'yxatdan o'tib kirgan.
-3. Yangi (Mehmonxona) panelida — **eski (Restoran) tashkilotining ma'lumotlari ko'rinib qolgan**.
+## Nima tekshirdim (kod darajasida, brauzersiz)
 
-## Tekshiruv natijasi
+Bu muhitda brauzer avtomatlashtirish vositasi yo'q, shuning uchun jonli qayta hosil qila olmadim — faqat kodni o'qib tekshirdim:
 
-**Backend to'liq toza ekani dalil bilan tasdiqlandi**: ikkita haqiqiy alohida tashkilot (`hotel` va `restaurant` turida) yaratib, har biriga noyob "sirli" manzil bilan e'lon qo'shib, ikkalasi bilan ham real login qilib, xuddi shu `GET /partners/hotels` endpointini chaqirdim — har bir token FAQAT o'z tashkilotining ma'lumotini qaytardi, hech qanday aralashish yo'q. Demak, `organization_id` bo'yicha SQL filtrlash, JWT, auth — barchasi to'g'ri ishlaydi.
+- Input to'g'ri controlled ko'rinadi: `value={address}` / `onChange={(e) => setAddressDraft(e.target.value)}`, `address = addressDraft ?? data.address` (64-qator). Qog'ozda birinchi harf kiritilgach `addressDraft` state'ga yozilib, shundan keyin controllik shu local state'da qolishi kerak.
+- `<LocationEditor>` render qilinayotgan joyda (`listing-overview.tsx:669`) beqaror `key` prop yo'q — demak parent re-render bo'lganda component qayta mount bo'lib, local state'ni (shu jumladan `addressDraft`ni) yo'qotmasligi kerak.
+- `Drawer` (`_components/ui/drawer.tsx`) faqat `Escape` tugmasini tinglaydi, boshqa klaviatura hodisalarini to'xtatmaydi.
+- Butun `web-partner`da global `keydown` tinglovchilarning barchasini tekshirdim (`command-palette.tsx`, `sidebar.tsx`, `notifications-button.tsx`, `user-menu.tsx`, `dialog.tsx`) — hammasi yo Cmd/Ctrl+K yoki Escape'ga bog'langan, oddiy harf bosishlarini to'xtatmaydi.
 
-**Haqiqiy sabab — frontend'da ikkita bog'liq muammo edi:**
-
-1. **`useLogout()` (`app/_hooks/use-auth.ts`)** — "Chiqish" tugmasi bosilganda faqat `useAuthStore`ni (login/token) tozalar edi. React Query keshini (`queryClient.clear()`) va Zustand `useDataStore`ni (e'lon/xona/bron ma'lumotlari) hech qachon tozalamas edi.
-
-2. **`QueryClient` butun ilova umrida bitta instance** (`app/_providers/query-provider.tsx`, `useState(() => new QueryClient(...))`) — sahifa to'liq qayta yuklanmaguncha login/logout orasida saqlanib qoladi. `listing`, `primary-hotel`, `rooms`, `room-types`, `beds`, `reservations` — barcha query kalitlari **statik**, `organizationId`ga bog'liq emas (masalan `['partner', 'listing']`). `staleTime: 60_000` (1 daqiqa) tufayli, yangi tashkilot bilan kirilganda React Query eski keshni "hali toza" deb hisoblab, **hech qanday tarmoq so'rovisiz** eski ma'lumotni darhol ko'rsatgan.
-
-Qiziqarli fakt: sessiya **avtomatik** tugaganda (401 xatosi, `session-expiry-handler.tsx`) tizim buni to'g'ri qilar edi — u ham `clearSession()`, ham `queryClient.clear()`ni chaqirar edi. Demak to'g'ri pattern allaqachon kodda bor edi, faqat "Chiqish" tugmasiga qo'llanilmagan edi.
-
-Bundan tashqari, **ikkinchi, mustaqil logout yo'li** ham topildi: `app/logout/page.tsx` — hozircha UI'dan hech qayerga bog'lanmagan, lekin real, to'g'ridan-to'g'ri URL orqali kirish mumkin bo'lgan sahifa. Bu ham xuddi shu bugga ega edi.
-
-## Nima tuzatildi (3 fayl)
-
-1. **`app/_stores/data-store.ts`** — `reset()` action qo'shildi (`listing`/`rooms`/`roomTypes`/`beds`/`reservations`'ni boshlang'ich bo'sh holatga qaytaradi).
-2. **`app/_hooks/use-auth.ts`** — `useLogout()` endi `resetData()` (yangi `reset()` action) va `queryClient.clear()`ni ham chaqiradi.
-3. **`app/logout/page.tsx`** — xuddi shu tuzatish qo'llanildi.
-
-Build (`tsc --noEmit`, `next build`) toza o'tdi, production'ga deploy qilindi.
+Ya'ni kod **qog'ozda** to'g'ri yozilganga o'xshaydi — sabab ehtimol runtime/render darajasida (masalan `data.address`/`useListing()` query juda tez-tez qayta ishlab, biror joyda kutilmagan remount yasayotgan bo'lishi mumkin) yoki muhit-specifik (brauzer/qurilma) bo'lishi mumkin. Buni faqat brauzerda (DevTools React Profiler/"Highlight updates" bilan) tasdiqlash mumkin.
 
 ## Sizdan nima kerak
 
-1. **Brauzerda qo'lda tasdiqlang** — bu muhitda Playwright/brauzer avtomatlashtirish vositasi yo'q edi, shuning uchun tuzatishni faqat kod darajasida va build orqali tekshira oldim (real login→logout→boshqa tashkilot bilan login→panel toza ko'rinishini bosib ko'rmadim). Iltimos, `web-partner-khaki.vercel.app`da real ikkita turli hamkor akkaunt bilan yuqoridagi ssenariyni qayta tekshiring.
+1. `web-partner-khaki.vercel.app` (yoki lokal dev'da) haqiqiy brauzerda qayta hosil qiling — qaysi harflar ishlamayapti (hech biri, yoki faqat ba'zilari), fokus yo'qolyaptimi yoki yo'qmi, React DevTools Profiler'da har bosishda `LocationEditor` qayta mount bo'layotganini tekshiring.
+2. Agar remount tasdiqlansa — sababini `useListing()`/`data-store`dagi yangilanish chastotasidan qidiring.
+3. Agar remount bo'lmasa — brauzer kengaytmasi (masalan parol menejer/autofill) yoki inputga xalaqit beradigan boshqa DOM elementi (masalan xarita ustidan chiqib turgan overlay) bo'lishi mumkinligini ham tekshiring.
 
-2. **Kengroq naqsh haqida bilib qo'ying** — `listingQueryKey`, `primaryHotelQueryKey`, `roomsQueryKey`, `roomTypesQueryKey`, `bedsQueryKey`, `reservationsQueryKey` (barchasi `_hooks/use-*.ts` fayllarida) — hammasi statik, tashkilot bo'yicha ajratilmagan kalitlar. Hozirgi tuzatish (`queryClient.clear()` logout'da) muammoni yopadi, chunki har safar YANGI login'dan keyin butun kesh tozalanadi. Lekin agar kelajakda **bir xil sessiya davomida** (masalan admin bir nechta tashkilot orasida almashtiradigan "org switcher" funksiyasi) tashkilotlar orasida almashish kerak bo'lsa, bu kalitlarni `organizationId` bilan parametrlashtirish tavsiya etiladi (masalan `['partner', 'listing', organizationId]`) — hozircha bunday funksiya yo'qligi sababli zarurat yo'q, lekin qo'shilsa, shu joyni eslang.
 Savol chiqsa yozing — rahmat!

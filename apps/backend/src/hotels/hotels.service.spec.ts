@@ -79,4 +79,19 @@ describe('HotelsService.findAll', () => {
     });
     expect(result.items).toHaveLength(1);
   });
+
+  it('excludes non-lodging partner types (transport/restaurant) from the public catalog', async () => {
+    pg.query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await service.findAll({});
+
+    const [sql] = pg.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain(
+      "po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'mixed')",
+    );
+  });
 });
