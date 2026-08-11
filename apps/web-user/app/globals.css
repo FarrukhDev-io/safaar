@@ -169,6 +169,15 @@
   display: none;
 }
 
+@keyframes shine {
+  0% {
+    background-position: 100%;
+  }
+  100% {
+    background-position: -100%;
+  }
+}
+
 @theme inline {
   --color-ring: var(--ring);
   --color-input: var(--input);

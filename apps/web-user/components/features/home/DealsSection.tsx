@@ -6,6 +6,7 @@ import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
 import { formatSum } from "@/lib/utils/money";
 import { BaseCard } from "@/components/ui/BaseCard";
+import { ShinyText } from "@/components/ui/ShinyText";
 
 export interface DealItem {
   id: string;
@@ -136,8 +137,8 @@ export function DealsSection({
   return (
     <section className="mx-auto w-full max-w-6xl px-4 sm:px-6">
       <div className="mb-4 sm:mb-5">
-        <h2 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-          {dict.title}
+        <h2 className="text-xl font-black tracking-tight sm:text-2xl">
+          <ShinyText>{dict.title}</ShinyText>
         </h2>
         <p className="mt-0.5 text-xs font-semibold text-slate-600 sm:text-sm dark:text-slate-400">
           {dict.subtitle}

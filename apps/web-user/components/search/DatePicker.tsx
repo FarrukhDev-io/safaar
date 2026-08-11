@@ -123,7 +123,7 @@ export function DatePicker({
   }
 
   return (
-    <div ref={ref} className="relative flex-1">
+    <div ref={ref} className="flex-1">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
