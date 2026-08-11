@@ -2,6 +2,7 @@ import { api } from "@/lib/api";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
 import AccordionGallery from "@/components/ui/AccordionGallery";
+import SoftBlurIn from "@/components/animata/text/soft-blur-in";
 
 export async function CityCardsSection({
   locale,
@@ -28,12 +29,9 @@ export async function CityCardsSection({
     <section aria-labelledby="city-cards-heading">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mb-4 sm:mb-6">
-          <h2
-            id="city-cards-heading"
-            className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white"
-          >
-            {dict.title}
-          </h2>
+          <div className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
+            <SoftBlurIn text={dict.title} holdMs={999999} />
+          </div>
           <p className="mt-0.5 text-xs font-semibold text-slate-600 sm:mt-1 sm:text-sm dark:text-slate-400">
             {dict.subtitle}
           </p>

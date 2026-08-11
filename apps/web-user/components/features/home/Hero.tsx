@@ -1,5 +1,6 @@
 import type { HomeDict } from "@/i18n/dictionaries";
 import HeroSectionTextHover from "@/components/animata/hero/hero-section-text-hover";
+import SoftBlurIn from "@/components/animata/text/soft-blur-in";
 
 export function Hero({ dict }: { dict: HomeDict["hero"] }) {
   return (
@@ -11,9 +12,9 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
         </h1>
 
         {/* Subtitle */}
-        <p className="mx-auto mt-4 max-w-2xl text-base font-bold leading-relaxed text-slate-600 sm:text-lg md:text-xl">
-          {dict.subtitle}
-        </p>
+        <div className="mx-auto mt-4 max-w-2xl text-base font-bold leading-relaxed text-slate-600 sm:text-lg md:text-xl">
+          <SoftBlurIn text={dict.subtitle} holdMs={999999} />
+        </div>
       </div>
     </section>
   );
