@@ -24,7 +24,7 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
         {/* Brand & Hero Slogan Grouped (Vertically Centered) */}
         <div className="my-auto max-w-md space-y-8 relative z-10">
           {/* Brand indicator */}
-          <div className="flex justify-center items-center gap-2 w-full h-20">
+          <div className="flex justify-center items-center gap-2 w-full">
             <MaskedHeading
               text="SAFAAR"
               src="/Bukhara-old-city-golden-hour.jpeg"
@@ -32,12 +32,12 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
               duration={1.2}
               align="center"
               weight={900}
-              textScale={0.15}
+              textScale={0.16}
             />
           </div>
 
           {/* Hero slogan / value proposition */}
-          <div className="w-full h-32 flex justify-center items-center">
+          <div className="w-full flex justify-center items-center mt-6">
             <MaskedHeading
               text={dict.bannerTitle}
               src="/Samarkand-Registan-cinematic.jpeg"
@@ -45,7 +45,7 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
               duration={1.5}
               align="center"
               weight={800}
-              textScale={0.12}
+              textScale={0.085}
             />
           </div>
         </div>

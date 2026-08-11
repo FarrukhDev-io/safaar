@@ -285,7 +285,7 @@ const MaskedHeading: React.FC<MaskedHeadingProps> = ({
   return (
     <TagAny
       ref={rootRef}
-      className={`relative w-full m-0 p-0 antialiased [text-wrap:balance] ${className}`.trim()}
+      className={`relative w-full m-0 p-0 antialiased ${className}`.trim()}
       style={{
         textAlign: align,
         fontWeight: weight,
@@ -297,20 +297,21 @@ const MaskedHeading: React.FC<MaskedHeadingProps> = ({
     >
       <span ref={measureRef} className="text-transparent">
         {words.map((word, i) => (
-          <span
-            key={`${word}-${i}`}
-            ref={(el: HTMLSpanElement | null) => {
-              wordRefs.current[i] = el;
-            }}
-            className="inline-block whitespace-pre [&:not(:last-child)]:after:content-['\\00a0']"
-          >
-            {word}
+          <span key={`${word}-${i}`}>
+            <span
+              ref={(el: HTMLSpanElement | null) => {
+                wordRefs.current[i] = el;
+              }}
+            >
+              {word}
+            </span>
             <i
               ref={(el: HTMLElement | null) => {
                 baseRefs.current[i] = el;
               }}
               className="inline-block w-0 h-0"
             />
+            {i !== words.length - 1 && ' '}
           </span>
         ))}
       </span>
