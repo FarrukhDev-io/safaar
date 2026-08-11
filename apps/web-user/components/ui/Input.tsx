@@ -12,7 +12,7 @@ export function Input({ className, error, ...props }: InputProps) {
       <input
         aria-invalid={hasError || undefined}
         className={cn(
-          "min-h-[44px] h-11 w-full rounded-xl border bg-white px-3.5 text-sm font-bold text-slate-900 shadow-2xs transition-all placeholder:text-slate-400 hover:border-slate-300 focus-visible:outline-hidden dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500",
+          "min-h-[44px] h-11 w-full rounded-full border bg-white px-5 text-sm font-bold text-slate-900 shadow-2xs transition-all placeholder:text-slate-400 hover:border-slate-300 focus-visible:outline-hidden dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500",
           hasError
             ? "border-red-500 text-red-900 focus-visible:border-red-600 focus-visible:ring-2 focus-visible:ring-red-500/20 dark:border-red-500 dark:text-red-100"
             : "border-slate-200 focus-visible:border-primary-600 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-slate-800",

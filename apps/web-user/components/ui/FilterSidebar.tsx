@@ -56,7 +56,7 @@ export function FilterSidebar({
             variant="primary"
             size="sm"
             onClick={onApply}
-            className="flex-1 rounded-xl"
+            className="flex-1 rounded-full"
           >
             {applyLabel}
           </Button>
@@ -66,7 +66,7 @@ export function FilterSidebar({
             size="sm"
             onClick={onReset}
             aria-label={resetLabel}
-            className="rounded-xl"
+            className="rounded-full"
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
@@ -116,7 +116,7 @@ export function FilterSidebar({
                 variant="secondary"
                 size="md"
                 onClick={onReset}
-                className="flex-1 rounded-xl"
+                className="flex-1 rounded-full"
               >
                 <RotateCcw className="h-4 w-4" />
                 <span>{resetLabel}</span>
@@ -129,7 +129,7 @@ export function FilterSidebar({
                   onApply();
                   onClose();
                 }}
-                className="flex-1 rounded-xl"
+                className="flex-1 rounded-full"
               >
                 {applyLabel}
               </Button>
