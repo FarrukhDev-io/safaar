@@ -30,6 +30,8 @@ export interface AccordionGalleryProps {
   showLabels?: boolean;
   grayscale?: boolean;
   className?: string;
+  autoplay?: boolean;
+  autoplayInterval?: number;
 }
 
 const DEFAULT_ITEMS: AccordionGalleryItem[] = [
@@ -59,7 +61,9 @@ const AccordionGallery = ({
   trigger = 'hover',
   showLabels = true,
   grayscale = true,
-  className = ''
+  className = '',
+  autoplay = true,
+  autoplayInterval = 5000
 }: AccordionGalleryProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRefs = useRef<(HTMLElement | null)[]>([]);
@@ -73,6 +77,7 @@ const AccordionGallery = ({
   const vertical = orientation === 'vertical';
   const count = items.length;
   const [active, setActive] = useState(Math.min(Math.max(defaultIndex, 0), count - 1));
+  const [isHovered, setIsHovered] = useState(false);
 
   const prefersReduced =
     typeof window !== 'undefined' && window.matchMedia
@@ -185,6 +190,14 @@ const AccordionGallery = ({
     []
   );
 
+  useEffect(() => {
+    if (!autoplay || isHovered) return;
+    const timer = setInterval(() => {
+      setActive((prev) => (prev + 1) % count);
+    }, autoplayInterval);
+    return () => clearInterval(timer);
+  }, [autoplay, autoplayInterval, count, isHovered]);
+
   const handleEnter = (i: number) => {
     if (trigger === 'hover') setActive(i);
   };
@@ -213,6 +226,8 @@ const AccordionGallery = ({
       style={{ gap: `${gap}px`, height: vertical ? `${Math.round(height * 1.6)}px` : `${height}px` }}
       role="list"
       aria-label="Image accordion gallery"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {items.map((item, i) => {
         const isActive = i === active;
