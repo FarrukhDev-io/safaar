@@ -32,7 +32,7 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
               duration={1.2}
               align="center"
               weight={900}
-              textScale={0.16}
+              textScale={0.20}
             />
           </div>
 
@@ -45,7 +45,7 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
               duration={1.5}
               align="center"
               weight={800}
-              textScale={0.085}
+              textScale={0.14}
             />
           </div>
         </div>
