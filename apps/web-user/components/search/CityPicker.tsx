@@ -33,7 +33,7 @@ export function CityPicker({ cities, value, onChange, placeholder }: Props) {
   }, [open]);
 
   return (
-    <div ref={ref} className="relative w-full">
+    <div ref={ref} className="w-full">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
