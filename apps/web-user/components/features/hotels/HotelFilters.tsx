@@ -61,6 +61,7 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
         type="button"
         variant="secondary"
         size="md"
+        rounded="full"
         onClick={() => setOpen(true)}
         className="mb-4 lg:hidden"
       >
