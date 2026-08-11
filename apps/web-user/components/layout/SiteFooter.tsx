@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Mail, MapPin, Camera, Send } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function SiteFooter({
   locale,
@@ -26,12 +27,7 @@ export function SiteFooter({
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-4 lg:gap-12">
           {/* Col 1: Brand & Intro */}
           <div className="flex flex-col gap-5">
-            <Link
-              href={base}
-              className="text-3xl font-black tracking-tight text-white transition-opacity hover:opacity-90"
-            >
-              {dict.brand}
-            </Link>
+            <BrandLogo href={base} brand={dict.brand} variant="dark" />
             <p className="text-sm leading-relaxed text-slate-300 pr-4">
               {dict.footer.tagline}
             </p>
