@@ -4,6 +4,7 @@ interface EnvironmentConfig {
   WEB_USER_URL: string;
   PORT: number;
   HOST: string;
+  ENABLE_DEMO_AUTH: string;
   API_PREFIX: string;
   BUSINESS_TIMEZONE: string;
   DATABASE_URL?: string;
@@ -57,6 +58,19 @@ function toNumber(value: unknown, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+/**
+ * MUHIM: `ConfigModule.forRoot({ validate: validateEnv })` ishlatilganda,
+ * NestJS FAQAT shu funksiya qaytargan obyektdagi kalitlarni `process.env`ga
+ * yozadi (`@nestjs/config`ning `assignVariablesToProcess` xatti-harakati) —
+ * `.env` faylida bor, lekin bu yerda (`EnvironmentConfig`da) qaytarilmagan
+ * har qanday o'zgaruvchi butun ilova davomida `process.env.X` orqali doim
+ * `undefined` bo'lib qoladi, hatto haqiqiy `.env` faylida to'g'ri qiymati
+ * bo'lsa ham. Shu sabab, agar biror joyda yangi `process.env.YANGI_VAR`
+ * o'qiladigan bo'lsa, uni albatta shu faylga (interfeys + return obyekti)
+ * ham qo'shish kerak — aks holda u productionda "sirli" ravishda hech
+ * qachon ishlamaydi (HOST va ENABLE_DEMO_AUTH aynan shu sabab ishlamay
+ * qolgan edi).
+ */
 export function validateEnv(
   config: Record<string, unknown>,
 ): EnvironmentConfig {
@@ -107,6 +121,7 @@ export function validateEnv(
     WEB_USER_URL: String(config.WEB_USER_URL ?? 'http://localhost:3000'),
     PORT: toNumber(config.PORT, 4000),
     HOST: String(config.HOST ?? '0.0.0.0'),
+    ENABLE_DEMO_AUTH: String(config.ENABLE_DEMO_AUTH ?? 'false'),
     API_PREFIX: String(config.API_PREFIX ?? 'v1'),
     BUSINESS_TIMEZONE: String(config.BUSINESS_TIMEZONE ?? 'Asia/Tashkent'),
     DATABASE_URL: config.DATABASE_URL ? String(config.DATABASE_URL) : undefined,
