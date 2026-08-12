@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
-import type { CSSProperties, ElementType } from 'react';
+import type { CSSProperties, ElementType, ComponentPropsWithRef } from 'react';
 import { gsap } from 'gsap';
 import Image from 'next/image';
 
@@ -280,12 +280,16 @@ const MaskedHeading: React.FC<MaskedHeadingProps> = ({
     return () => tweenRef.current?.kill();
   }, [reveal, trigger, duration, stagger, words]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const TagAny = tag as any;
+  type TagProps = ComponentPropsWithRef<typeof tag> & {
+    className?: string;
+    style?: CSSProperties;
+    [key: string]: unknown;
+  };
+  const Tag = tag as ElementType<TagProps>;
 
   return (
-    <TagAny
-      ref={rootRef}
+    <Tag
+      ref={rootRef as React.Ref<HTMLElement>}
       className={`relative w-full m-0 p-0 antialiased ${className}`.trim()}
       style={{
         textAlign: align,
@@ -353,7 +357,7 @@ const MaskedHeading: React.FC<MaskedHeadingProps> = ({
           </span>
         </span>
       </span>
-    </TagAny>
+    </Tag>
   );
 };
 

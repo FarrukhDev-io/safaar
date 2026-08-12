@@ -73,7 +73,14 @@ function createPricePinIcon(
   });
 }
 
-function MapEvents({ onBoundsChange }: { onBoundsChange?: (bounds: any) => void }) {
+interface BoundsPayload {
+  neLat: number;
+  neLng: number;
+  swLat: number;
+  swLng: number;
+}
+
+function MapEvents({ onBoundsChange }: { onBoundsChange?: (bounds: BoundsPayload) => void }) {
   const map = useMapEvents({
     moveend: () => {
       if (onBoundsChange) {
@@ -149,7 +156,12 @@ function CustomMarker({ item, isSelected, isHovered, onSelectItem, map }: { item
   );
 }
 
-function MapContent({ items, hoveredItemId, selectedItemId, onSelectItem, onBoundsChange }: any) {
+type MapContentProps = Pick<
+  MapContainerProps,
+  "items" | "hoveredItemId" | "selectedItemId" | "onSelectItem" | "onBoundsChange"
+>;
+
+function MapContent({ items, hoveredItemId, selectedItemId, onSelectItem, onBoundsChange }: MapContentProps) {
   const map = useMap();
   const [tileUrl, setTileUrl] = useState("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png");
   
@@ -181,7 +193,7 @@ function MapContent({ items, hoveredItemId, selectedItemId, onSelectItem, onBoun
       />
       <ZoomControl position="bottomright" />
       <MapEvents onBoundsChange={onBoundsChange} />
-      {items.map((item: any) => {
+      {items.map((item: MapMarkerItem) => {
         const coords = resolveItemCoords(item);
         if (!coords) return null;
         

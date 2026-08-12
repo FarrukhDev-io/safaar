@@ -1,9 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { api, ApiRequestError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { getSession } from "@/lib/auth/session";
 import { defaultLocale, isLocale } from "@/i18n/config";
+import { safeAction } from "@/lib/services/safe-action";
 
 export interface ProfileState {
   ok: boolean;
@@ -28,14 +29,11 @@ export async function updateProfileAction(
     email: String(formData.get("email") ?? "").trim(),
   };
 
-  try {
-    await api.users.updateProfile(input, { token: session.accessToken });
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof ApiRequestError ? error.message : "ERROR",
-    };
-  }
-
-  return { ok: true };
+  return safeAction<ProfileState>(
+    async () => {
+      await api.users.updateProfile(input, { token: session.accessToken });
+      return { ok: true };
+    },
+    { ok: false, error: "ERROR" },
+  );
 }

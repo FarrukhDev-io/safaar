@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { isLocale } from "@/i18n/config";
+import { isLocale, type Locale } from "@/i18n/config";
 import { api, ApiRequestError } from "@/lib/api";
 import { BackButton } from "@/components/ui/BackButton";
 import { Badge } from "@/components/ui/Badge";
@@ -11,7 +11,7 @@ import { RestaurantBookingSection } from "@/components/features/restaurants/Rest
 
 export const dynamic = "force-dynamic";
 
-const getRestaurant = cache(async (id: string, locale: string) => {
+const getRestaurant = cache(async (id: string, locale: Locale) => {
   return await api.catalog.getRestaurant(id, locale);
 });
 
