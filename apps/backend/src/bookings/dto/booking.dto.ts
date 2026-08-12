@@ -165,6 +165,16 @@ export class CreateHotelBookingDto {
   @IsOptional()
   @IsString()
   source?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promo_code?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
 }
 
 export class CreateBusBookingDto {
@@ -185,6 +195,16 @@ export class CreateBusBookingDto {
   @IsOptional()
   @IsIn(['click', 'payme', 'uzcard', 'humo', 'cash'])
   payment_method?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promo_code?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
 }
 
 export class CancelBookingDto {

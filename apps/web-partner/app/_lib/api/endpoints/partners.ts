@@ -8,6 +8,32 @@ import type {
   BackendRoom,
 } from '../adapters';
 
+// Transport (bus) hamkorlar uchun — mehmonxona `Room`/`Listing` domenidan
+// mustaqil, chunki maydonlari butunlay boshqa (o'rindiqlar soni, davlat
+// raqami va h.k.).
+export interface BackendBusCompany {
+  id: string;
+  partner_organization_id?: string;
+  name: string;
+  status?: string;
+  rating_average?: number;
+  reviews_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BackendVehicle {
+  id: string;
+  company_id?: string;
+  name: string;
+  plate_number?: string | null;
+  seats_count: number;
+  seat_layout?: unknown;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface PartnerDashboard {
   todayBookings: number;
   monthRevenue: number;
@@ -513,6 +539,69 @@ export function updateListingStatus(
     {
       method: 'PATCH',
       body: { status },
+      token,
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Transport (bus) — kompaniya e'loni + transport parki
+// ---------------------------------------------------------------------------
+
+/** `null` qaytadi (404 emas) — hali kompaniya yaratilmagan bo'lishi mumkin. */
+export function getBusCompany(token?: string | null) {
+  return request<BackendBusCompany | null>('/partners/bus-company', {
+    token,
+  });
+}
+
+export function createBusCompany(
+  body: Record<string, unknown>,
+  token?: string | null,
+) {
+  return request<BackendBusCompany>('/partners/bus-company', {
+    method: 'POST',
+    body,
+    token,
+  });
+}
+
+export function updateBusCompany(
+  body: Record<string, unknown>,
+  token?: string | null,
+) {
+  return request<BackendBusCompany>('/partners/bus-company', {
+    method: 'PATCH',
+    body,
+    token,
+  });
+}
+
+export function listVehicles(token?: string | null) {
+  return request<BackendVehicle[]>('/partners/vehicles', { token });
+}
+
+export function createVehicle(
+  body: Record<string, unknown>,
+  token?: string | null,
+) {
+  return request<BackendVehicle>('/partners/vehicles', {
+    method: 'POST',
+    body,
+    token,
+  });
+}
+
+export function updateVehicle(
+  id: string,
+  body: Record<string, unknown>,
+  token?: string | null,
+) {
+  return request<BackendVehicle>(
+    `/partners/vehicles/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body,
       token,
     },
   );

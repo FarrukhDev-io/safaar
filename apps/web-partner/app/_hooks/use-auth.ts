@@ -47,6 +47,8 @@ function statusFromTokens(
 export function usePartnerPhoneLogin() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
+  const resetData = useDataStore((s) => s.reset);
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (phone: string) => {
@@ -64,6 +66,12 @@ export function usePartnerPhoneLogin() {
       };
     },
     onSuccess: ({ phone, tokens, organizationId, partnerType, accessStatus }) => {
+      // Oldingi sessiyadan (masalan boshqa tashkilot bilan chiqmasdan,
+      // to'g'ridan-to'g'ri /login orqali) qolgan kesh/ma'lumot yangi
+      // login'ning o'zida ko'rinib qolmasligi uchun — xuddi `useLogout()`
+      // qanday tozalasa shunday, lekin bu safar KIRISH paytida.
+      resetData();
+      queryClient.clear();
       const { user } = buildPartnerSession(phone, tokens, partnerType, 'phone');
       user.organizationId = organizationId;
       user.accessStatus = accessStatus;
@@ -120,6 +128,8 @@ export function usePartnerEmailOtpRequest() {
 export function usePartnerEmailOtpVerify() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
+  const resetData = useDataStore((s) => s.reset);
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
@@ -157,6 +167,8 @@ export function usePartnerEmailOtpVerify() {
       };
     },
     onSuccess: ({ email, tokens, organizationId, partnerType, accessStatus }) => {
+      resetData();
+      queryClient.clear();
       const { user } = buildPartnerSession(email, tokens, partnerType, 'email');
       user.organizationId = organizationId;
       user.accessStatus = accessStatus;

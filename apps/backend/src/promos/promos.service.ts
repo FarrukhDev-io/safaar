@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PostgresService } from '../infrastructure/postgres.service';
+import {
+  PostgresService,
+  type PostgresTransaction,
+} from '../infrastructure/postgres.service';
 import type { ValidatePromoDto } from './dto/promo.dto';
 
 interface PromoRow {
@@ -10,6 +13,29 @@ interface PromoRow {
   usage_limit: number;
   used_count: number;
   valid_until: string;
+}
+
+type QueryExecutor = Pick<PostgresService, 'query'> | PostgresTransaction;
+
+/**
+ * Promo-kod chegirmasini haqiqiy bron summasiga qo'llash uchun —
+ * `discount_type` 'percentage' bo'lsa foizdan, aks holda (fixed) to'g'ridan-
+ * to'g'ri summadan hisoblanadi. Natija hech qachon subtotal'dan oshmaydi
+ * (manfiy umumiy summa hosil bo'lmasligi uchun).
+ */
+export function calculatePromoDiscount(
+  subtotal: number,
+  discountType: string | null,
+  discountValue: number,
+): number {
+  if (!discountType || !Number.isFinite(discountValue) || discountValue <= 0) {
+    return 0;
+  }
+  const raw =
+    discountType === 'percentage'
+      ? subtotal * (discountValue / 100)
+      : discountValue;
+  return Math.max(0, Math.min(subtotal, Math.round(raw)));
 }
 
 @Injectable()
@@ -73,7 +99,7 @@ export class PromosService {
    * Limit tugagan yoki promo topilmasa `false` qaytaradi — chaqiruvchi
    * shu holatda bron yaratishni davom ettirmasligi kerak.
    */
-  async redeem(code: string): Promise<boolean> {
+  async redeem(code: string, db: QueryExecutor = this.pg): Promise<boolean> {
     const slug = String(code ?? '')
       .trim()
       .toLowerCase()
@@ -82,7 +108,7 @@ export class PromosService {
       return false;
     }
 
-    const rows = await this.rows(
+    const rows = await db.query<PromoRow>(
       `update cms_entries
        set metadata = jsonb_set(
          metadata,

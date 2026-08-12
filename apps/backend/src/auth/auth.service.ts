@@ -1328,8 +1328,16 @@ export class AuthService {
                pu.full_name, pu.role, pu.status, pu.created_at, pu.updated_at
         from partner_users pu
         where lower(pu.email) = lower($1)
+        order by pu.created_at asc
         limit 1
       `,
+      // Email faqat (organization_id, email) juftligida unique — bir xil
+      // email bir nechta tashkilotda a'zo bo'lishi mumkin. Avval bu yerda
+      // ORDER BY yo'q edi, ya'ni Postgres qaysi tashkilotni qaytarishi
+      // NOANIQ edi (so'rovdan-so'rovga o'zgarishi mumkin edi) — OTP-email
+      // orqali kirish esa allaqachon eng birinchi yaratilgan a'zolikni
+      // deterministik tanlaydi; parol orqali kirish ham xuddi shunga mos
+      // qilib qat'iylashtirildi.
       [email],
     );
 

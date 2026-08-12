@@ -1,5 +1,5 @@
-import { ListingOverview } from "./listing-overview";
+import { ListingGate } from "./listing-gate";
 
 export default function ListingPage() {
-  return <ListingOverview />;
+  return <ListingGate />;
 }

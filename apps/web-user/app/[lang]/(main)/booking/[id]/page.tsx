@@ -46,8 +46,6 @@ export default async function BookingDetailPage({
   const locale = lang as Locale;
   const sp = await searchParams;
 
-  const paymentQuery = one(sp.payment);
-  const statusQuery = one(sp.status);
   const providerQuery = one(sp.provider);
 
   const [dict, session] = await Promise.all([
@@ -72,18 +70,28 @@ export default async function BookingDetailPage({
 
   const statuses = dict.statuses as Record<string, string>;
   const paymentStatuses = dict.paymentStatuses as Record<string, string>;
-  const statusLabel = statuses[booking.status] ?? booking.status;
+  // Backend `booking.status`ni har doim kichik harfda qaytaradi
+  // (masalan "confirmed", "pending"), lekin lug'at kalitlari katta
+  // harfda yozilgan ("CONFIRMED", "PENDING") — bu ikkalasi hech qachon
+  // mos kelmas, va foydalanuvchi doim tarjima qilinmagan xom inglizcha
+  // so'zni ko'rardi.
+  const statusKey = booking.status.toUpperCase();
+  const statusLabel = statuses[statusKey] ?? booking.status;
   const payment = booking.payment;
 
+  // MUHIM: bu yerda faqat backend'dan kelgan HAQIQIY holat (booking.status,
+  // payment.status) ishlatiladi — URL query parametrlariga (`?status=...`,
+  // `?payment=...`) hech qanday ishonch YO'Q, chunki ularni foydalanuvchi
+  // manzil satrida qo'lda o'zgartirib, to'lov muvaffaqiyatli bo'lmagan
+  // holatda ham "tasdiqlandi" degan xabarni ko'rsatishga majburlashi
+  // mumkin edi.
   const isConfirmed =
-    statusQuery === 'confirmed' ||
-    paymentQuery === 'success' ||
-    booking.status === 'CONFIRMED' ||
+    booking.status === 'confirmed' ||
+    booking.status === 'awaiting_partner_confirmation' ||
     payment?.status === 'paid';
 
-  const isFailed = paymentQuery === 'failed' || payment?.status === 'failed';
-  const isAwaitingCash =
-    paymentQuery === 'cash' || payment?.status === 'awaiting_cash';
+  const isFailed = payment?.status === 'failed';
+  const isAwaitingCash = payment?.status === 'awaiting_cash';
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">

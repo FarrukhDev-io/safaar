@@ -883,7 +883,7 @@ model IdempotencyRecord {
 model Refund {
   id              String       @id @default(uuid()) @db.Uuid
   bookingId       String       @map("booking_id") @db.Uuid
-  userId          String       @map("user_id") @db.Uuid
+  userId          String?      @map("user_id") @db.Uuid
   status          RefundStatus @default(requested)
   requestedAmount Decimal      @map("requested_amount") @db.Decimal(18, 2)
   approvedAmount  Decimal?     @map("approved_amount") @db.Decimal(18, 2)

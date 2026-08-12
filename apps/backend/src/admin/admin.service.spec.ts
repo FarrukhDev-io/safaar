@@ -617,4 +617,202 @@ describe('AdminService frontend action endpoints', () => {
 
     expect(result).toMatchObject({ items: [], total: 0, total_pages: 1 });
   });
+
+  describe('refundApprove (regression: refund approval used to be cosmetic — status flip only)', () => {
+    const refundId = '00000000-0000-0000-0000-000000000010';
+    const bookingId = '00000000-0000-0000-0000-000000000011';
+    const partnerId = '00000000-0000-0000-0000-000000000012';
+
+    it('marks the payment refunded, cancels the booking and reverses the partner ledger', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([
+          {
+            id: refundId,
+            booking_id: bookingId,
+            status: 'requested',
+            requested_amount: '80000',
+            currency: 'UZS',
+          },
+        ]) // SELECT refund FOR UPDATE
+        .mockResolvedValueOnce([
+          { id: refundId, status: 'approved', approved_amount: 80000 },
+        ]) // UPDATE refunds
+        .mockResolvedValueOnce([
+          {
+            id: bookingId,
+            status: 'confirmed',
+            partner_organization_id: partnerId,
+            partner_payable: 70400,
+            currency: 'UZS',
+          },
+        ]) // SELECT booking FOR UPDATE
+        .mockResolvedValueOnce([]) // UPDATE payments -> refunded
+        .mockResolvedValueOnce([]) // UPDATE bookings -> cancelled
+        .mockResolvedValueOnce([]); // INSERT partner_ledger_entries (negative)
+
+      const result = await service.refundApprove(actor, refundId, {});
+
+      expect(result).toMatchObject({ status: 'approved' });
+
+      const paymentUpdate = pgMock.query.mock.calls.find(([sql]) =>
+        String(sql).includes("UPDATE payments SET status = 'refunded'"),
+      );
+      expect(paymentUpdate).toBeDefined();
+
+      const bookingUpdate = pgMock.query.mock.calls.find(([sql]) =>
+        String(sql).includes("UPDATE bookings SET status = 'cancelled'"),
+      );
+      expect(bookingUpdate).toBeDefined();
+
+      const ledgerInsert = pgMock.query.mock.calls.find(([sql]) =>
+        String(sql).includes('INSERT INTO partner_ledger_entries'),
+      );
+      expect(ledgerInsert).toBeDefined();
+      expect(ledgerInsert?.[1]).toEqual([
+        expect.any(String),
+        partnerId,
+        bookingId,
+        -70400,
+        'UZS',
+        expect.any(String),
+      ]);
+    });
+
+    it('rejects approving a refund that is already approved/rejected/paid (state-machine guard)', async () => {
+      pgMock.query.mockResolvedValueOnce([
+        {
+          id: refundId,
+          booking_id: bookingId,
+          status: 'approved',
+          requested_amount: '80000',
+          currency: 'UZS',
+        },
+      ]);
+
+      await expect(
+        service.refundApprove(actor, refundId, {}),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('does not touch a booking that is already completed (service was delivered, not cancellable)', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([
+          {
+            id: refundId,
+            booking_id: bookingId,
+            status: 'requested',
+            requested_amount: '80000',
+            currency: 'UZS',
+          },
+        ])
+        .mockResolvedValueOnce([
+          { id: refundId, status: 'approved', approved_amount: 80000 },
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: bookingId,
+            status: 'completed',
+            partner_organization_id: partnerId,
+            partner_payable: 70400,
+            currency: 'UZS',
+          },
+        ])
+        .mockResolvedValueOnce([]) // UPDATE payments -> refunded
+        .mockResolvedValueOnce([]); // INSERT partner_ledger_entries (still reversed)
+
+      await service.refundApprove(actor, refundId, {});
+
+      const bookingUpdate = pgMock.query.mock.calls.find(([sql]) =>
+        String(sql).includes('UPDATE bookings SET status'),
+      );
+      expect(bookingUpdate).toBeUndefined();
+    });
+  });
+
+  describe('refundReject / refundRetry (regression: retry wrote a non-existent enum value and crashed every time)', () => {
+    const refundId = '00000000-0000-0000-0000-000000000013';
+
+    it('rejects a requested refund', async () => {
+      pgMock.query.mockResolvedValueOnce([
+        { id: refundId, status: 'rejected' },
+      ]);
+
+      const result = await service.refundReject(actor, refundId);
+      expect(result).toMatchObject({ status: 'rejected' });
+    });
+
+    it('retry moves a rejected refund back to requested (regression: used to write invalid enum "retrying")', async () => {
+      pgMock.query.mockResolvedValueOnce([
+        { id: refundId, status: 'requested' },
+      ]);
+
+      const result = await service.refundRetry(actor, refundId);
+
+      expect(result).toMatchObject({ status: 'requested' });
+      const [sql] = pgMock.query.mock.calls[0]!;
+      expect(String(sql)).not.toContain('retrying');
+    });
+
+    it('retry fails with a clear error on a refund that was never rejected', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([]) // UPDATE ... WHERE status = 'rejected' -> no match
+        .mockResolvedValueOnce([{ status: 'approved' }]); // existing-status lookup
+
+      await expect(
+        service.refundRetry(actor, refundId),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+  });
+
+  describe('withdrawalStatus state machine (regression: a paid withdrawal could be flipped to rejected, enabling double payout)', () => {
+    const withdrawalId = '00000000-0000-0000-0000-000000000014';
+
+    it('allows requested -> approved', async () => {
+      pgMock.query.mockResolvedValueOnce([{ status: 'approved' }]);
+      const result = await service.withdrawalStatus(withdrawalId, 'approved');
+      expect(result).toMatchObject({ status: 'approved' });
+
+      const [, params] = pgMock.query.mock.calls[0]!;
+      expect(params).toEqual([withdrawalId, 'approved', ['requested']]);
+    });
+
+    it('allows approved -> paid', async () => {
+      pgMock.query.mockResolvedValueOnce([{ status: 'paid' }]);
+      const result = await service.withdrawalStatus(withdrawalId, 'paid');
+      expect(result).toMatchObject({ status: 'paid' });
+
+      const [, params] = pgMock.query.mock.calls[0]!;
+      expect(params).toEqual([withdrawalId, 'paid', ['approved']]);
+    });
+
+    it('rejects paid -> rejected (the double-payout exploit) with a clear conflict error', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([]) // UPDATE ... WHERE status = ANY(['requested','approved']) -> no match, already paid
+        .mockResolvedValueOnce([{ status: 'paid' }]); // existing-status lookup
+
+      await expect(
+        service.withdrawalStatus(withdrawalId, 'rejected'),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('rejects requested -> paid (cannot skip the approval step)', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([]) // UPDATE ... WHERE status = ANY(['approved']) -> no match
+        .mockResolvedValueOnce([{ status: 'requested' }]);
+
+      await expect(
+        service.withdrawalStatus(withdrawalId, 'paid'),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('reports a clear 404 for a withdrawal id that does not exist at all', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([]) // UPDATE -> no match
+        .mockResolvedValueOnce([]); // existing-status lookup -> not found either
+
+      await expect(
+        service.withdrawalStatus(withdrawalId, 'approved'),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+  });
 });

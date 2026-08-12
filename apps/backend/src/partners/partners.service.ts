@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { BookingStatus } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
+import { calculateCommission } from '../common/finance';
 import {
   limitOffsetSql,
   paginateArray,
@@ -33,6 +34,22 @@ type PublicPartnerStatus =
   | 'rejected'
   | 'blocked'
   | 'suspended';
+
+/**
+ * `hotels` jadvali "yashash joyi" turlari VA restoran uchun umumiy e'lon
+ * yozuvi sifatida ishlatiladi — faqat sof `bus` turidagi hamkor bunday
+ * yozuv yarata olmasligi kerak (u o'rniga `bus_companies`/`vehicles`/
+ * `trips`dan foydalanadi).
+ */
+const LODGING_LIKE_TYPES = new Set([
+  'hotel',
+  'hostel',
+  'guesthouse',
+  'motel',
+  'dacha',
+  'restaurant',
+  'mixed',
+]);
 
 function localizedText(body: Record<string, unknown>, key: string) {
   const value = String(
@@ -329,13 +346,37 @@ export class PartnersService {
     };
   }
 
+  /**
+   * Faqat "rad etilgan" yoki "qo'shimcha ma'lumot so'ralgan" arizani
+   * qayta topshirish mumkin. Avval bu yerda hech qanday holat tekshiruvi
+   * yo'q edi — ALLAQACHON `approved` bo'lgan, to'liq ishlab turgan hamkor
+   * ham shu endpointni chaqirib, o'z tashkilotini `submitted`ga
+   * "tushirib qo'yishi" mumkin edi — bu esa `isPartnerLoginStatusAllowed`
+   * ro'yxatida yo'q, ya'ni o'zini (va butun jamoasini) keyingi kirishda
+   * qulflab qo'yardi.
+   */
   async resubmitApplication(actor: RequestActor | undefined) {
     const now = new Date().toISOString();
     const organizationId = this.organizationId(actor);
     const result = await this.pg.query(
-      `UPDATE partner_organizations SET status = 'submitted', updated_at = $1 WHERE id = $2 RETURNING *`,
+      `UPDATE partner_organizations
+       SET status = 'submitted', updated_at = $1
+       WHERE id = $2 AND status IN ('rejected', 'more_information_required')
+       RETURNING *`,
       [now, organizationId],
     );
+    if (!result[0]) {
+      const [current] = await this.pg.query<{ status: string }>(
+        `SELECT status FROM partner_organizations WHERE id = $1`,
+        [organizationId],
+      );
+      throw new ConflictException({
+        code: 'APPLICATION_RESUBMIT_INVALID',
+        message: current
+          ? `Arizani "${current.status}" holatidan qayta topshirib bo'lmaydi`
+          : 'Tashkilot topilmadi',
+      });
+    }
     return result[0];
   }
 
@@ -557,15 +598,30 @@ export class PartnersService {
     // yaratilganda) hamkor arizasidagi ma'lumotlar bilan to'ldiramiz —
     // aks holda `hotels.city_id`/`address` NOT NULL cheklovi buziladi.
     const [organization] = await this.pg.query<{
+      type: string;
       brand_name: string | null;
       legal_name: string | null;
       address: string | null;
       city_id: string | null;
     }>(
-      `select brand_name, legal_name, address, city_id::text
+      `select type::text, brand_name, legal_name, address, city_id::text
        from partner_organizations where id = $1::uuid`,
       [organizationId],
     );
+
+    // Biznes turi doimiy (ariza topshirilganda tanlanadi, o'zgartirib
+    // bo'lmaydi) — shuning uchun uni haqiqiy qobiliyat cheklovi sifatida
+    // hurmat qilamiz: sof "bus" turidagi hamkor mehmonxona/restoran e'loni
+    // yarata olmasligi kerak. Avval bu yerda hech qanday tekshiruv yo'q
+    // edi — har qanday tasdiqlangan hamkor turi cheklanmagan holda
+    // istalgan turdagi e'lon yarata olardi.
+    if (organization && !LODGING_LIKE_TYPES.has(organization.type)) {
+      throw new ForbiddenException({
+        code: 'HOTEL_TYPE_FORBIDDEN',
+        message:
+          "Bu hamkor turi uchun mehmonxona/restoran e'loni yaratish mumkin emas",
+      });
+    }
 
     const nameUzInput = this.optionalString(
       body.name_uz ??
@@ -1058,6 +1114,29 @@ export class PartnersService {
     const amenities = Array.isArray(body.amenities)
       ? body.amenities.map(String).filter(Boolean)
       : [];
+
+    // `room_types.code` butun platformada global UNIQUE, lekin xona turi
+    // narxi/sig'imi/rasmi kabi maydonlari mehmonxonaga xos bo'lishi kerak.
+    // `hotel_rooms` orqali ALLAQACHON boshqa mehmonxonaga bog'langan
+    // kodni qayta yozishga (ON CONFLICT DO UPDATE orqali) urinish o'sha
+    // boshqa hamkorning ma'lumotini jimgina buzib qo'yardi — bu yerda
+    // oldindan tekshirib, aniq xato bilan rad etamiz.
+    const [conflictingOwner] = await this.pg.query<{ hotel_id: string }>(
+      `SELECT DISTINCT hr.hotel_id::text
+       FROM hotel_rooms hr
+       JOIN room_types rt ON rt.id = hr.room_type_id
+       WHERE rt.code = $1 AND hr.hotel_id <> $2::uuid
+       LIMIT 1`,
+      [code, id],
+    );
+    if (conflictingOwner) {
+      throw new ConflictException({
+        code: 'ROOM_TYPE_CODE_TAKEN',
+        message:
+          "Bu kod bilan xona turi boshqa mehmonxonada allaqachon mavjud. Boshqa kod tanlang.",
+      });
+    }
+
     const [roomType] = await this.pg.query(
       `INSERT INTO room_types
          (id, code, name, description, image_url, bed_type, size_sqm,
@@ -1093,6 +1172,32 @@ export class PartnersService {
     return roomType;
   }
 
+  /**
+   * `room_types` mehmonxona/tashkilot ustuniga ega emas (global,
+   * kod-kalitli jadval) — shuning uchun xona turini haqiqatan kim
+   * "egallagani" faqat `hotel_rooms` orqali bilinadi. Agar bu turdan
+   * hali hech qanday xona foydalanmagan bo'lsa (masalan yangi yaratilgan,
+   * xonalar hali qo'shilmagan), uni har qanday hamkor tahrirlashi/
+   * o'chirishi mumkin bo'lib qolar edi — shu holatni ham yopish uchun
+   * "hech kimga bog'lanmagan" holat ham "meniki" deb hisoblanadi, lekin
+   * BOSHQA mehmonxonaga bog'langan bo'lsa qat'iy rad etiladi.
+   */
+  private async assertRoomTypeOwnedByHotel(hotelId: string, roomTypeId: string) {
+    const [row] = await this.pg.query<{ owned: boolean }>(
+      `SELECT NOT EXISTS (
+         SELECT 1 FROM hotel_rooms
+         WHERE room_type_id = $1::uuid AND hotel_id <> $2::uuid
+       ) AS owned`,
+      [roomTypeId, hotelId],
+    );
+    if (!row?.owned) {
+      throw new ForbiddenException({
+        code: 'ROOM_TYPE_FORBIDDEN',
+        message: 'Bu xona turi boshqa mehmonxonaga tegishli',
+      });
+    }
+  }
+
   async updateRoomType(
     actor: RequestActor | undefined,
     id: string,
@@ -1100,6 +1205,7 @@ export class PartnersService {
     body: Record<string, unknown>,
   ) {
     await this.assertHotel(id, actor);
+    await this.assertRoomTypeOwnedByHotel(id, roomTypeId);
     const now = new Date().toISOString();
     const sets: string[] = [];
     const params: unknown[] = [];
@@ -1202,6 +1308,7 @@ export class PartnersService {
     roomTypeId: string,
   ) {
     await this.assertHotel(id, actor);
+    await this.assertRoomTypeOwnedByHotel(id, roomTypeId);
     const rooms = await this.pg.query(
       `SELECT id::text FROM hotel_rooms WHERE hotel_id = $1 AND room_type_id = $2 LIMIT 1`,
       [id, roomTypeId],
@@ -1737,44 +1844,151 @@ export class PartnersService {
   // Inventory
   // ---------------------------------------------------------------------------
 
+  /**
+   * Kelgusi 90 kun uchun xona inventarini qaytaradi — `room_inventory`da
+   * aniq yozuv (masalan blackout yoki maxsus sig'im) bo'lsa o'sha
+   * qatordan, bo'lmasa xonaning standart `total_inventory`sidan.
+   */
   async inventory(actor: RequestActor | undefined, id: string) {
     await this.assertHotel(id, actor);
-    const rooms = await this.pg.query<{ id: string; total_inventory: number }>(
-      `SELECT id, total_inventory FROM hotel_rooms WHERE hotel_id = $1 AND status = 'active'`,
+    const rows = await this.pg.query<{
+      room_id: string;
+      total_inventory: number;
+      date: string | null;
+      total_count: number | null;
+      held_count: number | null;
+      booked_count: number | null;
+      closed: boolean | null;
+    }>(
+      `SELECT hr.id::text AS room_id, hr.total_inventory,
+              ri.date, ri.total_count, ri.held_count, ri.booked_count, ri.closed
+       FROM hotel_rooms hr
+       LEFT JOIN room_inventory ri
+         ON ri.room_id = hr.id
+         AND ri.date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '90 days'
+       WHERE hr.hotel_id = $1 AND hr.status = 'active'
+       ORDER BY hr.id, ri.date`,
       [id],
     );
-    return rooms.map((room) => ({
-      room_id: room.id,
-      date: new Date().toISOString().slice(0, 10),
-      total_count: room.total_inventory,
-      held_count: 0,
-      booked_count: 0,
-      closed: false,
+    return rows.map((row) => ({
+      room_id: row.room_id,
+      date: row.date ?? new Date().toISOString().slice(0, 10),
+      total_count: row.total_count ?? row.total_inventory,
+      held_count: row.held_count ?? 0,
+      booked_count: row.booked_count ?? 0,
+      closed: row.closed ?? false,
     }));
   }
 
-  updateInventory(
+  /**
+   * Avval bu metod hech qanday SQL bajarmasdan, so'ralgan `body.items`ni
+   * o'zgartirmasdan qaytarib yuborardi — frontend "saqlandi" deb ko'rsatib,
+   * hech narsa bazaga yozilmas edi. Endi `room_inventory`ga haqiqatan
+   * UPSERT qiladi, va har bir xona `id` mehmonxonaga tegishli ekanligini
+   * tekshiradi (boshqa hamkorning xonasi id'sini yubormasin).
+   */
+  async updateInventory(
     actor: RequestActor | undefined,
     id: string,
     body: Record<string, unknown>,
   ) {
-    return {
-      hotel_id: id,
-      updated: true,
-      items: body.items ?? [],
-    };
+    await this.assertHotel(id, actor);
+    const items = Array.isArray(body.items) ? body.items : [];
+    const saved: unknown[] = [];
+
+    for (const raw of items) {
+      const item = (raw ?? {}) as Record<string, unknown>;
+      const roomId = String(item.room_id ?? item.roomId ?? '');
+      const date = String(item.date ?? '');
+      if (!roomId || !Number.isFinite(Date.parse(date))) {
+        throw new BadRequestException({
+          code: 'INVENTORY_ITEM_INVALID',
+          message: 'Har bir item uchun room_id va date kerak',
+        });
+      }
+
+      const [room] = await this.pg.query<{ total_inventory: number }>(
+        `SELECT total_inventory FROM hotel_rooms WHERE id = $1::uuid AND hotel_id = $2::uuid`,
+        [roomId, id],
+      );
+      if (!room) {
+        throw new NotFoundException({
+          code: 'ROOM_NOT_AVAILABLE',
+          message: `Xona topilmadi: ${roomId}`,
+        });
+      }
+
+      const totalCount = this.optionalNonNegativeNumber(
+        item.total_count ?? item.totalCount,
+      ) ?? room.total_inventory;
+      const closed = Boolean(item.closed ?? false);
+
+      const [savedRow] = await this.pg.query(
+        `INSERT INTO room_inventory (id, room_id, date, total_count, closed)
+         VALUES ($1, $2::uuid, $3::date, $4, $5)
+         ON CONFLICT (room_id, date) DO UPDATE
+           SET total_count = EXCLUDED.total_count,
+               closed = EXCLUDED.closed,
+               version = room_inventory.version + 1
+         RETURNING room_id::text, date, total_count, held_count, booked_count, closed`,
+        [randomUUID(), roomId, date, totalCount, closed],
+      );
+      saved.push(savedRow);
+    }
+
+    return { hotel_id: id, updated: true, items: saved };
   }
 
-  blackoutDates(
+  /**
+   * Bir yoki bir nechta sanani xona(lar) uchun "yopiq" deb belgilaydi —
+   * avval hech narsa saqlamasdan `{closed:true}` qaytarib, xonani
+   * haqiqatan mavjud bo'lmagan qilib qo'ymasdi.
+   */
+  async blackoutDates(
     actor: RequestActor | undefined,
     id: string,
     body: Record<string, unknown>,
   ) {
-    return {
-      hotel_id: id,
-      dates: body.dates ?? [],
-      closed: true,
-    };
+    await this.assertHotel(id, actor);
+    const dates = Array.isArray(body.dates)
+      ? body.dates.map(String).filter((d) => Number.isFinite(Date.parse(d)))
+      : [];
+    if (dates.length === 0) {
+      throw new BadRequestException({
+        code: 'BLACKOUT_DATES_REQUIRED',
+        message: 'Kamida bitta to‘g‘ri sana kerak',
+      });
+    }
+    const roomIdFilter = this.optionalString(body.room_id ?? body.roomId);
+
+    const rooms = await this.pg.query<{ id: string; total_inventory: number }>(
+      roomIdFilter
+        ? `SELECT id::text, total_inventory FROM hotel_rooms
+           WHERE id = $1::uuid AND hotel_id = $2::uuid AND status = 'active'`
+        : `SELECT id::text, total_inventory FROM hotel_rooms
+           WHERE hotel_id = $2::uuid AND status = 'active'`,
+      [roomIdFilter ?? null, id],
+    );
+    if (roomIdFilter && rooms.length === 0) {
+      throw new NotFoundException({
+        code: 'ROOM_NOT_AVAILABLE',
+        message: 'Xona topilmadi',
+      });
+    }
+
+    for (const room of rooms) {
+      for (const date of dates) {
+        await this.pg.query(
+          `INSERT INTO room_inventory (id, room_id, date, total_count, closed)
+           VALUES ($1, $2::uuid, $3::date, $4, true)
+           ON CONFLICT (room_id, date) DO UPDATE
+             SET closed = true, version = room_inventory.version + 1`,
+          [randomUUID(), room.id, date, room.total_inventory],
+        );
+      }
+    }
+
+    return { hotel_id: id, room_id: roomIdFilter ?? null, dates, closed: true };
   }
 
   // ---------------------------------------------------------------------------
@@ -2142,6 +2356,117 @@ export class PartnersService {
   }
 
   // ---------------------------------------------------------------------------
+  // Bus company (transport hamkorining "e'lon"iga teng — vehicles/routes/
+  // trips shu yozuvga bog'lanadi)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * `bus`/`mixed` turida tasdiqlangan hamkor uchun `bus_companies` yozuvini
+   * yaratadi. Avval bu yozuvni yaratadigan HECH QANDAY jonli kod yo'li
+   * yo'q edi (faqat admin.service.ts ichidagi chaqirilmaydigan "dead"
+   * yordamchi funksiyada) — natijada `createVehicle`/`createTrip` doim
+   * `BUS_COMPANY_NOT_FOUND` bilan yiqilardi va butun transport hamkor
+   * yo'nalishi ishlamas edi. Idempotent: mavjud kompaniya bo'lsa o'shani
+   * qaytaradi (qayta-qayta chaqirilsa ham duplikat yaratmaydi).
+   */
+  async createBusCompany(
+    actor: RequestActor | undefined,
+    body: Record<string, unknown>,
+  ) {
+    const organizationId = this.organizationId(actor);
+    const [organization] = await this.pg.query<{
+      type: string;
+      brand_name: string | null;
+      legal_name: string | null;
+    }>(
+      `SELECT type::text, brand_name, legal_name FROM partner_organizations WHERE id = $1`,
+      [organizationId],
+    );
+    if (!organization) {
+      throw new NotFoundException({
+        code: 'PARTNER_NOT_ACTIVE',
+        message: 'Tashkilot topilmadi',
+      });
+    }
+    if (!['bus', 'mixed'].includes(organization.type)) {
+      throw new ForbiddenException({
+        code: 'BUS_COMPANY_TYPE_FORBIDDEN',
+        message:
+          "Avtobus kompaniyasini faqat 'bus' yoki 'mixed' turidagi hamkor yaratishi mumkin",
+      });
+    }
+
+    const [existing] = await this.pg.query<{ id: string }>(
+      `SELECT id::text FROM bus_companies
+       WHERE partner_organization_id = $1
+       ORDER BY created_at ASC LIMIT 1`,
+      [organizationId],
+    );
+    if (existing) {
+      return this.pg.query(
+        `SELECT id::text, partner_organization_id::text, name, status,
+                rating_average::float8, reviews_count, created_at, updated_at
+         FROM bus_companies WHERE id = $1`,
+        [existing.id],
+      ).then((rows) => rows[0]);
+    }
+
+    const name =
+      this.optionalString(body.name) ??
+      organization.brand_name ??
+      organization.legal_name ??
+      'Avtobus kompaniyasi';
+    const now = new Date().toISOString();
+    const [company] = await this.pg.query(
+      `INSERT INTO bus_companies (id, partner_organization_id, name, status, created_at, updated_at)
+       VALUES ($1, $2, $3, 'active', $4, $4)
+       RETURNING id::text, partner_organization_id::text, name, status,
+                 rating_average::float8, reviews_count, created_at, updated_at`,
+      [randomUUID(), organizationId, name, now],
+    );
+    return company;
+  }
+
+  /**
+   * `null` qaytaradi (404 emas) agar hali kompaniya yaratilmagan bo'lsa —
+   * frontend "Kompaniya e'lonini yarating" bo'sh holatini shu orqali
+   * ko'rsatadi, xatolik sifatida emas.
+   */
+  async busCompany(actor: RequestActor | undefined) {
+    const organizationId = this.organizationId(actor);
+    const [company] = await this.pg.query(
+      `SELECT id::text, partner_organization_id::text, name, status,
+              rating_average::float8, reviews_count, created_at, updated_at
+       FROM bus_companies
+       WHERE partner_organization_id = $1
+       ORDER BY created_at ASC LIMIT 1`,
+      [organizationId],
+    );
+    return company ?? null;
+  }
+
+  async updateBusCompany(
+    actor: RequestActor | undefined,
+    body: Record<string, unknown>,
+  ) {
+    const companyId = await this.busCompanyId(actor);
+    const name = this.optionalString(body.name);
+    if (!name) {
+      throw new BadRequestException({
+        code: 'BUS_COMPANY_NAME_REQUIRED',
+        message: 'Kompaniya nomini kiriting',
+      });
+    }
+    const [company] = await this.pg.query(
+      `UPDATE bus_companies SET name = $1, updated_at = $2 WHERE id = $3
+       RETURNING id::text, partner_organization_id::text, name, status,
+                 rating_average::float8, reviews_count, created_at, updated_at`,
+      [name, new Date().toISOString(), companyId],
+    );
+    return company;
+  }
+
+  // ---------------------------------------------------------------------------
   // Vehicles
   // ---------------------------------------------------------------------------
 
@@ -2283,7 +2608,31 @@ export class PartnersService {
     id: string,
     body: Record<string, unknown>,
   ) {
-    this.organizationId(actor);
+    const organizationId = this.organizationId(actor);
+
+    // `routes` jadvali kompaniya ustuniga ega emas — bir nechta avtobus
+    // kompaniyasi bir xil shahar-juftligi yo'nalishidan foydalanishi
+    // mumkin (masalan "Toshkent -> Samarqand"). Shuning uchun HAR QANDAY
+    // hamkor HAR QANDAY yo'nalishni o'zgartira olardi, hattoki boshqa
+    // kompaniyaning jonli reyslari shu yo'nalishga bog'langan bo'lsa ham.
+    // Bu yerda "egalik" `trips` orqali tekshiriladi — agar bu yo'nalishga
+    // bog'langan har qanday reys BOSHQA kompaniyaga tegishli bo'lsa, rad
+    // etiladi; hali hech kim ishlatmagan yoki faqat o'zi ishlatayotgan
+    // yo'nalishni o'zgartirish ruxsat etiladi.
+    const [foreignUsage] = await this.pg.query<{ id: string }>(
+      `SELECT t.id::text FROM trips t
+       JOIN bus_companies bc ON bc.id = t.company_id
+       WHERE t.route_id = $1::uuid AND bc.partner_organization_id <> $2::uuid
+       LIMIT 1`,
+      [id, organizationId],
+    );
+    if (foreignUsage) {
+      throw new ForbiddenException({
+        code: 'ROUTE_FORBIDDEN',
+        message: 'Bu yo‘nalishdan boshqa hamkor reyslari foydalanmoqda',
+      });
+    }
+
     const [route] = await this.pg.query(
       `UPDATE routes
        SET from_city_id = COALESCE($1, from_city_id),
@@ -2438,12 +2787,79 @@ export class PartnersService {
     return trip;
   }
 
+  /**
+   * Reys bekor qilinganda faqat `trips.status`ni o'zgartirish yetarli
+   * emas edi — unga bog'langan o'rindiqlar "held" holida abadiy qolib
+   * ketardi (boshqa hech qachon sotib bo'lmaydigan), va reysga bog'liq
+   * TASDIQLANGAN/kutilayotgan bronlar esa hamon "amal qilayotgandek"
+   * ko'rinardi, garchi ularning reysi endi yo'q bo'lsa ham. Endi bitta
+   * tranzaksiyada: reys bekor qilinadi, unga tegishli barcha bo'sh
+   * bo'lmagan o'rindiqlar bo'shatiladi, va reysga bog'langan hali
+   * yakunlanmagan bronlar ham bekor qilinib, to'langan bo'lsa avtomatik
+   * qaytarish so'rovi ochiladi (xuddi to'lov-muddat poygasida qanday
+   * ishlashi kerak bo'lsa xuddi shunday — pul hech qachon jim
+   * "yo'qolmaydi").
+   */
   async cancelTrip(actor: RequestActor | undefined, id: string) {
     await this.assertTrip(actor, id);
-    const [trip] = await this.pg.query(
-      `UPDATE trips SET status = 'cancelled', updated_at = $1 WHERE id = $2 RETURNING *`,
-      [new Date().toISOString(), id],
-    );
+    const now = new Date().toISOString();
+
+    const trip = await this.pg.transaction(async (tx) => {
+      const [updatedTrip] = await tx.query(
+        `UPDATE trips SET status = 'cancelled', updated_at = $1 WHERE id = $2 RETURNING *`,
+        [now, id],
+      );
+
+      await tx.query(
+        `UPDATE trip_seats
+         SET status = 'available', held_by_booking_id = NULL, held_until = NULL
+         WHERE trip_id = $1`,
+        [id],
+      );
+
+      const affectedBookings = await tx.query<{
+        id: string;
+        user_id: string | null;
+        currency: string;
+      }>(
+        `UPDATE bookings
+         SET status = 'cancelled', cancelled_at = $2,
+             cancel_reason_text = 'Reys hamkor tomonidan bekor qilindi', updated_at = $2
+         WHERE trip_id = $1 AND status NOT IN ('cancelled', 'expired', 'completed')
+         RETURNING id::text, user_id::text, currency`,
+        [id, now],
+      );
+
+      for (const booking of affectedBookings) {
+        const [payment] = await tx.query<{
+          amount: number | string;
+          currency: string;
+        }>(
+          `SELECT amount, currency FROM payments
+           WHERE booking_id = $1 AND status = 'paid'
+           ORDER BY created_at DESC LIMIT 1`,
+          [booking.id],
+        );
+        if (payment) {
+          await tx.query(
+            `INSERT INTO refunds (id, booking_id, user_id, status, currency, requested_amount, reason, created_at, updated_at)
+             VALUES ($1, $2, $3, 'requested', $4, $5, $6, $7, $7)`,
+            [
+              randomUUID(),
+              booking.id,
+              booking.user_id,
+              payment.currency,
+              Number(payment.amount),
+              'Reys hamkor tomonidan bekor qilindi — avtomatik qaytarish so‘rovi',
+              now,
+            ],
+          );
+        }
+      }
+
+      return updatedTrip;
+    });
+
     return trip;
   }
 
@@ -2549,8 +2965,10 @@ export class PartnersService {
       check_in_time: string | null;
       check_out_time: string | null;
       partner_type: string;
+      commission_rate: number;
     }>(
-      `SELECT h.id::text, h.check_in_time, h.check_out_time, po.type::text AS partner_type
+      `SELECT h.id::text, h.check_in_time, h.check_out_time, po.type::text AS partner_type,
+              po.default_commission_rate::float8 AS commission_rate
        FROM hotels h
        JOIN partner_organizations po ON po.id = h.partner_organization_id
        WHERE h.id = $1 AND h.partner_organization_id = $2`,
@@ -2716,7 +3134,7 @@ export class PartnersService {
       'BOOKING_SOURCE_REQUIRED',
       'Bron manbasi kiritilishi kerak',
     );
-    const commissionAmount = Math.round(totalAmount * 0.12);
+    const commissionAmount = calculateCommission(totalAmount, hotel.commission_rate);
     const guestName = String(body.fullName ?? body.full_name ?? '').trim();
     const guestPhone = String(body.phone ?? '').trim();
     const guestEmail = body.email ? String(body.email).toLowerCase() : null;
@@ -2863,6 +3281,23 @@ export class PartnersService {
         `INSERT INTO payments (id, booking_id, provider, status, amount, currency, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [paymentId, bookingId, 'cash', 'paid', totalAmount, 'UZS', now, now],
+      );
+
+      // Naqd pul walk-in bron darhol "confirmed" + "paid" holatida
+      // yaratiladi (mijoz hamkorning o'zi oldida to'laydi) — shuning uchun
+      // daromad ham darhol hamkorning haqiqiy hisobiga (ledger) yoziladi,
+      // xuddi onlayn to'lov webhook orqali tasdiqlangandagi kabi.
+      await tx.query(
+        `INSERT INTO partner_ledger_entries (id, organization_id, booking_id, type, amount, currency, created_at)
+         VALUES ($1, $2, $3, 'booking_earned', $4, $5, $6)`,
+        [
+          randomUUID(),
+          organizationId,
+          bookingId,
+          totalAmount - commissionAmount,
+          'UZS',
+          now,
+        ],
       );
     });
 
@@ -3064,11 +3499,24 @@ export class PartnersService {
     const now = new Date().toISOString();
     const reason = String(body.reason ?? 'Partner rad etdi');
 
-    const result = await this.pg.query(
-      `UPDATE bookings SET status = $1, cancel_reason_text = $2, cancelled_at = $3, updated_at = $3 WHERE id = $4 RETURNING *`,
-      [BookingStatus.CANCELLED.toLowerCase(), reason, now, id],
-    );
-    return result[0];
+    return this.pg.transaction(async (tx) => {
+      const [updated] = await tx.query(
+        `UPDATE bookings SET status = $1, cancel_reason_text = $2, cancelled_at = $3, updated_at = $3 WHERE id = $4 RETURNING *`,
+        [BookingStatus.CANCELLED.toLowerCase(), reason, now, id],
+      );
+
+      // Hamkor avtobus bronini rad etsa ham (masalan mijoz kelmadi),
+      // o'rindiq bo'shatilishi kerak — aks holda "held" holida abadiy
+      // qolib, boshqa hech kimga sotilmaydi.
+      await tx.query(
+        `UPDATE trip_seats
+         SET status = 'available', held_by_booking_id = NULL, held_until = NULL
+         WHERE held_by_booking_id = $1::uuid`,
+        [id],
+      );
+
+      return updated;
+    });
   }
 
   async cashStatus(
@@ -3108,17 +3556,52 @@ export class PartnersService {
   // Finance
   // ---------------------------------------------------------------------------
 
-  async financeOverview(actor: RequestActor | undefined) {
-    const organizationId = this.organizationId(actor);
-    const result = await this.pg.query<{ sum: string | null }>(
-      `SELECT COALESCE(SUM(total_amount), 0)::text as sum FROM bookings WHERE partner_organization_id = $1`,
+  /**
+   * Hamkor balansining YAGONA haqiqat manbai — `partner_ledger_entries`.
+   * Avval balans to'g'ridan-to'g'ri `bookings.total_amount`dan, bron
+   * holatidan (bekor qilingan/qaytarilgan/hali to'lanmagan) qat'iy nazar
+   * hisoblanardi, va `* 0.7`/`* 0.88` kabi haqiqiy komissiyaga aloqasi
+   * yo'q qattiq yozilgan koeffitsientlar ishlatilardi. Endi ledger'ga
+   * faqat haqiqatan "topilgan" (to'lov tasdiqlangan) summalar ijobiy, va
+   * qaytarishlar manfiy yozuv sifatida kiradi — shu bilan bron holati va
+   * qaytarishlar avtomatik hisobga olinadi.
+   */
+  private async ledgerBalance(
+    db: Pick<PostgresService, 'query'> | PostgresTransaction,
+    organizationId: string,
+  ): Promise<number> {
+    const [row] = await db.query<{ sum: string | null }>(
+      `SELECT COALESCE(SUM(amount), 0)::text as sum FROM partner_ledger_entries WHERE organization_id = $1`,
       [organizationId],
     );
-    const gross = Number(result[0]?.sum ?? 0);
+    return Number(row?.sum ?? 0);
+  }
+
+  private async committedWithdrawals(
+    db: Pick<PostgresService, 'query'> | PostgresTransaction,
+    organizationId: string,
+  ): Promise<number> {
+    const [row] = await db.query<{ sum: string | null }>(
+      `SELECT COALESCE(SUM(amount), 0)::text as sum
+       FROM withdrawal_requests
+       WHERE organization_id = $1 AND status IN ('requested', 'approved', 'paid')`,
+      [organizationId],
+    );
+    return Number(row?.sum ?? 0);
+  }
+
+  async financeOverview(actor: RequestActor | undefined) {
+    const organizationId = this.organizationId(actor);
+    const [ledgerTotal, committed] = await Promise.all([
+      this.ledgerBalance(this.pg, organizationId),
+      this.committedWithdrawals(this.pg, organizationId),
+    ]);
     return {
-      gross_amount: gross,
-      pending_balance: Math.round(gross * 0.88),
-      available_balance: Math.round(gross * 0.7),
+      // Sof balans — komissiya va qaytarishlardan keyin, hali yechilgan
+      // mablag' ayirilmasdan.
+      pending_balance: ledgerTotal,
+      // Haqiqatan hozir yechish mumkin bo'lgan summa.
+      available_balance: Math.max(0, ledgerTotal - committed),
       currency: 'UZS',
     };
   }
@@ -3129,18 +3612,19 @@ export class PartnersService {
       defaultLimit: 50,
       allowedSortBy: ['created_at', 'amount'],
     });
+    const sortColumn = ['created_at', 'amount'].includes(pagination.sortBy)
+      ? pagination.sortBy
+      : 'created_at';
+    const orderDir = pagination.order === 'asc' ? 'ASC' : 'DESC';
 
-    const entries = await this.pg.query(
-      `SELECT b.id, b.id as booking_id, b.partner_payable as amount, b.currency, 'booking_payable' as type, b.created_at
-       FROM bookings b
-       WHERE b.partner_organization_id = $1
-       ORDER BY b.created_at DESC`,
+    return this.pg.query(
+      `SELECT id::text, organization_id::text as partner_id, booking_id::text,
+              type, amount::float8, currency, created_at
+       FROM partner_ledger_entries
+       WHERE organization_id = $1
+       ORDER BY ${sortColumn} ${orderDir}
+       ${limitOffsetSql(pagination)}`,
       [organizationId],
-    );
-
-    return entries.slice(
-      pagination.offset,
-      pagination.offset + pagination.limit,
     );
   }
 
@@ -3149,7 +3633,7 @@ export class PartnersService {
     return [
       {
         date: new Date().toISOString().slice(0, 10),
-        amount: overview.gross_amount,
+        amount: overview.pending_balance,
       },
     ];
   }
@@ -3182,22 +3666,12 @@ export class PartnersService {
         [organizationId],
       );
 
-      const [grossRow] = await tx.query<{ sum: string | null }>(
-        `SELECT COALESCE(SUM(total_amount), 0)::text as sum FROM bookings WHERE partner_organization_id = $1`,
-        [organizationId],
+      const ledgerTotal = await this.ledgerBalance(tx, organizationId);
+      const alreadyCommitted = await this.committedWithdrawals(
+        tx,
+        organizationId,
       );
-      const availableBalance = Math.round(
-        Number(grossRow?.sum ?? 0) * 0.7,
-      );
-
-      const [committedRow] = await tx.query<{ sum: string | null }>(
-        `SELECT COALESCE(SUM(amount), 0)::text as sum
-         FROM withdrawal_requests
-         WHERE organization_id = $1 AND status IN ('requested', 'approved', 'paid')`,
-        [organizationId],
-      );
-      const alreadyCommitted = Number(committedRow?.sum ?? 0);
-      const remaining = availableBalance - alreadyCommitted;
+      const remaining = ledgerTotal - alreadyCommitted;
 
       if (amount > remaining) {
         throw new BadRequestException({

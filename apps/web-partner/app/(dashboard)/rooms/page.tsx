@@ -1,9 +1,9 @@
-import { RoomsView } from "./rooms-view";
+import { RoomsGate } from "./rooms-gate";
 
 export const metadata = {
   title: "Xonalar | Safaar",
 };
 
 export default function RoomsPage() {
-  return <RoomsView />;
+  return <RoomsGate />;
 }
