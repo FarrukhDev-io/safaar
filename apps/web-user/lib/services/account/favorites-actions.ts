@@ -1,7 +1,9 @@
 "use server";
 
-import { api, ApiRequestError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { ApiRequestError } from "@/lib/api";
 import { getSession } from "@/lib/auth/session";
+import { safeAction } from "@/lib/services/safe-action";
 
 /**
  * Sevimli (favorite) server action'lari. Client `FavoriteButton` ularni
@@ -16,6 +18,7 @@ export interface FavoriteResult {
   id?: string;
   /** Sessiya yo'q — kirish kerak. */
   authRequired?: boolean;
+  error?: string;
 }
 
 export async function addFavoriteAction(
@@ -32,7 +35,7 @@ export async function addFavoriteAction(
       { token: session.accessToken },
     );
     return { ok: true, id: favorite.id };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       ok: false,
       authRequired: error instanceof ApiRequestError && error.statusCode === 401,
@@ -47,10 +50,11 @@ export async function removeFavoriteAction(
   if (!session) return { ok: false, authRequired: true };
   if (!favoriteId) return { ok: false };
 
-  try {
-    await api.users.removeFavorite(favoriteId, { token: session.accessToken });
-    return { ok: true };
-  } catch {
-    return { ok: false };
-  }
+  return safeAction<FavoriteResult>(
+    async () => {
+      await api.users.removeFavorite(favoriteId, { token: session.accessToken });
+      return { ok: true };
+    },
+    { ok: false },
+  );
 }

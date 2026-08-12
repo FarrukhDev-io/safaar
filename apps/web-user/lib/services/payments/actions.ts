@@ -1,9 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { api, ApiRequestError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { getSession } from "@/lib/auth/session";
 import { defaultLocale, isLocale } from "@/i18n/config";
+import { safeAction } from "@/lib/services/safe-action";
 import type { PaymentProvider } from "./payments";
 
 export interface RetryPaymentState {
@@ -34,18 +35,18 @@ export async function createPaymentSessionAction(
   }
 
   let checkoutUrl = "";
-  try {
-    const result = await api.payments.createPaymentSession(bookingId, provider, {
-      token: session.accessToken,
-    });
-    if (result.paymentUrl) {
-      checkoutUrl = result.paymentUrl;
-    }
-  } catch (error) {
-    return {
-      error: error instanceof ApiRequestError ? error.message : "ERROR",
-    };
-  }
+  const result = await safeAction<RetryPaymentState>(
+    async () => {
+      const res = await api.payments.createPaymentSession(bookingId, provider, {
+        token: session.accessToken,
+      });
+      return { url: res.paymentUrl ?? "" };
+    },
+    { error: "ERROR" },
+  );
+
+  if (result.error) return result;
+  checkoutUrl = result.url ?? "";
 
   if (checkoutUrl) {
     redirect(checkoutUrl);

@@ -1,17 +1,11 @@
-"use client";
-
 import { type ReactNode } from "react";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/Input";
 
 export interface CatalogHeaderProps {
   icon: ReactNode;
   badge: string;
   title: string;
   subtitle: string;
-  searchValue: string;
-  onSearchChange: (value: string) => void;
-  searchPlaceholder: string;
+  searchControls?: ReactNode;
   filterControls?: ReactNode;
 }
 
@@ -20,9 +14,7 @@ export function CatalogHeader({
   badge,
   title,
   subtitle,
-  searchValue,
-  onSearchChange,
-  searchPlaceholder,
+  searchControls,
   filterControls,
 }: CatalogHeaderProps) {
   return (
@@ -39,19 +31,12 @@ export function CatalogHeader({
       </p>
 
       {/* Filter Controls Bar */}
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            type="text"
-            value={searchValue}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="pl-10"
-          />
+      {(searchControls || filterControls) && (
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          {searchControls && <div className="relative flex-1">{searchControls}</div>}
+          {filterControls}
         </div>
-        {filterControls}
-      </div>
+      )}
     </div>
   );
 }

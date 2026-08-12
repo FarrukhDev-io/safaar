@@ -1,12 +1,10 @@
-"use client";
-
-import { useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
 import { formatSum } from "@/lib/utils/money";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { ShinyText } from "@/components/ui/ShinyText";
+import { DealsMobileCarousel } from "./DealsMobileCarousel";
 
 export interface DealItem {
   id: string;
@@ -87,52 +85,10 @@ export function DealsSection({
   dict: HomeDict["deals"];
   locale: Locale;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [now, setNow] = useState(0);
-
-  useEffect(() => {
-    const timerId = setTimeout(() => setNow(Date.now()), 0);
-    const el = ref.current;
-    if (!el || deals.length < 3) return;
-
-    const checkAndInitTimer = () => {
-      if (timer.current) {
-        clearInterval(timer.current);
-        timer.current = null;
-      }
-      
-      const isMobile = window.matchMedia("(max-width: 639px)").matches;
-      if (isMobile) {
-        timer.current = setInterval(() => {
-          const cardW = el.clientWidth / 2;
-          const maxScroll = el.scrollWidth - el.clientWidth;
-
-          if (el.scrollLeft + cardW >= maxScroll - 4) {
-            el.scrollTo({ left: 0, behavior: "smooth" });
-          } else {
-            el.scrollBy({ left: cardW, behavior: "smooth" });
-          }
-        }, 6000);
-      }
-    };
-
-    checkAndInitTimer();
-
-    const handleResize = () => {
-      checkAndInitTimer();
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      clearTimeout(timerId);
-      if (timer.current) clearInterval(timer.current);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [deals.length]);
-
   if (deals.length === 0) return null;
+
+  // RSC rendering evaluates `now` on the server during request time
+  const now = Date.now();
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 sm:px-6">
@@ -145,11 +101,8 @@ export function DealsSection({
         </p>
       </div>
 
-      {/* Mobile Carousel */}
-      <div
-        ref={ref}
-        className="scrollbar-none flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory sm:hidden"
-      >
+      {/* Mobile Carousel (Client wrapper for interaction, Server Children) */}
+      <DealsMobileCarousel itemsCount={deals.length}>
         {deals.map((deal) => (
           <div
             key={deal.id}
@@ -158,7 +111,7 @@ export function DealsSection({
             <DealCard deal={deal} locale={locale} dict={dict} now={now} />
           </div>
         ))}
-      </div>
+      </DealsMobileCarousel>
 
       {/* Desktop Grid */}
       <div className="hidden sm:grid sm:grid-cols-4 sm:gap-4">

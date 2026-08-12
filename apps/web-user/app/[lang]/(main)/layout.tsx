@@ -6,6 +6,11 @@ import { PromoBarLive } from "@/components/layout/PromoBarLive";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { getPromoBarConfig } from "@/lib/promo";
 import { RealtimeProvider } from "@/lib/services/realtime/socket-provider";
+import nextDynamic from "next/dynamic";
+
+const LiveSupportWidget = nextDynamic(
+  () => import("@/components/chat/LiveSupportWidget").then((mod) => mod.LiveSupportWidget)
+);
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +40,7 @@ export default async function MainLayout({
       <SiteHeader locale={locale} dict={common} authed={!!session} />
       <div className="flex flex-1 flex-col bg-slate-100/60 dark:bg-slate-950">{children}</div>
       <SiteFooter locale={locale} dict={common} />
+      <LiveSupportWidget />
     </RealtimeProvider>
   );
 }

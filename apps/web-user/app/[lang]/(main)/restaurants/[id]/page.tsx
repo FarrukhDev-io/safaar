@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { isLocale } from "@/i18n/config";
+import { cache } from "react";
+import { isLocale, type Locale } from "@/i18n/config";
 import { api, ApiRequestError } from "@/lib/api";
 import { BackButton } from "@/components/ui/BackButton";
 import { Badge } from "@/components/ui/Badge";
@@ -10,6 +11,10 @@ import { RestaurantBookingSection } from "@/components/features/restaurants/Rest
 
 export const dynamic = "force-dynamic";
 
+const getRestaurant = cache(async (id: string, locale: Locale) => {
+  return await api.catalog.getRestaurant(id, locale);
+});
+
 export async function generateMetadata({
   params,
 }: {
@@ -18,7 +23,7 @@ export async function generateMetadata({
   const { lang, id } = await params;
   const locale = isLocale(lang) ? lang : "uz";
   try {
-    const restaurant = await api.catalog.getRestaurant(id, locale);
+    const restaurant = await getRestaurant(id, locale);
     return {
       title: `${restaurant.name} — Safaar`,
       description: restaurant.description?.slice(0, 160),
@@ -38,7 +43,7 @@ export default async function RestaurantDetailPage({
 
   let restaurant;
   try {
-    restaurant = await api.catalog.getRestaurant(id, locale);
+    restaurant = await getRestaurant(id, locale);
   } catch (error: unknown) {
     if (error instanceof ApiRequestError && error.statusCode === 404) {
       notFound();
