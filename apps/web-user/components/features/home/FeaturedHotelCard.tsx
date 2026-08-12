@@ -1,5 +1,3 @@
-"use client";
-
 import { ArrowRight } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import { formatSum } from "@/lib/utils/money";
