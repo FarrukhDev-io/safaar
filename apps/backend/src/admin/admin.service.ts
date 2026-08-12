@@ -563,6 +563,12 @@ export class AdminService {
 
   private invalidatePublicBusCache() {
     void this.cache.delByPattern('bus-trips:list:*');
+    // `catalog:transports` (GET /catalog/transports, the public Transport
+    // page's data source) is a single fixed key, not a `bus-trips:*` one —
+    // it was never cleared here, so approving/suspending a bus partner or
+    // toggling a vehicle's status could take up to its 1h TTL to show on
+    // the public site.
+    void this.cache.del('catalog:transports');
   }
 
   private async uniqueHotelSlug(

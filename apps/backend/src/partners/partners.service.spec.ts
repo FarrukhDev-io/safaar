@@ -1,5 +1,6 @@
 import { Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
+import type { AppCacheService } from '../infrastructure/cache.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { EventsService } from '../realtime/events.service';
@@ -928,6 +929,86 @@ describe('PartnersService.busCompany / updateBusCompany (read + rename for the t
     await expect(
       service.updateBusCompany(actor, { name: 'Whatever' }),
     ).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('PartnersService vehicle/company mutations invalidate the public transport cache (regression: GET /catalog/transports is cached for 1h with zero invalidation hooks — a partner creating a company or vehicle would not appear on the public Transport page for up to an hour)', () => {
+  let service: PartnersService;
+  let pg: { query: jest.Mock };
+  let cache: { del: jest.Mock };
+  const actor: RequestActor = {
+    id: 'partner-user-1',
+    actorType: 'partner',
+    role: Role.PARTNER,
+    roles: [Role.PARTNER],
+    organizationId: 'org-1',
+    sessionId: 'session-1',
+  };
+
+  beforeEach(() => {
+    pg = { query: jest.fn() };
+    cache = { del: jest.fn() };
+    service = new PartnersService(
+      pg as unknown as PostgresService,
+      { add: jest.fn() } as unknown as JobQueueService,
+      undefined,
+      cache as unknown as AppCacheService,
+    );
+  });
+
+  it('invalidates catalog:transports when a new bus company is created', async () => {
+    pg.query
+      .mockResolvedValueOnce([{ type: 'bus', brand_name: 'Comfort Bus', legal_name: null }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'company-1', status: 'active' }]);
+
+    await service.createBusCompany(actor, {});
+
+    expect(cache.del).toHaveBeenCalledWith('catalog:transports');
+  });
+
+  it('invalidates catalog:transports when a bus company is renamed', async () => {
+    pg.query
+      .mockResolvedValueOnce([{ id: 'company-1' }])
+      .mockResolvedValueOnce([{ id: 'company-1', name: 'New Name' }]);
+
+    await service.updateBusCompany(actor, { name: 'New Name' });
+
+    expect(cache.del).toHaveBeenCalledWith('catalog:transports');
+  });
+
+  it('invalidates catalog:transports when a vehicle is created', async () => {
+    pg.query
+      .mockResolvedValueOnce([{ id: 'company-1' }]) // busCompanyId lookup
+      .mockResolvedValueOnce([{ id: 'vehicle-1' }]); // INSERT ... RETURNING
+
+    await service.createVehicle(actor, { name: 'Mercedes Sprinter', seats_count: 18 });
+
+    expect(cache.del).toHaveBeenCalledWith('catalog:transports');
+  });
+
+  it('invalidates catalog:transports when a vehicle is updated', async () => {
+    pg.query
+      .mockResolvedValueOnce([{ id: 'vehicle-1' }]) // assertVehicle
+      .mockResolvedValueOnce([{ id: 'vehicle-1', status: 'inactive' }]);
+
+    await service.updateVehicle(actor, 'vehicle-1', { status: 'inactive' });
+
+    expect(cache.del).toHaveBeenCalledWith('catalog:transports');
+  });
+
+  it('does not throw when no cache service is provided (cache is optional)', async () => {
+    const serviceWithoutCache = new PartnersService(
+      pg as unknown as PostgresService,
+      { add: jest.fn() } as unknown as JobQueueService,
+    );
+    pg.query
+      .mockResolvedValueOnce([{ id: 'company-1' }])
+      .mockResolvedValueOnce([{ id: 'vehicle-1' }]);
+
+    await expect(
+      serviceWithoutCache.createVehicle(actor, { name: 'Bus', seats_count: 20 }),
+    ).resolves.toBeDefined();
   });
 });
 

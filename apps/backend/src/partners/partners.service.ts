@@ -20,6 +20,7 @@ import {
   PostgresService,
   type PostgresTransaction,
 } from '../infrastructure/postgres.service';
+import { AppCacheService } from '../infrastructure/cache.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import { hashSecret, partnerApiPepper, randomToken } from '../auth/security';
 import { randomUUID } from 'node:crypto';
@@ -95,7 +96,20 @@ export class PartnersService {
     private readonly pg: PostgresService,
     private readonly jobs: JobQueueService,
     @Optional() private readonly events?: EventsService,
+    @Optional() private readonly cache?: AppCacheService,
   ) {}
+
+  /**
+   * `catalog:transports` (GET /catalog/transports — public Transport
+   * sahifasining ma'lumot manbai) 1 soatlik TTL bilan keshlanadi va hech
+   * qayerda avtomatik tozalanmaydi edi: hamkor yangi transport qo'shsa ham,
+   * u ko'pi bilan 1 soatgacha `/transport`da ko'rinmasdi — bu aynan
+   * "tasdiqlangan e'lon Transport sahifasida ko'rinmayapti" shikoyatining
+   * bir qismi edi.
+   */
+  private invalidatePublicTransportCache() {
+    void this.cache?.del('catalog:transports');
+  }
 
   // ---------------------------------------------------------------------------
   // Dashboard
@@ -2424,6 +2438,7 @@ export class PartnersService {
                  rating_average::float8, reviews_count, created_at, updated_at`,
       [randomUUID(), organizationId, name, now],
     );
+    this.invalidatePublicTransportCache();
     return company;
   }
 
@@ -2463,6 +2478,7 @@ export class PartnersService {
                  rating_average::float8, reviews_count, created_at, updated_at`,
       [name, new Date().toISOString(), companyId],
     );
+    this.invalidatePublicTransportCache();
     return company;
   }
 
@@ -2512,6 +2528,7 @@ export class PartnersService {
         now,
       ],
     );
+    this.invalidatePublicTransportCache();
     return vehicle;
   }
 
@@ -2540,6 +2557,7 @@ export class PartnersService {
         id,
       ],
     );
+    this.invalidatePublicTransportCache();
     return vehicle;
   }
 
