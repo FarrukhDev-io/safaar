@@ -3,7 +3,8 @@ import type { Locale } from "@/i18n/config";
 import type { AuthDict } from "@/i18n/dictionaries";
 import { BackButton } from "@/components/ui/BackButton";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
-import MaskedHeading from "@/components/reactbits/MaskedHeading";
+import dynamic from "next/dynamic";
+const MaskedHeading = dynamic(() => import("@/components/reactbits/MaskedHeading"), { ssr: false });
 
 interface AuthSplitLayoutProps {
   children: ReactNode;

@@ -1,7 +1,8 @@
 import { api } from "@/lib/api";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
-import AccordionGallery from "@/components/ui/AccordionGallery";
+import dynamic from "next/dynamic";
+const AccordionGallery = dynamic(() => import("@/components/ui/AccordionGallery"), { ssr: false });
 import SoftBlurIn from "@/components/animata/text/soft-blur-in";
 
 export async function CityCardsSection({

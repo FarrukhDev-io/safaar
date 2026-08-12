@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
 import type { CSSProperties, ElementType } from 'react';
 import { gsap } from 'gsap';
+import Image from 'next/image';
 
 const clamp = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
 
@@ -347,7 +348,7 @@ const MaskedHeading: React.FC<MaskedHeadingProps> = ({
                 playsInline
               />
             ) : (
-              <img className="block w-full h-full object-cover select-none" src={src} alt="" draggable={false} />
+              <Image className="block object-cover select-none" src={src} alt="" fill draggable={false} />
             )}
           </span>
         </span>
