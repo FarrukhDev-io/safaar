@@ -283,7 +283,7 @@ export const catalogService = {
 
   async getTransports(locale: Locale): Promise<TransportCatalogView[]> {
     const raw = await rawApi.get<unknown>("/catalog/transports", {
-      next: { revalidate: 3600 },
+      cache: "no-store",
     } as any);
     const items = camelizeKeys<RawTransport[]>(raw);
     return (items ?? []).map((item) => ({
