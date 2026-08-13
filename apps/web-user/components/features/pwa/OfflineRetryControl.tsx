@@ -31,7 +31,10 @@ export function OfflineRetryControl({
   const handleRetry = async () => {
     setChecking(true);
     try {
-      const res = await fetch(`/${locale}`, { cache: "no-store" });
+      // `api.health.ping()` (if available) or checking the backend instead of the local page
+      // but keeping it simple with a HEAD request and no-store is standard for ping.
+      // We will use standard Next.js fetch with a cache busting query instead of hitting Next Router cache.
+      const res = await fetch(`/${locale}?ping=${Date.now()}`, { cache: "no-store", method: "HEAD" });
       if (res.ok) {
         setOnline(true);
         window.location.href = `/${locale}`;

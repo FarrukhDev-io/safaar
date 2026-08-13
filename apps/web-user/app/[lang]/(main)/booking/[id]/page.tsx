@@ -94,8 +94,15 @@ export default async function BookingDetailPage({
   const isAwaitingCash = payment?.status === 'awaiting_cash';
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
-      <BackButton className="fixed left-4 top-16 z-50 md:left-8 md:top-20" />
+    <main className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
+      {/* Desktop Side Button */}
+      <div className="absolute -left-12 top-12 hidden lg:block">
+        <BackButton />
+      </div>
+
+      <div className="mb-2 lg:hidden">
+        <BackButton />
+      </div>
 
       {isConfirmed ? (
         <div className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/40">

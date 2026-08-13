@@ -1,11 +1,11 @@
-import { notFound, redirect } from 'next/navigation';
-import type { Metadata } from 'next';
-import { isLocale, type Locale } from '@/i18n/config';
-import { getDictionary } from '@/i18n/dictionaries';
-import { getSession } from '@/lib/auth/session';
-import { api, ApiRequestError } from '@/lib/api';
-import { CheckoutForm } from './_components/CheckoutForm';
-import { BackButton } from '@/components/ui/BackButton';
+import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { isLocale, type Locale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/dictionaries";
+import { getSession } from "@/lib/auth/session";
+import { api, ApiRequestError } from "@/lib/api";
+import { CheckoutForm } from "./_components/CheckoutForm";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -42,19 +42,24 @@ export default async function CheckoutPage({
 
   const hotelId = one(sp.hotelId);
   const roomId = one(sp.roomId);
-  const checkIn = one(sp.checkIn) ?? '';
-  const checkOut = one(sp.checkOut) ?? '';
+  const checkIn = one(sp.checkIn) ?? "";
+  const checkOut = one(sp.checkOut) ?? "";
   const guests = Number(one(sp.guests) ?? 2) || 2;
 
   if (!hotelId || !roomId) {
     redirect(`/${locale}/hotels`);
   }
 
+  // SENIOR OPTIMIZATION: Fetch session, dictionaries and hotel info in parallel
   const [session, dict, hotel] = await Promise.all([
     getSession(),
-    getDictionary(locale, 'checkout'),
+    getDictionary(locale, "checkout"),
     getCheckoutHotel(locale, hotelId),
   ]);
+
+  if (false) {
+    // Session is not required for guest checkout.
+  }
 
   const room = hotel?.rooms.find((r) => r.id === roomId);
   if (!hotel || !room) {
@@ -62,11 +67,18 @@ export default async function CheckoutPage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
-      <BackButton className="fixed left-4 top-16 z-50 md:left-8 md:top-20" />
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-        {dict.title}
-      </h1>
+    <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
+      {/* Desktop Side Button */}
+      <div className="absolute -left-12 top-8 hidden xl:block">
+        <BackButton />
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="xl:hidden">
+          <BackButton />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{dict.title}</h1>
+      </div>
       <CheckoutForm
         locale={locale}
         dict={dict}

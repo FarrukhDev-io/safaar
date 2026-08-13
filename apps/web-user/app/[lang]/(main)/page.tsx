@@ -17,6 +17,7 @@ import {
 import { PromoCodesSectionLive } from '@/components/features/home/PromoCodesSectionLive';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { buttonVariants } from '@/components/ui/button-variants';
+import { CityPills } from '@/components/features/home/CityPills';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,17 +80,7 @@ export default async function HomePage({
           </section>
 
           {cities.length > 0 && (
-            <div className="mx-auto mt-2 flex max-w-5xl flex-nowrap items-center justify-start sm:justify-center gap-2 overflow-x-auto px-4 py-2 sm:mt-4 scrollbar-none">
-              {cities.slice(0, 8).map((city) => (
-                <Link
-                  key={city.id}
-                  href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-                  className="shrink-0 rounded-full border border-slate-300 bg-white px-7 py-3 text-[15px] font-bold text-slate-800 shadow transition-all duration-300 hover:border-slate-400 hover:text-primary-600 hover:shadow-md active:scale-[0.98]"
-                >
-                  <span className="capitalize">{city.name}</span>
-                </Link>
-              ))}
-            </div>
+            <CityPills cities={cities} locale={locale} />
           )}
         </div>
 

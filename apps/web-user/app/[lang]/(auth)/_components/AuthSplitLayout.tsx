@@ -3,6 +3,8 @@ import type { Locale } from "@/i18n/config";
 import type { AuthDict } from "@/i18n/dictionaries";
 import { BackButton } from "@/components/ui/BackButton";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
+import dynamic from "next/dynamic";
+const MaskedHeading = dynamic(() => import("@/components/reactbits/MaskedHeading"), { ssr: false });
 
 interface AuthSplitLayoutProps {
   children: ReactNode;
@@ -23,16 +25,24 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
         {/* Brand & Hero Slogan Grouped (Vertically Centered) */}
         <div className="my-auto max-w-md space-y-8 relative z-10">
           {/* Brand indicator */}
-          <div className="flex justify-center items-center gap-2">
-            <span className="text-4xl font-black tracking-wider text-white">
-              SAFAAR
-            </span>
+          <div className="flex justify-center items-center gap-2 w-full">
+            <MaskedHeading
+              text="SAFAAR"
+              src="/Bukhara-old-city-golden-hour.jpeg"
+              reveal="rise"
+              duration={1.2}
+              align="center"
+              weight={900}
+              textScale={0.20}
+            />
           </div>
 
           {/* Hero slogan / value proposition */}
-          <h2 className="text-4xl font-extrabold leading-tight tracking-tight lg:text-5xl text-white">
-            {dict.bannerTitle}
-          </h2>
+          <div className="w-full flex justify-center items-center mt-6">
+            <h2 className="text-3xl font-extrabold leading-tight tracking-tight lg:text-4xl text-white text-center animate-in fade-in slide-in-from-bottom-4 duration-1000 fill-mode-both delay-300">
+              {dict.bannerTitle}
+            </h2>
+          </div>
         </div>
       </div>
 
@@ -43,8 +53,7 @@ export function AuthSplitLayout({ children, locale, dict }: AuthSplitLayoutProps
           <BackButton />
           <LocaleSwitcher current={locale} light />
         </div>
-        
-        <div className="w-full max-w-[420px] space-y-6 bg-card border border-slate-100 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.07),_0_10px_20px_-10px_rgba(0,0,0,0.04)] rounded-3xl p-6 sm:p-8 transition-all duration-300">
+        <div className="w-full max-w-[420px] space-y-6 bg-card border border-slate-100 shadow-card rounded-3xl p-6 sm:p-8 transition-all duration-300 hover:shadow-card-hover">
           {children}
         </div>
       </div>

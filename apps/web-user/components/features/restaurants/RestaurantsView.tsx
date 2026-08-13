@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Clock, MapPin, PhoneCall, Star, Utensils } from "lucide-react";
+import { Clock, MapPin, PhoneCall, Star, Utensils, Search } from "lucide-react";
 import { formatSum } from "@/lib/money";
 import type { Locale } from "@/i18n/config";
 import type { CatalogDict } from "@/i18n/dictionaries";
@@ -10,6 +10,7 @@ import type { RestaurantItem } from "@/components/catalog/types";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
 
 export type { RestaurantItem };
 
@@ -136,9 +137,18 @@ export function RestaurantsView({
         badge={dict.badge}
         title={dict.title}
         subtitle={dict.subtitle}
-        searchValue={query}
-        onSearchChange={setQuery}
-        searchPlaceholder={dict.searchPlaceholder}
+        searchControls={
+          <>
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={dict.searchPlaceholder}
+              className="pl-10"
+            />
+          </>
+        }
         filterControls={
           <div className="flex flex-wrap gap-2">
             <Select

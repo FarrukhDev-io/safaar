@@ -1,72 +1,80 @@
 "use server";
 
-import { api, ApiRequestError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { getSession } from "@/lib/auth/session";
+import { safeAction } from "@/lib/services/safe-action";
 
-export async function uploadAvatarAction(formData: FormData) {
-  const session = await getSession();
-  if (!session) return { ok: false, error: "Unauthorized" };
+type SimpleResult = { ok: boolean; error?: string };
 
+export async function uploadAvatarAction(formData: FormData): Promise<SimpleResult> {
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) return { ok: false, error: "No file provided" };
 
-  try {
-    await api.users.uploadAvatar(file, { token: session.accessToken });
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof ApiRequestError ? error.message : "ERROR" };
-  }
-}
-
-export async function deleteAvatarAction() {
   const session = await getSession();
   if (!session) return { ok: false, error: "Unauthorized" };
 
-  try {
-    await api.users.deleteAvatar({ token: session.accessToken });
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof ApiRequestError ? error.message : "ERROR" };
-  }
+  return safeAction<SimpleResult>(
+    async () => {
+      await api.users.uploadAvatar(file, { token: session.accessToken });
+      return { ok: true };
+    },
+    { ok: false, error: "ERROR" },
+  );
 }
 
-export async function updateNotificationPreferencesAction(formData: FormData) {
+export async function deleteAvatarAction(): Promise<SimpleResult> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Unauthorized" };
-  
+
+  return safeAction<SimpleResult>(
+    async () => {
+      await api.users.deleteAvatar({ token: session.accessToken });
+      return { ok: true };
+    },
+    { ok: false, error: "ERROR" },
+  );
+}
+
+export async function updateNotificationPreferencesAction(formData: FormData): Promise<SimpleResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Unauthorized" };
+
   const data = {
     emailAlerts: formData.get("emailAlerts") === "on",
     smsAlerts: formData.get("smsAlerts") === "on",
   };
 
-  try {
-    await api.users.updateNotificationPreferences(data, { token: session.accessToken });
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof ApiRequestError ? error.message : "ERROR" };
-  }
+  return safeAction<SimpleResult>(
+    async () => {
+      await api.users.updateNotificationPreferences(data, { token: session.accessToken });
+      return { ok: true };
+    },
+    { ok: false, error: "ERROR" },
+  );
 }
 
-export async function requestDataExportAction() {
+export async function requestDataExportAction(): Promise<SimpleResult> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Unauthorized" };
 
-  try {
-    await api.users.requestDataExport({ token: session.accessToken });
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof ApiRequestError ? error.message : "ERROR" };
-  }
+  return safeAction<SimpleResult>(
+    async () => {
+      await api.users.requestDataExport({ token: session.accessToken });
+      return { ok: true };
+    },
+    { ok: false, error: "ERROR" },
+  );
 }
 
-export async function requestAccountDeletionAction() {
+export async function requestAccountDeletionAction(): Promise<SimpleResult> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Unauthorized" };
 
-  try {
-    await api.users.requestAccountDeletion({ token: session.accessToken });
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof ApiRequestError ? error.message : "ERROR" };
-  }
+  return safeAction<SimpleResult>(
+    async () => {
+      await api.users.requestAccountDeletion({ token: session.accessToken });
+      return { ok: true };
+    },
+    { ok: false, error: "ERROR" },
+  );
 }
