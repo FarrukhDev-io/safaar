@@ -24,6 +24,22 @@ async function redirectToLoginIfSessionExpired(
   }
 }
 
+/**
+ * `GET /bookings/:id` login talab qiladi (IDOR himoyasi) — guest (login
+ * qilmagan) mijoz o'zi yaratgan bronni ko'ra olmaydi, faqat bron raqami +
+ * email orqali (`lookupBooking`). Shuning uchun guest checkout'dan keyingi
+ * yo'naltirishga shu ikkalasi query param sifatida qo'shiladi — tasdiqlash
+ * sahifasi buni ko'rib, `getBooking` o'rniga `lookupBooking` chaqiradi.
+ */
+function guestConfirmationQuery(
+  isGuest: boolean,
+  bookingNumber: string,
+  email?: string,
+): string {
+  if (!isGuest || !bookingNumber || !email) return '';
+  return `&bn=${encodeURIComponent(bookingNumber)}&ge=${encodeURIComponent(email)}`;
+}
+
 export interface CheckoutState {
   error?: string;
 }
@@ -63,6 +79,7 @@ export async function createBookingAction(
     phone: formData.get('phone') ? String(formData.get('phone')) : undefined,
   };
   let bookingId = '';
+  let bookingNumber = '';
   let checkoutUrl = '';
 
   try {
@@ -70,6 +87,7 @@ export async function createBookingAction(
       token: session?.accessToken,
     });
     bookingId = booking.id;
+    bookingNumber = booking.bookingNumber;
     checkoutUrl = booking.payment?.url ?? '';
 
     try {
@@ -101,8 +119,10 @@ export async function createBookingAction(
     return { error: 'ERROR' };
   }
 
+  const guestQuery = guestConfirmationQuery(!session, bookingNumber, input.email);
+
   if (paymentMethod === 'cash') {
-    redirect(`/${locale}/booking/${bookingId}?status=confirmed&payment=cash`);
+    redirect(`/${locale}/booking/${bookingId}?status=confirmed&payment=cash${guestQuery}`);
   }
 
   if (checkoutUrl) {
@@ -110,7 +130,7 @@ export async function createBookingAction(
   }
 
   redirect(
-    `/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}`,
+    `/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}${guestQuery}`,
   );
 }
 
@@ -232,6 +252,7 @@ export async function createVehicleBookingAction(
     phone: formData.get('phone') ? String(formData.get('phone')) : undefined,
   };
   let bookingId = '';
+  let bookingNumber = '';
   let checkoutUrl = '';
 
   try {
@@ -239,6 +260,7 @@ export async function createVehicleBookingAction(
       token: session?.accessToken,
     });
     bookingId = booking.id;
+    bookingNumber = booking.bookingNumber;
     checkoutUrl = booking.payment?.url ?? '';
 
     try {
@@ -270,8 +292,10 @@ export async function createVehicleBookingAction(
     return { error: 'ERROR' };
   }
 
+  const guestQuery = guestConfirmationQuery(!session, bookingNumber, input.email);
+
   if (paymentMethod === 'cash') {
-    redirect(`/${locale}/booking/${bookingId}?status=confirmed&payment=cash`);
+    redirect(`/${locale}/booking/${bookingId}?status=confirmed&payment=cash${guestQuery}`);
   }
 
   if (checkoutUrl) {
@@ -279,6 +303,6 @@ export async function createVehicleBookingAction(
   }
 
   redirect(
-    `/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}`,
+    `/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}${guestQuery}`,
   );
 }

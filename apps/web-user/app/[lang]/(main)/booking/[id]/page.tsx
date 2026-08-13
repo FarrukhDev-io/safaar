@@ -23,11 +23,32 @@ function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-async function getBookingOrNull(id: string, token?: string) {
+/**
+ * `GET /bookings/:id` login talab qiladi (IDOR himoyasi) — sessiya
+ * bo'lmasa (guest), buning o'rniga bron raqami + email orqali
+ * `lookupBooking` chaqiriladi (checkout paytida
+ * `guestConfirmationQuery`dan kelgan `bn`/`ge` query parametrlari orqali).
+ * Ikkalasi ham muvaffaqiyatsiz bo'lsa — xatolik tashlanmaydi, sahifa
+ * mavjud "bron topilmadi" holatini ko'rsatadi.
+ */
+async function getBookingOrNull(
+  id: string,
+  token: string | undefined,
+  guestLookup: { bookingNumber: string; email: string } | null,
+) {
   try {
+    if (!token && guestLookup) {
+      return await api.bookings.lookupBooking(
+        guestLookup.bookingNumber,
+        guestLookup.email,
+      );
+    }
     return await api.bookings.getBooking(id, token ? { token } : undefined);
   } catch (error) {
-    if (error instanceof ApiRequestError && error.statusCode === 404) {
+    if (
+      error instanceof ApiRequestError &&
+      (error.statusCode === 404 || error.statusCode === 401 || error.statusCode === 403)
+    ) {
       return null;
     }
     throw error;
@@ -47,6 +68,8 @@ export default async function BookingDetailPage({
   const sp = await searchParams;
 
   const providerQuery = one(sp.provider);
+  const bookingNumberQuery = one(sp.bn);
+  const guestEmailQuery = one(sp.ge);
 
   const [dict, session] = await Promise.all([
     getDictionary(locale, 'booking'),
@@ -56,6 +79,9 @@ export default async function BookingDetailPage({
   const booking: BookingView | null = await getBookingOrNull(
     id,
     session?.accessToken,
+    bookingNumberQuery && guestEmailQuery
+      ? { bookingNumber: bookingNumberQuery, email: guestEmailQuery }
+      : null,
   );
 
   if (!booking) {

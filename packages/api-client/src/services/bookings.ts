@@ -100,6 +100,24 @@ export const bookingsService = {
     return toBookingView(camelizeKeys(raw));
   },
 
+  /**
+   * `POST /bookings/lookup` — login qilmagan (guest) mijoz o'z bronini
+   * xom ID orqali emas, balki bron raqami + email juftligi orqali qidiradi.
+   * `GET /bookings/:id` guestlar uchun ataylab yopiq (IDOR himoyasi) —
+   * checkout tugagach guest'ni tasdiqlash sahifasiga yo'naltirishda shu
+   * funksiya ishlatiladi.
+   */
+  async lookupBooking(
+    bookingNumber: string,
+    email: string,
+  ): Promise<BookingView> {
+    const raw = await rawApi.post<unknown>(
+      '/bookings/lookup',
+      { booking_number: bookingNumber, email },
+    );
+    return toBookingView(camelizeKeys(raw));
+  },
+
   /** `POST /bookings/bus` — avtobus broni yaratish. */
   async createBusBooking(
     input: CreateBusBookingInput,
