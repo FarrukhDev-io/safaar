@@ -65,7 +65,13 @@ export function toBookingView(raw: RawEnvelope): BookingView {
     bookingNumber: booking.bookingNumber ?? "",
     status: booking.status ?? "PENDING",
     type: booking.type ?? "hotel",
-    totalSum: tiyinToSum(booking.totalAmount ?? 0),
+    // `bookings.total_amount` so'mda saqlanadi (partner narx maydonlari —
+    // `hotel_rooms.base_price`, `vehicles.price_per_day` — hech qanday
+    // tiyinga aylantirmasdan to'g'ridan-to'g'ri yoziladi; production
+    // ma'lumotlar bilan tasdiqlangan: masalan base_price=400000.00,
+    // bookings.total_amount=980000.00 — bular aniq so'm, tiyin emas).
+    // `tiyinToSum` shu yerda narxni 100x kichik ko'rsatib qo'yardi.
+    totalSum: Number(booking.totalAmount ?? 0),
     currency: "UZS",
     createdAt: booking.createdAt ?? "",
     payment: toPaymentView(payment),
