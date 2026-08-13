@@ -1024,6 +1024,81 @@ describe('PartnersService vehicle/company mutations invalidate the public transp
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  it('rejects an implausible seat count on creation (regression: audit found 999999 seats accepted)', async () => {
+    pg.query.mockResolvedValueOnce([{ id: 'company-1' }]);
+
+    await expect(
+      service.createVehicle(actor, {
+        name: 'Mega Van',
+        seats_count: 999999,
+        price_per_day: 100000,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('rejects a non-integer seat count on creation (regression: audit found 5.5 seats only failed at the raw DB layer with an unhelpful error)', async () => {
+    pg.query.mockResolvedValueOnce([{ id: 'company-1' }]);
+
+    await expect(
+      service.createVehicle(actor, {
+        name: 'Half Seat Car',
+        seats_count: 5.5,
+        price_per_day: 100000,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('rejects an implausible daily price on creation (regression: audit found 999999999999 accepted)', async () => {
+    pg.query.mockResolvedValueOnce([{ id: 'company-1' }]);
+
+    await expect(
+      service.createVehicle(actor, {
+        name: 'Overpriced Car',
+        seats_count: 4,
+        price_per_day: 999999999999,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('rejects an implausibly short plate number (regression: audit found "asdfghjkl"-style garbage accepted with zero format checking)', async () => {
+    pg.query.mockResolvedValueOnce([{ id: 'company-1' }]);
+
+    await expect(
+      service.createVehicle(actor, {
+        name: 'Bad Plate Car',
+        seats_count: 4,
+        price_per_day: 100000,
+        plate_number: 'AB',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('rejects a negative price_per_day on UPDATE (regression: createVehicle validated price but updateVehicle did not — confirmed live via PATCH during audit)', async () => {
+    pg.query.mockResolvedValueOnce([{ id: 'vehicle-1' }]); // assertVehicle
+
+    await expect(
+      service.updateVehicle(actor, 'vehicle-1', { price_per_day: -50000 }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('rejects an arbitrary/garbage status value on UPDATE (regression: audit found any string accepted, e.g. "totally_bogus_status_xyz")', async () => {
+    pg.query.mockResolvedValueOnce([{ id: 'vehicle-1' }]); // assertVehicle
+
+    await expect(
+      service.updateVehicle(actor, 'vehicle-1', { status: 'totally_bogus_status_xyz' }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('accepts the documented status values on UPDATE', async () => {
+    pg.query
+      .mockResolvedValueOnce([{ id: 'vehicle-1' }]) // assertVehicle
+      .mockResolvedValueOnce([{ id: 'vehicle-1', status: 'inactive' }]);
+
+    await expect(
+      service.updateVehicle(actor, 'vehicle-1', { status: 'inactive' }),
+    ).resolves.toMatchObject({ status: 'inactive' });
+  });
+
   it('invalidates catalog:transports when a vehicle is updated', async () => {
     pg.query
       .mockResolvedValueOnce([{ id: 'vehicle-1' }]) // assertVehicle

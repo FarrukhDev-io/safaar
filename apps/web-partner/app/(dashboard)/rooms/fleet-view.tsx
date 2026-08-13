@@ -67,12 +67,24 @@ export function FleetView() {
       toast.error("Transport nomini kiriting");
       return;
     }
-    if (!draft.seatsCount || draft.seatsCount < 1) {
-      toast.error("O'rindiqlar sonini to'g'ri kiriting");
+    if (
+      !Number.isInteger(draft.seatsCount) ||
+      draft.seatsCount < 1 ||
+      draft.seatsCount > 30
+    ) {
+      toast.error("O'rindiqlar soni 1 dan 30 gacha butun son bo'lishi kerak");
       return;
     }
-    if (!draft.pricePerDay || draft.pricePerDay < 1) {
+    if (
+      !draft.pricePerDay ||
+      draft.pricePerDay < 1 ||
+      draft.pricePerDay > 50_000_000
+    ) {
       toast.error("Kunlik narxni to'g'ri kiriting");
+      return;
+    }
+    if (draft.plateNumber && draft.plateNumber.trim().length < 4) {
+      toast.error("Davlat raqami noto'g'ri formatda");
       return;
     }
     try {
@@ -218,6 +230,8 @@ export function FleetView() {
                 setDraft((d) => ({ ...d, plateNumber: e.target.value }))
               }
               placeholder="01 A 123 BC"
+              minLength={4}
+              maxLength={16}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -226,11 +240,13 @@ export function FleetView() {
               id="vehicle-seats"
               type="number"
               min={1}
+              max={30}
+              step={1}
               value={draft.seatsCount || ""}
               onChange={(e) =>
                 setDraft((d) => ({
                   ...d,
-                  seatsCount: Number(e.target.value) || 0,
+                  seatsCount: Math.round(Number(e.target.value)) || 0,
                 }))
               }
             />
@@ -241,6 +257,7 @@ export function FleetView() {
               id="vehicle-price"
               type="number"
               min={1}
+              max={50000000}
               value={draft.pricePerDay || ""}
               onChange={(e) =>
                 setDraft((d) => ({

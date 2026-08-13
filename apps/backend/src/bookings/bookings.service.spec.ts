@@ -644,6 +644,20 @@ describe('BookingsService.createVehicleRental (rent-a-car: date-range booking ag
 
     expect(pg.transaction).not.toHaveBeenCalled();
   });
+
+  it('rejects a pickup date in the past (regression: audit found a 2020-01-01 booking succeeded live on production)', async () => {
+    pg.query.mockResolvedValueOnce([vehicleLookupRow]);
+
+    await expect(
+      service.createVehicleRental(undefined, {
+        vehicle_id: 'vehicle-1',
+        check_in: '2020-01-01',
+        check_out: '2020-01-03',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(pg.transaction).not.toHaveBeenCalled();
+  });
 });
 
 describe('BookingsService.cancel (regression: explicit cancellation never released bus seats)', () => {
@@ -691,6 +705,7 @@ describe('BookingsService.cancel (regression: explicit cancellation never releas
       .mockResolvedValueOnce([bookingRow]) // assertBooking
       .mockResolvedValueOnce([{ ...bookingRow, status: 'cancelled' }]) // UPDATE bookings RETURNING *
       .mockResolvedValueOnce([]) // UPDATE trip_seats
+      .mockResolvedValueOnce([]) // SELECT paid payment (none)
       .mockResolvedValueOnce([]); // addStatusHistory INSERT
 
     const result = await service.cancel(actor, 'booking-1', {});
@@ -709,6 +724,50 @@ describe('BookingsService.cancel (regression: explicit cancellation never releas
     await expect(service.cancel(actor, 'booking-1', {})).rejects.toMatchObject({
       status: 422,
     });
+  });
+
+  it('auto-creates an 80%-policy refund request when cancelling a PAID booking (regression: audit found self-service cancel never triggered any refund — money vanished with no record)', async () => {
+    pg.query
+      .mockResolvedValueOnce([bookingRow]) // assertBooking
+      .mockResolvedValueOnce([{ ...bookingRow, status: 'cancelled' }]) // UPDATE bookings RETURNING *
+      .mockResolvedValueOnce([]) // UPDATE trip_seats
+      .mockResolvedValueOnce([{ amount: '100000', currency: 'UZS' }]) // SELECT paid payment (found)
+      .mockResolvedValueOnce([]) // SELECT existing refund (none)
+      .mockResolvedValueOnce([]) // INSERT INTO refunds
+      .mockResolvedValueOnce([]); // addStatusHistory INSERT
+
+    await service.cancel(actor, 'booking-1', {});
+
+    const refundInsert = pg.query.mock.calls.find(([sql]) =>
+      String(sql).includes('INSERT INTO refunds'),
+    );
+    expect(refundInsert).toBeDefined();
+    expect(refundInsert?.[1]).toEqual([
+      expect.any(String),
+      'booking-1',
+      'user-1',
+      'UZS',
+      80000, // 100000 * 0.8, matching cancelPreview()'s displayed policy
+      expect.any(String),
+      expect.any(String),
+    ]);
+  });
+
+  it('does not create a duplicate refund request if one is already pending', async () => {
+    pg.query
+      .mockResolvedValueOnce([bookingRow]) // assertBooking
+      .mockResolvedValueOnce([{ ...bookingRow, status: 'cancelled' }]) // UPDATE bookings RETURNING *
+      .mockResolvedValueOnce([]) // UPDATE trip_seats
+      .mockResolvedValueOnce([{ amount: '100000', currency: 'UZS' }]) // SELECT paid payment (found)
+      .mockResolvedValueOnce([{ id: 'refund-existing' }]) // SELECT existing refund (found)
+      .mockResolvedValueOnce([]); // addStatusHistory INSERT
+
+    await service.cancel(actor, 'booking-1', {});
+
+    const refundInsert = pg.query.mock.calls.find(([sql]) =>
+      String(sql).includes('INSERT INTO refunds'),
+    );
+    expect(refundInsert).toBeUndefined();
   });
 });
 

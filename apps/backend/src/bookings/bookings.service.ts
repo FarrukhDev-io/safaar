@@ -481,10 +481,16 @@ export class BookingsService {
     const checkOut = String(dto.check_out ?? dto.checkOut ?? '');
     const checkInMs = Date.parse(checkIn);
     const checkOutMs = Date.parse(checkOut);
+    // O'tgan sanaga bron — audit paytida haqiqiy production so'rovi bilan
+    // tasdiqlangan bug (2020-01-01 uchun bron muvaffaqiyatli yaratilgan
+    // edi). Bugungi kun uchun bron ruxsat etiladi (mijoz bugun mashina
+    // olishi mumkin) — faqat KECHAGI va undan oldingi sanalar rad etiladi.
+    const todayIso = new Date().toISOString().slice(0, 10);
     if (
       !Number.isFinite(checkInMs) ||
       !Number.isFinite(checkOutMs) ||
-      checkOutMs <= checkInMs
+      checkOutMs <= checkInMs ||
+      checkIn < todayIso
     ) {
       throw new BadRequestException({
         code: 'BOOKING_DATES_INVALID',
@@ -890,6 +896,43 @@ export class BookingsService {
          WHERE held_by_booking_id = $1::uuid`,
         [id],
       );
+
+      // Audit topilmasi: mijoz TO'LANGAN bronni shu yo'l orqali bekor
+      // qilganda hech qachon qaytarish (refund) so'rovi yaratilmasdi —
+      // frontend faqat `cancelPreview()`ni ko'rsatib, keyin shu `cancel()`ni
+      // chaqirar edi, pul hech qanday iz qoldirmasdan "yo'qolib" ketardi.
+      // `cancelPreview()`da ko'rsatilgan 80% siyosat bilan bir xil formula
+      // ishlatiladi (`refunds.service.ts`dagi `create()` bilan bir xil).
+      // Guest (login qilmagan) mijoz uchun ham ishlaydi — avval faqat
+      // `POST /refunds` orqali (login talab qiladigan) qo'lda so'rash
+      // mumkin edi.
+      const [payment] = await tx.query<{ amount: number | string; currency: string }>(
+        `SELECT amount, currency FROM payments
+         WHERE booking_id = $1 AND status = 'paid'
+         ORDER BY created_at DESC LIMIT 1`,
+        [id],
+      );
+      if (payment) {
+        const [existingRefund] = await tx.query<{ id: string }>(
+          `SELECT id FROM refunds WHERE booking_id = $1 AND status != 'rejected' LIMIT 1`,
+          [id],
+        );
+        if (!existingRefund) {
+          await tx.query(
+            `INSERT INTO refunds (id, booking_id, user_id, status, currency, requested_amount, reason, created_at, updated_at)
+             VALUES ($1, $2, $3, 'requested', $4, $5, $6, $7, $7)`,
+            [
+              randomUUID(),
+              id,
+              row?.user_id ?? null,
+              payment.currency,
+              Math.round(Number(payment.amount) * 0.8),
+              'Mijoz bronni bekor qildi — avtomatik qaytarish so‘rovi',
+              now,
+            ],
+          );
+        }
+      }
 
       await this.addStatusHistory(
         tx,

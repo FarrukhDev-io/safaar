@@ -2500,6 +2500,68 @@ export class PartnersService {
     );
   }
 
+  /**
+   * O'rindiqlar soni va kunlik narx uchun yuqori chegaralar — aniq son
+   * mahsulot qarori (BUSINESS DECISION), lekin hech qanday chegara
+   * yo'qligi 999999 o'rindiq yoki 999 mlrd so'm/kun kabi jismonan
+   * imkonsiz qiymatlarni backend orqali qabul qilishga imkon berardi
+   * (audit paytida real production so'rovi bilan tasdiqlangan).
+   */
+  private static readonly MAX_VEHICLE_SEATS = 30;
+  private static readonly MAX_VEHICLE_PRICE_PER_DAY = 50_000_000;
+  private static readonly VEHICLE_STATUS_VALUES = new Set(['active', 'inactive']);
+
+  private validateVehicleSeats(seatsCount: number): void {
+    if (
+      !Number.isInteger(seatsCount) ||
+      seatsCount <= 0 ||
+      seatsCount > PartnersService.MAX_VEHICLE_SEATS
+    ) {
+      throw new BadRequestException({
+        code: 'VEHICLE_SEATS_INVALID',
+        message: "O'rindiqlar soni butun son va 1 dan 30 gacha bo'lishi kerak",
+      });
+    }
+  }
+
+  private validateVehiclePrice(pricePerDay: number): void {
+    if (
+      !Number.isFinite(pricePerDay) ||
+      pricePerDay < 0 ||
+      pricePerDay > PartnersService.MAX_VEHICLE_PRICE_PER_DAY
+    ) {
+      throw new BadRequestException({
+        code: 'VEHICLE_PRICE_INVALID',
+        message: "Kunlik narx to'g'ri kiritilishi kerak",
+      });
+    }
+  }
+
+  /**
+   * O'zbekiston davlat raqami uchun aniq format (masalan `01 A 123 BC`)
+   * repository/UI/hujjatlarda hech qayerda belgilanmagan — shuning uchun
+   * qat'iy regex O'YLAB TOPILMAYDI (BUSINESS DECISION REQUIRED: aniq format
+   * mahsulot jamoasi tomonidan belgilanishi kerak). Lekin bu tekshiruvsiz
+   * ixtiyoriy (arbitrary) satrni qabul qilish ham noto'g'ri (audit paytida
+   * "asdfghjkl" qiymati bilan tasdiqlangan) — shuning uchun faqat asosiy
+   * jismoniy sanity chegarasi qo'llanadi: bo'sh joy-only emas, 4-16 belgi.
+   */
+  private validateVehiclePlate(plateNumber: string | null): void {
+    if (plateNumber === null) return;
+    if (plateNumber.length < 4 || plateNumber.length > 16) {
+      throw new BadRequestException({
+        code: 'VEHICLE_PLATE_INVALID',
+        message: "Davlat raqami noto'g'ri formatda",
+      });
+    }
+  }
+
+  private normalizeVehiclePlate(value: unknown): string | null {
+    if (value === undefined || value === null) return null;
+    const trimmed = String(value).trim();
+    return trimmed || null;
+  }
+
   async createVehicle(
     actor: RequestActor | undefined,
     body: Record<string, unknown>,
@@ -2508,18 +2570,16 @@ export class PartnersService {
     const name = String(body.name ?? '').trim();
     const seatsCount = Number(body.seats_count ?? body.seatsCount);
     const pricePerDay = Number(body.price_per_day ?? body.pricePerDay ?? 0);
-    if (!name || !Number.isFinite(seatsCount) || seatsCount <= 0) {
+    const plateNumber = this.normalizeVehiclePlate(body.plate_number);
+    if (!name) {
       throw new BadRequestException({
         code: 'VEHICLE_INVALID',
-        message: 'Transport nomi va o‘rindiqlar soni talab qilinadi',
+        message: 'Transport nomi talab qilinadi',
       });
     }
-    if (!Number.isFinite(pricePerDay) || pricePerDay < 0) {
-      throw new BadRequestException({
-        code: 'VEHICLE_PRICE_INVALID',
-        message: "Kunlik narx to'g'ri kiritilishi kerak",
-      });
-    }
+    this.validateVehicleSeats(seatsCount);
+    this.validateVehiclePrice(pricePerDay);
+    this.validateVehiclePlate(plateNumber);
 
     const now = new Date().toISOString();
     const [vehicle] = await this.pg.query(
@@ -2528,15 +2588,7 @@ export class PartnersService {
        VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $7)
        RETURNING id::text, company_id::text, name, plate_number, seats_count,
                  price_per_day::float8, seat_layout, status, created_at, updated_at`,
-      [
-        randomUUID(),
-        companyId,
-        name,
-        body.plate_number ? String(body.plate_number) : null,
-        seatsCount,
-        pricePerDay,
-        now,
-      ],
+      [randomUUID(), companyId, name, plateNumber, seatsCount, pricePerDay, now],
     );
     this.invalidatePublicTransportCache();
     return vehicle;
@@ -2550,10 +2602,33 @@ export class PartnersService {
     await this.assertVehicle(actor, id);
     const now = new Date().toISOString();
     const priceInput = body.price_per_day ?? body.pricePerDay;
+    const seatsInput =
+      body.seats_count !== undefined ? Number(body.seats_count) : null;
+    const priceValue = priceInput !== undefined ? Number(priceInput) : null;
+    const plateNumber =
+      body.plate_number !== undefined
+        ? this.normalizeVehiclePlate(body.plate_number)
+        : undefined;
+    const statusValue =
+      body.status !== undefined ? String(body.status) : null;
+
+    if (seatsInput !== null) this.validateVehicleSeats(seatsInput);
+    if (priceValue !== null) this.validateVehiclePrice(priceValue);
+    if (plateNumber !== undefined) this.validateVehiclePlate(plateNumber);
+    if (
+      statusValue !== null &&
+      !PartnersService.VEHICLE_STATUS_VALUES.has(statusValue)
+    ) {
+      throw new BadRequestException({
+        code: 'VEHICLE_STATUS_INVALID',
+        message: "Transport holati noto'g'ri",
+      });
+    }
+
     const [vehicle] = await this.pg.query(
       `UPDATE vehicles
        SET name = COALESCE($1, name),
-           plate_number = COALESCE($2, plate_number),
+           plate_number = CASE WHEN $8 THEN $2 ELSE plate_number END,
            seats_count = COALESCE($3, seats_count),
            price_per_day = COALESCE($4, price_per_day),
            status = COALESCE($5, status),
@@ -2563,12 +2638,13 @@ export class PartnersService {
                  price_per_day::float8, seat_layout, status, created_at, updated_at`,
       [
         body.name !== undefined ? String(body.name) : null,
-        body.plate_number !== undefined ? String(body.plate_number) : null,
-        body.seats_count !== undefined ? Number(body.seats_count) : null,
-        priceInput !== undefined ? Number(priceInput) : null,
-        body.status !== undefined ? String(body.status) : null,
+        plateNumber ?? null,
+        seatsInput,
+        priceValue,
+        statusValue,
         now,
         id,
+        plateNumber !== undefined,
       ],
     );
     this.invalidatePublicTransportCache();
