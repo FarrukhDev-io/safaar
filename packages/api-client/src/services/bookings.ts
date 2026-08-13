@@ -29,6 +29,22 @@ export interface CreateBusBookingInput {
   paymentMethod?: string;
 }
 
+export interface CreateVehicleRentalInput {
+  vehicleId: string;
+  checkIn: string;
+  checkOut: string;
+  paymentMethod?: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  promoCode?: string;
+}
+
 export const bookingsService = {
   /** `POST /bookings/hotel` — mehmonxona broni yaratish. */
   async createHotelBooking(
@@ -95,6 +111,43 @@ export const bookingsService = {
         trip_id: input.tripId,
         seats: input.seats,
         payment_method: input.paymentMethod ?? 'click',
+      },
+      options,
+    );
+    return toBookingView(camelizeKeys(raw));
+  },
+
+  /** `POST /bookings/vehicle` — mashina ijarasi (rent-a-car) broni yaratish. */
+  async createVehicleBooking(
+    input: CreateVehicleRentalInput,
+    options?: { token?: string },
+  ): Promise<BookingView> {
+    const fullName =
+      input.fullName ??
+      [input.firstName, input.lastName]
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(' ');
+    const guestName = input.guestName ?? fullName;
+    const guestEmail = input.guestEmail ?? input.email;
+    const guestPhone = input.guestPhone ?? input.phone;
+
+    const raw = await rawApi.post<unknown>(
+      '/bookings/vehicle',
+      {
+        vehicle_id: input.vehicleId,
+        check_in: input.checkIn,
+        check_out: input.checkOut,
+        payment_method: input.paymentMethod ?? 'click',
+        firstName: input.firstName,
+        lastName: input.lastName,
+        fullName,
+        email: input.email,
+        phone: input.phone,
+        guest_name: guestName,
+        guest_email: guestEmail,
+        guest_phone: guestPhone,
+        promo_code: input.promoCode,
       },
       options,
     );

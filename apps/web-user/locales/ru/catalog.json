@@ -36,6 +36,12 @@
     "perDay": "в день",
     "driverIncluded": "С водителем",
     "withoutDriver": "Без водителя",
-    "seats": "мест"
+    "seats": "мест",
+    "bookNow": "Забронировать",
+    "pickupDate": "Дата получения",
+    "returnDate": "Дата возврата",
+    "checkAvailability": "Проверить наличие",
+    "selectDatesFirst": "Сначала выберите дату получения и возврата",
+    "invalidDateRange": "Дата возврата должна быть позже даты получения"
   }
 }

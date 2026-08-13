@@ -13,5 +13,11 @@
   "perDay": "kuniga",
   "driverIncluded": "Haydovchi bilan",
   "withoutDriver": "Haydovchisiz",
-  "seats": "o'rin"
+  "seats": "o'rin",
+  "bookNow": "Bron qilish",
+  "pickupDate": "Olib ketish sanasi",
+  "returnDate": "Qaytarish sanasi",
+  "checkAvailability": "Mavjudlikni tekshirish",
+  "selectDatesFirst": "Avval olib ketish va qaytarish sanalarini tanlang",
+  "invalidDateRange": "Qaytarish sanasi olib ketish sanasidan keyin bo'lishi kerak"
 }

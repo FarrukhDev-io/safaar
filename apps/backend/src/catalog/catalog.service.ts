@@ -452,40 +452,80 @@ export class CatalogService {
     };
   }
 
-  async transports() {
-    return this.cache.getOrSet('catalog:transports', 3600, async () => {
-      return this.postgres.query(`
-        SELECT
-          v.id::text,
-          v.name,
-          c.name AS city_name,
-          'transfer' AS category_key,
-          'Transport' AS category_default,
-          v.seats_count AS seats,
-          true AS has_driver,
-          '' AS fuel_type,
-          '' AS transmission,
-          COALESCE(MIN(t.base_price), 0)::float8 AS price_per_day,
-          bc.rating_average::float8 AS rating,
-          COALESCE(po.logo_url, '') AS image_url,
-          po.phone,
-          v.updated_at
-        FROM vehicles v
-        JOIN bus_companies bc ON bc.id = v.company_id
-        JOIN partner_organizations po ON po.id = bc.partner_organization_id
-        LEFT JOIN cities c ON c.id = po.city_id
-        LEFT JOIN trips t
-          ON t.vehicle_id = v.id
-         AND t.status = 'scheduled'
-         AND t.departure_at >= now()
-        WHERE v.status = 'active'
-          AND bc.status = 'active'
-          AND po.status = 'approved'
-        GROUP BY v.id, v.name, c.name, v.seats_count, bc.rating_average,
-                 po.logo_url, po.phone, v.updated_at
-        ORDER BY v.updated_at DESC
-      `);
-    });
+  /**
+   * `checkIn`/`checkOut` berilsa — shu sanalarda band bo'lgan mashinalar
+   * ro'yxatdan chiqarib tashlanadi (mehmonxonaning `GET /hotels?check_in=&
+   * check_out=` bilan bir xil g'oya) va natija keshlanmaydi — turli sana
+   * kombinatsiyasi uchun keshlash keraksiz murakkablik qo'shar edi.
+   */
+  async transports(checkIn?: string, checkOut?: string) {
+    const query = () =>
+      checkIn && checkOut
+        ? this.postgres.query(
+            `
+              SELECT
+                v.id::text,
+                v.name,
+                c.name AS city_name,
+                'transfer' AS category_key,
+                'Transport' AS category_default,
+                v.seats_count AS seats,
+                true AS has_driver,
+                '' AS fuel_type,
+                '' AS transmission,
+                v.price_per_day::float8 AS price_per_day,
+                bc.rating_average::float8 AS rating,
+                COALESCE(po.logo_url, '') AS image_url,
+                po.phone,
+                v.updated_at
+              FROM vehicles v
+              JOIN bus_companies bc ON bc.id = v.company_id
+              JOIN partner_organizations po ON po.id = bc.partner_organization_id
+              LEFT JOIN cities c ON c.id = po.city_id
+              WHERE v.status = 'active'
+                AND bc.status = 'active'
+                AND po.status = 'approved'
+                AND NOT EXISTS (
+                  SELECT 1 FROM bookings b
+                  WHERE b.vehicle_id = v.id
+                    AND b.status NOT IN ('cancelled', 'expired', 'completed')
+                    AND b.check_in < $2::date
+                    AND $1::date < b.check_out
+                )
+              ORDER BY v.updated_at DESC
+            `,
+            [checkIn, checkOut],
+          )
+        : this.postgres.query(`
+            SELECT
+              v.id::text,
+              v.name,
+              c.name AS city_name,
+              'transfer' AS category_key,
+              'Transport' AS category_default,
+              v.seats_count AS seats,
+              true AS has_driver,
+              '' AS fuel_type,
+              '' AS transmission,
+              v.price_per_day::float8 AS price_per_day,
+              bc.rating_average::float8 AS rating,
+              COALESCE(po.logo_url, '') AS image_url,
+              po.phone,
+              v.updated_at
+            FROM vehicles v
+            JOIN bus_companies bc ON bc.id = v.company_id
+            JOIN partner_organizations po ON po.id = bc.partner_organization_id
+            LEFT JOIN cities c ON c.id = po.city_id
+            WHERE v.status = 'active'
+              AND bc.status = 'active'
+              AND po.status = 'approved'
+            ORDER BY v.updated_at DESC
+          `);
+
+    if (checkIn && checkOut) {
+      return query();
+    }
+    return this.cache.getOrSet('catalog:transports', 3600, query);
   }
 }
 

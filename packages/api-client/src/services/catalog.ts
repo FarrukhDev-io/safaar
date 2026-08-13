@@ -1,6 +1,5 @@
 import { rawApi } from "../client";
 import { camelizeKeys } from "../case";
-import { tiyinToSum } from "../money";
 import type { Locale, CityOption, AmenityOption } from "../types";
 
 export interface PopularCityView {
@@ -281,9 +280,16 @@ export const catalogService = {
     };
   },
 
-  async getTransports(locale: Locale): Promise<TransportCatalogView[]> {
+  async getTransports(
+    locale: Locale,
+    options?: { checkIn?: string; checkOut?: string },
+  ): Promise<TransportCatalogView[]> {
+    const searchParams: Record<string, string> = {};
+    if (options?.checkIn) searchParams.check_in = options.checkIn;
+    if (options?.checkOut) searchParams.check_out = options.checkOut;
     const raw = await rawApi.get<unknown>("/catalog/transports", {
       cache: "no-store",
+      searchParams,
     } as any);
     const items = camelizeKeys<RawTransport[]>(raw);
     return (items ?? []).map((item) => ({
@@ -296,7 +302,10 @@ export const catalogService = {
       hasDriver: Boolean(item.hasDriver),
       fuelType: item.fuelType ?? "",
       transmission: item.transmission ?? "",
-      pricePerDaySum: tiyinToSum(item.pricePerDay ?? 0),
+      // `vehicles.price_per_day` so'mda saqlanadi (hamkor panelida to'g'ridan-
+      // to'g'ri so'm kiritiladi, tiyinga aylantirish yo'q) — boshqa narx
+      // maydonlaridan farqli, bu yerda `tiyinToSum` qo'llash NOTO'G'RI bo'lardi.
+      pricePerDaySum: Number(item.pricePerDay ?? 0),
       rating: Number(item.rating ?? 0),
       imageUrl: item.imageUrl ?? "",
       phone: item.phone ?? "",

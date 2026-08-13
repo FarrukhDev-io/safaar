@@ -63,6 +63,12 @@ interface BusCompanyRow {
   partner_organization_id: string;
 }
 
+interface VehicleRow {
+  id: string;
+  company_id: string;
+  price_per_day: string | number;
+}
+
 export interface BookingRow {
   id: string;
   status: string;
@@ -413,6 +419,165 @@ export class BookingsService {
           rooms,
           adults: Number(dto.adults ?? dto.guests ?? 1),
           children: Number(dto.children ?? 0),
+          promo_code: promo?.code ?? null,
+          guest: {
+            first_name: firstName ?? null,
+            last_name: lastName ?? null,
+            name: guestName,
+            email: guestEmail,
+            phone: guestPhone,
+          },
+        },
+      });
+
+      const payment = await this.createPayment(tx, booking);
+      const cashOutcome = await this.confirmCashBookingIfNeeded(tx, booking);
+      booking.status = cashOutcome.status;
+      booking.confirmed_at = cashOutcome.confirmed_at;
+      return { booking, payment };
+    });
+
+    this.events.bookingStatusChanged(booking);
+    this.events.partnerDashboardUpdated(booking.partner_organization_id);
+    this.events.adminDashboardUpdated();
+    void this.sendBookingConfirmationEmail(booking);
+    return { booking, payment };
+  }
+
+  /**
+   * Mashina ijarasi (rent-a-car) broni — `createHotel`ga deyarli bir xil
+   * naqsh (bitta inventar birligi + sana oralig'i + ziddiyat tekshiruvi),
+   * faqat `hotels`/`hotel_rooms` o'rniga `vehicles`/`bus_companies`.
+   * Mehmon (guest) checkout ruxsat etiladi — hotel kabi, login shart emas.
+   */
+  async createVehicleRental(
+    actor: RequestActor | undefined,
+    dto: Record<string, unknown>,
+  ) {
+    const userId = actor?.id ?? null;
+    const vehicleId = String(dto.vehicle_id ?? dto.vehicleId ?? '');
+
+    const [vehicle] = await this.pg.query<
+      VehicleRow & { partner_organization_id: string; commission_rate: number }
+    >(
+      `SELECT v.id, v.price_per_day, bc.partner_organization_id,
+              po.default_commission_rate::float8 AS commission_rate
+       FROM vehicles v
+       JOIN bus_companies bc ON bc.id = v.company_id
+       JOIN partner_organizations po ON po.id = bc.partner_organization_id
+       WHERE v.id = $1 AND v.status = 'active' AND bc.status = 'active'
+         AND po.status = 'approved'`,
+      [vehicleId],
+    );
+
+    if (!vehicle) {
+      throw new NotFoundException({
+        code: 'VEHICLE_NOT_AVAILABLE',
+        message: 'Tanlangan sanalar uchun mashina mavjud emas',
+      });
+    }
+
+    const checkIn = String(dto.check_in ?? dto.checkIn ?? '');
+    const checkOut = String(dto.check_out ?? dto.checkOut ?? '');
+    const checkInMs = Date.parse(checkIn);
+    const checkOutMs = Date.parse(checkOut);
+    if (
+      !Number.isFinite(checkInMs) ||
+      !Number.isFinite(checkOutMs) ||
+      checkOutMs <= checkInMs
+    ) {
+      throw new BadRequestException({
+        code: 'BOOKING_DATES_INVALID',
+        message: "check_in/check_out sanalari noto'g'ri",
+      });
+    }
+    const days = this.calculateNights(checkIn, checkOut);
+
+    const firstName = this.optionalText(dto.firstName ?? dto.first_name);
+    const lastName = this.optionalText(dto.lastName ?? dto.last_name);
+    const fullName = this.optionalText(dto.fullName ?? dto.full_name);
+    const composedName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    const guestName =
+      this.optionalText(dto.guest_name ?? dto.guestName) ??
+      fullName ??
+      (composedName || '');
+    const guestEmail =
+      this.optionalText(
+        dto.guest_email ?? dto.guestEmail ?? dto.email,
+      )?.toLowerCase() ?? '';
+    const guestPhone =
+      this.optionalText(dto.guest_phone ?? dto.guestPhone ?? dto.phone) ?? '';
+
+    const promoCode = this.optionalText(dto.promo_code ?? dto.promoCode);
+    const promo = await this.resolvePromo(promoCode);
+
+    const { booking, payment } = await this.pg.transaction(async (tx) => {
+      const [locked] = await tx.query<VehicleRow>(
+        "SELECT id, price_per_day FROM vehicles WHERE id = $1 AND status = 'active' FOR UPDATE",
+        [vehicle.id],
+      );
+      if (!locked) {
+        throw new NotFoundException({
+          code: 'VEHICLE_NOT_AVAILABLE',
+          message: 'Tanlangan sanalar uchun mashina mavjud emas',
+        });
+      }
+
+      const activeExclusions = [BS.CANCELLED, BS.EXPIRED, BS.COMPLETED];
+      const conflicts = await tx.query<{ id: string }>(
+        `SELECT id FROM bookings
+         WHERE vehicle_id = $1::uuid
+           AND status NOT IN ($2, $3, $4)
+           AND check_in < $5::date
+           AND $6::date < check_out
+         LIMIT 1`,
+        [locked.id, ...activeExclusions, checkOut, checkIn],
+      );
+
+      if (conflicts[0]) {
+        throw new ConflictException({
+          code: 'VEHICLE_ALREADY_BOOKED',
+          message: 'Tanlangan sanalar uchun mashina allaqachon band qilingan',
+        });
+      }
+
+      const subtotal = Number(locked.price_per_day) * days;
+      const discountAmount = promo
+        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        : 0;
+
+      if (promo) {
+        const redeemed = await this.promosService.redeem(promo.code, tx);
+        if (!redeemed) {
+          throw new ConflictException({
+            code: 'PROMO_LIMIT_REACHED',
+            message: "Promo-kod limiti tugadi, qaytadan urinib ko'ring",
+          });
+        }
+      }
+
+      const booking = await this.createBooking(tx, userId, {
+        type: 'bus',
+        partner_organization_id: vehicle.partner_organization_id,
+        payment_method: this.paymentMethod(dto.payment_method),
+        confirmation_mode: this.confirmationMode(dto.confirmation_mode),
+        subtotal,
+        discount_amount: discountAmount,
+        commission_rate_percent: vehicle.commission_rate,
+        hotel_id: null,
+        trip_id: null,
+        vehicle_id: locked.id,
+        check_in: checkIn,
+        check_out: checkOut,
+        guest_name: guestName,
+        guest_email: guestEmail,
+        guest_phone: guestPhone,
+        price_snapshot: {
+          vehicle_id: locked.id,
+          check_in: checkIn,
+          check_out: checkOut,
+          days,
+          price_per_day: Number(locked.price_per_day),
           promo_code: promo?.code ?? null,
           guest: {
             first_name: firstName ?? null,
@@ -883,6 +1048,7 @@ export class BookingsService {
       hotel_id: string | null;
       trip_id: string | null;
       room_id?: string | null;
+      vehicle_id?: string | null;
       check_in?: string | null;
       check_out?: string | null;
       slot_time?: string | null;
@@ -936,6 +1102,7 @@ export class BookingsService {
       hotel_id: input.hotel_id,
       trip_id: input.trip_id,
       room_id: input.room_id ?? null,
+      vehicle_id: input.vehicle_id ?? null,
       check_in: input.check_in ?? null,
       check_out: input.check_out ?? null,
       slot_time: input.slot_time ?? null,
@@ -959,7 +1126,7 @@ export class BookingsService {
         type, confirmation_mode, payment_method, status,
         currency, subtotal, discount_amount, bonus_amount, service_fee,
         total_amount, commission_amount, partner_payable,
-        hotel_id, trip_id, room_id, check_in, check_out, slot_time,
+        hotel_id, trip_id, room_id, vehicle_id, check_in, check_out, slot_time,
         partner_confirmation_deadline, expires_at,
         confirmed_at, cancelled_at, cancel_reason_text,
         policy_snapshot, price_snapshot,
@@ -970,12 +1137,12 @@ export class BookingsService {
         $5, $6, $7, $8,
         $9, $10, $11, $12, $13,
         $14, $15, $16,
-        $17, $18, $19, $20::date, $21::date, $22::time,
-        $23, $24,
-        $25, $26, $27,
-        $28, $29,
-        $30, $31, $32,
-        $33, $34
+        $17, $18, $19, $20, $21::date, $22::date, $23::time,
+        $24, $25,
+        $26, $27, $28,
+        $29, $30,
+        $31, $32, $33,
+        $34, $35
       )`,
       [
         bookingRow.id,
@@ -997,6 +1164,7 @@ export class BookingsService {
         bookingRow.hotel_id,
         bookingRow.trip_id,
         bookingRow.room_id,
+        bookingRow.vehicle_id,
         bookingRow.check_in,
         bookingRow.check_out,
         bookingRow.slot_time,

@@ -18,8 +18,14 @@ import {
   type VehicleDraft,
 } from "../../_hooks/use-fleet";
 import type { BackendVehicle } from "../../_lib/api/endpoints/partners";
+import { formatMoney } from "../../_lib/utils/format";
 
-const EMPTY_DRAFT: VehicleDraft = { name: "", plateNumber: "", seatsCount: 0 };
+const EMPTY_DRAFT: VehicleDraft = {
+  name: "",
+  plateNumber: "",
+  seatsCount: 0,
+  pricePerDay: 0,
+};
 
 /**
  * Transport (bus) hamkori uchun "Transport Parki" — mehmonxonaning
@@ -51,6 +57,7 @@ export function FleetView() {
       name: vehicle.name,
       plateNumber: vehicle.plate_number ?? "",
       seatsCount: vehicle.seats_count,
+      pricePerDay: vehicle.price_per_day ?? 0,
     });
     setDrawerOpen(true);
   };
@@ -62,6 +69,10 @@ export function FleetView() {
     }
     if (!draft.seatsCount || draft.seatsCount < 1) {
       toast.error("O'rindiqlar sonini to'g'ri kiriting");
+      return;
+    }
+    if (!draft.pricePerDay || draft.pricePerDay < 1) {
+      toast.error("Kunlik narxni to'g'ri kiriting");
       return;
     }
     try {
@@ -150,6 +161,14 @@ export function FleetView() {
                   </span>
                   <span className="font-medium">{vehicle.seats_count}</span>
                 </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--muted-foreground)]">
+                    Kunlik narx
+                  </span>
+                  <span className="font-medium">
+                    {formatMoney(vehicle.price_per_day)}
+                  </span>
+                </div>
                 <span
                   className={
                     vehicle.status === "active"
@@ -214,6 +233,22 @@ export function FleetView() {
                   seatsCount: Number(e.target.value) || 0,
                 }))
               }
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="vehicle-price">Kunlik narx (so'm)</Label>
+            <Input
+              id="vehicle-price"
+              type="number"
+              min={1}
+              value={draft.pricePerDay || ""}
+              onChange={(e) =>
+                setDraft((d) => ({
+                  ...d,
+                  pricePerDay: Number(e.target.value) || 0,
+                }))
+              }
+              placeholder="Masalan: 300000"
             />
           </div>
         </div>

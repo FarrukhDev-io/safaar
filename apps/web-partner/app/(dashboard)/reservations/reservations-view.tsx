@@ -75,8 +75,8 @@ function exportToCsv(items: ReservationView[], unitLabel: string, beds: Bed[], r
       r.id,
       r.guest.fullName,
       `+${r.guest.phone}`,
-      r.roomTypeName,
-      [r.roomNumber, bed?.label].filter(Boolean).join(" · "),
+      r.roomTypeName || r.vehicleName || "",
+      [r.roomNumber ?? r.vehiclePlateNumber, bed?.label].filter(Boolean).join(" · "),
       r.checkIn,
       ...(restaurant ? [r.slotTime ?? ""] : [r.checkOut, r.nights]),
       r.totalPrice,
@@ -176,7 +176,15 @@ export function ReservationsView() {
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter((r) =>
-        [r.id, r.guest.fullName, r.guest.phone, r.roomTypeName, r.roomNumber]
+        [
+          r.id,
+          r.guest.fullName,
+          r.guest.phone,
+          r.roomTypeName,
+          r.roomNumber,
+          r.vehicleName,
+          r.vehiclePlateNumber,
+        ]
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
@@ -302,7 +310,8 @@ export function ReservationsView() {
                       </div>
                       <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                         {formatDate(r.checkIn)}
-                        {r.slotTime ? ` ${r.slotTime}` : ""} · {r.roomTypeName}
+                        {r.slotTime ? ` ${r.slotTime}` : ""} ·{" "}
+                        {r.roomTypeName || r.vehicleName}
                       </p>
                       <div className="mt-2">
                         <ReservationStatusBadge status={r.status} />
@@ -562,13 +571,21 @@ function ReservationCard({
               <MiniInfo
                 icon={isBus ? <CarFront /> : restaurant ? <UtensilsCrossed /> : <BedDouble />}
                 label={labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1)}
-                value={`${reservation.roomTypeName}${
-                  reservation.roomNumber ? ` · ${reservation.roomNumber}` : ""
-                }${
-                  reservation.bedId
-                    ? ` · ${beds.find((b) => b.id === reservation.bedId)?.label ?? ""}`
-                    : ""
-                }`}
+                value={
+                  isBus
+                    ? `${reservation.vehicleName ?? ""}${
+                        reservation.vehiclePlateNumber
+                          ? ` · ${reservation.vehiclePlateNumber}`
+                          : ""
+                      }`
+                    : `${reservation.roomTypeName}${
+                        reservation.roomNumber ? ` · ${reservation.roomNumber}` : ""
+                      }${
+                        reservation.bedId
+                          ? ` · ${beds.find((b) => b.id === reservation.bedId)?.label ?? ""}`
+                          : ""
+                      }`
+                }
               />
             </div>
 

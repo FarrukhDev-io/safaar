@@ -69,6 +69,7 @@ export interface VehicleDraft {
   name: string;
   plateNumber?: string;
   seatsCount: number;
+  pricePerDay: number;
 }
 
 export function useCreateVehicle() {
@@ -81,6 +82,7 @@ export function useCreateVehicle() {
           name: values.name,
           plate_number: values.plateNumber,
           seats_count: values.seatsCount,
+          price_per_day: values.pricePerDay,
         },
         accessToken,
       ),
@@ -101,6 +103,7 @@ export function useUpdateVehicle() {
           name: values.name,
           plate_number: values.plateNumber,
           seats_count: values.seatsCount,
+          price_per_day: values.pricePerDay,
           status: values.status,
         },
         accessToken,

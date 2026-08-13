@@ -531,6 +531,121 @@ describe('BookingsService.createBus (regression: BUG-04 seat double-selling)', (
   });
 });
 
+describe('BookingsService.createVehicleRental (rent-a-car: date-range booking against a single vehicle, mirrors createHotel)', () => {
+  let service: BookingsService;
+  let pg: jest.Mocked<Pick<PostgresService, 'query'>> & {
+    transaction: jest.Mock;
+  };
+  let events: {
+    bookingStatusChanged: jest.Mock;
+    partnerDashboardUpdated: jest.Mock;
+    adminDashboardUpdated: jest.Mock;
+  };
+  let promos: jest.Mocked<Pick<PromosService, 'validate' | 'redeem'>>;
+
+  const vehicleLookupRow = {
+    id: 'vehicle-1',
+    price_per_day: '150000',
+    partner_organization_id: 'partner-1',
+    commission_rate: 12,
+  };
+
+  beforeEach(() => {
+    pg = {
+      query: jest.fn(),
+      transaction: jest.fn((operation: (tx: unknown) => unknown) =>
+        Promise.resolve(operation({ query: pg.query })),
+      ),
+    };
+    events = {
+      bookingStatusChanged: jest.fn(),
+      partnerDashboardUpdated: jest.fn(),
+      adminDashboardUpdated: jest.fn(),
+    };
+    promos = noopPromosService();
+    service = new BookingsService(
+      pg as unknown as PostgresService,
+      events as unknown as EventsService,
+      { send: jest.fn() } as unknown as EmailService,
+      promos as unknown as PromosService,
+    );
+  });
+
+  it('allows guest (unauthenticated) checkout and computes subtotal from price_per_day * days', async () => {
+    pg.query
+      .mockResolvedValueOnce([vehicleLookupRow]) // vehicle lookup
+      .mockResolvedValueOnce([{ id: 'vehicle-1', price_per_day: '150000' }]) // FOR UPDATE lock
+      .mockResolvedValueOnce([]) // conflict check (none)
+      .mockResolvedValueOnce([]) // INSERT bookings
+      .mockResolvedValueOnce([]) // INSERT booking_status_history
+      .mockResolvedValueOnce([]) // existing pending payment check
+      .mockResolvedValueOnce([]); // INSERT payments
+
+    const result = await service.createVehicleRental(undefined, {
+      vehicle_id: 'vehicle-1',
+      check_in: '2026-08-20',
+      check_out: '2026-08-23',
+      firstName: 'Laziz',
+      lastName: 'Shakarov',
+      email: 'laziz@example.com',
+      phone: '+998901234567',
+    });
+
+    expect(result.booking.vehicle_id).toBe('vehicle-1');
+    expect(result.booking.user_id).toBeNull();
+    expect(result.booking.subtotal).toBe(450000); // 150000 * 3 kun
+    expect(result.booking.guest_name).toBe('Laziz Shakarov');
+    expect(pg.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects overlapping dates for the same vehicle with VEHICLE_ALREADY_BOOKED (409)', async () => {
+    pg.query
+      .mockResolvedValueOnce([vehicleLookupRow])
+      .mockResolvedValueOnce([{ id: 'vehicle-1', price_per_day: '150000' }])
+      .mockResolvedValueOnce([{ id: 'existing-booking-1' }]); // conflict found
+
+    await expect(
+      service.createVehicleRental(undefined, {
+        vehicle_id: 'vehicle-1',
+        check_in: '2026-08-20',
+        check_out: '2026-08-23',
+        guest_name: 'Test',
+        guest_email: 'test@example.com',
+        guest_phone: '+998901234567',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+
+    // Ziddiyat aniqlangach INSERT chaqirilmasligi kerak.
+    expect(pg.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('a not-approved / suspended rent-a-car company is invisible to booking creation', async () => {
+    pg.query.mockResolvedValueOnce([]); // JOIN ... WHERE po.status = 'approved' — no match
+
+    await expect(
+      service.createVehicleRental(undefined, {
+        vehicle_id: 'vehicle-1',
+        check_in: '2026-08-20',
+        check_out: '2026-08-23',
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('rejects invalid date ranges before touching the transaction', async () => {
+    pg.query.mockResolvedValueOnce([vehicleLookupRow]);
+
+    await expect(
+      service.createVehicleRental(undefined, {
+        vehicle_id: 'vehicle-1',
+        check_in: '2026-08-23',
+        check_out: '2026-08-20', // check_out before check_in
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(pg.transaction).not.toHaveBeenCalled();
+  });
+});
+
 describe('BookingsService.cancel (regression: explicit cancellation never released bus seats)', () => {
   let service: BookingsService;
   let pg: jest.Mocked<Pick<PostgresService, 'query'>> & {

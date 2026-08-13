@@ -987,6 +987,43 @@ describe('PartnersService vehicle/company mutations invalidate the public transp
     expect(cache.del).toHaveBeenCalledWith('catalog:transports');
   });
 
+  it('persists price_per_day on vehicle creation (rent-a-car booking needs a real price)', async () => {
+    pg.query
+      .mockResolvedValueOnce([{ id: 'company-1' }])
+      .mockResolvedValueOnce([{ id: 'vehicle-1', price_per_day: '250000' }]);
+
+    await service.createVehicle(actor, {
+      name: 'Chevrolet Cobalt',
+      seats_count: 5,
+      price_per_day: 250000,
+    });
+
+    const insertCall = pg.query.mock.calls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO vehicles'),
+    );
+    expect(insertCall?.[1]).toEqual([
+      expect.any(String),
+      'company-1',
+      'Chevrolet Cobalt',
+      null,
+      5,
+      250000,
+      expect.any(String),
+    ]);
+  });
+
+  it('rejects a negative price_per_day', async () => {
+    pg.query.mockResolvedValueOnce([{ id: 'company-1' }]);
+
+    await expect(
+      service.createVehicle(actor, {
+        name: 'Chevrolet Cobalt',
+        seats_count: 5,
+        price_per_day: -100,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
   it('invalidates catalog:transports when a vehicle is updated', async () => {
     pg.query
       .mockResolvedValueOnce([{ id: 'vehicle-1' }]) // assertVehicle

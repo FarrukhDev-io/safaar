@@ -36,6 +36,12 @@
     "perDay": "per day",
     "driverIncluded": "With Driver",
     "withoutDriver": "Self-drive",
-    "seats": "seats"
+    "seats": "seats",
+    "bookNow": "Book now",
+    "pickupDate": "Pickup date",
+    "returnDate": "Return date",
+    "checkAvailability": "Check availability",
+    "selectDatesFirst": "Select pickup and return dates first",
+    "invalidDateRange": "Return date must be after the pickup date"
   }
 }

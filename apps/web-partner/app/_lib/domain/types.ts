@@ -102,6 +102,10 @@ export interface ReservationView {
   roomNumber?: string;
   /** Faqat hostel: tayinlangan yotoq (Bed.id). */
   bedId?: string;
+  /** Faqat transport (rent-a-car): band qilingan mashina. */
+  vehicleId?: string;
+  vehicleName?: string;
+  vehiclePlateNumber?: string;
   /** Faqat restoran: bron vaqt-sloti ("HH:MM"). */
   slotTime?: string;
   checkIn: string;

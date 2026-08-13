@@ -192,3 +192,93 @@ export async function createBusBookingAction(
     `/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}`,
   );
 }
+
+export interface VehicleCheckoutState {
+  error?: string;
+}
+
+/**
+ * Mashina ijarasi (rent-a-car) broni — `createBookingAction` (hotel) bilan
+ * bir xil naqsh: guest (login qilmagan) mijoz uchun ism/familiya/email/
+ * telefon `CheckoutForm`da `required` orqali majburiy, login qilgan mijoz
+ * faqat `fullName` yuboradi. Chipta-asosli `createBusBookingAction`dan
+ * farqli, login shart emas.
+ */
+export async function createVehicleBookingAction(
+  _prev: VehicleCheckoutState,
+  formData: FormData,
+): Promise<VehicleCheckoutState> {
+  const rawLocale = String(formData.get('locale') ?? defaultLocale);
+  const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
+
+  const session = await getSession();
+
+  const paymentMethod = String(formData.get('paymentMethod') ?? 'click') as
+    | 'click'
+    | 'payme'
+    | 'uzcard'
+    | 'humo'
+    | 'cash';
+
+  const input = {
+    vehicleId: String(formData.get('vehicleId') ?? ''),
+    checkIn: String(formData.get('checkIn') ?? ''),
+    checkOut: String(formData.get('checkOut') ?? ''),
+    paymentMethod,
+    firstName: formData.get('firstName') ? String(formData.get('firstName')) : undefined,
+    lastName: formData.get('lastName') ? String(formData.get('lastName')) : undefined,
+    fullName: formData.get('fullName') ? String(formData.get('fullName')) : undefined,
+    email: formData.get('email') ? String(formData.get('email')) : undefined,
+    phone: formData.get('phone') ? String(formData.get('phone')) : undefined,
+  };
+  let bookingId = '';
+  let checkoutUrl = '';
+
+  try {
+    const booking = await api.bookings.createVehicleBooking(input, {
+      token: session?.accessToken,
+    });
+    bookingId = booking.id;
+    checkoutUrl = booking.payment?.url ?? '';
+
+    try {
+      if (!checkoutUrl && paymentMethod !== 'cash') {
+        const paymentSession = await api.payments.createPaymentSession(
+          bookingId,
+          paymentMethod,
+          {
+            token: session?.accessToken,
+          },
+        );
+        if (paymentSession.paymentUrl) {
+          checkoutUrl = paymentSession.paymentUrl;
+        }
+      }
+    } catch {
+      // Fall back to booking details page if payment session fails
+    }
+  } catch (error) {
+    if (session) {
+      await redirectToLoginIfSessionExpired(error, locale);
+    }
+    return {
+      error: error instanceof ApiRequestError ? error.message : 'ERROR',
+    };
+  }
+
+  if (!bookingId) {
+    return { error: 'ERROR' };
+  }
+
+  if (paymentMethod === 'cash') {
+    redirect(`/${locale}/booking/${bookingId}?status=confirmed&payment=cash`);
+  }
+
+  if (checkoutUrl) {
+    redirect(checkoutUrl);
+  }
+
+  redirect(
+    `/${locale}/booking/${bookingId}?payment=pending&provider=${paymentMethod}`,
+  );
+}

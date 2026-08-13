@@ -1,12 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Car, PhoneCall, ShieldCheck, Users, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Car, CalendarRange, PhoneCall, ShieldCheck, Users, Search } from "lucide-react";
 import { formatSum } from "@/lib/money";
+import type { Locale } from "@/i18n/config";
 import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import type { TransportItem } from "@/components/catalog/types";
 import { BaseCard } from "@/components/ui/BaseCard";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { CategoryTabs, type CategoryTab } from "@/components/ui/CategoryTabs";
@@ -17,9 +21,15 @@ export type { TransportItem };
 function TransportCard({
   item,
   dict,
+  locale,
+  checkIn,
+  checkOut,
 }: {
   item: TransportItem;
   dict: CatalogDict["transport"];
+  locale: Locale;
+  checkIn: string;
+  checkOut: string;
 }) {
   const categoryLabel = dict.categories?.[item.categoryKey] ?? item.categoryDefault;
 
@@ -44,6 +54,11 @@ function TransportCard({
     </span>
   );
 
+  const bookHref =
+    checkIn && checkOut
+      ? `/${locale}/booking?vehicleId=${encodeURIComponent(item.id)}&checkIn=${checkIn}&checkOut=${checkOut}`
+      : undefined;
+
   return (
     <BaseCard
       imageSrc={item.imageUrl}
@@ -63,14 +78,36 @@ function TransportCard({
         ) : undefined
       }
       footerRight={
-        item.phone ? (
-          <a
-            href={`tel:${item.phone.replace(/\s+/g, "")}`}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <PhoneCall className="h-3.5 w-3.5" />
-          </a>
-        ) : undefined
+        <div className="flex items-center gap-1.5">
+          {bookHref ? (
+            <a
+              href={bookHref}
+              className="inline-flex min-h-[44px] items-center rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
+            >
+              {dict.bookNow ?? "Bron qilish"}
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                toast.error(
+                  dict.selectDatesFirst ?? "Avval olib ketish va qaytarish sanalarini tanlang",
+                )
+              }
+              className="inline-flex min-h-[44px] items-center rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+            >
+              {dict.bookNow ?? "Bron qilish"}
+            </button>
+          )}
+          {item.phone ? (
+            <a
+              href={`tel:${item.phone.replace(/\s+/g, "")}`}
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <PhoneCall className="h-3.5 w-3.5" />
+            </a>
+          ) : undefined}
+        </div>
       }
     />
   );
@@ -79,14 +116,23 @@ function TransportCard({
 export function TransportView({
   dict,
   items,
+  locale,
+  defaultCheckIn,
+  defaultCheckOut,
 }: {
   dict: CatalogDict["transport"];
   items: TransportItem[];
+  locale: Locale;
+  defaultCheckIn?: string;
+  defaultCheckOut?: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [hasDriverFilter, setHasDriverFilter] = useState<string>("all");
+  const [checkIn, setCheckIn] = useState(defaultCheckIn ?? "");
+  const [checkOut, setCheckOut] = useState(defaultCheckOut ?? "");
 
   const categories = useMemo(
     () => [
@@ -128,6 +174,23 @@ export function TransportView({
     }));
   }, [categories, selectedCategory]);
 
+  const handleDateSearch = () => {
+    if (!checkIn || !checkOut) {
+      toast.error(
+        dict.selectDatesFirst ?? "Avval olib ketish va qaytarish sanalarini tanlang",
+      );
+      return;
+    }
+    if (checkOut <= checkIn) {
+      toast.error(
+        dict.invalidDateRange ?? "Qaytarish sanasi olib ketish sanasidan keyin bo'lishi kerak",
+      );
+      return;
+    }
+    const params = new URLSearchParams({ check_in: checkIn, check_out: checkOut });
+    router.push(`/${locale}/transport?${params.toString()}`);
+  };
+
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
       <CatalogHeader
@@ -148,7 +211,7 @@ export function TransportView({
           </>
         }
         filterControls={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Select
               value={selectedCity}
               onChange={setSelectedCity}
@@ -168,6 +231,24 @@ export function TransportView({
               ]}
               className="w-44"
             />
+            <Input
+              type="date"
+              value={checkIn}
+              onChange={(e) => setCheckIn(e.target.value)}
+              aria-label={dict.pickupDate ?? "Olib ketish sanasi"}
+              className="w-40"
+            />
+            <Input
+              type="date"
+              value={checkOut}
+              onChange={(e) => setCheckOut(e.target.value)}
+              aria-label={dict.returnDate ?? "Qaytarish sanasi"}
+              className="w-40"
+            />
+            <Button onClick={handleDateSearch} className="min-h-[44px]">
+              <CalendarRange className="h-4 w-4" />
+              {dict.checkAvailability ?? "Mavjudlikni tekshirish"}
+            </Button>
           </div>
         }
       />
@@ -184,7 +265,14 @@ export function TransportView({
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
           {filtered.map((item) => (
-            <TransportCard key={item.id} item={item} dict={dict} />
+            <TransportCard
+              key={item.id}
+              item={item}
+              dict={dict}
+              locale={locale}
+              checkIn={checkIn}
+              checkOut={checkOut}
+            />
           ))}
         </div>
       )}

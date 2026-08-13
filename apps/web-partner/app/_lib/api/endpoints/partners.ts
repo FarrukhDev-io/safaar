@@ -28,6 +28,7 @@ export interface BackendVehicle {
   name: string;
   plate_number?: string | null;
   seats_count: number;
+  price_per_day?: number;
   seat_layout?: unknown;
   status?: string;
   created_at?: string;

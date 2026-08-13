@@ -24,11 +24,12 @@ import { useDataStore } from "../../_stores/data-store";
 import { cn } from "../../_lib/utils/cn";
 import { formatMoney } from "../../_lib/utils/format";
 import { TODAY_ISO } from "../../_lib/utils/date";
-import { getPartnerLabels, hasBeds, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBeds, hasBuses, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
 import type { ReservationView } from "../../_lib/domain/types";
 import { ReservationBar } from "./_components/reservation-bar";
 import { DachaAvailabilityView } from "./_components/dacha-availability-view";
 import { RestaurantScheduleView } from "./_components/restaurant-schedule-view";
+import { VehicleAvailabilityView } from "./_components/vehicle-availability-view";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAY_LABEL = ["Yak", "Du", "Se", "Cho", "Pa", "Ju", "Sha"];
@@ -245,6 +246,7 @@ export function CalendarView() {
 
   if (isDacha(partnerType)) return <DachaAvailabilityView />;
   if (isRestaurant(partnerType)) return <RestaurantScheduleView />;
+  if (hasBuses(partnerType)) return <VehicleAvailabilityView />;
 
   return (
     <div className="flex flex-col gap-4">

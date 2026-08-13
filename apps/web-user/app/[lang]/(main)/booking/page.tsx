@@ -5,6 +5,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { api, ApiRequestError } from "@/lib/api";
 import { CheckoutForm } from "./_components/CheckoutForm";
+import { VehicleCheckoutForm } from "./_components/VehicleCheckoutForm";
 import { BackButton } from "@/components/ui/BackButton";
 
 export const metadata: Metadata = {
@@ -40,11 +41,47 @@ export default async function CheckoutPage({
   const locale = lang as Locale;
   const sp = await searchParams;
 
+  const vehicleId = one(sp.vehicleId);
   const hotelId = one(sp.hotelId);
   const roomId = one(sp.roomId);
   const checkIn = one(sp.checkIn) ?? "";
   const checkOut = one(sp.checkOut) ?? "";
   const guests = Number(one(sp.guests) ?? 2) || 2;
+
+  if (vehicleId) {
+    const [session, dict, transports] = await Promise.all([
+      getSession(),
+      getDictionary(locale, "checkout"),
+      api.catalog.getTransports(locale, { checkIn, checkOut }),
+    ]);
+    const vehicle = transports.find((t) => t.id === vehicleId);
+    if (!vehicle) {
+      redirect(`/${locale}/transport`);
+    }
+
+    return (
+      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
+        <div className="absolute -left-12 top-8 hidden xl:block">
+          <BackButton />
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="xl:hidden">
+            <BackButton />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{dict.title}</h1>
+        </div>
+        <VehicleCheckoutForm
+          locale={locale}
+          dict={dict}
+          vehicleId={vehicle.id}
+          vehicleName={vehicle.name}
+          pricePerDaySum={vehicle.pricePerDaySum}
+          defaults={{ checkIn, checkOut }}
+          isGuest={!session}
+        />
+      </main>
+    );
+  }
 
   if (!hotelId || !roomId) {
     redirect(`/${locale}/hotels`);
@@ -56,10 +93,6 @@ export default async function CheckoutPage({
     getDictionary(locale, "checkout"),
     getCheckoutHotel(locale, hotelId),
   ]);
-
-  if (false) {
-    // Session is not required for guest checkout.
-  }
 
   const room = hotel?.rooms.find((r) => r.id === roomId);
   if (!hotel || !room) {

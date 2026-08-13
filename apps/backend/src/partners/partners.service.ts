@@ -2489,7 +2489,9 @@ export class PartnersService {
   async vehicles(actor: RequestActor | undefined) {
     const organizationId = this.organizationId(actor);
     return this.pg.query(
-      `SELECT v.*
+      `SELECT v.id::text, v.company_id::text, v.name, v.plate_number,
+              v.seats_count, v.price_per_day::float8, v.seat_layout, v.status,
+              v.created_at, v.updated_at
        FROM vehicles v
        JOIN bus_companies bc ON bc.id = v.company_id
        WHERE bc.partner_organization_id = $1
@@ -2505,26 +2507,34 @@ export class PartnersService {
     const companyId = await this.busCompanyId(actor);
     const name = String(body.name ?? '').trim();
     const seatsCount = Number(body.seats_count ?? body.seatsCount);
+    const pricePerDay = Number(body.price_per_day ?? body.pricePerDay ?? 0);
     if (!name || !Number.isFinite(seatsCount) || seatsCount <= 0) {
       throw new BadRequestException({
         code: 'VEHICLE_INVALID',
         message: 'Transport nomi va o‘rindiqlar soni talab qilinadi',
       });
     }
+    if (!Number.isFinite(pricePerDay) || pricePerDay < 0) {
+      throw new BadRequestException({
+        code: 'VEHICLE_PRICE_INVALID',
+        message: "Kunlik narx to'g'ri kiritilishi kerak",
+      });
+    }
 
     const now = new Date().toISOString();
     const [vehicle] = await this.pg.query(
       `INSERT INTO vehicles
-         (id, company_id, name, plate_number, seats_count, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, 'active', $6, $7)
-       RETURNING *`,
+         (id, company_id, name, plate_number, seats_count, price_per_day, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $7)
+       RETURNING id::text, company_id::text, name, plate_number, seats_count,
+                 price_per_day::float8, seat_layout, status, created_at, updated_at`,
       [
         randomUUID(),
         companyId,
         name,
         body.plate_number ? String(body.plate_number) : null,
         seatsCount,
-        now,
+        pricePerDay,
         now,
       ],
     );
@@ -2539,19 +2549,23 @@ export class PartnersService {
   ) {
     await this.assertVehicle(actor, id);
     const now = new Date().toISOString();
+    const priceInput = body.price_per_day ?? body.pricePerDay;
     const [vehicle] = await this.pg.query(
       `UPDATE vehicles
        SET name = COALESCE($1, name),
            plate_number = COALESCE($2, plate_number),
            seats_count = COALESCE($3, seats_count),
-           status = COALESCE($4, status),
-           updated_at = $5
-       WHERE id = $6
-       RETURNING *`,
+           price_per_day = COALESCE($4, price_per_day),
+           status = COALESCE($5, status),
+           updated_at = $6
+       WHERE id = $7
+       RETURNING id::text, company_id::text, name, plate_number, seats_count,
+                 price_per_day::float8, seat_layout, status, created_at, updated_at`,
       [
         body.name !== undefined ? String(body.name) : null,
         body.plate_number !== undefined ? String(body.plate_number) : null,
         body.seats_count !== undefined ? Number(body.seats_count) : null,
+        priceInput !== undefined ? Number(priceInput) : null,
         body.status !== undefined ? String(body.status) : null,
         now,
         id,
@@ -2916,6 +2930,8 @@ export class PartnersService {
               COALESCE(b.price_snapshot ->> 'room_type_id', hr.room_type_id::text) AS room_type_id,
               COALESCE(b.price_snapshot ->> 'room_number', hr.code) AS room_number,
               COALESCE(rt.name ->> 'uz', rt.name ->> 'ru', rt.name ->> 'en') AS room_type_name,
+              v2.name AS vehicle_name,
+              v2.plate_number AS vehicle_plate_number,
               COALESCE((
                 SELECT SUM(p.amount)::float8
                 FROM payments p
@@ -2951,6 +2967,7 @@ export class PartnersService {
            NULLIF(b.price_snapshot ->> 'room_type_id', '')::uuid,
            hr.room_type_id
          )
+       LEFT JOIN vehicles v2 ON v2.id = b.vehicle_id
        WHERE b.partner_organization_id = $1
        ORDER BY ${sortColumn} ${orderDir}
        LIMIT $2 OFFSET $3`,
@@ -3332,6 +3349,8 @@ export class PartnersService {
               COALESCE(b.price_snapshot ->> 'room_type_id', hr.room_type_id::text) AS room_type_id,
               COALESCE(b.price_snapshot ->> 'room_number', hr.code) AS room_number,
               COALESCE(rt.name ->> 'uz', rt.name ->> 'ru', rt.name ->> 'en') AS room_type_name,
+              v2.name AS vehicle_name,
+              v2.plate_number AS vehicle_plate_number,
               COALESCE((
                 SELECT SUM(p.amount)::float8
                 FROM payments p
@@ -3362,6 +3381,7 @@ export class PartnersService {
            NULLIF(b.price_snapshot ->> 'room_type_id', '')::uuid,
            hr.room_type_id
          )
+       LEFT JOIN vehicles v2 ON v2.id = b.vehicle_id
        WHERE b.id = $1`,
       [id],
     );
