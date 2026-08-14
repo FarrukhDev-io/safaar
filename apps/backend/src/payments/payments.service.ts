@@ -7,7 +7,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Role } from '@safaar/types';
+import { BookingStatus, Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
 import {
   PostgresService,
@@ -21,12 +21,42 @@ import {
 
 type HeaderMap = Record<string, string | string[] | undefined>;
 
+/**
+ * DB-level booking status konstantalari (kichik harf, pg enum'iga mos) —
+ * `bookings.service.ts`dagi bilan bir xil, lekin qasddan mustaqil
+ * nusxada — ikkala modul o'zaro bog'liq bo'lib qolmasligi uchun.
+ */
+const BS = {
+  PENDING: BookingStatus.PENDING.toLowerCase(),
+  AWAITING_PAYMENT: BookingStatus.AWAITING_PAYMENT.toLowerCase(),
+  AWAITING_PARTNER_CONFIRMATION:
+    BookingStatus.AWAITING_PARTNER_CONFIRMATION.toLowerCase(),
+  CONFIRMED: BookingStatus.CONFIRMED.toLowerCase(),
+  CANCELLED: BookingStatus.CANCELLED.toLowerCase(),
+  COMPLETED: BookingStatus.COMPLETED.toLowerCase(),
+  EXPIRED: BookingStatus.EXPIRED.toLowerCase(),
+} as const;
+
+const OPEN_BOOKING_STATUSES = [BS.PENDING, BS.AWAITING_PAYMENT];
+const SETTLED_BOOKING_STATUSES = [BS.EXPIRED, BS.CANCELLED];
+
 interface BookingVisibilityRow {
   id: string;
   user_id: string | null;
   partner_organization_id: string;
   total_amount: string | number;
   currency: string;
+}
+
+interface BookingRow {
+  id: string;
+  status: string;
+  user_id: string | null;
+  partner_organization_id: string;
+  confirmation_mode: string;
+  partner_payable: string | number;
+  currency: string;
+  [key: string]: unknown;
 }
 
 export interface PaymentRow {
@@ -71,6 +101,23 @@ export class PaymentsService {
     body: Record<string, unknown>,
   ) {
     const booking = await this.assertBookingVisible(actor, bookingId);
+
+    // Shu bron uchun hali natijasi chiqmagan (pending/processing) payment
+    // bo'lsa — yangisini yaratmasdan o'shani qaytaramiz. Aks holda har bir
+    // "Qayta urinish"/checkout'ni qayta ochish bir xil bronga bir nechta
+    // mustaqil payment qatori yaratardi, va webhook keyinchalik qaysi
+    // birini "to'landi" deb belgilashni noaniq tanlashga majbur bo'lardi.
+    const [existing] = await this.pg.query<PaymentRow>(
+      `SELECT * FROM payments
+       WHERE booking_id = $1 AND status IN ('pending', 'processing')
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [booking.id],
+    );
+    if (existing) {
+      return existing;
+    }
+
     const provider = this.provider(body.provider);
     const id = randomUUID();
     const now = new Date().toISOString();
@@ -81,7 +128,7 @@ export class PaymentsService {
         id,
         booking.id,
         provider,
-        'pending',
+        provider === 'cash' ? 'awaiting_cash' : 'pending',
         booking.total_amount,
         booking.currency,
         now,
@@ -160,15 +207,36 @@ export class PaymentsService {
       const bookingId = String(
         body.booking_id ?? body.bookingId ?? body.account ?? '',
       );
+
+      // Bronni AVVAL, qulflab olamiz — aynan shu qulf `expireStaleBookings`
+      // cron'i bilan haqiqiy o'zaro istisno (mutual exclusion) ta'minlaydi:
+      // ikkalasi ham xuddi shu qatorga UPDATE qiladi, shuning uchun Postgres
+      // ularni tabiiy ravishda ketma-ket, bittasi ikkinchisidan KEYIN
+      // (yangilangan holatni ko'rib) bajaradi — "hozir ikkalasi ham
+      // muvaffaqiyatli, natija board bo'lib qoladi" degan holat bo'lmaydi.
+      const [booking] = bookingId
+        ? await tx.query<BookingRow>(
+            'SELECT * FROM bookings WHERE id = $1 FOR UPDATE',
+            [bookingId],
+          )
+        : [];
+
+      // To'lov qatorini tanlashda avval hali natijasi chiqmagan
+      // (pending/processing)ni afzal ko'ramiz — bir bronga bir nechta
+      // payment qatori bo'lib qolgan taqdirda ham (masalan eski, tugagan
+      // urinish) webhook noto'g'ri/eskirgan qatorni "to'landi" deb
+      // belgilab qo'ymasligi uchun.
       const paymentRows = bookingId
         ? await tx.query<PaymentRow>(
-            'SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+            `SELECT * FROM payments WHERE booking_id = $1
+             ORDER BY (status IN ('pending', 'processing')) DESC, created_at DESC
+             LIMIT 1 FOR UPDATE`,
             [bookingId],
           )
         : [];
       const [payment] = paymentRows;
 
-      if (!payment) {
+      if (!payment || !booking) {
         throw new NotFoundException({
           code: 'PAYMENT_NOT_FOUND',
           message: 'Webhook uchun payment topilmadi',
@@ -193,16 +261,54 @@ export class PaymentsService {
         [payment.id, eventRow.id],
       );
 
+      let bookingOutcome:
+        | 'confirmed'
+        | 'awaiting_partner_confirmation'
+        | 'no_action'
+        | 'lost_race_refund_requested' = 'no_action';
+
       if (newStatus === 'paid') {
-        // To'lov muvaffaqiyatli bo'lgach, bron endi hold-expiry cron
-        // tomonidan avtomatik "expired"ga o'tkazilmasligi kerak — aks
-        // holda mijoz to'lagan bron soat/kunlik joyni yo'qotib qo'yishi
-        // mumkin (bus o'rindig'i bo'lsa, boshqasiga qayta sotiladi).
-        await tx.query(
-          `UPDATE bookings SET expires_at = NULL, updated_at = $2
-           WHERE id = $1 AND status IN ('pending', 'awaiting_payment')`,
-          [payment.booking_id, now],
-        );
+        if (OPEN_BOOKING_STATUSES.includes(booking.status)) {
+          // Kutilgan, oddiy holat: to'lov muddat tugashidan oldin yetib
+          // keldi. Bron endi cron tomonidan "expired"ga o'tkazilmasligi
+          // uchun `expires_at`ni ham shu yerda tozalaymiz.
+          const nextStatus =
+            booking.confirmation_mode === 'request_confirmation'
+              ? BS.AWAITING_PARTNER_CONFIRMATION
+              : BS.CONFIRMED;
+
+          await tx.query(
+            `UPDATE bookings
+             SET status = $1, confirmed_at = $2, expires_at = NULL, updated_at = $2
+             WHERE id = $3`,
+            [nextStatus, now, booking.id],
+          );
+          await this.recordStatusHistory(tx, booking.id, nextStatus, 'payment_paid');
+          await this.creditPartnerLedger(tx, booking);
+
+          bookingOutcome =
+            nextStatus === BS.CONFIRMED ? 'confirmed' : 'awaiting_partner_confirmation';
+        } else if (SETTLED_BOOKING_STATUSES.includes(booking.status)) {
+          // Poyga yutqazildi: pul haqiqatan keldi, lekin bron cron
+          // tomonidan allaqachon "expired"/"cancelled" qilingan — xona/
+          // o'rindiq boshqa mijozga qayta sotilgan bo'lishi mumkin, shuning
+          // uchun bronni jim tasdiqlab bo'lmaydi. Pul esa hech qachon
+          // "yo'qolib" ketmasligi kerak — shu sabab avtomatik refund
+          // so'rovi ochiladi (admin navbatida ko'rinadi) va bu holat
+          // bron tarixida aniq qayd etiladi.
+          await this.recordStatusHistory(
+            tx,
+            booking.id,
+            booking.status,
+            'paid_after_settlement_auto_refund',
+          );
+          await this.autoRefundForLostRace(tx, booking, payment, now);
+          bookingOutcome = 'lost_race_refund_requested';
+        }
+        // Boshqa holatlar (booking allaqachon confirmed/awaiting_partner_
+        // confirmation/completed) — idempotentlik tufayli odatda bu yerga
+        // yetib kelmaydi, lekin yetib kelsa ham qo'shimcha harakat
+        // qilinmaydi (ikki marta kredit/tasdiqlashning oldi olinadi).
       }
 
       return {
@@ -210,6 +316,7 @@ export class PaymentsService {
         event,
         accepted: true,
         duplicate: false,
+        booking_outcome: bookingOutcome,
         payment: {
           ...payment,
           status: newStatus,
@@ -219,6 +326,69 @@ export class PaymentsService {
         processed_at: eventRow.processed_at,
       };
     });
+  }
+
+  private async recordStatusHistory(
+    tx: PostgresTransaction,
+    bookingId: string,
+    status: string,
+    action: string,
+  ) {
+    await tx.query(
+      `INSERT INTO booking_status_history (id, booking_id, status, action, actor_type, actor_id, created_at)
+       VALUES ($1, $2, $3, $4, NULL, NULL, $5)`,
+      [randomUUID(), bookingId, status, action, new Date().toISOString()],
+    );
+  }
+
+  /**
+   * Bron "topshirilgan" (to'lov qabul qilingan va hamkorga tasdiqlangan/
+   * tasdiqlanishi so'ralgan) bo'lganda hamkorning haqiqiy hisobiga
+   * (`partner_ledger_entries`) shu bron bo'yicha ulush qo'shiladi — bu
+   * jadval endi hamkor balansi uchun YAGONA haqiqat manbai (avval balans
+   * to'g'ridan-to'g'ri `bookings.total_amount`dan, holatidan qat'iy nazar,
+   * hisoblab chiqilardi).
+   */
+  private async creditPartnerLedger(tx: PostgresTransaction, booking: BookingRow) {
+    await tx.query(
+      `INSERT INTO partner_ledger_entries (id, organization_id, booking_id, type, amount, currency, created_at)
+       VALUES ($1, $2, $3, 'booking_earned', $4, $5, $6)`,
+      [
+        randomUUID(),
+        booking.partner_organization_id,
+        booking.id,
+        Number(booking.partner_payable),
+        booking.currency,
+        new Date().toISOString(),
+      ],
+    );
+  }
+
+  /**
+   * Pul kelgan, lekin bron allaqachon "expired"/"cancelled" bo'lib
+   * qolgan holat uchun — avtomatik refund so'rovi. `requested_amount`
+   * to'liq to'langan summa (mijoz aybi emas, tizim tomonidagi vaqt
+   * poygasi), reason maydonida sabab aniq yozib qo'yiladi.
+   */
+  private async autoRefundForLostRace(
+    tx: PostgresTransaction,
+    booking: BookingRow,
+    payment: PaymentRow,
+    now: string,
+  ) {
+    await tx.query(
+      `INSERT INTO refunds (id, booking_id, user_id, status, currency, requested_amount, reason, created_at, updated_at)
+       VALUES ($1, $2, $3, 'requested', $4, $5, $6, $7, $7)`,
+      [
+        randomUUID(),
+        booking.id,
+        booking.user_id,
+        payment.currency,
+        Number(payment.amount),
+        "Tizim: to'lov bron muddati tugagach/bekor qilingach yetib keldi — avtomatik qaytarish so'rovi",
+        now,
+      ],
+    );
   }
 
   private async assertBookingVisible(
@@ -341,6 +511,11 @@ export class PaymentsService {
     }
     if (value && typeof value === 'object') {
       return `{${Object.entries(value as Record<string, unknown>)
+        // `undefined`-qiymatli kalitlar kanonik matnga umuman kirmasligi
+        // kerak — aks holda ular JSON.stringify orqali so'zma-so'z
+        // "undefined" matniga aylanadi, va real provayder (masalan Click)
+        // yubormaydigan/bilmaydigan maydonlar imzoni buzib qo'yadi.
+        .filter(([, entry]) => entry !== undefined)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(
           ([key, entry]) =>

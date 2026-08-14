@@ -18,6 +18,7 @@ import {
   CancelBookingDto,
   CreateBusBookingDto,
   CreateHotelBookingDto,
+  CreateVehicleRentalDto,
   LookupBookingDto,
   SendBookingMessageDto,
 } from './dto/booking.dto';
@@ -51,6 +52,20 @@ export class BookingsController {
     @Body() dto: CreateBusBookingDto,
   ) {
     return this.bookingsService.createBus(
+      actor,
+      dto as unknown as Record<string, unknown>,
+    );
+  }
+
+  // Mashina ijarasi (rent-a-car) — hotel kabi guest checkout ruxsat etiladi,
+  // shuning uchun bir xil qat'iy limit qo'yiladi.
+  @Post('vehicle')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  createVehicleRental(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body() dto: CreateVehicleRentalDto,
+  ) {
+    return this.bookingsService.createVehicleRental(
       actor,
       dto as unknown as Record<string, unknown>,
     );

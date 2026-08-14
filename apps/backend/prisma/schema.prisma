@@ -662,12 +662,14 @@ model Vehicle {
   plateNumber  String?  @map("plate_number") @db.VarChar(32)
   seatsCount   Int      @map("seats_count")
   seatLayout   Json?    @map("seat_layout")
+  pricePerDay  Decimal  @default(0) @map("price_per_day") @db.Decimal(18, 2)
   status       String   @default("active") @db.VarChar(32)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  company BusCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  trips   Trip[]
+  company  BusCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  trips    Trip[]
+  bookings Booking[]
 
   @@index([companyId, status])
   @@map("vehicles")
@@ -757,6 +759,7 @@ model Booking {
   hotelId                     String?           @map("hotel_id") @db.Uuid
   tripId                      String?           @map("trip_id") @db.Uuid
   roomId                      String?           @map("room_id") @db.Uuid
+  vehicleId                   String?           @map("vehicle_id") @db.Uuid
   checkIn                     DateTime?         @map("check_in") @db.Date
   checkOut                    DateTime?         @map("check_out") @db.Date
   slotTime                    DateTime?         @map("slot_time") @db.Time
@@ -778,6 +781,7 @@ model Booking {
   hotel        Hotel?              @relation(fields: [hotelId], references: [id])
   trip         Trip?               @relation(fields: [tripId], references: [id])
   room         HotelRoom?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  vehicle      Vehicle?            @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   history      BookingStatusHistory[]
   payments     Payment[]
   refunds      Refund[]
@@ -883,7 +887,7 @@ model IdempotencyRecord {
 model Refund {
   id              String       @id @default(uuid()) @db.Uuid
   bookingId       String       @map("booking_id") @db.Uuid
-  userId          String       @map("user_id") @db.Uuid
+  userId          String?      @map("user_id") @db.Uuid
   status          RefundStatus @default(requested)
   requestedAmount Decimal      @map("requested_amount") @db.Decimal(18, 2)
   approvedAmount  Decimal?     @map("approved_amount") @db.Decimal(18, 2)

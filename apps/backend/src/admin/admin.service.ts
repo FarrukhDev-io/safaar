@@ -563,6 +563,12 @@ export class AdminService {
 
   private invalidatePublicBusCache() {
     void this.cache.delByPattern('bus-trips:list:*');
+    // `catalog:transports` (GET /catalog/transports, the public Transport
+    // page's data source) is a single fixed key, not a `bus-trips:*` one —
+    // it was never cleared here, so approving/suspending a bus partner or
+    // toggling a vehicle's status could take up to its 1h TTL to show on
+    // the public site.
+    void this.cache.del('catalog:transports');
   }
 
   private async uniqueHotelSlug(
@@ -2793,18 +2799,197 @@ export class AdminService {
     return rows[0] ?? { id };
   }
 
-  async refundStatus(id: string, status: string) {
+  /**
+   * Refund'ni tasdiqlash — avval bu shunchaki `refunds.status`ni
+   * o'zgartirardi, boshqa hech narsaga (to'lov, bron, hamkor balansi)
+   * ta'sir qilmasdi. Endi haqiqiy moliyaviy holatga o'tkazadi:
+   *  - to'lov `refunded` deb belgilanadi (real tashqi provayder integratsiyasi
+   *    yo'q — hech qanday tashqi so'rov yuborilmaydi, faqat ICHKI holat rost
+   *    aks ettiriladi: "biz mijozga qaytarishni qayd etdik");
+   *  - bron, agar allaqachon yakunlangan/bekor qilinmagan bo'lsa, bekor
+   *    qilinadi;
+   *  - hamkor ledgeriga manfiy yozuv qo'shiladi — shu bron bo'yicha
+   *    avval kredit qilingan ulush qaytarib olinadi, aks holda xuddi shu
+   *    pul mijozga QAYTARILGAN va hamkor tomonidan YECHISH mumkin bo'lib
+   *    qolardi (ikki marta sarflash).
+   * Faqat `requested`/`processing` holatidan tasdiqlash mumkin — allaqachon
+   * tasdiqlangan/rad etilgan refund'ni qayta tasdiqlab bo'lmaydi.
+   */
+  async refundApprove(
+    actor: RequestActor | undefined,
+    id: string,
+    body: Record<string, unknown> = {},
+  ) {
+    const result = await this.postgres.transaction(async (tx) => {
+      const [refund] = await tx.query<{
+        id: string;
+        booking_id: string;
+        status: string;
+        requested_amount: string | number;
+        currency: string;
+      }>(
+        `SELECT id::text, booking_id::text, status::text, requested_amount, currency
+         FROM refunds WHERE id = $1::uuid FOR UPDATE`,
+        [id],
+      );
+      if (!refund) {
+        throw new NotFoundException({
+          code: 'REFUND_NOT_ALLOWED',
+          message: 'Refund topilmadi',
+        });
+      }
+      if (!['requested', 'processing'].includes(refund.status)) {
+        throw new ConflictException({
+          code: 'REFUND_INVALID_STATUS',
+          message: `Refund "${refund.status}" holatidan tasdiqlab bo'lmaydi`,
+        });
+      }
+
+      const requestedAmount = Number(refund.requested_amount);
+      const approvedAmount = body.approved_amount != null
+        ? Number(body.approved_amount)
+        : requestedAmount;
+      if (!Number.isFinite(approvedAmount) || approvedAmount <= 0) {
+        throw new BadRequestException({
+          code: 'REFUND_AMOUNT_INVALID',
+          message: 'Tasdiqlangan summa noto‘g‘ri',
+        });
+      }
+
+      const now = new Date().toISOString();
+      const [updated] = await tx.query(
+        `UPDATE refunds
+         SET status = 'approved', approved_amount = $2, updated_at = $3
+         WHERE id = $1::uuid
+         RETURNING id::text, booking_id::text, user_id::text, status,
+                   requested_amount::float8, approved_amount::float8,
+                   currency, reason, created_at, updated_at`,
+        [id, approvedAmount, now],
+      );
+
+      const [booking] = await tx.query<{
+        id: string;
+        status: string;
+        partner_organization_id: string;
+        partner_payable: string | number;
+        currency: string;
+      }>(
+        `SELECT id::text, status::text, partner_organization_id::text,
+                partner_payable, currency
+         FROM bookings WHERE id = $1::uuid FOR UPDATE`,
+        [refund.booking_id],
+      );
+
+      if (booking) {
+        await tx.query(
+          `UPDATE payments SET status = 'refunded', updated_at = $2
+           WHERE booking_id = $1::uuid AND status = 'paid'`,
+          [booking.id, now],
+        );
+
+        if (!['cancelled', 'completed'].includes(booking.status)) {
+          await tx.query(
+            `UPDATE bookings SET status = 'cancelled', cancelled_at = $2,
+                    cancel_reason_text = 'Refund tasdiqlandi', updated_at = $2
+             WHERE id = $1::uuid`,
+            [booking.id, now],
+          );
+        }
+
+        await tx.query(
+          `INSERT INTO partner_ledger_entries (id, organization_id, booking_id, type, amount, currency, created_at)
+           VALUES ($1, $2, $3, 'refund', $4, $5, $6)`,
+          [
+            randomUUID(),
+            booking.partner_organization_id,
+            booking.id,
+            -Number(booking.partner_payable),
+            booking.currency,
+            now,
+          ],
+        );
+      }
+
+      return updated;
+    });
+
+    await this.audit('refund.approve', actor, {
+      refund_id: id,
+      approved_amount: result?.['approved_amount'],
+    });
+    this.invalidateAdminCache();
+    this.events.adminDashboardUpdated();
+    return result ?? { id, status: 'approved', updated_at: new Date().toISOString() };
+  }
+
+  async refundReject(actor: RequestActor | undefined, id: string) {
     const rows = await this.rows(
       `update refunds
-       set status = $2, updated_at = now()
-       where id = $1::uuid
+       set status = 'rejected', updated_at = now()
+       where id = $1::uuid and status in ('requested', 'processing')
        returning id::text, booking_id::text, user_id::text, status,
                  requested_amount::float8, approved_amount::float8,
                  currency, reason, created_at, updated_at`,
-      [id, status],
+      [id],
     );
+    if (!rows[0]) {
+      const [existing] = await this.rows(
+        `select status from refunds where id = $1::uuid`,
+        [id],
+      );
+      if (!existing) {
+        throw new NotFoundException({
+          code: 'REFUND_NOT_ALLOWED',
+          message: 'Refund topilmadi',
+        });
+      }
+      throw new ConflictException({
+        code: 'REFUND_INVALID_STATUS',
+        message: `Refund "${existing['status']}" holatidan rad etib bo'lmaydi`,
+      });
+    }
+    await this.audit('refund.reject', actor, { refund_id: id });
     this.invalidateAdminCache();
-    return rows[0] ?? { id, status, updated_at: new Date().toISOString() };
+    return rows[0];
+  }
+
+  /**
+   * "Qayta ko'rib chiqish" — bu haqiqiy tashqi to'lov urinishini qayta
+   * yubormaydi (bunday integratsiya hozircha yo'q), balki xato bilan
+   * rad etilgan so'rovni yana navbatga ("requested") qaytaradi, shunda
+   * admin qayta ko'rib chiqishi mumkin. Avval bu yerda `RefundStatus`
+   * enum'ida mavjud bo'lmagan "retrying" qiymati yozilardi — bu chaqiruv
+   * har safar Postgres xatosi bilan yiqilardi.
+   */
+  async refundRetry(actor: RequestActor | undefined, id: string) {
+    const rows = await this.rows(
+      `update refunds
+       set status = 'requested', updated_at = now()
+       where id = $1::uuid and status = 'rejected'
+       returning id::text, booking_id::text, user_id::text, status,
+                 requested_amount::float8, approved_amount::float8,
+                 currency, reason, created_at, updated_at`,
+      [id],
+    );
+    if (!rows[0]) {
+      const [existing] = await this.rows(
+        `select status from refunds where id = $1::uuid`,
+        [id],
+      );
+      if (!existing) {
+        throw new NotFoundException({
+          code: 'REFUND_NOT_ALLOWED',
+          message: 'Refund topilmadi',
+        });
+      }
+      throw new ConflictException({
+        code: 'REFUND_INVALID_STATUS',
+        message: `Faqat rad etilgan refund'ni qayta ko'rib chiqish mumkin (hozirgi holat: "${existing['status']}")`,
+      });
+    }
+    await this.audit('refund.retry', actor, { refund_id: id });
+    this.invalidateAdminCache();
+    return rows[0];
   }
 
   async financeOverview() {
@@ -2898,6 +3083,22 @@ export class AdminService {
 
   async withdrawalStatus(id: string, status: string) {
     const nextStatus = normalizeWithdrawalStatus(status);
+    // Holat mashinasi: requested -> approved/rejected, approved -> paid/
+    // rejected. `paid` va `rejected` — TUGATUVCHI holatlar, ulardan
+    // hech qanday keyingi o'tish yo'q. Avval bu yerda hech qanday
+    // manba-holat tekshiruvi yo'q edi — masalan allaqachon "paid"
+    // qilingan yechimni "rejected"ga o'tkazish mumkin edi, bu esa
+    // `withdrawal()` metodidagi "alreadyCommitted" hisobidan uni chiqarib
+    // tashlab, xuddi shu summani ikkinchi marta so'rash/to'lashga yo'l
+    // ochib berardi.
+    const allowedFromStatuses: Record<string, string[]> = {
+      approved: ['requested'],
+      rejected: ['requested', 'approved'],
+      paid: ['approved'],
+      requested: [],
+    };
+    const fromStatuses = allowedFromStatuses[nextStatus] ?? [];
+
     const rows = await this.rows(
       `
         update withdrawal_requests wr
@@ -2906,6 +3107,7 @@ export class AdminService {
         from partner_organizations po
         where wr.id = $1::uuid
           and po.id = wr.organization_id
+          and wr.status = ANY($3::text[])
         returning
           wr.id::text,
           wr.organization_id::text as partner_id,
@@ -2918,12 +3120,24 @@ export class AdminService {
           wr.updated_at,
           coalesce(po.tax_id, po.id::text) as bank_account
       `,
-      [id, nextStatus],
+      [id, nextStatus, fromStatuses],
     );
 
     if (!rows[0]) {
-      this.invalidateAdminCache();
-      return { id, status: nextStatus, updated_at: new Date().toISOString() };
+      const [existing] = await this.rows(
+        `select status from withdrawal_requests where id = $1::uuid`,
+        [id],
+      );
+      if (!existing) {
+        throw new NotFoundException({
+          code: 'WITHDRAWAL_NOT_FOUND',
+          message: 'Pul yechish so‘rovi topilmadi',
+        });
+      }
+      throw new ConflictException({
+        code: 'WITHDRAWAL_INVALID_STATUS',
+        message: `Pul yechish so'rovini "${existing['status']}" holatidan "${nextStatus}"ga o'tkazib bo'lmaydi`,
+      });
     }
     this.invalidateAdminCache();
     return rows[0];

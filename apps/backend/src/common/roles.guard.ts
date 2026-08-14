@@ -49,37 +49,54 @@ export class RolesGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    if (
-      (!requiredRoles || requiredRoles.length === 0) &&
-      (!requiredPermissions || requiredPermissions.length === 0)
-    ) {
+    const authRequired =
+      Boolean(requiredRoles?.length) || Boolean(requiredPermissions?.length);
+
+    const request = context.switchToHttp().getRequest<HttpRequestWithActor>();
+    const resolved = request.user ?? buildActorFromHeaders(request.headers);
+
+    if (!authRequired) {
+      // Auth ixtiyoriy marshrut (masalan guest checkout — @Roles() qo'yilmagan
+      // POST /bookings/hotel). Avval bunday marshrutlarda `request.user`
+      // UMUMAN to'ldirilmas edi, chunki shu yerdan darhol `true` bilan
+      // qaytilardi — natijada login qilgan mijoz ham bron yaratganda
+      // `CurrentActor()` doim `undefined` ko'rar, bron `user_id`si NULL
+      // yozilardi. Endi token bo'lsa (va yaroqli/faol bo'lsa) actor
+      // baribir aniqlanadi va `request.user`ga biriktiriladi — lekin bu
+      // marshrutda auth SHART emasligi sababli, token yo'q/yaroqsiz/
+      // sessiya bekor qilingan/hisob bloklangan bo'lsa QATTIQ xato
+      // qaytarilmaydi, shunchaki anonim (guest) sifatida davom etiladi.
+      if (resolved) {
+        try {
+          await this.assertSessionActive(resolved);
+          await this.assertActorAllowed(resolved, request);
+          request.user = resolved;
+        } catch {
+          // yaroqsiz/bloklangan/faol bo'lmagan actor — guest sifatida davom etadi
+        }
+      }
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<HttpRequestWithActor>();
-    const user = request.user ?? buildActorFromHeaders(request.headers);
-
-    if (user) {
-      request.user = user;
-    }
-
-    if (!user) {
+    if (!resolved) {
       throw new UnauthorizedException({
         code: 'AUTH_TOKEN_INVALID',
         message: 'Sessiya topilmadi yoki token yaroqsiz',
       });
     }
 
-    await this.assertSessionActive(user);
-    await this.assertActorAllowed(user, request);
+    request.user = resolved;
 
-    if (requiredRoles?.length && !hasRole(user, requiredRoles)) {
+    await this.assertSessionActive(resolved);
+    await this.assertActorAllowed(resolved, request);
+
+    if (requiredRoles?.length && !hasRole(resolved, requiredRoles)) {
       throw new ForbiddenException('Bu amal uchun ruxsatingiz yoq.');
     }
 
     if (
       requiredPermissions?.length &&
-      !actorHasPermissions(user, requiredPermissions)
+      !actorHasPermissions(resolved, requiredPermissions)
     ) {
       throw new ForbiddenException({
         code: 'AUTH_PERMISSION_DENIED',

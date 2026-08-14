@@ -391,6 +391,27 @@ export class PartnersController {
     return this.partnersService.publishListing(actor, id);
   }
 
+  @Get('bus-company')
+  busCompany(@CurrentActor() actor: RequestActor | undefined) {
+    return this.partnersService.busCompany(actor);
+  }
+
+  @Post('bus-company')
+  createBusCompany(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.createBusCompany(actor, body);
+  }
+
+  @Patch('bus-company')
+  updateBusCompany(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.partnersService.updateBusCompany(actor, body);
+  }
+
   @Get('vehicles')
   vehicles(@CurrentActor() actor: RequestActor | undefined) {
     return this.partnersService.vehicles(actor);

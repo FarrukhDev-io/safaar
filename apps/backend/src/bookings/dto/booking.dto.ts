@@ -165,6 +165,16 @@ export class CreateHotelBookingDto {
   @IsOptional()
   @IsString()
   source?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promo_code?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
 }
 
 export class CreateBusBookingDto {
@@ -185,6 +195,129 @@ export class CreateBusBookingDto {
   @IsOptional()
   @IsIn(['click', 'payme', 'uzcard', 'humo', 'cash'])
   payment_method?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promo_code?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+}
+
+export class CreateVehicleRentalDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  vehicle_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  vehicleId?: string;
+
+  @ApiPropertyOptional({ example: '2026-07-01' })
+  @IsOptional()
+  @IsString()
+  check_in?: string;
+
+  @ApiPropertyOptional({ example: '2026-07-01' })
+  @IsOptional()
+  @IsString()
+  checkIn?: string;
+
+  @ApiPropertyOptional({ example: '2026-07-03' })
+  @IsOptional()
+  @IsString()
+  check_out?: string;
+
+  @ApiPropertyOptional({ example: '2026-07-03' })
+  @IsOptional()
+  @IsString()
+  checkOut?: string;
+
+  @ApiPropertyOptional({
+    default: 'click',
+    enum: ['click', 'payme', 'uzcard', 'humo', 'cash'],
+  })
+  @IsOptional()
+  @IsIn(['click', 'payme', 'uzcard', 'humo', 'cash'])
+  payment_method?: string;
+
+  @ApiPropertyOptional({
+    default: 'instant_confirmation',
+    enum: ['instant_confirmation', 'request_confirmation'],
+  })
+  @IsOptional()
+  @IsIn(['instant_confirmation', 'request_confirmation'])
+  confirmation_mode?: string;
+
+  @ApiPropertyOptional({ example: 'Laziz' })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Shakarov' })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiPropertyOptional({ example: 'Laziz Shakarov' })
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @ApiPropertyOptional({ example: 'laziz@example.com' })
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional({ example: '+998901234567' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'Laziz Shakarov' })
+  @IsOptional()
+  @IsString()
+  guest_name?: string;
+
+  @ApiPropertyOptional({ example: 'Laziz Shakarov' })
+  @IsOptional()
+  @IsString()
+  guestName?: string;
+
+  @ApiPropertyOptional({ example: 'laziz@example.com' })
+  @IsOptional()
+  @IsString()
+  guest_email?: string;
+
+  @ApiPropertyOptional({ example: 'laziz@example.com' })
+  @IsOptional()
+  @IsString()
+  guestEmail?: string;
+
+  @ApiPropertyOptional({ example: '+998901234567' })
+  @IsOptional()
+  @IsString()
+  guest_phone?: string;
+
+  @ApiPropertyOptional({ example: '+998901234567' })
+  @IsOptional()
+  @IsString()
+  guestPhone?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promo_code?: string;
+
+  @ApiPropertyOptional({ example: 'SUMMER10' })
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
 }
 
 export class CancelBookingDto {

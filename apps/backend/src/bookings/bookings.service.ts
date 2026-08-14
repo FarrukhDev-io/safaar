@@ -12,11 +12,13 @@ import { randomUUID } from 'node:crypto';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { BookingStatus, Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
+import { calculateCommission } from '../common/finance';
 import { EmailService } from '../infrastructure/email.service';
 import {
   PostgresService,
   type PostgresTransaction,
 } from '../infrastructure/postgres.service';
+import { calculatePromoDiscount, PromosService } from '../promos/promos.service';
 import { EventsService } from '../realtime/events.service';
 
 /**
@@ -61,7 +63,13 @@ interface BusCompanyRow {
   partner_organization_id: string;
 }
 
-interface BookingRow {
+interface VehicleRow {
+  id: string;
+  company_id: string;
+  price_per_day: string | number;
+}
+
+export interface BookingRow {
   id: string;
   status: string;
   user_id: string | null;
@@ -82,6 +90,7 @@ export class BookingsService {
     private readonly pg: PostgresService,
     private readonly events: EventsService,
     private readonly emailService: EmailService,
+    private readonly promosService: PromosService,
   ) {}
 
   /**
@@ -94,7 +103,7 @@ export class BookingsService {
   @Cron(CronExpression.EVERY_MINUTE)
   async expireStaleBookings(): Promise<void> {
     try {
-      const expired = await this.pg.transaction(async (tx) => {
+      const { expired, unconfirmed } = await this.pg.transaction(async (tx) => {
         const now = new Date().toISOString();
         const rows = await tx.query<BookingRow>(
           `UPDATE bookings
@@ -104,39 +113,103 @@ export class BookingsService {
              AND expires_at < $2
              AND NOT EXISTS (
                SELECT 1 FROM payments p
-               WHERE p.booking_id = bookings.id AND p.status = 'paid'
+               WHERE p.booking_id = bookings.id AND p.status IN ('paid', 'processing')
              )
            RETURNING *`,
           [BS.EXPIRED, now, BS.PENDING, BS.AWAITING_PAYMENT],
         );
 
-        if (rows.length === 0) {
-          return rows;
+        if (rows.length > 0) {
+          const bookingIds = rows.map((row) => row.id);
+          await tx.query(
+            `UPDATE trip_seats
+             SET status = 'available', held_by_booking_id = NULL, held_until = NULL
+             WHERE held_by_booking_id = ANY($1::uuid[])`,
+            [bookingIds],
+          );
+
+          for (const row of rows) {
+            await this.addStatusHistory(tx, row, 'expired');
+          }
         }
 
-        const bookingIds = rows.map((row) => row.id);
-        await tx.query(
-          `UPDATE trip_seats
-           SET status = 'available', held_by_booking_id = NULL, held_until = NULL
-           WHERE held_by_booking_id = ANY($1::uuid[])`,
-          [bookingIds],
+        // To'lov qilingan, lekin hamkor `request_confirmation` bosqichida
+        // belgilangan muddat ichida javob bermagan bronlar — bu holat
+        // avval umuman ishlanmas edi (`awaiting_partner_confirmation`
+        // hech qachon avtomatik tugatilmasdi, mijoz pulini to'lab abadiy
+        // "javob kutmoqda" holatida osilib qolishi mumkin edi). Pul
+        // haqiqatan kelgan bo'lgani uchun bekor qilish bilan birga
+        // avtomatik qaytarish so'rovi ham ochiladi.
+        const unconfirmedRows = await tx.query<BookingRow>(
+          `UPDATE bookings
+           SET status = $1, cancelled_at = $2, cancel_reason_text = $3, updated_at = $2
+           WHERE status = $4
+             AND partner_confirmation_deadline IS NOT NULL
+             AND partner_confirmation_deadline < $2
+           RETURNING *`,
+          [
+            BS.CANCELLED,
+            now,
+            "Hamkor tasdiqlash muddatida javob bermadi — tizim tomonidan avtomatik bekor qilindi",
+            BS.AWAITING_PARTNER_CONFIRMATION,
+          ],
         );
 
-        for (const row of rows) {
-          await this.addStatusHistory(tx, row, 'expired');
+        for (const row of unconfirmedRows) {
+          await this.addStatusHistory(
+            tx,
+            row,
+            'auto_cancelled_partner_confirmation_timeout',
+          );
+          const [payment] = await tx.query<{
+            id: string;
+            amount: number | string;
+            currency: string;
+          }>(
+            `SELECT id, amount, currency FROM payments
+             WHERE booking_id = $1 AND status = 'paid'
+             ORDER BY created_at DESC LIMIT 1`,
+            [row.id],
+          );
+          if (payment) {
+            await tx.query(
+              `INSERT INTO refunds (id, booking_id, user_id, status, currency, requested_amount, reason, created_at, updated_at)
+               VALUES ($1, $2, $3, 'requested', $4, $5, $6, $7, $7)`,
+              [
+                randomUUID(),
+                row.id,
+                row.user_id,
+                payment.currency,
+                Number(payment.amount),
+                "Tizim: hamkor tasdiqlash muddatida javob bermadi — avtomatik qaytarish so'rovi",
+                now,
+              ],
+            );
+          }
         }
 
-        return rows;
+        return { expired: rows, unconfirmed: unconfirmedRows };
       });
 
       for (const booking of expired) {
         this.events.bookingStatusChanged(booking);
         this.events.partnerDashboardUpdated(booking.partner_organization_id);
       }
-      if (expired.length > 0) {
+      for (const booking of unconfirmed) {
+        this.events.bookingStatusChanged(booking);
+        this.events.partnerDashboardUpdated(booking.partner_organization_id);
+      }
+      if (expired.length > 0 || unconfirmed.length > 0) {
         this.events.adminDashboardUpdated();
+      }
+      if (expired.length > 0) {
         this.logger.log(
           `${expired.length} ta muddati o'tgan bron 'expired'ga o'tkazildi`,
+        );
+      }
+      if (unconfirmed.length > 0) {
+        this.logger.log(
+          `${unconfirmed.length} ta hamkor tasdiqlamagan bron avtomatik bekor qilindi va qaytarish so'rovi ochildi`,
         );
       }
     } catch (error) {
@@ -157,12 +230,20 @@ export class BookingsService {
     const roomId = String(dto.room_id ?? dto.roomId ?? dto.roomTypeId ?? '');
 
     const [hotel] = await this.pg.query<
-      HotelBookingRow & { partner_type?: string }
+      HotelBookingRow & {
+        partner_type?: string;
+        commission_rate: number;
+        check_in_time: string | null;
+        check_out_time: string | null;
+      }
     >(
-      `SELECT h.id, h.partner_organization_id, po.type AS partner_type
+      `SELECT h.id, h.partner_organization_id, po.type AS partner_type,
+              po.default_commission_rate::float8 AS commission_rate,
+              h.check_in_time, h.check_out_time
        FROM hotels h
        JOIN partner_organizations po ON po.id = h.partner_organization_id
-       WHERE h.id = $1 AND h.deleted_at IS NULL AND h.status = 'published'`,
+       WHERE h.id = $1 AND h.deleted_at IS NULL AND h.status = 'published'
+         AND po.status = 'approved'`,
       [hotelId],
     );
 
@@ -173,22 +254,57 @@ export class BookingsService {
       });
     }
 
+    const bookingType: 'hotel' | 'restaurant' =
+      hotel?.partner_type === 'restaurant' || dto.type === 'restaurant'
+        ? 'restaurant'
+        : 'hotel';
+    const isRestaurant = bookingType === 'restaurant';
+
     const checkIn = String(dto.check_in ?? dto.checkIn ?? '');
-    const checkOut = String(dto.check_out ?? dto.checkOut ?? '');
+    const slotTime = this.optionalText(dto.slot_time ?? dto.slotTime) ?? null;
+
+    if (isRestaurant) {
+      // Restoran (stol) broni — bitta kun + vaqt-slot, kelish/ketish sanasi
+      // oralig'i emas. Ilgari bu yo'l umuman `slot_time`ni o'qimas/
+      // saqlamas edi (faqat hamkorning o'z panelidan yaratgan bron shunday
+      // qilardi) va check_in===check_out'ni "noto'g'ri sana" deb rad
+      // etardi — natijada mijoz o'zi bron qilganda vaqt umuman
+      // saqlanmas, bir xil stol/vaqt uchun ziddiyat tekshirilmas edi.
+      if (!Number.isFinite(Date.parse(checkIn)) || !slotTime) {
+        throw new BadRequestException({
+          code: 'BOOKING_DATES_INVALID',
+          message: 'Sana va vaqtni tanlang',
+        });
+      }
+      if (
+        (hotel.check_in_time && slotTime < hotel.check_in_time) ||
+        (hotel.check_out_time && slotTime >= hotel.check_out_time)
+      ) {
+        throw new BadRequestException({
+          code: 'SLOT_OUTSIDE_HOURS',
+          message: 'Tanlangan vaqt ish vaqtidan tashqarida',
+        });
+      }
+    }
+
+    const checkOut = isRestaurant
+      ? checkIn
+      : String(dto.check_out ?? dto.checkOut ?? '');
     const checkInMs = Date.parse(checkIn);
     const checkOutMs = Date.parse(checkOut);
     if (
-      !Number.isFinite(checkInMs) ||
-      !Number.isFinite(checkOutMs) ||
-      checkOutMs <= checkInMs
+      !isRestaurant &&
+      (!Number.isFinite(checkInMs) ||
+        !Number.isFinite(checkOutMs) ||
+        checkOutMs <= checkInMs)
     ) {
       throw new BadRequestException({
         code: 'BOOKING_DATES_INVALID',
         message: "check_in/check_out sanalari noto'g'ri",
       });
     }
-    const nights = this.calculateNights(checkIn, checkOut);
-    const rooms = Number(dto.rooms ?? 1);
+    const nights = isRestaurant ? 1 : this.calculateNights(checkIn, checkOut);
+    const rooms = isRestaurant ? 1 : Number(dto.rooms ?? 1);
     const firstName = this.optionalText(dto.firstName ?? dto.first_name);
     const lastName = this.optionalText(dto.lastName ?? dto.last_name);
     const fullName = this.optionalText(dto.fullName ?? dto.full_name);
@@ -204,10 +320,8 @@ export class BookingsService {
     const guestPhone =
       this.optionalText(dto.guest_phone ?? dto.guestPhone ?? dto.phone) ?? '';
 
-    const bookingType: 'hotel' | 'restaurant' =
-      hotel?.partner_type === 'restaurant' || dto.type === 'restaurant'
-        ? 'restaurant'
-        : 'hotel';
+    const promoCode = this.optionalText(dto.promo_code ?? dto.promoCode);
+    const promo = await this.resolvePromo(promoCode);
 
     // Xona qulfi + sana-ziddiyat tekshiruvi + INSERT bitta tranzaksiya
     // ichida bo'lishi SHART — aks holda bir necha bir vaqtdagi so'rov
@@ -229,24 +343,55 @@ export class BookingsService {
       }
 
       const activeExclusions = [BS.CANCELLED, BS.EXPIRED, BS.COMPLETED];
-      const conflicts = await tx.query<{ id: string }>(
-        `SELECT id FROM bookings
-         WHERE room_id = $1::uuid
-           AND status NOT IN ($2, $3, $4)
-           AND check_in < $5::date
-           AND $6::date < check_out
-         LIMIT 1`,
-        [room.id, ...activeExclusions, checkOut, checkIn],
-      );
+      const conflicts = isRestaurant
+        ? await tx.query<{ id: string }>(
+            `SELECT id FROM bookings
+             WHERE room_id = $1::uuid
+               AND status NOT IN ($2, $3, $4)
+               AND check_in = $5::date
+               AND slot_time IS NOT NULL
+               AND slot_time < ($6::time + interval '90 minutes')
+               AND $6::time < (slot_time + interval '90 minutes')
+             LIMIT 1`,
+            [room.id, ...activeExclusions, checkIn, slotTime],
+          )
+        : await tx.query<{ id: string }>(
+            `SELECT id FROM bookings
+             WHERE room_id = $1::uuid
+               AND status NOT IN ($2, $3, $4)
+               AND check_in < $5::date
+               AND $6::date < check_out
+             LIMIT 1`,
+            [room.id, ...activeExclusions, checkOut, checkIn],
+          );
 
       if (conflicts[0]) {
         throw new ConflictException({
-          code: 'ROOM_ALREADY_BOOKED',
-          message: 'Tanlangan sanalar uchun xona allaqachon band qilingan',
+          code: isRestaurant ? 'TABLE_ALREADY_BOOKED' : 'ROOM_ALREADY_BOOKED',
+          message: isRestaurant
+            ? 'Bu stol tanlangan vaqtda band'
+            : 'Tanlangan sanalar uchun xona allaqachon band qilingan',
         });
       }
 
       const subtotal = Number(room.base_price) * nights * rooms;
+      const discountAmount = promo
+        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        : 0;
+
+      if (promo) {
+        const redeemed = await this.promosService.redeem(promo.code, tx);
+        if (!redeemed) {
+          // Tasdiqlash (validate) va shu yerdagi haqiqiy sarflash orasida
+          // limit boshqa mijoz tomonidan to'ldirilib qolishi mumkin edi —
+          // bu holda butun bron tranzaksiyasi bekor qilinadi (xona qulfi
+          // ham bo'shatiladi), mijoz aniq xato bilan qayta urinadi.
+          throw new ConflictException({
+            code: 'PROMO_LIMIT_REACHED',
+            message: "Promo-kod limiti tugadi, qaytadan urinib ko'ring",
+          });
+        }
+      }
 
       const booking = await this.createBooking(tx, userId, {
         type: bookingType,
@@ -254,11 +399,14 @@ export class BookingsService {
         payment_method: this.paymentMethod(dto.payment_method),
         confirmation_mode: this.confirmationMode(dto.confirmation_mode),
         subtotal,
+        discount_amount: discountAmount,
+        commission_rate_percent: hotel.commission_rate,
         hotel_id: hotel.id,
         trip_id: null,
         room_id: room.id,
         check_in: checkIn,
         check_out: checkOut,
+        slot_time: isRestaurant ? slotTime : null,
         guest_name: guestName,
         guest_email: guestEmail,
         guest_phone: guestPhone,
@@ -266,10 +414,12 @@ export class BookingsService {
           room_id: room.id,
           check_in: checkIn,
           check_out: checkOut,
+          slot_time: isRestaurant ? slotTime : null,
           nights,
           rooms,
           adults: Number(dto.adults ?? dto.guests ?? 1),
           children: Number(dto.children ?? 0),
+          promo_code: promo?.code ?? null,
           guest: {
             first_name: firstName ?? null,
             last_name: lastName ?? null,
@@ -281,6 +431,9 @@ export class BookingsService {
       });
 
       const payment = await this.createPayment(tx, booking);
+      const cashOutcome = await this.confirmCashBookingIfNeeded(tx, booking);
+      booking.status = cashOutcome.status;
+      booking.confirmed_at = cashOutcome.confirmed_at;
       return { booking, payment };
     });
 
@@ -289,6 +442,197 @@ export class BookingsService {
     this.events.adminDashboardUpdated();
     void this.sendBookingConfirmationEmail(booking);
     return { booking, payment };
+  }
+
+  /**
+   * Mashina ijarasi (rent-a-car) broni — `createHotel`ga deyarli bir xil
+   * naqsh (bitta inventar birligi + sana oralig'i + ziddiyat tekshiruvi),
+   * faqat `hotels`/`hotel_rooms` o'rniga `vehicles`/`bus_companies`.
+   * Mehmon (guest) checkout ruxsat etiladi — hotel kabi, login shart emas.
+   */
+  async createVehicleRental(
+    actor: RequestActor | undefined,
+    dto: Record<string, unknown>,
+  ) {
+    const userId = actor?.id ?? null;
+    const vehicleId = String(dto.vehicle_id ?? dto.vehicleId ?? '');
+
+    const [vehicle] = await this.pg.query<
+      VehicleRow & { partner_organization_id: string; commission_rate: number }
+    >(
+      `SELECT v.id, v.price_per_day, bc.partner_organization_id,
+              po.default_commission_rate::float8 AS commission_rate
+       FROM vehicles v
+       JOIN bus_companies bc ON bc.id = v.company_id
+       JOIN partner_organizations po ON po.id = bc.partner_organization_id
+       WHERE v.id = $1 AND v.status = 'active' AND bc.status = 'active'
+         AND po.status = 'approved'`,
+      [vehicleId],
+    );
+
+    if (!vehicle) {
+      throw new NotFoundException({
+        code: 'VEHICLE_NOT_AVAILABLE',
+        message: 'Tanlangan sanalar uchun mashina mavjud emas',
+      });
+    }
+
+    const checkIn = String(dto.check_in ?? dto.checkIn ?? '');
+    const checkOut = String(dto.check_out ?? dto.checkOut ?? '');
+    const checkInMs = Date.parse(checkIn);
+    const checkOutMs = Date.parse(checkOut);
+    // O'tgan sanaga bron — audit paytida haqiqiy production so'rovi bilan
+    // tasdiqlangan bug (2020-01-01 uchun bron muvaffaqiyatli yaratilgan
+    // edi). Bugungi kun uchun bron ruxsat etiladi (mijoz bugun mashina
+    // olishi mumkin) — faqat KECHAGI va undan oldingi sanalar rad etiladi.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    if (
+      !Number.isFinite(checkInMs) ||
+      !Number.isFinite(checkOutMs) ||
+      checkOutMs <= checkInMs ||
+      checkIn < todayIso
+    ) {
+      throw new BadRequestException({
+        code: 'BOOKING_DATES_INVALID',
+        message: "check_in/check_out sanalari noto'g'ri",
+      });
+    }
+    const days = this.calculateNights(checkIn, checkOut);
+
+    const firstName = this.optionalText(dto.firstName ?? dto.first_name);
+    const lastName = this.optionalText(dto.lastName ?? dto.last_name);
+    const fullName = this.optionalText(dto.fullName ?? dto.full_name);
+    const composedName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    const guestName =
+      this.optionalText(dto.guest_name ?? dto.guestName) ??
+      fullName ??
+      (composedName || '');
+    const guestEmail =
+      this.optionalText(
+        dto.guest_email ?? dto.guestEmail ?? dto.email,
+      )?.toLowerCase() ?? '';
+    const guestPhone =
+      this.optionalText(dto.guest_phone ?? dto.guestPhone ?? dto.phone) ?? '';
+
+    const promoCode = this.optionalText(dto.promo_code ?? dto.promoCode);
+    const promo = await this.resolvePromo(promoCode);
+
+    const { booking, payment } = await this.pg.transaction(async (tx) => {
+      const [locked] = await tx.query<VehicleRow>(
+        "SELECT id, price_per_day FROM vehicles WHERE id = $1 AND status = 'active' FOR UPDATE",
+        [vehicle.id],
+      );
+      if (!locked) {
+        throw new NotFoundException({
+          code: 'VEHICLE_NOT_AVAILABLE',
+          message: 'Tanlangan sanalar uchun mashina mavjud emas',
+        });
+      }
+
+      const activeExclusions = [BS.CANCELLED, BS.EXPIRED, BS.COMPLETED];
+      const conflicts = await tx.query<{ id: string }>(
+        `SELECT id FROM bookings
+         WHERE vehicle_id = $1::uuid
+           AND status NOT IN ($2, $3, $4)
+           AND check_in < $5::date
+           AND $6::date < check_out
+         LIMIT 1`,
+        [locked.id, ...activeExclusions, checkOut, checkIn],
+      );
+
+      if (conflicts[0]) {
+        throw new ConflictException({
+          code: 'VEHICLE_ALREADY_BOOKED',
+          message: 'Tanlangan sanalar uchun mashina allaqachon band qilingan',
+        });
+      }
+
+      const subtotal = Number(locked.price_per_day) * days;
+      const discountAmount = promo
+        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        : 0;
+
+      if (promo) {
+        const redeemed = await this.promosService.redeem(promo.code, tx);
+        if (!redeemed) {
+          throw new ConflictException({
+            code: 'PROMO_LIMIT_REACHED',
+            message: "Promo-kod limiti tugadi, qaytadan urinib ko'ring",
+          });
+        }
+      }
+
+      const booking = await this.createBooking(tx, userId, {
+        type: 'bus',
+        partner_organization_id: vehicle.partner_organization_id,
+        payment_method: this.paymentMethod(dto.payment_method),
+        confirmation_mode: this.confirmationMode(dto.confirmation_mode),
+        subtotal,
+        discount_amount: discountAmount,
+        commission_rate_percent: vehicle.commission_rate,
+        hotel_id: null,
+        trip_id: null,
+        vehicle_id: locked.id,
+        check_in: checkIn,
+        check_out: checkOut,
+        guest_name: guestName,
+        guest_email: guestEmail,
+        guest_phone: guestPhone,
+        price_snapshot: {
+          vehicle_id: locked.id,
+          check_in: checkIn,
+          check_out: checkOut,
+          days,
+          price_per_day: Number(locked.price_per_day),
+          promo_code: promo?.code ?? null,
+          guest: {
+            first_name: firstName ?? null,
+            last_name: lastName ?? null,
+            name: guestName,
+            email: guestEmail,
+            phone: guestPhone,
+          },
+        },
+      });
+
+      const payment = await this.createPayment(tx, booking);
+      const cashOutcome = await this.confirmCashBookingIfNeeded(tx, booking);
+      booking.status = cashOutcome.status;
+      booking.confirmed_at = cashOutcome.confirmed_at;
+      return { booking, payment };
+    });
+
+    this.events.bookingStatusChanged(booking);
+    this.events.partnerDashboardUpdated(booking.partner_organization_id);
+    this.events.adminDashboardUpdated();
+    void this.sendBookingConfirmationEmail(booking);
+    return { booking, payment };
+  }
+
+  /**
+   * Promo-kod berilgan bo'lsa, oldindan (tranzaksiyadan tashqarida)
+   * tekshiradi — noto'g'ri/eskirgan/limiti tugagan kod bo'lsa mijozga
+   * darhol aniq xato ko'rsatiladi, "chegirma sukut bo'yicha jim
+   * qo'llanilmadi" degan chalkash holat bo'lmaydi. Haqiqiy "sarflash"
+   * (used_count oshirish) esa faqat bron tranzaksiyasi ichida, xona
+   * qulfi ushlab turilganda amalga oshiriladi.
+   */
+  private async resolvePromo(code: string | null | undefined) {
+    if (!code) {
+      return null;
+    }
+    const result = await this.promosService.validate({ code });
+    if (!result.valid) {
+      throw new BadRequestException({
+        code: 'PROMO_INVALID',
+        message: "Promo-kod yaroqsiz yoki muddati o'tgan",
+      });
+    }
+    return {
+      code,
+      discount_type: result.discount_type,
+      discount_value: result.discount_value,
+    };
   }
 
   async createBus(
@@ -310,8 +654,14 @@ export class BookingsService {
       });
     }
 
-    const [company] = await this.pg.query<BusCompanyRow>(
-      'SELECT partner_organization_id FROM bus_companies WHERE id = $1',
+    const [company] = await this.pg.query<
+      BusCompanyRow & { commission_rate: number }
+    >(
+      `SELECT bc.partner_organization_id,
+              po.default_commission_rate::float8 AS commission_rate
+       FROM bus_companies bc
+       JOIN partner_organizations po ON po.id = bc.partner_organization_id
+       WHERE bc.id = $1 AND po.status = 'approved'`,
       [trip.company_id],
     );
     if (!company?.partner_organization_id) {
@@ -325,6 +675,8 @@ export class BookingsService {
       ? dto.seats.map(String)
       : null;
     const expiresAt = new Date(Date.now() + 15 * 60_000);
+    const promoCode = this.optionalText(dto.promo_code ?? dto.promoCode);
+    const promo = await this.resolvePromo(promoCode);
 
     // O'rindiq qulfi + bandlik tekshiruvi + bron/to'lov yozish bitta
     // tranzaksiya ichida bo'lishi SHART — aks holda ikkita bir vaqtdagi
@@ -364,6 +716,19 @@ export class BookingsService {
       }
 
       const subtotal = seats.reduce((sum, seat) => sum + Number(seat.price), 0);
+      const discountAmount = promo
+        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        : 0;
+
+      if (promo) {
+        const redeemed = await this.promosService.redeem(promo.code, tx);
+        if (!redeemed) {
+          throw new ConflictException({
+            code: 'PROMO_LIMIT_REACHED',
+            message: "Promo-kod limiti tugadi, qaytadan urinib ko'ring",
+          });
+        }
+      }
 
       const booking = await this.createBooking(tx, currentActor.id, {
         type: 'bus',
@@ -371,12 +736,15 @@ export class BookingsService {
         payment_method: this.paymentMethod(dto.payment_method),
         confirmation_mode: this.confirmationMode(dto.confirmation_mode),
         subtotal,
+        discount_amount: discountAmount,
+        commission_rate_percent: company.commission_rate,
         hotel_id: null,
         trip_id: trip.id,
         expires_at: expiresAt.toISOString(),
         price_snapshot: {
           seats: seats.map((s) => s.seat_code),
           passengers: dto.passengers ?? [],
+          promo_code: promo?.code ?? null,
         },
       });
 
@@ -390,6 +758,9 @@ export class BookingsService {
       }
 
       const payment = await this.createPayment(tx, booking);
+      const cashOutcome = await this.confirmCashBookingIfNeeded(tx, booking);
+      booking.status = cashOutcome.status;
+      booking.confirmed_at = cashOutcome.confirmed_at;
       return { booking, payment };
     });
 
@@ -506,20 +877,72 @@ export class BookingsService {
     const now = new Date().toISOString();
     const reason = String(body.reason ?? 'Bekor qilindi');
 
-    const [updated] = await this.pg.query(
-      `UPDATE bookings
-       SET status = $1, cancelled_at = $2, cancel_reason_text = $3, updated_at = $4
-       WHERE id = $5
-       RETURNING *`,
-      [BS.CANCELLED, now, reason, now, id],
-    );
+    const updated = await this.pg.transaction(async (tx) => {
+      const [row] = await tx.query<BookingRow>(
+        `UPDATE bookings
+         SET status = $1, cancelled_at = $2, cancel_reason_text = $3, updated_at = $4
+         WHERE id = $5
+         RETURNING *`,
+        [BS.CANCELLED, now, reason, now, id],
+      );
 
-    await this.addStatusHistory(
-      this.pg,
-      updated as Parameters<typeof this.addStatusHistory>[1],
-      'cancelled',
-      actor,
-    );
+      // Avtobus broni bekor qilinganda o'rindiq bo'shatilishi kerak —
+      // avval bu FAQAT muddat tugab (cron) avtomatik bekor bo'lganda
+      // ishlardi; mijoz/hamkor QO'LDA bekor qilsa o'rindiq abadiy "held"
+      // holida, endi hech qachon sotilmaydigan bo'lib qolardi.
+      await tx.query(
+        `UPDATE trip_seats
+         SET status = 'available', held_by_booking_id = NULL, held_until = NULL
+         WHERE held_by_booking_id = $1::uuid`,
+        [id],
+      );
+
+      // Audit topilmasi: mijoz TO'LANGAN bronni shu yo'l orqali bekor
+      // qilganda hech qachon qaytarish (refund) so'rovi yaratilmasdi —
+      // frontend faqat `cancelPreview()`ni ko'rsatib, keyin shu `cancel()`ni
+      // chaqirar edi, pul hech qanday iz qoldirmasdan "yo'qolib" ketardi.
+      // `cancelPreview()`da ko'rsatilgan 80% siyosat bilan bir xil formula
+      // ishlatiladi (`refunds.service.ts`dagi `create()` bilan bir xil).
+      // Guest (login qilmagan) mijoz uchun ham ishlaydi — avval faqat
+      // `POST /refunds` orqali (login talab qiladigan) qo'lda so'rash
+      // mumkin edi.
+      const [payment] = await tx.query<{ amount: number | string; currency: string }>(
+        `SELECT amount, currency FROM payments
+         WHERE booking_id = $1 AND status = 'paid'
+         ORDER BY created_at DESC LIMIT 1`,
+        [id],
+      );
+      if (payment) {
+        const [existingRefund] = await tx.query<{ id: string }>(
+          `SELECT id FROM refunds WHERE booking_id = $1 AND status != 'rejected' LIMIT 1`,
+          [id],
+        );
+        if (!existingRefund) {
+          await tx.query(
+            `INSERT INTO refunds (id, booking_id, user_id, status, currency, requested_amount, reason, created_at, updated_at)
+             VALUES ($1, $2, $3, 'requested', $4, $5, $6, $7, $7)`,
+            [
+              randomUUID(),
+              id,
+              row?.user_id ?? null,
+              payment.currency,
+              Math.round(Number(payment.amount) * 0.8),
+              'Mijoz bronni bekor qildi — avtomatik qaytarish so‘rovi',
+              now,
+            ],
+          );
+        }
+      }
+
+      await this.addStatusHistory(
+        tx,
+        row as Parameters<typeof this.addStatusHistory>[1],
+        'cancelled',
+        actor,
+      );
+
+      return row;
+    });
 
     this.events.bookingStatusChanged(updated);
     return updated;
@@ -663,11 +1086,15 @@ export class BookingsService {
       payment_method: string;
       confirmation_mode: string;
       subtotal: number;
+      discount_amount?: number;
+      commission_rate_percent?: number;
       hotel_id: string | null;
       trip_id: string | null;
       room_id?: string | null;
+      vehicle_id?: string | null;
       check_in?: string | null;
       check_out?: string | null;
+      slot_time?: string | null;
       expires_at?: string;
       price_snapshot: Record<string, unknown>;
       guest_name?: string;
@@ -677,9 +1104,16 @@ export class BookingsService {
   ) {
     const id = randomUUID();
     const now = new Date().toISOString();
-    const commission = Math.round(input.subtotal * 0.12);
-    const totalAmount = input.subtotal;
-    const partnerPayable = input.subtotal - commission;
+    const discountAmount = Math.max(
+      0,
+      Math.min(input.subtotal, Math.round(input.discount_amount ?? 0)),
+    );
+    const totalAmount = input.subtotal - discountAmount;
+    const commission = calculateCommission(
+      totalAmount,
+      input.commission_rate_percent,
+    );
+    const partnerPayable = totalAmount - commission;
     const expiresAt =
       input.expires_at ?? new Date(Date.now() + 15 * 60_000).toISOString();
     const partnerConfirmationDeadline =
@@ -702,7 +1136,7 @@ export class BookingsService {
       status: BS.PENDING,
       currency: 'UZS',
       subtotal: input.subtotal,
-      discount_amount: 0,
+      discount_amount: discountAmount,
       bonus_amount: 0,
       service_fee: 0,
       total_amount: totalAmount,
@@ -711,11 +1145,13 @@ export class BookingsService {
       hotel_id: input.hotel_id,
       trip_id: input.trip_id,
       room_id: input.room_id ?? null,
+      vehicle_id: input.vehicle_id ?? null,
       check_in: input.check_in ?? null,
       check_out: input.check_out ?? null,
+      slot_time: input.slot_time ?? null,
       partner_confirmation_deadline: partnerConfirmationDeadline,
       expires_at: expiresAt,
-      confirmed_at: null,
+      confirmed_at: null as string | null,
       cancelled_at: null,
       cancel_reason_text: null,
       policy_snapshot: {},
@@ -733,7 +1169,7 @@ export class BookingsService {
         type, confirmation_mode, payment_method, status,
         currency, subtotal, discount_amount, bonus_amount, service_fee,
         total_amount, commission_amount, partner_payable,
-        hotel_id, trip_id, room_id, check_in, check_out,
+        hotel_id, trip_id, room_id, vehicle_id, check_in, check_out, slot_time,
         partner_confirmation_deadline, expires_at,
         confirmed_at, cancelled_at, cancel_reason_text,
         policy_snapshot, price_snapshot,
@@ -744,12 +1180,12 @@ export class BookingsService {
         $5, $6, $7, $8,
         $9, $10, $11, $12, $13,
         $14, $15, $16,
-        $17, $18, $19, $20::date, $21::date,
-        $22, $23,
-        $24, $25, $26,
-        $27, $28,
-        $29, $30, $31,
-        $32, $33
+        $17, $18, $19, $20, $21::date, $22::date, $23::time,
+        $24, $25,
+        $26, $27, $28,
+        $29, $30,
+        $31, $32, $33,
+        $34, $35
       )`,
       [
         bookingRow.id,
@@ -771,8 +1207,10 @@ export class BookingsService {
         bookingRow.hotel_id,
         bookingRow.trip_id,
         bookingRow.room_id,
+        bookingRow.vehicle_id,
         bookingRow.check_in,
         bookingRow.check_out,
+        bookingRow.slot_time,
         bookingRow.partner_confirmation_deadline,
         bookingRow.expires_at,
         bookingRow.confirmed_at,
@@ -813,6 +1251,45 @@ export class BookingsService {
         now,
       ],
     );
+  }
+
+  /**
+   * "Joyida to'lash" (cash) tanlangan mijoz bronidagi to'lov HECH QACHON
+   * onlayn webhook orqali "paid" bo'lmaydi — shuning uchun bron `pending`
+   * holatida abadiy qolib, keyin cron tomonidan avtomatik "expired"
+   * qilinardi (mijoz haqiqatan joy band qilgan, hali to'lamagan bo'lsa
+   * ham). Hamkorning o'zi yaratgan naqd pul bron (walk-in) darhol
+   * "confirmed" qilib yaratiladigandek — mijozning o'zi tanlagan naqd
+   * pul broni ham xuddi shu tarzda darhol tasdiqlanadi; pul esa keyinroq,
+   * joyida olinadi.
+   */
+  private async confirmCashBookingIfNeeded(
+    tx: PostgresTransaction,
+    booking: {
+      id: string;
+      payment_method: string;
+      confirmation_mode: string;
+      status: string;
+    },
+  ): Promise<{ status: string; confirmed_at: string | null }> {
+    if (booking.payment_method !== 'cash') {
+      return { status: booking.status, confirmed_at: null };
+    }
+    const now = new Date().toISOString();
+    const nextStatus =
+      booking.confirmation_mode === 'request_confirmation'
+        ? BS.AWAITING_PARTNER_CONFIRMATION
+        : BS.CONFIRMED;
+    await tx.query(
+      `UPDATE bookings SET status = $1, confirmed_at = $2, expires_at = NULL, updated_at = $2 WHERE id = $3`,
+      [nextStatus, now, booking.id],
+    );
+    await this.addStatusHistory(
+      tx,
+      { id: booking.id, status: nextStatus },
+      'cash_booking_confirmed',
+    );
+    return { status: nextStatus, confirmed_at: now };
   }
 
   /**
@@ -861,13 +1338,47 @@ export class BookingsService {
       payment_method: string;
     },
   ) {
+    // Shu bron uchun hali natijasi chiqmagan (pending/processing) payment
+    // bo'lsa — yangisini yaratmasdan o'shani qaytaramiz (masalan
+    // `retryPayment()` xuddi shu urinishning o'zini ochib qoladigan
+    // holatda). Buni bilmasdan yangi qator yaratish bir bronga bir nechta
+    // mustaqil to'lov qatorini keltirib chiqarardi, va webhook keyinchalik
+    // qaysi birini "to'landi" deb belgilashni noaniq tanlashga majbur
+    // bo'lardi.
+    const [existing] = await db.query<{
+      id: string;
+      booking_id: string;
+      provider: string;
+      status: string;
+      amount: number | string;
+      currency: string;
+      payment_url: string | null;
+      created_at: string;
+      updated_at: string;
+    }>(
+      `SELECT * FROM payments
+       WHERE booking_id = $1 AND status IN ('pending', 'processing')
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [booking.id],
+    );
+    if (existing) {
+      return existing;
+    }
+
     const id = randomUUID();
     const now = new Date().toISOString();
     const payment = {
       id,
       booking_id: booking.id,
       provider: booking.payment_method,
-      status: 'pending',
+      // "Joyida to'lash" tanlangan bron uchun to'lov hech qachon onlayn
+      // webhook orqali "paid" bo'lmaydi — pul mehmonxonada qo'lda
+      // olinadi. Avval bu ham 'pending' deb yozilardi, ya'ni frontend
+      // (`?payment=cash` URL parametriga tayanib) mijozga "joyida
+      // to'lang" deb ko'rsatib turgan payment.status'ning o'zi buni
+      // hech qachon aks ettirmasdi.
+      status: booking.payment_method === 'cash' ? 'awaiting_cash' : 'pending',
       amount: Number(booking.total_amount),
       currency: booking.currency,
       payment_url: null,
