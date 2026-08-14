@@ -17,6 +17,18 @@ import {
   WithdrawalRequest,
   BookingDetail,
   ActivityLogItem,
+  AdminUser,
+  AdminRole,
+  BroadcastNotification,
+  AdminPaymentTransaction,
+  AdminRefundTransaction,
+  FinanceOverviewData,
+  ProviderReconciliation,
+  FinanceDocument,
+  RevenueData,
+  PartnerLedgerEntry,
+  DeveloperApiKey,
+  DeveloperWebhook,
 } from '../../types/admin';
 import { BookingStatus } from '@safaar/types';
 import apiClient from './client';
@@ -251,6 +263,19 @@ function toUser(row: ApiRecord): AdminManagedUser {
       new Date().toISOString(),
     ),
     createdAt: asString(row.created_at, new Date().toISOString()),
+  };
+}
+
+function toAdminTeamUser(row: ApiRecord): AdminUser {
+  return {
+    id: asString(row.id),
+    fullName: asString(row.full_name ?? row.fullName, 'Admin'),
+    email: asString(row.email),
+    role: asString(row.role, 'MODERATOR') as AdminRole,
+    phone: asString(row.phone),
+    lastLogin: asString(row.last_login_at ?? row.lastLogin, new Date().toISOString()),
+    isActive: row.status === 'active' || asBoolean(row.is_active ?? row.isActive, true),
+    createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
   };
 }
 
@@ -611,6 +636,44 @@ function toWithdrawal(row: ApiRecord): WithdrawalRequest {
   };
 }
 
+function toBroadcast(row: ApiRecord): BroadcastNotification {
+  return {
+    id: asString(row.id),
+    title: localizedText(row.title, 'Xabarnoma'),
+    message: localizedText(row.message ?? row.body, ''),
+    targetType: asString(row.target_type ?? row.targetType, 'all') as 'all' | 'users' | 'partners',
+    status: asString(row.status, 'draft') as 'draft' | 'sending' | 'sent' | 'failed',
+    sentCount: asNumber(row.sent_count ?? row.sentCount),
+    createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
+  };
+}
+
+function toPaymentTransaction(row: ApiRecord): AdminPaymentTransaction {
+  return {
+    id: asString(row.id),
+    bookingId: asString(row.booking_id ?? row.bookingId),
+    customerName: asString(row.customer_name ?? row.customerName, 'Mijoz'),
+    amount: asNumber(row.amount),
+    provider: asString(row.provider, 'payme') as any,
+    status: asString(row.status, 'pending') as any,
+    providerTransactionId: asString(row.provider_transaction_id ?? row.providerTransactionId) || undefined,
+    createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
+  };
+}
+
+function toRefundTransaction(row: ApiRecord): AdminRefundTransaction {
+  return {
+    id: asString(row.id),
+    paymentId: asString(row.payment_id ?? row.paymentId),
+    bookingId: asString(row.booking_id ?? row.bookingId),
+    customerName: asString(row.customer_name ?? row.customerName, 'Mijoz'),
+    amount: asNumber(row.amount),
+    reason: asString(row.reason, 'Sabab ko\'rsatilmagan'),
+    status: asString(row.status, 'pending') as any,
+    createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
+  };
+}
+
 const ENTITY_TYPE_LABELS: Record<string, string> = {
   support_tickets: "Support so'rovi",
   partner_organizations: 'Hamkor tashkiloti',
@@ -866,8 +929,30 @@ export const AdminApi = {
       password,
     });
     if (data.requires_2fa) {
-      throw new Error('2FA kerak');
+      return { requires2FA: true, challengeId: data.challenge_id };
     }
+    const token = data.accessToken ?? data.access_token;
+    if (!token) {
+      throw new Error('Login token qaytmadi');
+    }
+    return {
+      requires2FA: false,
+      token,
+      user: {
+        id: data.admin?.id ?? 'admin',
+        name: data.admin?.full_name ?? data.admin?.email ?? 'Admin',
+        email: data.admin?.email ?? username,
+        role: data.admin?.role ?? 'SUPER_ADMIN',
+        has2FA: data.admin?.has_2fa ?? false,
+      },
+    };
+  },
+
+  verify2FA: async (challengeId: string, code: string) => {
+    const { data } = await apiClient.post('/auth/admin/verify-2fa', {
+      challenge_id: challengeId,
+      code,
+    });
     const token = data.accessToken ?? data.access_token;
     if (!token) {
       throw new Error('Login token qaytmadi');
@@ -877,10 +962,35 @@ export const AdminApi = {
       user: {
         id: data.admin?.id ?? 'admin',
         name: data.admin?.full_name ?? data.admin?.email ?? 'Admin',
-        email: data.admin?.email ?? username,
+        email: data.admin?.email ?? 'admin@safaar.uz',
         role: data.admin?.role ?? 'SUPER_ADMIN',
+        has2FA: data.admin?.has_2fa ?? true,
       },
     };
+  },
+
+  setup2FA: async () => {
+    const { data } = await apiClient.post('/auth/admin/2fa/setup');
+    return data as {
+      setup_id: string;
+      otpauth_url: string;
+      secret: string;
+      recovery_codes: string[];
+      expires_in_seconds: number;
+    };
+  },
+
+  confirm2FA: async (setupId: string, code: string) => {
+    const { data } = await apiClient.post('/auth/admin/2fa/confirm', {
+      setup_id: setupId,
+      code,
+    });
+    return data;
+  },
+
+  disable2FA: async () => {
+    const { data } = await apiClient.post('/auth/admin/2fa/disable');
+    return data;
   },
 
   // Users
@@ -939,12 +1049,12 @@ export const AdminApi = {
   },
 
   approvePartner: async (id: string) => {
-    const { data } = await apiClient.post(`/admin/partners/${id}/approve`);
+    const { data } = await apiClient.post(`/admin/partners/requests/${id}/approve`);
     return data;
   },
 
   rejectPartner: async (id: string, reason?: string) => {
-    const { data } = await apiClient.post(`/admin/partners/${id}/reject`, {
+    const { data } = await apiClient.post(`/admin/partners/requests/${id}/reject`, {
       reason: reason ?? '',
     });
     return data;
@@ -967,6 +1077,68 @@ export const AdminApi = {
       rate,
     });
     return toPartner(asRecord(data));
+  },
+
+  getPartnerLedger: async (id: string): Promise<PartnerLedgerEntry[]> => {
+    const { data } = await apiClient.get(`/admin/partners/${id}/ledger`);
+    return unknownItems(data).map(row => asRecord(row) as any);
+  },
+
+  addPartnerAdjustment: async (id: string, payload: { amount: number; description: string; type: 'adjustment' | 'refund' }): Promise<PartnerLedgerEntry> => {
+    const { data } = await apiClient.post(`/admin/partners/${id}/adjustment`, payload);
+    return asRecord(data) as any;
+  },
+
+  // Developer (API & Webhooks)
+  getDeveloperApiKeys: async (): Promise<DeveloperApiKey[]> => {
+    const { data } = await apiClient.get('/admin/developer/api-keys');
+    return unknownItems(data).map(row => asRecord(row) as any);
+  },
+
+  deleteDeveloperApiKey: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/developer/api-keys/${id}`);
+  },
+
+  getDeveloperWebhooks: async (): Promise<DeveloperWebhook[]> => {
+    const { data } = await apiClient.get('/admin/developer/webhooks');
+    return unknownItems(data).map(row => asRecord(row) as any);
+  },
+
+  // Team (Admin Users)
+  getTeamUsers: async (): Promise<AdminUser[]> => {
+    const { data } = await apiClient.get('/admin/admin-users');
+    return unknownItems(data).map(row => toAdminTeamUser(asRecord(row)));
+  },
+  
+  createTeamUser: async (input: Partial<AdminUser> & { password?: string }): Promise<AdminUser> => {
+    const { data } = await apiClient.post('/admin/admin-users', {
+      full_name: input.fullName,
+      email: input.email,
+      phone: input.phone,
+      role: input.role,
+      password: input.password,
+    });
+    return toAdminTeamUser(asRecord(data));
+  },
+  
+  updateTeamUser: async (id: string, input: Partial<AdminUser>): Promise<AdminUser> => {
+    const { data } = await apiClient.patch(`/admin/admin-users/${id}`, {
+      full_name: input.fullName,
+      email: input.email,
+      phone: input.phone,
+      role: input.role,
+    });
+    return toAdminTeamUser(asRecord(data));
+  },
+  
+  updateTeamUserStatus: async (id: string, isActive: boolean): Promise<void> => {
+    await apiClient.patch(`/admin/admin-users/${id}/status`, {
+      status: isActive ? 'active' : 'blocked'
+    });
+  },
+  
+  resetTeamUser2FA: async (id: string): Promise<void> => {
+    await apiClient.post(`/admin/admin-users/${id}/reset-2fa`);
   },
 
   // Bookings
@@ -1062,6 +1234,84 @@ export const AdminApi = {
     return data;
   },
 
+  // Broadcasts
+  getBroadcasts: async (): Promise<BroadcastNotification[]> => {
+    const { data } = await apiClient.get('/admin/notifications/broadcasts');
+    return unknownItems(data).map((row) => toBroadcast(asRecord(row)));
+  },
+  
+  createBroadcast: async (input: { title: string, body: string, targetType: string }): Promise<BroadcastNotification> => {
+    const { data } = await apiClient.post('/admin/notifications/broadcast', {
+      title: input.title,
+      body: input.body,
+      target_type: input.targetType
+    });
+    return toBroadcast(asRecord(data));
+  },
+  
+  broadcastAction: async (id: string, action: 'send' | 'cancel'): Promise<BroadcastNotification> => {
+    const { data } = await apiClient.post(`/admin/notifications/broadcasts/${id}/${action}`);
+    return toBroadcast(asRecord(data));
+  },
+
+  // Finance
+  getFinanceOverview: async (): Promise<FinanceOverviewData> => {
+    const { data } = await apiClient.get('/admin/finance/overview');
+    return asRecord(data) as any;
+  },
+
+  getFinanceRevenueChart: async (): Promise<RevenueData[]> => {
+    const { data } = await apiClient.get('/admin/finance/revenue-chart');
+    return unknownItems(data).map(row => asRecord(row) as any);
+  },
+
+  getProviderReconciliation: async (): Promise<ProviderReconciliation[]> => {
+    const { data } = await apiClient.get('/admin/finance/provider-reconciliation');
+    return unknownItems(data).map(row => asRecord(row) as any);
+  },
+
+  exportFinance: async (filters?: any): Promise<{ url: string }> => {
+    const { data } = await apiClient.post('/admin/finance/export', filters);
+    return asRecord(data) as any;
+  },
+
+  exportTaxReport: async (filters?: any): Promise<{ url: string }> => {
+    const { data } = await apiClient.post('/admin/finance/tax-report-export', filters);
+    return asRecord(data) as any;
+  },
+
+  getFinanceDocuments: async (): Promise<FinanceDocument[]> => {
+    const { data } = await apiClient.get('/admin/finance/documents');
+    return unknownItems(data).map(row => asRecord(row) as any);
+  },
+
+  regenerateFinanceDocument: async (id: string): Promise<FinanceDocument> => {
+    const { data } = await apiClient.post(`/admin/finance/documents/${id}/regenerate`);
+    return asRecord(data) as any;
+  },
+
+  // Payments
+  getPayments: async (): Promise<AdminPaymentTransaction[]> => {
+    const { data } = await apiClient.get('/admin/payments');
+    return unknownItems(data).map((row) => toPaymentTransaction(asRecord(row)));
+  },
+  
+  reconcilePayment: async (id: string): Promise<AdminPaymentTransaction> => {
+    const { data } = await apiClient.post(`/admin/payments/${id}/reconcile`);
+    return toPaymentTransaction(asRecord(data));
+  },
+  
+  // Refunds
+  getRefunds: async (): Promise<AdminRefundTransaction[]> => {
+    const { data } = await apiClient.get('/admin/refunds');
+    return unknownItems(data).map((row) => toRefundTransaction(asRecord(row)));
+  },
+  
+  refundAction: async (id: string, action: 'approve' | 'reject' | 'retry'): Promise<AdminRefundTransaction> => {
+    const { data } = await apiClient.post(`/admin/refunds/${id}/${action}`);
+    return toRefundTransaction(asRecord(data));
+  },
+
   getSettings: async (): Promise<AdminSettings> => {
     const { data } = await apiClient.get('/admin/settings');
     return {
@@ -1125,6 +1375,11 @@ export const AdminApi = {
 
   rejectWithdrawal: async (id: string): Promise<WithdrawalRequest> => {
     const { data } = await apiClient.post(`/admin/withdrawals/${id}/reject`);
+    return toWithdrawal(asRecord(data));
+  },
+
+  markWithdrawalPaid: async (id: string): Promise<WithdrawalRequest> => {
+    const { data } = await apiClient.post(`/admin/withdrawals/${id}/mark-paid`);
     return toWithdrawal(asRecord(data));
   },
 

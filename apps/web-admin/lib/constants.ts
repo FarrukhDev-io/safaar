@@ -37,6 +37,10 @@ export const SIDEBAR_ITEMS: NavItem[] = [
     label: "Foydalanuvchilar",
     href: "/users",
     icon: "Users",
+    children: [
+      { label: "Mijozlar", href: "/users", icon: "Users" },
+      { label: "Admin Jamoasi", href: "/team", icon: "ShieldCheck" },
+    ],
   },
   {
     label: "Hamkorlar",
@@ -64,7 +68,9 @@ export const SIDEBAR_ITEMS: NavItem[] = [
     icon: "Wallet",
     children: [
       { label: "Ko'rinish", href: "/finance/overview", icon: "BarChart3" },
-      { label: "To'lovlar", href: "/finance/withdrawals", icon: "ArrowDownToLine" },
+      { label: "Tranzaksiyalar", href: "/finance/payments", icon: "CreditCard" },
+      { label: "Qaytarishlar", href: "/finance/refunds", icon: "History" },
+      { label: "Pul yechishlar", href: "/finance/withdrawals", icon: "ArrowDownToLine" },
       { label: "Hisobotlar", href: "/finance/reports", icon: "FileSpreadsheet" },
     ],
   },
@@ -78,6 +84,7 @@ export const SIDEBAR_ITEMS: NavItem[] = [
       { label: "Yangiliklar", href: "/cms/news", icon: "Newspaper" },
       { label: "Sahifalar", href: "/cms/pages", icon: "FileText" },
       { label: "Shablonlar", href: "/cms/templates", icon: "Mail" },
+      { label: "Xabarnomalar", href: "/cms/broadcasts", icon: "Send" },
     ],
   },
   {
@@ -99,6 +106,11 @@ export const SIDEBAR_ITEMS: NavItem[] = [
     label: "Sozlamalar",
     href: "/settings",
     icon: "Settings",
+  },
+  {
+    label: "Dasturchi API",
+    href: "/developer",
+    icon: "Code2",
   },
   {
     label: "Audit jurnali",

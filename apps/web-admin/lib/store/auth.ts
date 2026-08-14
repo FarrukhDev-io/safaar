@@ -6,6 +6,7 @@ export interface AdminUser {
   name: string;
   email: string;
   role: "SUPER_ADMIN" | "ADMIN" | "MODERATOR";
+  has2FA?: boolean;
 }
 
 interface AuthState {

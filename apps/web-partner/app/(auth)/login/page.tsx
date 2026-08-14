@@ -38,6 +38,11 @@ export default function LoginPage() {
             Hamkorlik arizasini yuborish
           </Button>
         </Link>
+        <Link href="/status" className="block mt-3">
+          <Button variant="ghost" className="w-full text-[var(--muted-foreground)]">
+            Ariza holatini tekshirish
+          </Button>
+        </Link>
       </div>
     </div>
   );
