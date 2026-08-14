@@ -104,7 +104,9 @@ export function ReservationDetailView({ id }: { id: string }) {
         description={
           restaurant && data.slotTime
             ? `${formatDate(data.checkIn)} · ${data.slotTime}`
-            : `${formatDate(data.checkIn)} → ${formatDate(data.checkOut)} · ${data.nights} kech.`
+            : (partnerType === "bus" || partnerType === "BUS")
+              ? `${formatDate(data.checkIn)} → ${formatDate(data.checkOut)} · ${data.nights} kun`
+              : `${formatDate(data.checkIn)} → ${formatDate(data.checkOut)} · ${data.nights} kech.`
         }
         actions={
           <>
@@ -221,8 +223,10 @@ export function ReservationDetailView({ id }: { id: string }) {
               {!restaurant && (
                 <InfoItem
                   icon={<CalendarRange className="h-4 w-4" aria-hidden />}
-                  label="Ketish"
-                  value={`${formatDate(data.checkOut)} (${data.nights} kech.)`}
+                  label={(partnerType === "bus" || partnerType === "BUS") ? "Qaytarish" : "Ketish"}
+                  value={(partnerType === "bus" || partnerType === "BUS") 
+                    ? `${formatDate(data.checkOut)} (${data.nights} kun)`
+                    : `${formatDate(data.checkOut)} (${data.nights} kech.)`}
                 />
               )}
               {data.specialRequests && (

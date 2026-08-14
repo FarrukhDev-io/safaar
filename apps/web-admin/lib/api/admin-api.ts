@@ -318,16 +318,15 @@ function toHotelBooking(row: ApiRecord): AdminHotelBooking {
 }
 
 function toBusBooking(row: ApiRecord): AdminBusBooking {
+  const item = asRecord(row.item);
   return {
     id: asString(row.id),
     partnerId: asString(row.partner_organization_id),
     customerName: asString(row.customer_name, 'Mijoz'),
     customerPhone: asString(row.customer_phone),
-    companyName: asString(row.company_name),
-    route: asString(row.route),
-    departureDate: asString(row.departure_date),
-    departureTime: asString(row.departure_time),
-    seatNumber: asString(row.seat_number),
+    companyName: asString(row.company_name ?? item.companyName, 'Ijara kompaniyasi'),
+    checkIn: asString(row.check_in ?? item.check_in),
+    checkOut: asString(row.check_out ?? item.check_out),
     amount: asNumber(row.total_amount),
     paymentMethod: paymentMethod(row.payment_method),
     commission: asNumber(row.commission_amount),

@@ -266,7 +266,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
           {!restaurant && (
             <div className="flex flex-col gap-1.5 md:col-span-2">
               <Label htmlFor="rt-price">
-                Bir kechalik narx (so'm)
+                {isBus ? "1 kunlik ijara narxi (so'm)" : "Bir kechalik narx (so'm)"}
               </Label>
               <Input
                 id="rt-price"

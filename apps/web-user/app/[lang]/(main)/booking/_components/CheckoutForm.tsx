@@ -186,7 +186,12 @@ export function CheckoutForm({
         )}
         {state.error && (
           <p className="text-sm text-red-600">
-            {state.error === "ERROR" ? dict.error : state.error}
+            {state.error === "ERROR" ? dict.error 
+              : state.error === "VEHICLE_NOT_AVAILABLE" ? "Ushbu mashina endi ijaraga berilmaydi (yoki vaqtincha faol emas)"
+              : state.error === "VEHICLE_ALREADY_BOOKED" ? "Tanlangan sanalar uchun mashina allaqachon band qilingan"
+              : state.error === "BOOKING_DATES_INVALID" ? "Tanlangan sanalar noto'g'ri"
+              : state.error === "GUEST_DETAILS_REQUIRED" ? "Iltimos, barcha ma'lumotlarni to'ldiring"
+              : state.error}
           </p>
         )}
 

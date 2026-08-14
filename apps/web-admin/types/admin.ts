@@ -53,6 +53,19 @@ export interface AdminListing {
   };
 }
 
+export interface AdminRefund {
+  id: string;
+  bookingId: string;
+  userId?: string;
+  status: 'requested' | 'approved' | 'rejected' | 'processing' | 'refunded' | 'failed';
+  requestedAmount: number;
+  approvedAmount?: number;
+  currency: string;
+  reason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /* ────────────────────────────────────────────
    Dashboard
    ──────────────────────────────────────────── */
@@ -276,10 +289,8 @@ export interface AdminBusBooking {
   customerName: string;
   customerPhone: string;
   companyName: string;
-  route: string;
-  departureDate: string;
-  departureTime: string;
-  seatNumber: string;
+  checkIn: string;
+  checkOut: string;
   amount: number;
   paymentMethod: PaymentMethod;
   commission: number;

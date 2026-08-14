@@ -44,8 +44,7 @@ export default function BusBookingsPage() {
           booking.id.toLowerCase().includes(q) ||
           booking.customerName.toLowerCase().includes(q) ||
           booking.customerPhone.includes(q) ||
-          booking.companyName.toLowerCase().includes(q) ||
-          booking.route.toLowerCase().includes(q),
+          booking.companyName.toLowerCase().includes(q),
       );
     }
     if (statusFilter) {
@@ -81,21 +80,18 @@ export default function BusBookingsPage() {
       key: "companyName",
       label: "Kompaniya",
       render: (row) => (
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">{row.companyName}</span>
-          <span className="text-xs text-[var(--text-muted)]">{row.route}</span>
-        </div>
+        <span className="text-sm font-medium">{row.companyName}</span>
       ),
     },
     {
-      key: "departureDate",
-      label: "Jo'nash",
-      render: (row) => <span className="text-sm">{formatDate(row.departureDate)} {row.departureTime}</span>,
+      key: "checkIn",
+      label: "Olib ketish sanasi",
+      render: (row) => <span className="text-sm">{formatDate(row.checkIn)}</span>,
     },
     {
-      key: "seatNumber",
-      label: "O'rindiq",
-      render: (row) => <span className="text-sm font-medium">#{row.seatNumber}</span>,
+      key: "checkOut",
+      label: "Qaytarish sanasi",
+      render: (row) => <span className="text-sm">{formatDate(row.checkOut)}</span>,
     },
     {
       key: "amount",
@@ -138,7 +134,7 @@ export default function BusBookingsPage() {
         <div className="w-80">
           <Input
             isSearch
-            placeholder="Bron ID, mijoz, telefon, kompaniya yoki yo'nalish..."
+            placeholder="Bron ID, mijoz, telefon, kompaniya..."
             value={search}
             onChange={(event) => { setSearch(event.target.value); setPage(1); }}
           />

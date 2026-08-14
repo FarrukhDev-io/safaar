@@ -205,7 +205,8 @@ export function toRoom(room: BackendRoom): Room {
     roomTypeName: localized(room.name),
     isListed: room.is_listed ?? room.status === 'active',
     nightlyPrice: room.base_price ?? undefined,
-  };
+    _rawStatus: room.status,
+  } as Room & { _rawStatus?: string };
 }
 
 export function toRoomType(room: BackendRoom): RoomType {

@@ -62,6 +62,7 @@ import {
 } from '../../_lib/utils/partner-labels';
 import { cn } from '../../_lib/utils/cn';
 import { formatMoney } from '../../_lib/utils/format';
+import { useAmenities } from '../../_hooks/use-catalog';
 
 const AMENITY_LABEL = new Map<string, string>();
 for (const group of [...AMENITY_GROUPS, ...RESTAURANT_AMENITY_GROUPS]) {
@@ -93,6 +94,7 @@ export function ListingOverview() {
   const { data: listing } = useListing();
   const { data: rooms } = useRooms();
   const { data: roomTypes } = useRoomTypes();
+  const { data: allAmenities = [] } = useAmenities();
   useBeds();
   const beds = useDataStore((s) => s.beds);
   const updateStatus = useUpdateListingStatus();
@@ -112,6 +114,14 @@ export function ListingOverview() {
     import('../../_lib/domain/types').RoomType | null
   >(null);
   const [roomDialogOpen, setRoomDialogOpen] = useState(false);
+
+  const dynamicAmenityLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    allAmenities.forEach((a: any) => {
+      map.set(a.code, typeof a.name === 'string' ? a.name : ((a.name as any)?.uz || a.code));
+    });
+    return map;
+  }, [allAmenities]);
 
   const statusInfo = LISTING_STATUS_INFO[listing.status];
   const cover =
@@ -270,7 +280,7 @@ export function ListingOverview() {
         id: 'roomTypes',
         title: labels.unitTypesTitle,
         subtitle: `Mijoz tanlaydigan ${labels.unitSingular} variantlari`,
-        action: `${labels.unitTypeLabel} qo'shish`,
+        action: roomTypesComplete ? 'Boshqarish' : `${labels.unitTypeLabel} qo'shish`,
         complete: roomTypesComplete,
         summary:
           roomAds.length > 0
@@ -291,13 +301,8 @@ export function ListingOverview() {
   const readyToSubmit = missing.length === 0;
 
   const openSection = (id: SectionId) => {
-    if (id === 'roomTypes') {
-      setEditingRoomType(null);
-      setRoomTypeDialogOpen(true);
-      return;
-    }
-    if (id === 'rooms') {
-      setRoomDialogOpen(true);
+    if (id === 'roomTypes' || id === 'rooms') {
+      document.getElementById('room-listings-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
     setOpenEditor(id as OpenEditor);
@@ -541,21 +546,25 @@ export function ListingOverview() {
         {dacha ? (
           <DachaUnitPanel listingName={listing.name} />
         ) : (
-          <RoomListingsPanel
-            roomAds={roomAds}
-            labels={labels}
-            isHostel={isHostel}
-            restaurant={restaurant}
-            onAddRoomType={() => {
-              setEditingRoomType(null);
-              setRoomTypeDialogOpen(true);
-            }}
-            onEditRoomType={(roomType) => {
-              setEditingRoomType(roomType);
-              setRoomTypeDialogOpen(true);
-            }}
-            onAddRoom={() => setRoomDialogOpen(true)}
-          />
+          <div id="room-listings-panel">
+            <RoomListingsPanel
+              roomAds={roomAds}
+              labels={labels}
+              isHostel={isHostel}
+              restaurant={restaurant}
+              isBus={isBus}
+              amenityLabels={dynamicAmenityLabels}
+              onAddRoomType={() => {
+                setEditingRoomType(null);
+                setRoomTypeDialogOpen(true);
+              }}
+              onEditRoomType={(roomType) => {
+                setEditingRoomType(roomType);
+                setRoomTypeDialogOpen(true);
+              }}
+              onAddRoom={() => setRoomDialogOpen(true)}
+            />
+          </div>
         )}
       </section>
 
@@ -704,6 +713,8 @@ function RoomListingsPanel({
   labels,
   isHostel,
   restaurant,
+  isBus,
+  amenityLabels,
   onAddRoomType,
   onEditRoomType,
   onAddRoom,
@@ -719,6 +730,8 @@ function RoomListingsPanel({
   labels: import('../../_lib/utils/partner-labels').PartnerLabels;
   isHostel: boolean;
   restaurant: boolean;
+  isBus?: boolean;
+  amenityLabels: Map<string, string>;
   onAddRoomType: () => void;
   onEditRoomType: (
     roomType: import('../../_lib/domain/types').RoomType,
@@ -742,12 +755,16 @@ function RoomListingsPanel({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={onAddRoom}>
-              <Plus className="h-4 w-4" aria-hidden />
-              {labels.addUnitLabel}
-            </Button>
+            {!isBus && (
+              <Button variant="outline" size="sm" onClick={onAddRoom}>
+                <Plus className="h-4 w-4" aria-hidden />
+                {labels.addUnitLabel}
+              </Button>
+            )}
             <Button size="sm" onClick={onAddRoomType}>
-              {restaurant ? (
+              {isBus ? (
+                <CarFront className="h-4 w-4" aria-hidden />
+              ) : restaurant ? (
                 <UtensilsCrossed className="h-4 w-4" aria-hidden />
               ) : (
                 <BedDouble className="h-4 w-4" aria-hidden />
@@ -759,7 +776,12 @@ function RoomListingsPanel({
 
         {roomAds.length === 0 ? (
           <div className="rounded-card border border-dashed border-[var(--border)] bg-[var(--surface-muted)] p-6 text-center">
-            {restaurant ? (
+            {isBus ? (
+              <CarFront
+                className="mx-auto h-8 w-8 text-[var(--muted-foreground)]"
+                aria-hidden
+              />
+            ) : restaurant ? (
               <UtensilsCrossed
                 className="mx-auto h-8 w-8 text-[var(--muted-foreground)]"
                 aria-hidden
@@ -774,7 +796,7 @@ function RoomListingsPanel({
               Hali {labels.unitTypeLabel.toLowerCase()} yo'q
             </h3>
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[var(--muted-foreground)]">
-              Avval Standart, Lyuks yoki Family kabi{' '}
+              Avval {isBus ? 'Sedan, Miniven yoki Avtobus kabi' : 'Standart, Lyuks yoki Family kabi'}{' '}
               {labels.unitTypeLabel.toLowerCase()}ni yarating. Keyin real{' '}
               {labels.unitSingular} raqamlarini shu e'longa bog'laysiz.
             </p>
@@ -808,6 +830,8 @@ function RoomListingsPanel({
                   totalUnits={isHostel ? totalBeds : relatedRooms.length}
                   listedUnits={isHostel ? listedBedCount : listedCount}
                   restaurant={restaurant}
+                  isBus={isBus}
+                  amenityLabels={amenityLabels}
                   onEdit={() => onEditRoomType(roomType)}
                 />
               ),
@@ -832,6 +856,8 @@ function RoomAdCard({
   totalUnits,
   listedUnits,
   restaurant,
+  isBus,
+  amenityLabels,
   onEdit,
 }: {
   name: string;
@@ -846,6 +872,8 @@ function RoomAdCard({
   totalUnits: number;
   listedUnits: number;
   restaurant: boolean;
+  isBus?: boolean;
+  amenityLabels?: Map<string, string>;
   onEdit: () => void;
 }) {
   return (
@@ -880,9 +908,9 @@ function RoomAdCard({
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--muted-foreground)]">
                 <span className="inline-flex items-center gap-1">
                   <Users className="h-3.5 w-3.5" aria-hidden />
-                  {capacity} kishi
+                  {capacity} {isBus ? "o'rindiq" : "kishi"}
                 </span>
-                {!restaurant && bedType && <span>{bedType}</span>}
+                {!restaurant && !isBus && bedType && <span>{bedType}</span>}
                 {!restaurant && typeof sizeSqm === 'number' && sizeSqm > 0 && (
                   <span>{sizeSqm} m²</span>
                 )}
@@ -898,7 +926,7 @@ function RoomAdCard({
             </div>
             <div className="shrink-0 text-right">
               <p className="text-[11px] text-[var(--muted-foreground)]">
-                {restaurant ? 'narxi' : '1 kecha'}
+                {restaurant ? 'narxi' : isBus ? '1 kunlik' : '1 kecha'}
               </p>
               <p className="text-base font-semibold text-brand-700 dark:text-brand-300">
                 {formatMoney(minPrice)}
@@ -922,7 +950,7 @@ function RoomAdCard({
                 key={amenity}
                 className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[11px]"
               >
-                {AMENITY_LABEL.get(amenity) ?? amenity}
+                {amenityLabels?.get(amenity) ?? AMENITY_LABEL.get(amenity) ?? amenity}
               </span>
             ))}
             {amenities.length > 5 && (

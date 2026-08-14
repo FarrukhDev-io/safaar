@@ -54,6 +54,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const isHotel = booking.serviceType === "hotel";
   const isRestaurant = booking.serviceType === "restaurant";
 
+  const [isRefunding, setIsRefunding] = useState(false);
+
   const handleCancel = async () => {
     if (confirm("Rostdan ham ushbu bronni bekor qilmoqchimisiz?")) {
       const updated = await AdminApi.cancelBooking(id);
@@ -62,9 +64,35 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  const handleRefund = () => {
-    if (confirm(`${formatPrice(booking.totalAmount)} miqdorida to'lovni qaytarmoqchimisiz?`)) {
-      toast.success("To'lov qaytarildi (refund)!");
+  const handleRefund = async () => {
+    if (!confirm(`${formatPrice(booking.totalAmount)} miqdorida to'lovni qaytarmoqchimisiz?`)) return;
+
+    setIsRefunding(true);
+    try {
+      const refunds = await AdminApi.getRefunds();
+      const refund = refunds.find((r) => r.bookingId === booking.id);
+
+      if (!refund) {
+        toast.error("Bu bron uchun refund so'rovi mavjud emas. Mijoz avval bekor qilishi kerak.");
+        return;
+      }
+
+      if (refund.status === 'approved' || refund.status === 'completed') {
+        toast.error("Ushbu bron uchun to'lov allaqachon qaytarilgan.");
+        return;
+      }
+
+      await AdminApi.refundAction(refund.id, 'approve');
+      toast.success("To'lov muvaffaqiyatli qaytarildi (refund tasdiqlandi)!");
+
+      // Refresh booking detail
+      const updated = await AdminApi.getBookingDetail(id);
+      setBooking(updated);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || "To'lovni qaytarishda xatolik yuz berdi");
+    } finally {
+      setIsRefunding(false);
     }
   };
 
@@ -112,7 +140,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               Bekor qilish
             </Button>
           )}
-          <Button variant="secondary" size="sm" icon={<DollarSign size={14} />} onClick={handleRefund}>Refund</Button>
+          <Button variant="secondary" size="sm" icon={<DollarSign size={14} />} onClick={handleRefund} disabled={isRefunding}>
+            {isRefunding ? "Kuting..." : "Refund"}
+          </Button>
           <Button variant="secondary" size="sm" icon={<Printer size={14} />} onClick={() => window.print()}>Chop etish</Button>
         </div>
       </div>

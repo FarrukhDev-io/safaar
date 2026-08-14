@@ -26,6 +26,8 @@
     "total": "Summa",
     "type": "Tur",
     "hotel": "Mehmonxona",
+    "bus": "Mashina ijarasi",
+    "restaurant": "Restoran",
     "view": "Ko'rish",
     "statuses": {
       "PENDING": "Kutilmoqda",
