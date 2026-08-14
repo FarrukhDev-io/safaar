@@ -239,11 +239,12 @@ export function toReservation(booking: BackendBooking): ReservationView {
   const roomTypeId =
     booking.room_type_id ?? booking.price_snapshot?.room_type_id ?? '';
   const fullName =
-    booking.guest_name ??
-    booking.customer_name ??
-    [booking.user_first_name, booking.user_last_name].filter(Boolean).join(' ');
+    booking.guest_name ||
+    booking.customer_name ||
+    [booking.user_first_name, booking.user_last_name].filter(Boolean).join(' ') ||
+    "Noma'lum mehmon";
   const phone =
-    booking.guest_phone ?? booking.customer_phone ?? booking.user_phone ?? '';
+    booking.guest_phone || booking.customer_phone || booking.user_phone || "Kiritilmagan";
   return {
     id: booking.id,
     status: normalizeBookingStatus(booking.status),

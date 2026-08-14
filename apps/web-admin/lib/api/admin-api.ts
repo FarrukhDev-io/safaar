@@ -162,11 +162,22 @@ function toRegion(row: ApiRecord): CatalogRegion {
 }
 
 function toAmenity(row: ApiRecord): CatalogAmenity {
+  const code = String(row.code ?? '');
+  let type: CatalogAmenity['type'] = 'hotel';
+
+  if (code.startsWith('dacha_')) type = 'dacha';
+  else if (code.startsWith('restaurant_')) type = 'restaurant';
+  else if (code.startsWith('transport_') || code.startsWith('bus_')) type = 'transport';
+  else if (code.startsWith('room_')) type = 'room';
+  else if (code.startsWith('hotel_')) type = 'hotel';
+  else type = row.type === 'room' ? 'room' : 'hotel';
+
   return {
-    id: String(row.id ?? row.code ?? ''),
+    id: String(row.id ?? code ?? ''),
+    code,
     name: localizedText(row.name, 'Qulaylik'),
-    icon: String(row.icon ?? row.code ?? 'amenity'),
-    type: row.type === 'room' ? 'room' : 'hotel',
+    icon: String(row.icon ?? code ?? 'amenity'),
+    type,
     isActive: asBoolean(row.isActive ?? row.is_active, true),
   };
 }
@@ -526,6 +537,10 @@ function toListing(row: ApiRecord): AdminListing {
         roomSummary.active_room_count ??
         roomSummary.total_inventory,
     ),
+    type:
+      row.type || partner.type || row.listing_type
+        ? asString(row.type ?? partner.type ?? row.listing_type)
+        : undefined,
     status:
       row.status === 'published'
         ? 'published'
@@ -1049,12 +1064,12 @@ export const AdminApi = {
   },
 
   approvePartner: async (id: string) => {
-    const { data } = await apiClient.post(`/admin/partners/requests/${id}/approve`);
+    const { data } = await apiClient.post(`/admin/partners/${id}/approve`);
     return data;
   },
 
   rejectPartner: async (id: string, reason?: string) => {
-    const { data } = await apiClient.post(`/admin/partners/requests/${id}/reject`, {
+    const { data } = await apiClient.post(`/admin/partners/${id}/reject`, {
       reason: reason ?? '',
     });
     return data;
@@ -1205,18 +1220,23 @@ export const AdminApi = {
   },
 
   getNotificationSummary: async (): Promise<AdminNotificationSummary> => {
-    const [partnerRequests, supportStatsResponse] = await Promise.all([
-      AdminApi.getPartnerRequests(),
-      apiClient.get('/admin/support/stats'),
-    ]);
-    const supportStats = asRecord(supportStatsResponse.data);
+    try {
+      const [partnerRequests, supportStatsResponse] = await Promise.all([
+        AdminApi.getPartnerRequests().catch(() => []),
+        apiClient.get('/admin/support/stats').catch(() => ({ data: { open: 0, closed: 0 } })),
+      ]);
+      const supportStats = asRecord(supportStatsResponse.data);
 
-    return {
-      partnerRequests: partnerRequests.filter(
-        (request) => request.status === 'new' || request.status === 'reviewing',
-      ).length,
-      supportOpen: Number(supportStats.open ?? 0),
-    };
+      return {
+        partnerRequests: partnerRequests.filter(
+          (request) => request.status === 'new' || request.status === 'reviewing',
+        ).length,
+        supportOpen: Number(supportStats.open ?? 0),
+      };
+    } catch (error) {
+      console.error('Error fetching notification summary:', error);
+      return { partnerRequests: 0, supportOpen: 0 };
+    }
   },
 
   getNotifications: async (): Promise<AdminNotification[]> => {

@@ -44,6 +44,7 @@ export interface AdminListing {
     cancellationPolicy?: string;
   };
   roomsCount?: number;
+  type?: string;
   status: 'draft' | 'under_review' | 'published' | 'rejected';
   submittedAt: string;
   completeness?: {
@@ -470,9 +471,10 @@ export interface CatalogRegion {
 
 export interface CatalogAmenity {
   id: string;
+  code: string;
   name: string;
   icon: string;
-  type: 'hotel' | 'room';
+  type: 'hotel' | 'room' | 'dacha' | 'restaurant' | 'transport' | 'other';
   isActive: boolean;
 }
 

@@ -9,7 +9,7 @@ export default function LoginPage() {
       <div className="flex flex-col gap-1">
         <h2 className="text-xl font-semibold tracking-tight">Tizimga kirish</h2>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Emailingizni kiriting — tasdiqlash kodini yuboramiz.
+          Telefon raqamingizni kiriting — SMS orqali tasdiqlash kodini yuboramiz.
         </p>
       </div>
 

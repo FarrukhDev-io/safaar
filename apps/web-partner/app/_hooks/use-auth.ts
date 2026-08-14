@@ -10,7 +10,7 @@ import { useAuthStore } from '../_stores/auth-store';
 // ─── Demo rejim ───────────────────────────────────────────────────────────────
 // Backend o'chiq bo'lganda ishlab chiqish uchun ishlatiladi.
 // HECH QACHON production'ga chiqarma.
-const DEMO_EMAIL = 'demo@safaar.uz';
+const DEMO_PHONE = '+998901234567';
 const DEMO_CODE = '000000';
 const DEMO_TOKENS = {
   accessToken: 'demo.eyJzdWIiOiJkZW1vLXVzZXIiLCJvcmdhbml6YXRpb25faWQiOiJkZW1vLW9yZyJ9.demo',
@@ -66,15 +66,15 @@ export function usePartnerPhoneLogin() {
   });
 }
 
-export function usePartnerEmailOtpRequest() {
+export function usePartnerPhoneOtpRequest() {
   return useMutation({
-    mutationFn: async (email: string) => {
-      const normalizedEmail = email.trim().toLowerCase();
+    mutationFn: async (phone: string) => {
+      const normalizedPhone = phone.replace(/\D/g, '');
 
       // ── Demo rejim ──────────────────────────────────────────────────────────
-      if (normalizedEmail === DEMO_EMAIL) {
+      if (phone === DEMO_PHONE || normalizedPhone === '998901234567') {
         return {
-          email: normalizedEmail,
+          phone,
           challengeId: 'demo-challenge-id',
           expiresInSeconds: 300,
           resendAfterSeconds: 60,
@@ -84,7 +84,7 @@ export function usePartnerEmailOtpRequest() {
       // ────────────────────────────────────────────────────────────────────────
 
       const accessStatus = await access
-        .getPartnerAccessStatus({ email: normalizedEmail })
+        .getPartnerAccessStatus({ phone })
         .catch(() => ({ status: 'approved' as const, request: { type: 'hotel' } }));
 
       if (accessStatus.status !== 'approved') {
@@ -99,13 +99,13 @@ export function usePartnerEmailOtpRequest() {
           throw new Error('Arizangiz hali admin tomonidan tasdiqlanmagan.');
         }
         throw new Error(
-          'Bu email uchun hamkorlik access topilmadi. Avval ariza yuboring.',
+          'Bu telefon raqam uchun hamkorlik access topilmadi. Avval ariza yuboring.',
         );
       }
 
       let challenge;
       try {
-        challenge = await auth.requestPartnerEmailOtp(normalizedEmail);
+        challenge = await auth.requestOtp(phone);
       } catch {
         // Backend o'chiq — demo rejimga o'tamiz
         challenge = {
@@ -117,23 +117,24 @@ export function usePartnerEmailOtpRequest() {
       }
 
       return {
-        email: normalizedEmail,
+        phone,
         challengeId: challenge.challenge_id,
         expiresInSeconds: challenge.expires_in_seconds,
         resendAfterSeconds: challenge.resend_after_seconds,
         partnerType: accessStatus.request?.type || 'hotel',
+        devCode: challenge.dev_code,
       };
     },
-    onSuccess: ({ challengeId, email }) => {
+    onSuccess: ({ challengeId, phone }) => {
       if (challengeId === 'demo-challenge-id') {
         toast.info(
-          `Demo rejim: ${email === DEMO_EMAIL ? `"${DEMO_CODE}"` : '"000000"'} kodni kiriting`,
+          `Demo rejim: ${phone === DEMO_PHONE ? `"${DEMO_CODE}"` : '"000000"'} kodni kiriting`,
           { duration: 8000 },
         );
       } else {
         toast.success(
-          '📧 Backend terminalida "MOCK EMAIL" ni toping va kodni kiriting',
-          { duration: 8000 },
+          '📱 SMS orqali kod yuborildi',
+          { duration: 4000 },
         );
       }
     },
@@ -143,32 +144,31 @@ export function usePartnerEmailOtpRequest() {
   });
 }
 
-export function usePartnerEmailOtpVerify() {
+
+export function usePartnerPhoneOtpVerify() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
 
   return useMutation({
     mutationFn: async ({
-      email,
+      phone,
       code,
       challengeId,
       partnerType,
     }: {
-      email: string;
+      phone: string;
       code: string;
       challengeId: string;
       partnerType?: string;
     }) => {
-      const normalizedEmail = email.trim().toLowerCase();
-
       // ── Demo rejim ──────────────────────────────────────────────────────────
       if (challengeId === 'demo-challenge-id') {
         if (code !== DEMO_CODE) {
           throw new Error(`Demo rejimda kod: ${DEMO_CODE}`);
         }
         return {
-          email: normalizedEmail,
-          tokens: DEMO_TOKENS,
+          phone,
+          tokens: DEMO_TOKENS as any,
           organizationId: 'demo-org-id',
           partnerType: partnerType || 'hotel',
           isDemo: true,
@@ -176,22 +176,22 @@ export function usePartnerEmailOtpVerify() {
       }
       // ────────────────────────────────────────────────────────────────────────
 
-      const tokens = await auth.verifyPartnerEmailOtp({
-        email: normalizedEmail,
+      const tokens = await auth.verifyOtp({
+        phone,
         code,
         challenge_id: challengeId,
-      });
+      }) as any;
 
       return {
-        email: normalizedEmail,
+        phone,
         tokens,
         organizationId: tokens.organizationId ?? tokens.organization_id,
         partnerType: partnerType || 'hotel',
         isDemo: false,
       };
     },
-    onSuccess: ({ email, tokens, organizationId, partnerType, isDemo }) => {
-      const { user } = buildPartnerSession(email, tokens, partnerType, 'email');
+    onSuccess: ({ phone, tokens, organizationId, partnerType, isDemo }) => {
+      const { user } = buildPartnerSession(phone, tokens, partnerType, 'phone');
       user.organizationId = organizationId;
       setSession(user, tokens);
       if (isDemo) {
@@ -206,6 +206,7 @@ export function usePartnerEmailOtpVerify() {
     },
   });
 }
+
 
 export function useLogout() {
   const router = useRouter();

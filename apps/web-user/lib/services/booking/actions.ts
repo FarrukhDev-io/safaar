@@ -45,10 +45,9 @@ export async function createBookingAction(
     checkOut: String(formData.get("checkOut") ?? ""),
     guests: Number(formData.get("guests") ?? 1),
     paymentMethod,
-    firstName: formData.get("firstName") ? String(formData.get("firstName")) : undefined,
-    lastName: formData.get("lastName") ? String(formData.get("lastName")) : undefined,
-    email: formData.get("email") ? String(formData.get("email")) : undefined,
-    phone: formData.get("phone") ? String(formData.get("phone")) : undefined,
+    guestName: formData.get("fullName") ? String(formData.get("fullName")) : [formData.get("firstName"), formData.get("lastName")].filter(Boolean).join(" ").trim() || undefined,
+    guestEmail: formData.get("email") ? String(formData.get("email")) : undefined,
+    guestPhone: formData.get("phone") ? String(formData.get("phone")) : undefined,
   };
   let bookingId = "";
   let checkoutUrl = "";

@@ -221,7 +221,10 @@ export function ListingOverview() {
           ? 'Manzil va xarita nuqtasini kiriting.'
           : undefined,
       },
-      {
+    ];
+
+    if (!isBus) {
+      base.push({
         id: 'rules',
         title: 'Uy qoidalari',
         subtitle: `${labels.checkInLabel}, ${labels.checkOutLabel.toLowerCase()} va bekor qilish shartlari`,
@@ -234,8 +237,8 @@ export function ListingOverview() {
         missing: !rulesComplete
           ? `${labels.checkInLabel} va ${labels.checkOutLabel.toLowerCase()} vaqtlarini kiriting.`
           : undefined,
-      },
-    ];
+      });
+    }
 
     if (dacha) {
       return base;
@@ -613,10 +616,12 @@ export function ListingOverview() {
               }
               label="Xaritadagi nuqta"
             />
-            <ChecklistItem
-              done={Boolean(listing.checkInTime && listing.checkOutTime)}
-              label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
-            />
+            {!isBus && (
+              <ChecklistItem
+                done={Boolean(listing.checkInTime && listing.checkOutTime)}
+                label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
+              />
+            )}
             <ChecklistItem
               done={restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
               label={restaurant ? 'Stollar' : labels.unitTypesTitle}
@@ -624,34 +629,36 @@ export function ListingOverview() {
           </CardBody>
         </Card>
 
-        <Card>
-          <CardBody className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold">Qoidalar qisqacha</h2>
-            <div className="grid gap-2 text-sm">
-              <RuleChip
-                on={listing.childrenAllowed}
-                icon={<Baby />}
-                label="Bolalar"
-              />
-              <RuleChip
-                on={listing.petsAllowed}
-                icon={<Dog />}
-                label="Uy hayvonlari"
-              />
-              <RuleChip
-                on={listing.smokingAllowed}
-                icon={<Cigarette />}
-                label="Chekish"
-              />
-            </div>
-            <div className="rounded-md bg-[var(--surface-muted)] p-3 text-xs leading-5 text-[var(--muted-foreground)]">
-              Bekor qilish:{' '}
-              <span className="font-semibold text-[var(--foreground)]">
-                {CANCELLATION_POLICY_INFO[listing.cancellationPolicy].label}
-              </span>
-            </div>
-          </CardBody>
-        </Card>
+        {!isBus && (
+          <Card>
+            <CardBody className="flex flex-col gap-3">
+              <h2 className="text-sm font-semibold">Qoidalar qisqacha</h2>
+              <div className="grid gap-2 text-sm">
+                <RuleChip
+                  on={listing.childrenAllowed}
+                  icon={<Baby />}
+                  label="Bolalar"
+                />
+                <RuleChip
+                  on={listing.petsAllowed}
+                  icon={<Dog />}
+                  label="Uy hayvonlari"
+                />
+                <RuleChip
+                  on={listing.smokingAllowed}
+                  icon={<Cigarette />}
+                  label="Chekish"
+                />
+              </div>
+              <div className="rounded-md bg-[var(--surface-muted)] p-3 text-xs leading-5 text-[var(--muted-foreground)]">
+                Bekor qilish:{' '}
+                <span className="font-semibold text-[var(--foreground)]">
+                  {CANCELLATION_POLICY_INFO[listing.cancellationPolicy].label}
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
       </aside>
 
       <GeneralEditor
