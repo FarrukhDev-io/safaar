@@ -159,7 +159,7 @@ export function DatePicker({
         <>
           {/* Mobilda overlay */}
           <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs md:hidden" aria-hidden onClick={() => setOpen(false)} />
-          <div className="fixed inset-x-4 top-1/2 z-50 -translate-y-1/2 rounded-3xl border border-slate-200 bg-card p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 md:absolute md:inset-auto md:left-0 md:top-full md:mt-2 md:w-72 md:translate-y-0">
+          <div className="fixed inset-x-4 top-1/2 z-50 -translate-y-1/2 rounded-3xl border border-slate-100/80 bg-white/95 p-4 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.12)] backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/95 md:absolute md:inset-auto md:left-0 md:top-full md:mt-2 md:w-72 md:translate-y-0">
             {/* Mobile Header with Close Button */}
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800 md:hidden">
               <span className="text-sm font-bold text-slate-800 dark:text-white">Sanani tanlang</span>
