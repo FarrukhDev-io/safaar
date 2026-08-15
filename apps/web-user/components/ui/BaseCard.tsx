@@ -39,7 +39,7 @@ export function BaseCard({
       {variant === "overlay" ? (
         /* Overlay variant (e.g. City Card) */
         <div className="relative aspect-[4/3] w-full overflow-hidden">
-          {imageSrc && (
+          {imageSrc ? (
             <Image
               src={imageSrc}
               alt={imageAlt}
@@ -48,6 +48,10 @@ export function BaseCard({
               className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               quality={85}
             />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-tr from-slate-100 to-slate-200 flex items-center justify-center dark:from-slate-800 dark:to-slate-900">
+              <span className="text-sm font-black tracking-widest text-slate-400 dark:text-slate-600">Safaar</span>
+            </div>
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           {badge && <div className="absolute left-3 top-3 z-10">{badge}</div>}
@@ -66,7 +70,7 @@ export function BaseCard({
         /* Default variant (standard card) */
         <>
           <div className="relative aspect-[3/2] w-full overflow-hidden rounded-t-3xl bg-slate-100 dark:bg-slate-800">
-            {imageSrc && (
+            {imageSrc ? (
               <Image
                 src={imageSrc}
                 alt={imageAlt}
@@ -75,6 +79,10 @@ export function BaseCard({
                 className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                 quality={85}
               />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-tr from-slate-100 to-slate-200 flex items-center justify-center dark:from-slate-800/50 dark:to-slate-900/50">
+                <span className="text-sm font-black tracking-widest text-slate-400 dark:text-slate-600">Safaar</span>
+              </div>
             )}
             {badge && <div className="absolute left-3 top-3 z-10">{badge}</div>}
           </div>
