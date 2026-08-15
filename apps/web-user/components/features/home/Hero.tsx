@@ -3,7 +3,11 @@ import HeroSectionTextHover from "@/components/animata/hero/hero-section-text-ho
 
 export function Hero({ dict }: { dict: HomeDict["hero"] }) {
   return (
-    <section className="relative overflow-hidden pt-6 pb-2 sm:pt-8 sm:pb-4 lg:pt-10 lg:pb-6">
+    <section className="relative overflow-hidden pt-12 pb-6 sm:pt-16 sm:pb-8 lg:pt-20 lg:pb-10">
+      {/* Premium glowing background mesh */}
+      <div className="absolute top-0 left-1/4 -z-10 h-96 w-96 rounded-full bg-gradient-to-tr from-blue-400/10 to-indigo-400/10 blur-3xl dark:from-blue-600/5 dark:to-indigo-600/5" />
+      <div className="absolute -top-12 right-1/4 -z-10 h-96 w-96 rounded-full bg-gradient-to-br from-indigo-400/10 to-purple-400/10 blur-3xl dark:from-indigo-600/5 dark:to-purple-600/5" />
+
       <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
         {/* Title */}
         <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-5xl md:text-6xl animate-in fade-in zoom-in-95 duration-1000">

@@ -35,7 +35,7 @@ export function BaseCard({
 }: BaseCardProps) {
 
   const content = (
-    <article className={`flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-card shadow-md dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md ${className}`}>
+    <article className={`flex h-full flex-col overflow-hidden rounded-3xl border border-slate-100/80 bg-card shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1.5 dark:border-slate-800/60 dark:bg-slate-900/60 dark:backdrop-blur-md ${className}`}>
       {variant === "overlay" ? (
         /* Overlay variant (e.g. City Card) */
         <div className="relative aspect-[4/3] w-full overflow-hidden">
