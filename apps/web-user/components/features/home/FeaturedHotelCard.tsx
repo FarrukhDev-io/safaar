@@ -1,14 +1,17 @@
-import { ArrowRight } from "lucide-react";
+import { Heart } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import { formatSum } from "@/lib/utils/money";
 import { resolveImage } from "@/lib/images";
-import type { HotelListItem } from "@/types/view";
+import type { HotelListItem, FavoriteView } from "@/types/view";
 import { BaseCard } from "@/components/ui/BaseCard";
+import { CardFavoriteButton } from "@/components/favorites/CardFavoriteButton";
 
 export function FeaturedHotelCard({
   hotel,
   locale,
   dict,
+  userFavorites = [],
+  authed = false,
 }: {
   hotel: HotelListItem;
   locale: Locale;
@@ -18,22 +21,41 @@ export function FeaturedHotelCard({
     excellent?: string;
     good?: string;
   };
+  userFavorites?: FavoriteView[];
+  authed?: boolean;
 }) {
   const imageUrl = resolveImage(hotel.imageUrl);
 
   const badge =
     hotel.rating > 0 ? (
-      <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
+      <span className="rounded-lg bg-slate-900/60 px-2 py-0.5 text-xs font-bold text-white backdrop-blur-xs flex items-center gap-1">
         ★ {hotel.rating.toFixed(1)}
       </span>
     ) : undefined;
 
+  const cityNameLower = hotel.cityName.toLowerCase();
+  const locationSuffix = 
+    cityNameLower === "toshkent" || cityNameLower === "buxoro" || cityNameLower === "samarqand"
+      ? ", O'zbekiston" 
+      : cityNameLower === "chimgan" 
+        ? ", Toshkent viloyati" 
+        : "";
+
   const subInfo = (
     <>
       {hotel.cityName}
-      {hotel.stars > 0 && ` · ${hotel.stars}★`}
+      {locationSuffix}
     </>
   );
+
+  let amenitiesText = "Bepul Wi-Fi · Nonushta";
+  if (hotel.name.toLowerCase().includes("hilton")) {
+    amenitiesText = "Bepul Wi-Fi · Nonushta · Parking";
+  } else if (hotel.name.toLowerCase().includes("chimgan")) {
+    amenitiesText = "Spa · Basseyn · Restoran";
+  } else if (hotel.name.toLowerCase().includes("buxoro") || hotel.name.toLowerCase().includes("bukhara") || hotel.name.toLowerCase().includes("palace")) {
+    amenitiesText = "Nonushta · Wi-Fi · 24/7 xizmat";
+  }
 
   const ratingElement = hotel.reviewsCount > 0 ? (
     <span>
@@ -48,12 +70,13 @@ export function FeaturedHotelCard({
       badge={badge}
       title={hotel.name}
       subInfo={subInfo}
+      amenities={amenitiesText}
       rating={ratingElement}
       href={`/${locale}/hotels/${hotel.slug}`}
       footerLeft={
         hotel.minPriceSum > 0 ? (
           <>
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
+            <span className="text-sm font-bold text-slate-950 dark:text-white">
               {formatSum(hotel.minPriceSum)}
             </span>
             <span className="text-[10px] text-slate-400">/ {dict.perNight || "kecha"}</span>
@@ -61,9 +84,13 @@ export function FeaturedHotelCard({
         ) : undefined
       }
       footerRight={
-        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-all group-hover:border-primary-600 group-hover:bg-primary-600 group-hover:text-white dark:border-slate-700 dark:text-slate-300">
-          <ArrowRight className="h-3.5 w-3.5" />
-        </span>
+        <CardFavoriteButton
+          targetType="hotel"
+          targetId={hotel.id}
+          initialFavoriteId={userFavorites?.find((f) => f.targetId === hotel.id)?.id ?? null}
+          authed={authed}
+          loginHref={`/${locale}/login`}
+        />
       }
     />
   );

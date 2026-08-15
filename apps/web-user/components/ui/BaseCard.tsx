@@ -11,6 +11,7 @@ export interface BaseCardProps {
   title: React.ReactNode;           // Katta sarlavha
   subInfo?: React.ReactNode;        // Kichik qo'shimcha ma'lumotlar qatori
   rating?: React.ReactNode;         // Reyting va sharhlar qatori
+  amenities?: React.ReactNode;      // Bepul Wi-Fi, nonushta kabi qulayliklar
   footerLeft?: React.ReactNode;     // Pastki chap qism (Narx)
   footerRight?: React.ReactNode;    // Pastki o'ng qism (CTA tugma yoki o'q)
   href?: string;                    // Link o'rami (optional)
@@ -26,6 +27,7 @@ export function BaseCard({
   title,
   subInfo,
   rating,
+  amenities,
   footerLeft,
   footerRight,
   href,
@@ -94,6 +96,11 @@ export function BaseCard({
             {subInfo && (
               <div className="flex items-center gap-1.5 text-sm font-medium text-slate-500 dark:text-slate-400 overflow-hidden line-clamp-1 truncate select-none">
                 {subInfo}
+              </div>
+            )}
+            {amenities && (
+              <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1 select-none">
+                {amenities}
               </div>
             )}
             {rating && (

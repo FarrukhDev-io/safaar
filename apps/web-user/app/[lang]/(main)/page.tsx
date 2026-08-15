@@ -13,7 +13,9 @@ import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotel
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { CityPills } from "@/components/features/home/CityPills";
+import { CategoryPills } from "@/components/features/home/CategoryPills";
+
+import { getSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +39,8 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
+  const session = await getSession();
+
   const [common, dict, cities, featuredResult, rawDeals] = await Promise.all([
     getDictionary(locale, "common"),
     getDictionary(locale, "home"),
@@ -45,6 +49,10 @@ export default async function HomePage({
     api.cms.getDeals(locale),
     api.cms.getPublicStats().catch(() => null),
   ]);
+
+  const userFavorites = session
+    ? await api.users.getFavorites({ token: session.accessToken }).catch(() => [])
+    : [];
 
   const hotels = featuredResult.items;
 
@@ -67,15 +75,13 @@ export default async function HomePage({
         <Hero dict={dict.hero} />
 
         <div className="relative z-40">
-          <section id="search-section" className="relative z-10 bg-transparent pb-4 pt-2 sm:pb-6 sm:pt-4">
-            <div className="mx-auto max-w-4xl px-4">
+          <section id="search-section" className="relative z-10 bg-transparent -mt-12 sm:-mt-16 pb-4 pt-2">
+            <div className="mx-auto max-w-5xl px-4">
               <SearchBar locale={locale} dict={common.search} cities={cities} />
             </div>
           </section>
 
-          {cities.length > 0 && (
-            <CityPills cities={cities} locale={locale} />
-          )}
+          <CategoryPills locale={locale} />
         </div>
 
         {hotels.length > 0 && (
@@ -84,6 +90,8 @@ export default async function HomePage({
               hotels={hotels}
               dict={dict.featured}
               locale={locale}
+              userFavorites={userFavorites}
+              authed={!!session}
             />
           </Suspense>
         )}
