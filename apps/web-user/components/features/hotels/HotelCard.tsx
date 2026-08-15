@@ -25,8 +25,8 @@ export function HotelCard({
 
   const badge =
     hotel.stars > 0 ? (
-      <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
-        {"★".repeat(hotel.stars)} {hotel.stars}★
+      <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white tracking-widest">
+        {"★".repeat(hotel.stars)}
       </span>
     ) : undefined;
 

@@ -88,6 +88,8 @@ export default async function LangLayout({
 }) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
+  
+  const common = await getDictionary(lang as Locale, "common");
 
   return (
     <html
@@ -102,7 +104,7 @@ export default async function LangLayout({
             {children}
             <Toaster position="top-right" richColors />
             <ServiceWorkerRegister />
-            <PwaInstallBanner />
+            <PwaInstallBanner dict={common.pwa || { title: "Safaar ilovasini o'rnating", subtitle: "Tezkor kirish va offlayn rejim", install: "O'rnatish" }} />
           </div>
         </AnalyticsProvider>
       </body>

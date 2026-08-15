@@ -27,7 +27,7 @@ async function getBookingOrNull(id: string, token?: string) {
   try {
     return await api.bookings.getBooking(id, token ? { token } : undefined);
   } catch (error) {
-    if (error instanceof ApiRequestError && error.statusCode === 404) {
+    if (error instanceof ApiRequestError && (error.statusCode === 404 || error.statusCode === 401 || error.statusCode === 403)) {
       return null;
     }
     throw error;
@@ -60,7 +60,32 @@ export default async function BookingDetailPage({
     session?.accessToken,
   );
 
+  const isGuestSuccess =
+    !session &&
+    (statusQuery === "confirmed" ||
+      paymentQuery === "success" ||
+      paymentQuery === "cash");
+
   if (!booking) {
+    if (isGuestSuccess) {
+      return (
+        <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
+          <div className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/40">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-7 w-7 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <h1 className="text-xl font-extrabold tracking-tight text-emerald-950 dark:text-emerald-100 sm:text-2xl">
+                Broningiz muvaffaqiyatli qabul qilindi!
+              </h1>
+            </div>
+            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+              Buyurtma tafsilotlari va vaucher sizning telefon raqamingizga va elektron pochtangizga yuboriladi. 
+              Safaar xizmatidan foydalanganingiz uchun tashakkur!
+            </p>
+          </div>
+        </main>
+      );
+    }
+    
     return (
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
         <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">

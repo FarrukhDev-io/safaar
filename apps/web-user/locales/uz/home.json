@@ -1,6 +1,9 @@
 {
   "hero": {
     "title": "Orzuyingizdagi sayohatni bugun boshlang",
+    "title1": "Orzuyingizdagi",
+    "titleHighlight": "sayohatni",
+    "title2": "bugun boshlang",
     "subtitle": "Mehmonxonalar, dachalar va oromgohlarni kafolatlangan eng arzon narxlarda kashf eting. Soniyalar ichida bron qiling.",
     "trustChip1": "Tezkor tasdiq",
     "trustChip2": "Eng yaxshi narxlar"
@@ -36,7 +39,7 @@
     "subtitle": "Eng yaxshi narxlardagi maxsus takliflar",
     "badge": "Chegirma",
     "oldPrice": "dan",
-    "perNight": "/ kecha",
+    "perNight": "kecha",
     "book": "Bron qilish",
     "endsIn": "Tugashiga",
     "days": "kun"

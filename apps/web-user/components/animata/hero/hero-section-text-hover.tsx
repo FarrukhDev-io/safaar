@@ -12,9 +12,12 @@ interface HeroCardProps {
   destinations?: ItemProps[];
   treasures?: ItemProps[];
   className?: string;
+  text1: string;
+  highlightedText: string;
+  text2: string;
 }
 
-const HeroSectionTextHover: React.FC<HeroCardProps> = ({ className }) => {
+const HeroSectionTextHover: React.FC<HeroCardProps> = ({ className, text1, highlightedText, text2 }) => {
   const destinations: ItemProps[] = [
     {
       emoji: "🏨",
@@ -41,11 +44,11 @@ const HeroSectionTextHover: React.FC<HeroCardProps> = ({ className }) => {
   return (
     <div className={cn("relative w-full", className)}>
       <div className="flex flex-col items-center justify-center gap-2 sm:gap-4 md:flex-row flex-wrap">
-        <span className="text-slate-900 dark:text-white">Orzuyingizdagi</span>
+        <span className="text-slate-900 dark:text-white">{text1}</span>
         
-        <div className="group/hero relative flex items-center">
+        <div className="group/hero relative flex items-center mx-1">
           <span className="text-primary-600 transition-colors group-hover/hero:text-sky-400">
-            sayohatni
+            {highlightedText}
           </span>
           <div className="duration-400 absolute inset-0 cursor-pointer opacity-0 transition-opacity group-hover/hero:opacity-100">
             {destinations.map((dest, index) => (
@@ -62,7 +65,7 @@ const HeroSectionTextHover: React.FC<HeroCardProps> = ({ className }) => {
           </div>
         </div>
 
-        <span className="text-slate-900 dark:text-white">bugun boshlang</span>
+        <span className="text-slate-900 dark:text-white">{text2}</span>
       </div>
     </div>
   );

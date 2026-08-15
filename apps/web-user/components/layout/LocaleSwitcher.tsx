@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Globe } from "lucide-react";
 import { locales, localeNames, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
@@ -37,6 +37,8 @@ export function LocaleSwitcher({
     };
   }, [open]);
 
+  const searchParams = useSearchParams();
+
   function switchLocale(nextLocale: Locale) {
     if (nextLocale === current) {
       setOpen(false);
@@ -48,7 +50,10 @@ export function LocaleSwitcher({
     } else {
       segments.unshift(nextLocale);
     }
-    const nextPath = `/${segments.join("/")}`;
+    
+    const qs = searchParams.toString();
+    const nextPath = `/${segments.join("/")}${qs ? `?${qs}` : ""}`;
+    
     setOpen(false);
     router.push(nextPath);
   }

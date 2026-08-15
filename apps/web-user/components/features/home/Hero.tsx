@@ -7,7 +7,11 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
       <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
         {/* Title */}
         <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-5xl md:text-6xl animate-in fade-in zoom-in-95 duration-1000">
-          <HeroSectionTextHover />
+          <HeroSectionTextHover 
+            text1={dict.title1 || "Orzuyingizdagi"} 
+            highlightedText={dict.titleHighlight || "sayohatni"} 
+            text2={dict.title2 || "bugun boshlang"} 
+          />
         </h1>
 
         {/* Subtitle */}

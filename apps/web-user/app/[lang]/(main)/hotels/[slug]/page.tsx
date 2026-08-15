@@ -281,17 +281,19 @@ export default async function Page({
         </div>
 
         <aside className="flex h-fit flex-col gap-5 rounded-3xl border border-slate-200/60 bg-white/60 p-6 shadow-2xl shadow-slate-200/50 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/60 dark:shadow-none lg:sticky lg:top-24">
-          <div>
-            <span className="text-sm font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
-              {dict.from}
-            </span>
-            <p className="mt-1 flex items-end gap-1.5 text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-              {formatSum(hotel.minPriceSum)}
-              <span className="mb-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                / {dict.perNight}
+          {hotel.minPriceSum > 0 && (
+            <div>
+              <span className="text-sm font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                {dict.from}
               </span>
-            </p>
-          </div>
+              <p className="mt-1 flex items-end gap-1.5 text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                {formatSum(hotel.minPriceSum)}
+                <span className="mb-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                  / {dict.perNight}
+                </span>
+              </p>
+            </div>
+          )}
 
           {(hotel.checkInTime || hotel.checkOutTime) && (
             <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 text-sm dark:border-slate-800">
