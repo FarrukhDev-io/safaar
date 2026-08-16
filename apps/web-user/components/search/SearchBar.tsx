@@ -171,7 +171,7 @@ export function SearchBar({
             className="w-full md:w-auto px-8 h-12 md:h-14 font-bold text-sm bg-blue-600 hover:bg-blue-700"
           >
             <Search className="h-4.5 w-4.5 stroke-[2.5]" aria-hidden />
-            <span className="uppercase">{dict.submit}</span>
+            <span>{dict.submit}</span>
           </Button>
         </div>
       </form>

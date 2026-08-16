@@ -13,7 +13,7 @@ import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotel
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { CityPills } from "@/components/features/home/CityPills";
+import { CategoryPills } from "@/components/features/home/CategoryPills";
 
 import { getSession } from "@/lib/auth/session";
 
@@ -72,20 +72,16 @@ export default async function HomePage({
     <main className="relative flex flex-1 flex-col">
       {/* EKRAN 1: Hero + SearchBar + Featured Hotels */}
       <div className="flex min-h-svh flex-col justify-between">
-        <div className="bg-white rounded-b-[2.5rem] pb-8 shadow-sm border-b border-slate-100">
-          <Hero dict={dict.hero} />
+        <Hero dict={dict.hero} />
 
-          <div className="relative z-40">
-            <section id="search-section" className="relative z-10 bg-transparent pb-4 pt-2">
-              <div className="mx-auto max-w-5xl px-4">
-                <SearchBar locale={locale} dict={common.search} cities={cities} />
-              </div>
-            </section>
+        <div className="relative z-40">
+          <section id="search-section" className="relative z-10 bg-transparent -mt-12 sm:-mt-16 pb-4 pt-2">
+            <div className="mx-auto max-w-5xl px-4">
+              <SearchBar locale={locale} dict={common.search} cities={cities} />
+            </div>
+          </section>
 
-            {cities.length > 0 && (
-              <CityPills cities={cities} locale={locale} />
-            )}
-          </div>
+          <CategoryPills locale={locale} />
         </div>
 
         {hotels.length > 0 && (
