@@ -75,8 +75,8 @@ export default async function HomePage({
         <Hero dict={dict.hero} />
 
         <div className="relative z-40">
-          <section id="search-section" className="relative z-10 bg-transparent -mt-12 sm:-mt-16 pb-4 pt-2">
-            <div className="mx-auto max-w-6xl px-4">
+          <section id="search-section" className="relative z-50 bg-transparent -mt-20 sm:-mt-28 pb-4 pt-2">
+            <div className="mx-auto max-w-[1200px] px-4">
               <SearchBar locale={locale} dict={common.search} cities={cities} />
             </div>
           </section>

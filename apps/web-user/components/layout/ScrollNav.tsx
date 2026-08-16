@@ -306,7 +306,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
 
       {/* ═══ Desktop navbar ═══ */}
       <div className="sticky top-4 z-100 hidden w-full px-4 md:block">
-        <nav className="mx-auto max-w-7xl rounded-full border border-slate-100 bg-white/90 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.05)] backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/95">
+        <nav className="mx-auto max-w-[1400px] rounded-full border border-slate-100 bg-white/95 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           <div className="flex h-16 items-center justify-between px-8">
             <BrandLogo href={brandHref} brand={brand} className="shrink-0" />
 

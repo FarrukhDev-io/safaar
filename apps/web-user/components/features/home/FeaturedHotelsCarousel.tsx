@@ -23,30 +23,30 @@ export function FeaturedHotelsCarousel({
   if (cards.length === 0) return null;
 
   return (
-    <section className="mx-auto mt-10 w-full max-w-5xl px-4 sm:mt-14 relative">
-      <div className="mb-4 sm:mb-5">
-        <h2 className="text-xl font-black tracking-tight sm:text-2xl text-slate-900 dark:text-white">
-          {dict.title}
-        </h2>
-        <div className="flex items-center justify-between gap-4 mt-1">
-          <p className="text-xs font-semibold text-slate-600 sm:text-sm dark:text-slate-400">
+    <section className="mx-auto mt-10 w-full max-w-[1200px] px-4 sm:mt-14 relative z-10 pb-20">
+      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl text-slate-900 dark:text-white">
+            {dict.title}
+          </h2>
+          <p className="mt-2 text-sm font-medium text-slate-600 sm:text-base dark:text-slate-400">
             Foydalanuvchilar tomonidan eng ko'p tanlangan joylar
           </p>
-          <Link
-            href={`/${locale}/hotels`}
-            className="shrink-0 text-xs font-bold text-blue-650 transition-colors hover:text-blue-750 sm:text-sm flex items-center gap-1"
-          >
-            {dict.all} →
-          </Link>
         </div>
+        <Link
+          href={`/${locale}/hotels`}
+          className="shrink-0 text-sm font-bold text-[#2563EB] transition-colors hover:text-[#1D4ED8] flex items-center gap-1 pb-1"
+        >
+          {dict.all} →
+        </Link>
       </div>
       
-      {/* Mobile: horizontal scroll with client wrapper for buttons and scroll logic */}
+      {/* Mobile: horizontal scroll */}
       <FeaturedHotelsMobileCarousel itemsCount={cards.length}>
         {cards.map((hotel) => (
           <div
             key={hotel.id}
-            className="w-[calc(50%-0.375rem)] shrink-0 snap-start"
+            className="w-[85vw] sm:w-[400px] shrink-0 snap-start"
           >
             <FeaturedHotelCard 
               hotel={hotel} 
@@ -59,9 +59,9 @@ export function FeaturedHotelsCarousel({
         ))}
       </FeaturedHotelsMobileCarousel>
 
-      {/* Desktop: 4 cards grid */}
-      <div className="hidden gap-5 sm:grid sm:grid-cols-3 lg:grid-cols-3">
-        {cards.slice(0, 3).map((hotel) => (
+      {/* Desktop: 2 cards grid */}
+      <div className="hidden gap-6 sm:grid lg:grid-cols-2">
+        {cards.slice(0, 4).map((hotel) => (
           <FeaturedHotelCard 
             key={hotel.id} 
             hotel={hotel} 

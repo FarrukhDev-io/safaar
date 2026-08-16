@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/Button";
 
 export type { PropertyType, SearchDefaults };
 
-const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 px-4 py-3 transition-all duration-300 hover:bg-slate-100/80 hover:border-slate-200 md:rounded-full md:border-transparent md:bg-transparent md:px-6 md:py-3 md:hover:bg-slate-50 cursor-pointer dark:border-slate-800/40 dark:bg-slate-900/30 dark:md:bg-transparent dark:md:hover:bg-slate-800/40";
+const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3.5 rounded-[16px] border border-slate-100 bg-slate-50/50 px-4 py-3 transition-all duration-300 hover:bg-slate-100/80 hover:border-slate-200 md:border-transparent md:bg-transparent md:px-6 md:py-4 md:hover:bg-slate-50 cursor-pointer";
 
 export function SearchBar({
   locale,
@@ -80,10 +80,10 @@ export function SearchBar({
   }
 
   return (
-    <div className="mx-auto w-full">
+    <div className="mx-auto w-full max-w-[1200px]">
       <form
         onSubmit={handleSubmit}
-        className="relative flex flex-col gap-3 rounded-3xl border border-slate-100/50 bg-white p-3.5 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.08)] backdrop-blur-md transition-all duration-300 dark:border-slate-800/80 dark:bg-slate-950 md:flex-row md:items-center md:gap-0 md:rounded-full md:p-2 sm:p-4"
+        className="relative flex flex-col gap-3 rounded-[24px] border border-slate-100 bg-white p-4 shadow-2xl transition-all duration-300 md:flex-row md:items-center md:gap-0 md:p-3"
       >
         {/* 1. Shahar / Destinatsiya */}
         <div className={fieldWrapperClass}>
@@ -165,13 +165,10 @@ export function SearchBar({
         <div className="shrink-0 pt-1 md:pt-0 md:pl-2">
           <Button
             type="submit"
-            variant="primary"
-            size="lg"
-            rounded="full"
-            className="w-full md:w-auto px-8 h-12 md:h-14 font-bold text-sm bg-blue-600 hover:bg-blue-700"
+            className="w-full md:w-auto px-10 h-14 font-bold text-[16px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[16px] shadow-lg shadow-blue-500/25 transition-all hover:-translate-y-0.5"
           >
-            <Search className="h-4.5 w-4.5 stroke-[2.5]" aria-hidden />
-            <span>{dict.submit}</span>
+            <Search className="h-5 w-5 mr-2 stroke-[2.5]" aria-hidden />
+            <span>Qidirish</span>
           </Button>
         </div>
       </form>
