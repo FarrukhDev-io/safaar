@@ -8,7 +8,7 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <Image
-          src="/Samarkand-Registan-cinematic.jpeg"
+          src="/Hero-bg-highres.png"
           alt="Samarkand Registan - Premium Travel"
           fill
           priority
