@@ -305,35 +305,33 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       )}
 
       {/* ═══ Desktop navbar ═══ */}
-      <div className="sticky top-4 z-100 hidden w-full px-4 md:block">
-        <nav className="mx-auto max-w-7xl rounded-full border border-slate-100 bg-white/90 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.05)] backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/95">
-          <div className="flex h-16 items-center justify-between px-8">
-            <BrandLogo href={brandHref} brand={brand} className="shrink-0" />
+      <header className="sticky top-0 z-50 hidden w-full border-b border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950/95 backdrop-blur-md md:block">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <BrandLogo href={brandHref} brand={brand} className="shrink-0" />
 
-            <div className="flex items-center gap-1">
-              {items.map((item) => {
-                if (item.children) {
-                  return <NavDropdown key={item.href} item={item} pathname={pathname} />;
-                }
-                const active = isActive(pathname, item.href, item.exact);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    className={`${getNavLinkClasses(active, false)} !text-sm`}
-                  >
-                    {item.icon}
-                    <span className="text-sm font-bold tracking-wide">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
+          <nav className="flex items-center gap-1">
+            {items.map((item) => {
+              if (item.children) {
+                return <NavDropdown key={item.href} item={item} pathname={pathname} />;
+              }
+              const active = isActive(pathname, item.href, item.exact);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`${getNavLinkClasses(active, false)} text-sm px-4 py-2 rounded-full transition-colors hover:bg-slate-50 dark:hover:bg-slate-900 font-bold`}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
 
-            <div className="flex shrink-0 items-center gap-2.5">{actions}</div>
-          </div>
-        </nav>
-      </div>
+          <div className="flex shrink-0 items-center gap-2.5">{actions}</div>
+        </div>
+      </header>
     </>
   );
 }

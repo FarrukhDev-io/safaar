@@ -34,28 +34,13 @@ export function FeaturedHotelCard({
     ) : undefined;
 
   const cityNameLower = hotel.cityName.toLowerCase();
-  const locationSuffix = 
-    cityNameLower === "toshkent" || cityNameLower === "buxoro" || cityNameLower === "samarqand"
-      ? ", O'zbekiston" 
-      : cityNameLower === "chimgan" 
-        ? ", Toshkent viloyati" 
-        : "";
-
+  
   const subInfo = (
-    <>
+    <div className="flex items-center gap-1">
       {hotel.cityName}
-      {locationSuffix}
-    </>
+      {hotel.stars > 0 && <span>· {hotel.stars}★</span>}
+    </div>
   );
-
-  let amenitiesText = "Bepul Wi-Fi · Nonushta";
-  if (hotel.name.toLowerCase().includes("hilton")) {
-    amenitiesText = "Bepul Wi-Fi · Nonushta · Parking";
-  } else if (hotel.name.toLowerCase().includes("chimgan")) {
-    amenitiesText = "Spa · Basseyn · Restoran";
-  } else if (hotel.name.toLowerCase().includes("buxoro") || hotel.name.toLowerCase().includes("bukhara") || hotel.name.toLowerCase().includes("palace")) {
-    amenitiesText = "Nonushta · Wi-Fi · 24/7 xizmat";
-  }
 
   const ratingElement = hotel.reviewsCount > 0 ? (
     <span>
@@ -70,7 +55,6 @@ export function FeaturedHotelCard({
       badge={badge}
       title={hotel.name}
       subInfo={subInfo}
-      amenities={amenitiesText}
       rating={ratingElement}
       href={`/${locale}/hotels/${hotel.slug}`}
       footerLeft={
