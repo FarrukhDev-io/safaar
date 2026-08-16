@@ -66,12 +66,12 @@ export function FeaturedHotelCard({
     <div className="group relative flex h-full overflow-hidden rounded-2xl bg-white border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-slate-900 dark:border-slate-800 p-2">
       
       {/* Left Image Section */}
-      <div className="relative aspect-[4/5] sm:aspect-square w-[40%] sm:w-[140px] shrink-0 overflow-hidden rounded-xl">
+      <div className="relative aspect-[4/3] sm:aspect-[4/3] w-[45%] sm:w-[200px] shrink-0 overflow-hidden rounded-xl">
         <Image
           src={imageUrl || "/hotel-uzbekistan.jpeg"}
           alt={hotel.name}
           fill
-          sizes="(max-width: 640px) 40vw, 140px"
+          sizes="(max-width: 640px) 45vw, 200px"
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
         {hotel.rating > 0 && (
@@ -99,19 +99,19 @@ export function FeaturedHotelCard({
           </div>
         </div>
 
-        <div className="mt-3 flex items-end justify-between">
-          <div>
+        <div className="mt-3 flex items-end justify-between gap-2">
+          <div className="min-w-0">
             {hotel.minPriceSum > 0 ? (
-              <div className="flex items-baseline gap-1">
-                <span className="text-[13px] sm:text-[15px] font-extrabold text-slate-900 dark:text-white">
+              <div className="flex items-baseline gap-1 flex-wrap sm:flex-nowrap">
+                <span className="text-[13px] sm:text-[15px] font-extrabold text-slate-900 dark:text-white whitespace-nowrap">
                   {formatSum(hotel.minPriceSum)}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-medium text-slate-400">
+                <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 whitespace-nowrap">
                   / {dict.perNight || "kecha"}
                 </span>
               </div>
             ) : (
-              <span className="text-xs font-medium text-slate-400">Narx yo'q</span>
+              <span className="text-xs font-medium text-slate-400 whitespace-nowrap">Narx yo'q</span>
             )}
           </div>
           <div className="relative z-10 mb-0.5">

@@ -21,7 +21,7 @@ export function CategoryPills({ locale, activeCategory = "all" }: CategoryPillsP
   ];
 
   return (
-    <div className="relative mx-auto mt-6 w-full max-w-[1200px] px-4 sm:mt-8">
+    <div className="relative mx-auto mt-6 w-full max-w-[1400px] px-4 sm:mt-8">
       <div className="scrollbar-none flex items-center gap-2.5 overflow-x-auto py-2 sm:justify-center">
         {categories.map((cat) => {
           const Icon = cat.icon;
