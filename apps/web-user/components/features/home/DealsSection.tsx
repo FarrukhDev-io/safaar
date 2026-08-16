@@ -141,7 +141,7 @@ export function DealsSection({
   const now = Date.now();
 
   return (
-    <section className="mx-auto mt-10 w-full max-w-[1400px] px-4 lg:px-8 sm:mt-14 relative z-10 pb-20">
+    <section className="mx-auto mt-4 w-full max-w-[1400px] px-4 lg:px-8 sm:mt-6 relative z-10 pb-10">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl text-slate-900 dark:text-white">

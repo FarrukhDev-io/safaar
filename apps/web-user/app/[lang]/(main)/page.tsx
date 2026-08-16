@@ -71,7 +71,7 @@ export default async function HomePage({
   return (
     <main className="relative flex flex-1 flex-col">
       {/* EKRAN 1: Hero + SearchBar + Featured Hotels */}
-      <div className="flex min-h-svh flex-col justify-between">
+      <div className="flex flex-col">
         <Hero dict={dict.hero} />
 
         <div className="relative z-40">
@@ -99,7 +99,7 @@ export default async function HomePage({
       </div>
 
       {/* EKRAN 2: Chegirmadagi takliflar */}
-      <div className="py-10 sm:py-14">
+      <div className="py-2 sm:py-4">
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <DealsSection deals={deals} dict={dict.deals} locale={locale} />
         </Suspense>
@@ -108,7 +108,7 @@ export default async function HomePage({
 
 
       {/* EKRAN 4: City Cards */}
-      <div className="py-10 sm:py-16 md:py-20">
+      <div className="py-8 sm:py-12">
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <CityCardsSection locale={locale} dict={dict.popularCities} />
         </Suspense>

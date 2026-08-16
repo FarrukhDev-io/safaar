@@ -23,7 +23,7 @@ export function FeaturedHotelsCarousel({
   if (cards.length === 0) return null;
 
   return (
-    <section className="mx-auto mt-10 w-full max-w-[1400px] px-4 lg:px-8 sm:mt-14 relative z-10 pb-20">
+    <section className="mx-auto mt-8 w-full max-w-[1400px] px-4 lg:px-8 sm:mt-10 relative z-10 pb-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl text-slate-900 dark:text-white">
