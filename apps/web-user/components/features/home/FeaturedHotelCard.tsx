@@ -57,12 +57,6 @@ export function FeaturedHotelCard({
     amenitiesText = "Nonushta · Wi-Fi · 24/7 xizmat";
   }
 
-  const ratingElement = hotel.reviewsCount > 0 ? (
-    <span>
-      {hotel.rating >= 4.5 ? (dict.excellent || "A'lo") : (dict.good || "Yaxshi")} · {hotel.reviewsCount} {locale === "uz" ? "ta sharh" : (dict.reviews || "reviews")}
-    </span>
-  ) : undefined;
-
   return (
     <BaseCard
       imageSrc={imageUrl}
@@ -71,7 +65,6 @@ export function FeaturedHotelCard({
       title={hotel.name}
       subInfo={subInfo}
       amenities={amenitiesText}
-      rating={ratingElement}
       href={`/${locale}/hotels/${hotel.slug}`}
       footerLeft={
         hotel.minPriceSum > 0 ? (
