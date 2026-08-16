@@ -37,7 +37,7 @@ export function FeaturedHotelsCarousel({
           href={`/${locale}/hotels`}
           className="shrink-0 text-sm font-bold text-[#2563EB] transition-colors hover:text-[#1D4ED8] flex items-center gap-1 pb-1"
         >
-          {dict.all} →
+          Barchasini ko'rish →
         </Link>
       </div>
       
@@ -46,7 +46,7 @@ export function FeaturedHotelsCarousel({
         {cards.map((hotel) => (
           <div
             key={hotel.id}
-            className="w-[85vw] sm:w-[400px] shrink-0 snap-start"
+            className="w-[85vw] sm:w-[350px] shrink-0 snap-start"
           >
             <FeaturedHotelCard 
               hotel={hotel} 
@@ -59,9 +59,9 @@ export function FeaturedHotelsCarousel({
         ))}
       </FeaturedHotelsMobileCarousel>
 
-      {/* Desktop: 2 cards grid */}
-      <div className="hidden gap-6 sm:grid lg:grid-cols-2">
-        {cards.slice(0, 4).map((hotel) => (
+      {/* Desktop: 3 cards grid */}
+      <div className="hidden gap-6 sm:grid lg:grid-cols-3">
+        {cards.slice(0, 3).map((hotel) => (
           <FeaturedHotelCard 
             key={hotel.id} 
             hotel={hotel} 
