@@ -88,8 +88,6 @@ export default async function LangLayout({
 }) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
-  
-  const common = await getDictionary(lang as Locale, "common");
 
   return (
     <html
@@ -97,14 +95,14 @@ export default async function LangLayout({
       data-scroll-behavior="smooth"
       className={`${inter.variable} ${manrope.variable} h-full overflow-x-hidden subpixel-antialiased`}
     >
-      <body className="flex min-h-full flex-col overflow-x-hidden bg-background text-foreground antialiased">
+      <body className="flex min-h-full flex-col overflow-x-hidden bg-slate-100/60 text-slate-900 subpixel-antialiased dark:bg-slate-950 dark:text-slate-100">
         <NextTopLoader color="linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899)" showSpinner={false} shadow="0 0 10px #8b5cf6,0 0 5px #ec4899" />
         <AnalyticsProvider>
           <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
             {children}
             <Toaster position="top-right" richColors />
             <ServiceWorkerRegister />
-            <PwaInstallBanner dict={common.pwa || { title: "Safaar ilovasini o'rnating", subtitle: "Tezkor kirish va offlayn rejim", install: "O'rnatish" }} />
+            <PwaInstallBanner />
           </div>
         </AnalyticsProvider>
       </body>

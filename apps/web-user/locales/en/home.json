@@ -1,9 +1,6 @@
 {
   "hero": {
     "title": "Find your perfect stay across Uzbekistan",
-    "title1": "Find your perfect",
-    "titleHighlight": "stay",
-    "title2": "across Uzbekistan",
     "subtitle": "Best prices, instant confirmation — all on Safaar.",
     "trustChip1": "Instant confirmation",
     "trustChip2": "Best price guaranteed"
@@ -39,7 +36,7 @@
     "subtitle": "Special prices on selected stays",
     "badge": "Deal",
     "oldPrice": "from",
-    "perNight": "night",
+    "perNight": "/ night",
     "book": "Book now",
     "endsIn": "Ends in",
     "days": "days"

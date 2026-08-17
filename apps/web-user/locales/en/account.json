@@ -26,8 +26,6 @@
     "total": "Total",
     "type": "Type",
     "hotel": "Hotel",
-    "bus": "Car Rental",
-    "restaurant": "Restaurant",
     "view": "View",
     "statuses": {
       "PENDING": "Pending",

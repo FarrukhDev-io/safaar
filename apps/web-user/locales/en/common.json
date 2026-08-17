@@ -1,10 +1,5 @@
 {
   "brand": "Safaar",
-  "pwa": {
-    "title": "Install Safaar app",
-    "subtitle": "Fast access & offline mode",
-    "install": "Install"
-  },
   "promo": "🔥 Summer deal! 20% off your first booking — use code SAFAAR20",
   "nav": {
     "home": "Home",

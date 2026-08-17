@@ -233,7 +233,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
   return (
     <>
       {/* ═══ Mobile header ═══ */}
-      <header className="sticky top-0 z-100 flex h-14 items-center justify-between rounded-b-3xl border-b border-slate-100 bg-white/80 px-4 text-slate-900 shadow-sm backdrop-blur-md md:hidden dark:border-slate-800/80 dark:bg-slate-950/80 dark:text-white">
+      <header className="sticky top-0 z-100 flex h-14 items-center justify-between rounded-b-3xl border-b border-slate-200 bg-white/95 px-4 text-slate-900 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-md md:hidden dark:border-slate-800 dark:bg-slate-950/95 dark:text-white">
         <BrandLogo href={brandHref} brand={brand} />
         <button
           type="button"
@@ -305,35 +305,34 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       )}
 
       {/* ═══ Desktop navbar ═══ */}
-      <div className="sticky top-4 z-100 hidden w-full px-4 md:block">
-        <nav className="mx-auto max-w-[1400px] rounded-full border border-slate-100 bg-white/95 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-          <div className="flex h-16 items-center justify-between px-8">
-            <BrandLogo href={brandHref} brand={brand} className="shrink-0" />
+      <nav className="sticky top-0 z-100 hidden rounded-b-3xl border-b border-slate-200 bg-white/95 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-md md:block dark:border-slate-800 dark:bg-slate-950/95">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
+          <BrandLogo href={brandHref} brand={brand} className="shrink-0" />
 
-            <div className="flex items-center gap-1">
-              {items.map((item) => {
-                if (item.children) {
-                  return <NavDropdown key={item.href} item={item} pathname={pathname} />;
-                }
-                const active = isActive(pathname, item.href, item.exact);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    className={`${getNavLinkClasses(active, false)} !text-sm`}
-                  >
-                    {item.icon}
-                    <span className="text-sm font-bold tracking-wide">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
+          <div className="flex items-center gap-1">
+            {items.map((item) => {
+              if (item.children) {
+                return <NavDropdown key={item.href} item={item} pathname={pathname} />;
+              }
+              const active = isActive(pathname, item.href, item.exact);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={getNavLinkClasses(active, false)}
+                >
+                  {item.icon}
+                  <span className="text-base font-bold tracking-wide">{item.label}</span>
 
-            <div className="flex shrink-0 items-center gap-2.5">{actions}</div>
+                </Link>
+              );
+            })}
           </div>
-        </nav>
-      </div>
+
+          <div className="flex shrink-0 items-center gap-2.5">{actions}</div>
+        </div>
+      </nav>
     </>
   );
 }

@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/Button";
 
 export type { PropertyType, SearchDefaults };
 
-const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3.5 rounded-[16px] border border-slate-100 bg-slate-50/50 px-4 py-3 transition-all duration-300 hover:bg-slate-100/80 hover:border-slate-200 md:border-transparent md:bg-transparent md:px-6 md:py-4 md:hover:bg-slate-50 cursor-pointer";
+const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 md:rounded-full md:border-transparent md:bg-transparent md:px-6 md:py-3.5 md:hover:bg-slate-100 cursor-pointer";
 
 export function SearchBar({
   locale,
@@ -80,16 +80,16 @@ export function SearchBar({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
+    <div className="mx-auto w-full max-w-5xl">
       <form
         onSubmit={handleSubmit}
-        className="relative flex flex-col gap-3 rounded-[24px] border border-slate-100 bg-white p-4 shadow-2xl transition-all duration-300 md:flex-row md:items-center md:gap-0 md:p-3"
+        className="relative flex flex-col gap-3 rounded-3xl border border-slate-300 bg-white p-3.5 shadow-xl shadow-slate-300/40 transition-all duration-300 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-full md:p-2 sm:p-4"
       >
         {/* 1. Shahar / Destinatsiya */}
         <div className={fieldWrapperClass}>
-          <MapPin className="h-5 w-5 shrink-0 text-blue-500 group-hover:text-blue-600 transition-colors" aria-hidden />
+          <MapPin className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 mb-0.5">
+            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
               {dict.city}
             </span>
             <CityPicker
@@ -101,13 +101,13 @@ export function SearchBar({
           </div>
         </div>
 
-        <div className="hidden h-10 w-px shrink-0 bg-slate-100 md:block" aria-hidden />
+        <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
         {/* 2. Kirish sanasi */}
         <div className={fieldWrapperClass}>
-          <Calendar className="h-5 w-5 shrink-0 text-blue-500 group-hover:text-blue-600 transition-colors" aria-hidden />
+          <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 mb-0.5">
+            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
               {dict.checkIn}
             </span>
             <DatePicker
@@ -125,13 +125,13 @@ export function SearchBar({
           </div>
         </div>
 
-        <div className="hidden h-10 w-px shrink-0 bg-slate-100 md:block" aria-hidden />
+        <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
         {/* 3. Chiqish sanasi */}
         <div className={fieldWrapperClass}>
-          <Calendar className="h-5 w-5 shrink-0 text-blue-500 group-hover:text-blue-600 transition-colors" aria-hidden />
+          <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 mb-0.5">
+            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
               {dict.checkOut}
             </span>
             <DatePicker
@@ -146,14 +146,14 @@ export function SearchBar({
           </div>
         </div>
 
-        <div className="hidden h-10 w-px shrink-0 bg-slate-100 md:block" aria-hidden />
+        <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
         {/* 3. Mehmonlar soni */}
         <div className={fieldWrapperClass}>
-          <div className="flex w-full items-center gap-3.5">
-            <Users className="h-5 w-5 shrink-0 text-blue-500 group-hover:text-blue-600 transition-colors" aria-hidden />
+          <div className="flex w-full items-center gap-3">
+            <Users className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
             <div className="flex-1">
-              <span className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 mb-0.5">
+              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                 {dict.guests}
               </span>
               <GuestPicker value={guests} onChange={setGuests} />
@@ -165,10 +165,13 @@ export function SearchBar({
         <div className="shrink-0 pt-1 md:pt-0 md:pl-2">
           <Button
             type="submit"
-            className="w-full md:w-auto px-10 h-14 font-bold text-[16px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[16px] shadow-lg shadow-blue-500/25 transition-all hover:-translate-y-0.5"
+            variant="primary"
+            size="lg"
+            rounded="full"
+            className="w-full md:w-auto uppercase tracking-wide px-8 h-12 md:h-14"
           >
-            <Search className="h-5 w-5 mr-2 stroke-[2.5]" aria-hidden />
-            <span>Qidirish</span>
+            <Search className="h-5 w-5 stroke-[2.5]" aria-hidden />
+            <span>{dict.submit}</span>
           </Button>
         </div>
       </form>

@@ -36,9 +36,9 @@ export default async function AccountBookingsPage({
       <EmptyState
         icon={<CalendarX className="h-10 w-10 text-slate-400 dark:text-slate-500" />}
         title={dict.bookings.empty}
-        description="Sizda hali tasdiqlangan bronlar mavjud emas. Xizmatlarimizdan birini tanlang va sayohatingizni boshlang!"
-        actionLabel="Bosh sahifa"
-        actionHref={`/${locale}`}
+        description="Sizda hali tasdiqlangan bronlar mavjud emas. Toshkent, Samarqand yoki Buxorodagi ajoyib mehmonxonalardan birini band qiling!"
+        actionLabel="Mehmonxonalarni ko'rish"
+        actionHref={`/${locale}/hotels`}
       />
     );
   }
@@ -46,8 +46,6 @@ export default async function AccountBookingsPage({
   const statuses = dict.bookings.statuses as Record<string, string>;
   const typeLabels: Record<string, string> = {
     hotel: dict.bookings.hotel,
-    bus: dict.bookings.bus || "Mashina ijarasi",
-    restaurant: dict.bookings.restaurant || "Restoran",
   };
 
   return (

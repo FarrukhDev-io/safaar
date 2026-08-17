@@ -13,9 +13,7 @@ import { FeaturedHotelsCarousel } from "@/components/features/home/FeaturedHotel
 import { DealsSection, type DealItem } from "@/components/features/home/DealsSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { CategoryPills } from "@/components/features/home/CategoryPills";
-
-import { getSession } from "@/lib/auth/session";
+import { CityPills } from "@/components/features/home/CityPills";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +37,6 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const session = await getSession();
-
   const [common, dict, cities, featuredResult, rawDeals] = await Promise.all([
     getDictionary(locale, "common"),
     getDictionary(locale, "home"),
@@ -49,10 +45,6 @@ export default async function HomePage({
     api.cms.getDeals(locale),
     api.cms.getPublicStats().catch(() => null),
   ]);
-
-  const userFavorites = session
-    ? await api.users.getFavorites({ token: session.accessToken }).catch(() => [])
-    : [];
 
   const hotels = featuredResult.items;
 
@@ -71,17 +63,19 @@ export default async function HomePage({
   return (
     <main className="relative flex flex-1 flex-col">
       {/* EKRAN 1: Hero + SearchBar + Featured Hotels */}
-      <div className="flex flex-col">
+      <div className="flex min-h-svh flex-col justify-between">
         <Hero dict={dict.hero} />
 
         <div className="relative z-40">
-          <section id="search-section" className="relative z-50 bg-transparent -mt-20 sm:-mt-28 pb-4 pt-2">
-            <div className="mx-auto max-w-[1400px] px-4 lg:px-8">
+          <section id="search-section" className="bg-transparent pb-4 pt-2 sm:pb-6 sm:pt-4">
+            <div className="mx-auto max-w-4xl px-4">
               <SearchBar locale={locale} dict={common.search} cities={cities} />
             </div>
           </section>
 
-          <CategoryPills locale={locale} />
+          {cities.length > 0 && (
+            <CityPills cities={cities} locale={locale} />
+          )}
         </div>
 
         {hotels.length > 0 && (
@@ -90,8 +84,6 @@ export default async function HomePage({
               hotels={hotels}
               dict={dict.featured}
               locale={locale}
-              userFavorites={userFavorites}
-              authed={!!session}
             />
           </Suspense>
         )}
@@ -99,7 +91,7 @@ export default async function HomePage({
       </div>
 
       {/* EKRAN 2: Chegirmadagi takliflar */}
-      <div className="py-2 sm:py-4">
+      <div className="py-10 sm:py-14">
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <DealsSection deals={deals} dict={dict.deals} locale={locale} />
         </Suspense>
@@ -108,7 +100,7 @@ export default async function HomePage({
 
 
       {/* EKRAN 4: City Cards */}
-      <div className="py-8 sm:py-12">
+      <div className="py-10 sm:py-16 md:py-20">
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <CityCardsSection locale={locale} dict={dict.popularCities} />
         </Suspense>

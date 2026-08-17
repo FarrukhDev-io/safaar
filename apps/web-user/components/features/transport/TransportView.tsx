@@ -178,9 +178,8 @@ export function TransportView({
 
       {filtered.length === 0 ? (
         <EmptyState
-          icon={<Car className="h-10 w-10 text-slate-400 dark:text-slate-500" />}
-          title="Tanlangan mezonlarga mos mashina topilmadi"
-          description="Boshqa toifa, shahar yoki sanani tanlab ko'ring."
+          icon={<ShieldCheck className="h-6 w-6" />}
+          title="Ma'lumot topilmadi"
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
