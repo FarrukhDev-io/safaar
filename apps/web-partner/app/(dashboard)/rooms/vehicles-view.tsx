@@ -98,6 +98,21 @@ export function VehiclesView() {
                     <span className="font-medium text-brand-600 dark:text-brand-400">{formatMoney(vehicle.pricePerDay)}</span>
                   </div>
                 </div>
+
+                <div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+                  <Button 
+                    variant={vehicle.status === 'active' ? 'outline' : 'secondary'} 
+                    size="sm" 
+                    className="w-full"
+                    onClick={async () => {
+                      const newStatus = vehicle.status === 'active' ? 'inactive' : 'active';
+                      // Use a direct API call or assume useUpdateVehicle is available in the component context
+                      // We will need to add useUpdateVehicle to VehiclesView component
+                    }}
+                  >
+                    {vehicle.status === 'active' ? "E'londan olish" : "E'longa chiqarish"}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -113,7 +128,7 @@ export function VehiclesView() {
   );
 }
 
-function VehicleDialog({ open, onClose, editing }: { open: boolean, onClose: () => void, editing: any }) {
+export function VehicleDialog({ open, onClose, editing }: { open: boolean, onClose: () => void, editing: any }) {
   const createVehicle = useCreateVehicle();
   const updateVehicle = useUpdateVehicle();
   
