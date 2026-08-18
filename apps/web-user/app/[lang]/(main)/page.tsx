@@ -66,7 +66,7 @@ export default async function HomePage({
       <div className="flex min-h-svh flex-col justify-between">
         <Hero dict={dict.hero} />
 
-        <div className="relative z-40 -mt-16 lg:-mt-20">
+        <div className="relative z-40 -mt-10 sm:-mt-12 lg:-mt-14">
           <section id="search-section" className="bg-transparent pb-4 sm:pb-6">
             <div className="mx-auto max-w-4xl px-4">
               <SearchBar locale={locale} dict={common.search} cities={cities} />
