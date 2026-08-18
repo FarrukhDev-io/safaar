@@ -39,7 +39,7 @@ export function FeaturedHotelsCarousel({
         {cards.map((hotel) => (
           <div
             key={hotel.id}
-            className="w-[calc(50%-0.375rem)] shrink-0 snap-start"
+            className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
           >
             <FeaturedHotelCard hotel={hotel} locale={locale} dict={dict} />
           </div>
