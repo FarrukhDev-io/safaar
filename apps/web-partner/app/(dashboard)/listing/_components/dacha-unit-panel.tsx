@@ -6,7 +6,7 @@ import { Button } from "../../../_components/ui/button";
 import { Card, CardBody } from "../../../_components/ui/card";
 import { RoomDialog } from "../../settings/rooms/_dialogs/room-dialog";
 import { RoomTypeDialog } from "../../settings/rooms/_dialogs/room-type-dialog";
-import { useRooms } from "../../../_hooks/use-rooms";
+import { useRooms, useCreateRoom } from "../../../_hooks/use-rooms";
 import { useRoomTypes } from "../../../_hooks/use-room-types";
 import { formatMoney } from "../../../_lib/utils/format";
 
@@ -18,6 +18,20 @@ export function DachaUnitPanel({ listingName }: { listingName: string }) {
   const room = rooms[0];
   const [editing, setEditing] = useState(false);
   const [addingRoom, setAddingRoom] = useState(false);
+  const createRoom = useCreateRoom();
+
+  // Dacha has exactly 1 unit. If RoomType exists but Room doesn't, auto-create it.
+  useEffect(() => {
+    if (roomType && !room && !createRoom.isPending) {
+      createRoom.mutate({
+        number: "Asosiy",
+        floor: 1,
+        roomTypeId: roomType.id,
+        status: "active",
+        isListed: true,
+      });
+    }
+  }, [roomType, room, createRoom]);
 
   return (
     <Card>
