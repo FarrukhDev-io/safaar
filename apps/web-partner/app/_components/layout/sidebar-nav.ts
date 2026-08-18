@@ -46,10 +46,7 @@ export function getNavGroups(partnerType: string): NavGroup[] {
       {
         items: [{ label: "Dispetcherlik", href: "/", icon: ConciergeBell }],
       },
-      {
-        title: "Sotuv",
-        items: [{ label: "Kompaniya e'loni", href: "/listing", icon: Megaphone }],
-      },
+
       {
         title: "Operatsion",
         items: [
