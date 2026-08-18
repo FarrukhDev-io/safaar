@@ -34,7 +34,7 @@ import { LocationEditor } from './_editors/location-editor';
 import { RulesEditor } from './_editors/rules-editor';
 import { RoomDialog } from '../settings/rooms/_dialogs/room-dialog';
 import { RoomTypeDialog } from '../settings/rooms/_dialogs/room-type-dialog';
-import { DachaUnitPanel } from './_components/dacha-unit-panel';
+
 import {
   AMENITY_GROUPS,
   CANCELLATION_POLICY_INFO,
@@ -569,9 +569,7 @@ export function ListingOverview() {
           ))}
         </div>
 
-        {dacha ? (
-          <DachaUnitPanel listingName={listing.name} />
-        ) : isBus ? (
+        {isBus ? (
           <div id="room-listings-panel">
             <VehicleListingsPanel
               vehicles={vehicles}
@@ -671,10 +669,12 @@ export function ListingOverview() {
                 label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
               />
             )}
-            <ChecklistItem
-              done={restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
-              label={restaurant ? 'Stollar' : labels.unitTypesTitle}
-            />
+            {!dacha && (
+              <ChecklistItem
+                done={restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
+                label={restaurant ? 'Stollar' : labels.unitTypesTitle}
+              />
+            )}
           </CardBody>
         </Card>
 
