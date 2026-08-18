@@ -233,7 +233,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
   return (
     <>
       {/* ═══ Mobile header ═══ */}
-      <header className="sticky top-0 z-100 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 text-slate-900 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-md md:hidden dark:border-slate-800 dark:bg-slate-950/95 dark:text-white">
+      <header className="sticky top-2 z-100 mx-4 flex h-14 items-center justify-between rounded-full border border-slate-200 bg-white/95 px-5 text-slate-900 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-md md:hidden dark:border-slate-800 dark:bg-slate-950/95 dark:text-white">
         <BrandLogo href={brandHref} brand={brand} />
         <button
           type="button"
@@ -305,7 +305,7 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       )}
 
       {/* ═══ Desktop navbar ═══ */}
-      <nav className="sticky top-0 z-100 hidden border-b border-slate-200 bg-white/95 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-md md:block dark:border-slate-800 dark:bg-slate-950/95">
+      <nav className="sticky top-4 z-100 hidden mx-4 md:mx-auto max-w-7xl rounded-full border border-slate-200 bg-white/95 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-md md:block dark:border-slate-800 dark:bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
           <BrandLogo href={brandHref} brand={brand} className="shrink-0" />
 
