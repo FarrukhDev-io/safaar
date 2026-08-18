@@ -17,22 +17,19 @@ import {
   useRooms,
   useUpdateRoom,
 } from "../../../../_hooks/use-rooms";
-import { useRoomTypes, useCreateRoomType } from "../../../../_hooks/use-room-types";
+import { useRoomTypes, useCreateRoomType, useUpdateRoomType } from "../../../../_hooks/use-room-types";
 import { useGenerateBeds } from "../../../../_hooks/use-beds";
 import { RoomStatus, type Room } from "../../../../_lib/domain/types";
 import { roomStatusLabel } from "../../../../_components/domain/room-status-badge";
 import { getPartnerLabels, hasBeds, hasBuses, isRestaurant } from "../../../../_lib/utils/partner-labels";
 
 const schema = z.object({
-  number: z
-    .string()
-    .min(1, "Raqam/nomini kiriting"),
+  number: z.string().min(1, "Raqam/nomini kiriting"),
   floor: z.number().int().min(1).max(50),
-  roomTypeId: z.string().optional(),
-  capacity: z.number().int().min(1).max(50).optional(),
+  capacity: z.number().int().min(1).max(50, "Sig'imni kiriting"),
+  basePrice: z.number().int().min(0).optional(),
   status: z.enum(RoomStatus),
   isListed: z.boolean(),
-  nightlyPrice: z.number().int().positive().optional(),
 });
 
 const roomStatusOptions = Object.values(RoomStatus);
@@ -49,6 +46,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
   const { data: roomTypes } = useRoomTypes();
   const { data: rooms, allRooms } = useRooms();
   const createRoomType = useCreateRoomType();
+  const updateRoomType = useUpdateRoomType();
   const createRoom = useCreateRoom();
   const updateRoom = useUpdateRoom();
   const deleteRoom = useDeleteRoom();
@@ -65,11 +63,10 @@ export function RoomDialog({ open, onClose, editing }: Props) {
     defaultValues: {
       number: "",
       floor: 1,
-      roomTypeId: roomTypes[0]?.id ?? "",
-      capacity: undefined,
+      capacity: 2,
+      basePrice: restaurant ? 0 : undefined,
       status: RoomStatus.VACANT_CLEAN,
       isListed: true,
-      nightlyPrice: undefined,
     },
   });
 
@@ -81,20 +78,18 @@ export function RoomDialog({ open, onClose, editing }: Props) {
           ? {
               number: editing.number,
               floor: editing.floor,
-              roomTypeId: editing.roomTypeId,
-              capacity: rt?.capacity ?? undefined,
+              capacity: rt?.capacity ?? 2,
+              basePrice: rt?.basePrice ?? 0,
               status: editing.status,
               isListed: editing.isListed,
-              nightlyPrice: editing.nightlyPrice,
             }
           : {
               number: "",
               floor: 1,
-              roomTypeId: roomTypes[0]?.id ?? "",
-              capacity: undefined,
+              capacity: 2,
+              basePrice: restaurant ? 0 : undefined,
               status: RoomStatus.VACANT_CLEAN,
               isListed: true,
-              nightlyPrice: undefined,
             },
       );
     }
@@ -116,31 +111,41 @@ export function RoomDialog({ open, onClose, editing }: Props) {
       : undefined;
 
     try {
-      let finalRoomTypeId = values.roomTypeId;
+      let finalRoomTypeId = editing?.roomTypeId;
 
-      if (restaurant) {
-        if (!values.capacity) {
-          toast.error("Sig'imni kiriting (necha kishilik)");
-          return;
-        }
-        let matchedType = roomTypes.find((rt) => rt.capacity === values.capacity);
-        if (!matchedType) {
-          matchedType = await createRoomType.mutateAsync({
-            name: `${values.capacity} kishilik stol`,
-            capacity: values.capacity,
-            basePrice: 0,
-            amenities: [],
-          });
-        }
-        finalRoomTypeId = matchedType.id;
-      } else if (!finalRoomTypeId) {
-        toast.error("Turini tanlang");
+      if (!restaurant && values.basePrice === undefined) {
+        toast.error("Narxni kiriting");
         return;
       }
 
+      if (editing && finalRoomTypeId) {
+        // Update existing room type
+        await updateRoomType.mutateAsync({
+          id: finalRoomTypeId,
+          values: {
+            name: `${unitCap} ${values.number}`,
+            capacity: values.capacity,
+            basePrice: values.basePrice ?? 0,
+            amenities: roomTypes.find(r => r.id === finalRoomTypeId)?.amenities ?? [],
+          },
+        });
+      } else {
+        // Create new room type
+        const newRoomType = await createRoomType.mutateAsync({
+          name: restaurant ? `${values.capacity} kishilik stol` : `${unitCap} ${values.number}`,
+          capacity: values.capacity,
+          basePrice: values.basePrice ?? 0,
+          amenities: [],
+        });
+        finalRoomTypeId = newRoomType.id;
+      }
+
       const submitValues = {
-        ...values,
-        roomTypeId: finalRoomTypeId,
+        number: values.number,
+        floor: values.floor,
+        status: values.status,
+        isListed: values.isListed,
+        roomTypeId: finalRoomTypeId!,
       };
 
       if (editing) {
@@ -149,20 +154,18 @@ export function RoomDialog({ open, onClose, editing }: Props) {
       } else if (inactiveDuplicate) {
         await updateRoom.mutateAsync({ id: inactiveDuplicate.id, values: submitValues });
         if (isHostel) {
-          const roomType = roomTypes.find((rt) => rt.id === finalRoomTypeId);
           await generateBeds.mutateAsync({
             roomId: inactiveDuplicate.id,
-            count: roomType?.capacity ?? 1,
+            count: values.capacity,
           });
         }
         toast.success(`${unitCap} ${values.number} tiklandi va qo'shildi`);
       } else {
         const created = await createRoom.mutateAsync(submitValues as any);
         if (isHostel) {
-          const roomType = roomTypes.find((rt) => rt.id === finalRoomTypeId);
           await generateBeds.mutateAsync({
             roomId: created.id,
-            count: roomType?.capacity ?? 1,
+            count: values.capacity,
           });
         }
         toast.success(`${unitCap} ${values.number} qo'shildi`);
@@ -196,8 +199,6 @@ export function RoomDialog({ open, onClose, editing }: Props) {
     generateBeds.isPending;
 
   const err = form.formState.errors;
-  const selectedRoomTypeId = useWatch({ control: form.control, name: "roomTypeId" });
-  const selectedRoomType = roomTypes.find((rt) => rt.id === selectedRoomTypeId);
 
   return (
     <Dialog
@@ -238,59 +239,26 @@ export function RoomDialog({ open, onClose, editing }: Props) {
               />
             </div>
           )}
-          {restaurant ? (
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label htmlFor="r-capacity">Sig'imi (necha kishilik)</Label>
-              <Input
-                id="r-capacity"
-                type="number"
-                min={1}
-                max={50}
-                placeholder="Masalan: 4"
-                aria-invalid={Boolean(err.capacity)}
-                {...form.register("capacity", {
-                  setValueAs: (v) =>
-                    v === "" || v === null || v === undefined
-                      ? undefined
-                      : Number(v),
-                })}
-              />
-              {err.capacity && (
-                <p className="text-xs text-red-600">{err.capacity.message}</p>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label htmlFor="r-type">{labels.unitTypeLabel}</Label>
-              <select
-                id="r-type"
-                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"
-                {...form.register("roomTypeId")}
-              >
-                {roomTypes.length === 0 ? (
-                  <option value="">{`Avval ${labels.unitTypeLabel.toLowerCase()}ni yarating`}</option>
-                ) : (
-                  roomTypes.map((rt) => (
-                    <option key={rt.id} value={rt.id}>
-                      {rt.name} — {rt.basePrice.toLocaleString("uz-UZ")} so&apos;m
-                    </option>
-                  ))
-                )}
-              </select>
-              {roomTypes.length === 0 && (
-                <Link
-                  href="/listing"
-                  className="mt-1 inline-block text-[13px] font-semibold text-brand-600 transition-colors hover:text-brand-700 hover:underline dark:text-brand-400 dark:hover:text-brand-300"
-                  onClick={onClose}
-                >
-                  + Yangi {labels.unitTypeLabel.toLowerCase()} yaratish
-                </Link>
-              )}
-              {err.roomTypeId && (
-                <p className="text-xs text-red-600">{err.roomTypeId.message}</p>
-              )}
-            </div>
-          )}
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label htmlFor="r-capacity">Sig'imi (necha kishilik)</Label>
+            <Input
+              id="r-capacity"
+              type="number"
+              min={1}
+              max={50}
+              placeholder="Masalan: 2"
+              aria-invalid={Boolean(err.capacity)}
+              {...form.register("capacity", {
+                setValueAs: (v) =>
+                  v === "" || v === null || v === undefined
+                    ? undefined
+                    : Number(v),
+              })}
+            />
+            {err.capacity && (
+              <p className="text-xs text-red-600">{err.capacity.message}</p>
+            )}
+          </div>
 
           {editing && !isHostel && (
             <div className="flex flex-col gap-1.5">
@@ -310,29 +278,23 @@ export function RoomDialog({ open, onClose, editing }: Props) {
           )}
 
           {!restaurant && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="r-price">
-                Maxsus narx <span className="text-[var(--muted-foreground)]">(ixtiyoriy)</span>
-              </Label>
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label htmlFor="r-price">Narxi (1 kecha uchun)</Label>
               <Input
                 id="r-price"
                 type="number"
                 min={0}
-                placeholder={
-                  selectedRoomType
-                    ? `${selectedRoomType.basePrice.toLocaleString("uz-UZ")} so'm (${labels.unitTypeLabel.toLowerCase()} narxi)`
-                    : `${labels.unitTypeLabel} narxi ishlatiladi`
-                }
-                aria-invalid={Boolean(err.nightlyPrice)}
-                {...form.register("nightlyPrice", {
+                placeholder="Masalan: 400000"
+                aria-invalid={Boolean(err.basePrice)}
+                {...form.register("basePrice", {
                   setValueAs: (v) =>
                     v === "" || v === null || v === undefined
                       ? undefined
                       : Number(v),
                 })}
               />
-              {err.nightlyPrice && (
-                <p className="text-xs text-red-600">{err.nightlyPrice.message}</p>
+              {err.basePrice && (
+                <p className="text-xs text-red-600">{err.basePrice.message}</p>
               )}
             </div>
           )}
@@ -373,7 +335,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
             </Button>
             <Button
               type="submit"
-              disabled={(roomTypes.length === 0 && !restaurant) || submitting}
+              disabled={submitting}
             >
               {editing ? "Saqlash" : "Qo'shish"}
             </Button>
