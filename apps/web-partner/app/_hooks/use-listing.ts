@@ -77,7 +77,7 @@ function useListingMutation<TVariables>(
     mutationFn: async (variables: TVariables) => {
       const hotel = await getPrimaryHotel(accessToken);
       if (!hotel) {
-        throw new Error("Backendda ushbu hamkor turi (Avtopark) uchun E'lon profili saqlash qo'llab-quvvatlanmaydi.");
+        throw new Error("Sizning hamkor turingiz uchun alohida e'lon profili saqlanmaydi yoki obyektingiz hali tasdiqlanmagan.");
       }
       return mutationFn(hotel.id, accessToken, variables);
     },
