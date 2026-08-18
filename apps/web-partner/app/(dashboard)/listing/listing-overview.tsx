@@ -6,6 +6,7 @@ import {
   CarFront,
   Camera,
   CheckCircle2,
+  CheckSquare,
   Cigarette,
   Dog,
   Eye,
@@ -34,6 +35,7 @@ import { LocationEditor } from './_editors/location-editor';
 import { RulesEditor } from './_editors/rules-editor';
 import { RoomDialog } from '../settings/rooms/_dialogs/room-dialog';
 import { RoomTypeDialog } from '../settings/rooms/_dialogs/room-type-dialog';
+import { PublishRoomsDialog } from './_dialogs/publish-rooms-dialog';
 
 import {
   AMENITY_GROUPS,
@@ -116,6 +118,7 @@ export function ListingOverview() {
     import('../../_lib/domain/types').RoomType | null
   >(null);
   const [roomDialogOpen, setRoomDialogOpen] = useState(false);
+  const [publishRoomsOpen, setPublishRoomsOpen] = useState(false);
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<any>(null);
 
@@ -300,24 +303,7 @@ export function ListingOverview() {
       ];
     }
 
-    return [
-      ...base,
-      {
-        id: 'roomTypes',
-        title: labels.unitTypesTitle,
-        subtitle: `Mijoz tanlaydigan ${labels.unitSingular} variantlari`,
-        action: roomTypesComplete ? 'Boshqarish' : `${labels.unitTypeLabel} qo'shish`,
-        complete: roomTypesComplete,
-        summary:
-          roomAds.length > 0
-            ? `${roomAds.length} tur · ${listedRooms.length} ${labels.unitPlural} sotuvda`
-            : `Hali ${labels.unitTypeLabel.toLowerCase()} yo'q`,
-        icon: isBus ? <CarFront className="h-4 w-4" aria-hidden /> : <BedDouble className="h-4 w-4" aria-hidden />,
-        missing: !roomTypesComplete
-          ? `Kamida bitta ${labels.unitTypeLabel.toLowerCase()} yarating va sotuvga qo'ying.`
-          : undefined,
-      },
-    ];
+    return base;
   }, [cover, listing, showStars, labels, dacha, restaurant, isBus, roomAds, listedRooms]);
 
   const completedCount = sections.filter((section) => section.complete).length;
@@ -592,15 +578,7 @@ export function ListingOverview() {
               restaurant={restaurant}
               isBus={isBus}
               amenityLabels={dynamicAmenityLabels}
-              onAddRoomType={() => {
-                setEditingRoomType(null);
-                setRoomTypeDialogOpen(true);
-              }}
-              onEditRoomType={(roomType) => {
-                setEditingRoomType(roomType);
-                setRoomTypeDialogOpen(true);
-              }}
-              onAddRoom={() => setRoomDialogOpen(true)}
+              onPublishRooms={() => setPublishRoomsOpen(true)}
             />
           </div>
         ) : null}
@@ -749,6 +727,11 @@ export function ListingOverview() {
         onClose={() => setVehicleDialogOpen(false)}
         editing={editingVehicle}
       />
+
+      <PublishRoomsDialog
+        open={publishRoomsOpen}
+        onClose={() => setPublishRoomsOpen(false)}
+      />
     </div>
   );
 }
@@ -760,9 +743,7 @@ function RoomListingsPanel({
   restaurant,
   isBus,
   amenityLabels,
-  onAddRoomType,
-  onEditRoomType,
-  onAddRoom,
+  onPublishRooms,
 }: {
   roomAds: Array<{
     roomType: import('../../_lib/domain/types').RoomType;
@@ -777,11 +758,7 @@ function RoomListingsPanel({
   restaurant: boolean;
   isBus?: boolean;
   amenityLabels: Map<string, string>;
-  onAddRoomType: () => void;
-  onEditRoomType: (
-    roomType: import('../../_lib/domain/types').RoomType,
-  ) => void;
-  onAddRoom: () => void;
+  onPublishRooms: () => void;
 }) {
   return (
     <Card>
@@ -800,21 +777,9 @@ function RoomListingsPanel({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {!isBus && (
-              <Button variant="outline" size="sm" onClick={onAddRoom}>
-                <Plus className="h-4 w-4" aria-hidden />
-                {labels.addUnitLabel}
-              </Button>
-            )}
-            <Button size="sm" onClick={onAddRoomType}>
-              {isBus ? (
-                <CarFront className="h-4 w-4" aria-hidden />
-              ) : restaurant ? (
-                <UtensilsCrossed className="h-4 w-4" aria-hidden />
-              ) : (
-                <BedDouble className="h-4 w-4" aria-hidden />
-              )}
-              {labels.unitTypeLabel} qo'shish
+            <Button size="sm" onClick={onPublishRooms}>
+              <CheckSquare className="h-4 w-4 mr-2" aria-hidden />
+              {labels.unitSingular}larni e'longa chiqarish
             </Button>
           </div>
         </div>
@@ -845,9 +810,9 @@ function RoomListingsPanel({
               {labels.unitTypeLabel.toLowerCase()}ni yarating. Keyin real{' '}
               {labels.unitSingular} raqamlarini shu e'longa bog'laysiz.
             </p>
-            <Button className="mt-4" onClick={onAddRoomType}>
-              <Plus className="h-4 w-4" aria-hidden />
-              Birinchi {labels.unitTypeLabel.toLowerCase()}ni yaratish
+            <Button className="mt-4" onClick={onPublishRooms}>
+              <CheckSquare className="h-4 w-4 mr-2" aria-hidden />
+              {labels.unitSingular}larni e'longa chiqarish
             </Button>
           </div>
         ) : (
@@ -877,7 +842,6 @@ function RoomListingsPanel({
                   restaurant={restaurant}
                   isBus={isBus}
                   amenityLabels={amenityLabels}
-                  onEdit={() => onEditRoomType(roomType)}
                 />
               ),
             )}
@@ -903,7 +867,6 @@ function RoomAdCard({
   restaurant,
   isBus,
   amenityLabels,
-  onEdit,
 }: {
   name: string;
   capacity: number;
@@ -919,7 +882,6 @@ function RoomAdCard({
   restaurant: boolean;
   isBus?: boolean;
   amenityLabels?: Map<string, string>;
-  onEdit: () => void;
 }) {
   return (
     <div className="overflow-hidden rounded-card border border-[var(--border)] bg-[var(--surface)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
@@ -976,16 +938,6 @@ function RoomAdCard({
               <p className="text-base font-semibold text-brand-700 dark:text-brand-300">
                 {formatMoney(minPrice)}
               </p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="mt-2"
-                onClick={onEdit}
-              >
-                <Pencil className="h-4 w-4" aria-hidden />
-                Tahrirlash
-              </Button>
             </div>
           </div>
 
