@@ -41,10 +41,10 @@ const HeroSectionTextHover: React.FC<HeroCardProps> = ({ className }) => {
   return (
     <div className={cn("relative w-full", className)}>
       <div className="flex flex-col items-center justify-center gap-2 sm:gap-4 md:flex-row flex-wrap">
-        <span className="text-slate-900 dark:text-white">Orzuyingizdagi</span>
+        <span className="text-inherit">Orzuyingizdagi</span>
         
         <div className="group/hero relative flex items-center">
-          <span className="text-primary-600 transition-colors group-hover/hero:text-sky-400">
+          <span className="text-primary-400 drop-shadow-md transition-colors group-hover/hero:text-sky-300">
             sayohatni
           </span>
           <div className="duration-400 absolute inset-0 cursor-pointer opacity-0 transition-opacity group-hover/hero:opacity-100">
@@ -62,7 +62,7 @@ const HeroSectionTextHover: React.FC<HeroCardProps> = ({ className }) => {
           </div>
         </div>
 
-        <span className="text-slate-900 dark:text-white">bugun boshlang</span>
+        <span className="text-inherit">bugun boshlang</span>
       </div>
     </div>
   );

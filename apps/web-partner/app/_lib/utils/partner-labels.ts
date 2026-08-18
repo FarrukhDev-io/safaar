@@ -58,6 +58,21 @@ export interface PartnerLabels {
   walkInTitle: string;
   /** Xonalar xaritasida guruhlash birligi (qavat/zal), birlik shaklda */
   floorSingular: string;
+  /** Identifikator (Raqam/Davlat raqami) yorlig'i */
+  unitIdentifierLabel: string;
+  /** Identifikator placeholder */
+  unitIdentifierPlaceholder: string;
+  /** Birlik holati yorlig'i */
+  unitStatusLabel: string;
+  /** Narx yorlig'i (1 kechaga / 1 kunga) */
+  priceLabel: string;
+  /** Sig'im qo'shimchasi (kishi, o'rindiq) */
+  capacitySuffix: string;
+  /** Maxsus turlar bayroqlari */
+  isHostel: boolean;
+  isRestaurant: boolean;
+  isBus: boolean;
+  isDacha: boolean;
 }
 
 const HOTEL_LABELS: PartnerLabels = {
@@ -87,6 +102,15 @@ const HOTEL_LABELS: PartnerLabels = {
   newBookingLabel: "Yangi bron",
   walkInTitle: "Walk-in bron",
   floorSingular: "qavat",
+  unitIdentifierLabel: "Xona raqami",
+  unitIdentifierPlaceholder: "101",
+  unitStatusLabel: "Xona holati",
+  priceLabel: "1 kechaga:",
+  capacitySuffix: "kishi",
+  isHostel: false,
+  isRestaurant: false,
+  isBus: false,
+  isDacha: false,
 };
 
 const DACHA_LABELS: PartnerLabels = {
@@ -116,6 +140,15 @@ const DACHA_LABELS: PartnerLabels = {
   newBookingLabel: "Yangi band qilish",
   walkInTitle: "Bevosita band qilish",
   floorSingular: "qavat",
+  unitIdentifierLabel: "Dacha raqami",
+  unitIdentifierPlaceholder: "1",
+  unitStatusLabel: "Dacha holati",
+  priceLabel: "1 kechaga:",
+  capacitySuffix: "kishi",
+  isHostel: false,
+  isRestaurant: false,
+  isBus: false,
+  isDacha: true,
 };
 
 const HOSTEL_LABELS: PartnerLabels = {
@@ -145,35 +178,53 @@ const HOSTEL_LABELS: PartnerLabels = {
   newBookingLabel: "Yangi band qilish",
   walkInTitle: "Bevosita band qilish",
   floorSingular: "qavat",
+  unitIdentifierLabel: "Xona / Joy raqami",
+  unitIdentifierPlaceholder: "202",
+  unitStatusLabel: "Joy holati",
+  priceLabel: "1 kechaga:",
+  capacitySuffix: "kishi",
+  isHostel: true,
+  isRestaurant: false,
+  isBus: false,
+  isDacha: false,
 };
 
 const BUS_LABELS: PartnerLabels = {
-  dashboardTitle: "Mashina Ijarasi",
-  dashboardEyebrow: "Bugungi ijaralar va qaytarishlar",
-  unitSingular: "mashina",
-  unitPlural: "mashinalar",
-  addUnitLabel: "Yangi mashina qo'shish",
-  reservationLabel: "Ijara bron qilish",
-  reservationsTitle: "Mashina ijaralari",
+  dashboardTitle: "Bugungi Ijaralar",
+  dashboardEyebrow: "Bugungi olib ketish va qaytarishlar",
+  unitSingular: "avtomobil",
+  unitPlural: "avtomobillar",
+  addUnitLabel: "Yangi avtomobil qo'shish",
+  reservationLabel: "Ijara",
+  reservationsTitle: "Ijaralar",
   topbarSubtitle: "Rent Car boshqaruv paneli",
-  calendarTitle: "Mashinalar Bandligi",
-  calendarDescription: "Mashinalarning ijara sanalari va bandlik holatini kuzating.",
-  unitsPageTitle: "Avtopark (Mashinalar)",
-  unitsPageDescription: "Kompaniyangizdagi barcha ijaraga beriladigan mashinalar ro'yxati.",
+  calendarTitle: "Avtomobil Bandligi",
+  calendarDescription: "Har bir avtomobilning ijara sanalari va bandlik holatini kuzating.",
+  unitsPageTitle: "Avtomobil Parki",
+  unitsPageDescription: "Kompaniyangizdagi barcha ijaraga beriladigan avtomobillar ro'yxati.",
   listingTitle: "Rent Car E'loni",
   checkInLabel: "Olib ketish vaqti",
   checkOutLabel: "Qaytarish vaqti",
-  guestLabel: "Mijoz (Haydovchi)",
+  guestLabel: "Mijoz",
   frontDeskTitle: "Ijara Boshqaruvi",
-  frontDeskDescription: "Bugungi ijaraga beriladigan va qaytadigan mashinalar.",
-  unitsMapTitle: "Avtopark",
-  availabilityLabel: "Bo'sh mashinalar",
-  entityTypeLabel: "Mashina toifalari",
-  unitTypeLabel: "Mashina klassi",
-  unitTypesTitle: "Mashina Klasslari",
-  newBookingLabel: "Yangi ijara bronsi",
-  walkInTitle: "Joyida ijaraga berish",
+  frontDeskDescription: "Bugungi ijaraga beriladigan va qaytadigan avtomobillar.",
+  unitsMapTitle: "Avtomobil Parki",
+  availabilityLabel: "Bo'sh avtomobillar",
+  entityTypeLabel: "Avtomobil klassi",
+  unitTypeLabel: "Klass / Toifa",
+  unitTypesTitle: "Avtomobil Klasslari",
+  newBookingLabel: "Yangi ijara",
+  walkInTitle: "Joyida ijara",
   floorSingular: "sektor",
+  unitIdentifierLabel: "Transport / Davlat raqami",
+  unitIdentifierPlaceholder: "01 A 777 AA",
+  unitStatusLabel: "Transport holati",
+  priceLabel: "1 kunga (ijara):",
+  capacitySuffix: "o'rindiq",
+  isHostel: false,
+  isRestaurant: false,
+  isBus: true,
+  isDacha: false,
 };
 
 const RESTAURANT_LABELS: PartnerLabels = {
@@ -203,6 +254,15 @@ const RESTAURANT_LABELS: PartnerLabels = {
   newBookingLabel: "Yangi bron",
   walkInTitle: "Bevosita bron",
   floorSingular: "zal",
+  unitIdentifierLabel: "Stol raqami",
+  unitIdentifierPlaceholder: "Masalan: 12",
+  unitStatusLabel: "Stol holati",
+  priceLabel: "Narxi:",
+  capacitySuffix: "kishi",
+  isHostel: false,
+  isRestaurant: true,
+  isBus: false,
+  isDacha: false,
 };
 
 const GUESTHOUSE_LABELS: PartnerLabels = {

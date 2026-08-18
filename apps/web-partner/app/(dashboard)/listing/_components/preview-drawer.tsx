@@ -17,7 +17,7 @@ import { useListing } from "../../../_hooks/use-listing";
 import { useRooms } from "../../../_hooks/use-rooms";
 import { useRoomTypes } from "../../../_hooks/use-room-types";
 import { useAuthStore } from "../../../_stores/auth-store";
-import { getPartnerLabels, hasStarRating, isRestaurant } from "../../../_lib/utils/partner-labels";
+import { getPartnerLabels, hasBuses, hasStarRating, isRestaurant } from "../../../_lib/utils/partner-labels";
 import { cn } from "../../../_lib/utils/cn";
 import { formatMoney } from "../../../_lib/utils/format";
 
@@ -41,6 +41,7 @@ export function PreviewDrawer({
   const labels = getPartnerLabels(partnerType);
   const showStars = hasStarRating(partnerType);
   const restaurant = isRestaurant(partnerType);
+  const isBus = hasBuses(partnerType);
   const cover = l.photos.find((p) => p.isCover) ?? l.photos[0];
   const otherPhotos = l.photos.filter((p) => !p.isCover).slice(0, 4);
   const roomAds = roomTypes.map((roomType) => {
@@ -309,28 +310,30 @@ export function PreviewDrawer({
         )}
 
         {/* House rules */}
-        <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">
-            Uy qoidalari
-          </h2>
-          <div className="rounded-card border border-[var(--border)] p-4 text-sm">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <span className="inline-flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-brand-600" aria-hidden />
-                {labels.checkInLabel}: <strong>{l.checkInTime}</strong>
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-brand-600" aria-hidden />
-                {labels.checkOutLabel}: <strong>{l.checkOutTime}</strong>
-              </span>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <RuleChip on={l.childrenAllowed} label="Bolalar bilan mos" />
-              <RuleChip on={l.petsAllowed} label="Uy hayvonlari" />
-              <RuleChip on={l.smokingAllowed} label="Chekish" />
+        {!isBus && (
+          <div className="flex flex-col gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">
+              Uy qoidalari
+            </h2>
+            <div className="rounded-card border border-[var(--border)] p-4 text-sm">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <span className="inline-flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-brand-600" aria-hidden />
+                  {labels.checkInLabel}: <strong>{l.checkInTime}</strong>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-brand-600" aria-hidden />
+                  {labels.checkOutLabel}: <strong>{l.checkOutTime}</strong>
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <RuleChip on={l.childrenAllowed} label="Bolalar bilan mos" />
+                <RuleChip on={l.petsAllowed} label="Uy hayvonlari" />
+                <RuleChip on={l.smokingAllowed} label="Chekish" />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </Drawer>
   );

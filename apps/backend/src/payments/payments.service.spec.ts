@@ -85,6 +85,16 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
     status: 'pending',
   };
 
+  const openBooking = {
+    id: 'booking-1',
+    status: 'pending',
+    user_id: 'user-1',
+    partner_organization_id: 'partner-1',
+    confirmation_mode: 'instant_confirmation',
+    partner_payable: '572000',
+    currency: 'UZS',
+  };
+
   beforeEach(() => {
     process.env.PAYMENT_WEBHOOK_SECRET = secret;
     pg = { query: jest.fn(), transaction: jest.fn() };
@@ -115,7 +125,7 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
     return hmacSha256(canonical, secret);
   }
 
-  it('clears the booking hold (expires_at) once payment is confirmed paid', async () => {
+  it('confirms the booking (instant_confirmation), clears the hold and credits the partner ledger once payment is paid (regression: booking never reached confirmed)', async () => {
     const body = {
       booking_id: 'booking-1',
       transaction_id: 'tx-1',
@@ -124,23 +134,124 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
     };
     pg.query
       .mockResolvedValueOnce([{ id: 'event-1', payment_id: null }]) // INSERT ... ON CONFLICT claim
+      .mockResolvedValueOnce([openBooking]) // SELECT booking FOR UPDATE
       .mockResolvedValueOnce([payment]) // SELECT payment FOR UPDATE
       .mockResolvedValueOnce([]) // UPDATE payments
       .mockResolvedValueOnce([]) // UPDATE payment_events
-      .mockResolvedValueOnce([]); // UPDATE bookings SET expires_at = NULL
+      .mockResolvedValueOnce([]) // UPDATE bookings SET status = confirmed ...
+      .mockResolvedValueOnce([]) // INSERT booking_status_history
+      .mockResolvedValueOnce([]); // INSERT partner_ledger_entries
 
-    await service.providerWebhook('click', 'complete', body, {
+    const result = await service.providerWebhook('click', 'complete', body, {
       'x-safaar-signature': sign('click', 'complete', body),
     });
 
-    const expiryClearCall = pg.query.mock.calls.find(([sql]) =>
-      String(sql).includes('UPDATE bookings SET expires_at = NULL'),
+    expect(result).toMatchObject({ booking_outcome: 'confirmed' });
+
+    const confirmCall = pg.query.mock.calls.find(([sql]) =>
+      String(sql).includes('SET status = $1, confirmed_at'),
     );
-    expect(expiryClearCall).toBeDefined();
-    expect(expiryClearCall?.[1]).toEqual(['booking-1', expect.any(String)]);
+    expect(confirmCall).toBeDefined();
+    expect(confirmCall?.[1]).toEqual([
+      'confirmed',
+      expect.any(String),
+      'booking-1',
+    ]);
+
+    const ledgerCall = pg.query.mock.calls.find(([sql]) =>
+      String(sql).includes('INSERT INTO partner_ledger_entries'),
+    );
+    expect(ledgerCall).toBeDefined();
+    expect(ledgerCall?.[1]).toEqual([
+      expect.any(String),
+      'partner-1',
+      'booking-1',
+      572000,
+      'UZS',
+      expect.any(String),
+    ]);
   });
 
-  it('does not touch bookings.expires_at for a non-final (prepare) event', async () => {
+  it('moves an awaiting_partner_confirmation booking to awaiting_partner_confirmation status, not straight to confirmed', async () => {
+    const body = {
+      booking_id: 'booking-1',
+      transaction_id: 'tx-1b',
+      amount: 650000,
+      currency: 'UZS',
+    };
+    const requestConfirmationBooking = {
+      ...openBooking,
+      confirmation_mode: 'request_confirmation',
+    };
+    pg.query
+      .mockResolvedValueOnce([{ id: 'event-1b', payment_id: null }])
+      .mockResolvedValueOnce([requestConfirmationBooking])
+      .mockResolvedValueOnce([payment])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.providerWebhook('click', 'complete', body, {
+      'x-safaar-signature': sign('click', 'complete', body),
+    });
+
+    expect(result).toMatchObject({
+      booking_outcome: 'awaiting_partner_confirmation',
+    });
+    const confirmCall = pg.query.mock.calls.find(([sql]) =>
+      String(sql).includes('SET status = $1, confirmed_at'),
+    );
+    expect(confirmCall?.[1]?.[0]).toBe('awaiting_partner_confirmation');
+  });
+
+  it('regression (paid+expired impossible state): a payment arriving after the booking already expired does NOT silently confirm it — files an auto-refund instead', async () => {
+    const body = {
+      booking_id: 'booking-1',
+      transaction_id: 'tx-1c',
+      amount: 650000,
+      currency: 'UZS',
+    };
+    const expiredBooking = { ...openBooking, status: 'expired' };
+    pg.query
+      .mockResolvedValueOnce([{ id: 'event-1c', payment_id: null }])
+      .mockResolvedValueOnce([expiredBooking]) // SELECT booking FOR UPDATE — already expired
+      .mockResolvedValueOnce([payment])
+      .mockResolvedValueOnce([]) // UPDATE payments -> paid (money IS real)
+      .mockResolvedValueOnce([]) // UPDATE payment_events
+      .mockResolvedValueOnce([]) // INSERT booking_status_history (audit trail)
+      .mockResolvedValueOnce([]); // INSERT refunds (auto-refund)
+
+    const result = await service.providerWebhook('click', 'complete', body, {
+      'x-safaar-signature': sign('click', 'complete', body),
+    });
+
+    expect(result).toMatchObject({ booking_outcome: 'lost_race_refund_requested' });
+    expect(result.payment?.status).toBe('paid');
+
+    // Bron statusi hech qachon "confirmed"ga jim o'zgartirilmasligi kerak.
+    const confirmCall = pg.query.mock.calls.find(([sql]) =>
+      String(sql).includes('SET status = $1, confirmed_at'),
+    );
+    expect(confirmCall).toBeUndefined();
+
+    const refundCall = pg.query.mock.calls.find(([sql]) =>
+      String(sql).includes('INSERT INTO refunds'),
+    );
+    expect(refundCall).toBeDefined();
+    expect(refundCall?.[1]).toEqual([
+      expect.any(String),
+      'booking-1',
+      'user-1',
+      'UZS',
+      650000,
+      expect.any(String),
+      expect.any(String),
+    ]);
+  });
+
+  it('does not touch bookings for a non-final (prepare) event', async () => {
     const body = {
       booking_id: 'booking-1',
       transaction_id: 'tx-2',
@@ -149,6 +260,7 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
     };
     pg.query
       .mockResolvedValueOnce([{ id: 'event-2', payment_id: null }])
+      .mockResolvedValueOnce([openBooking])
       .mockResolvedValueOnce([payment])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
@@ -157,10 +269,10 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
       'x-safaar-signature': sign('click', 'prepare', body),
     });
 
-    const expiryClearCall = pg.query.mock.calls.find(([sql]) =>
-      String(sql).includes('bookings'),
+    const bookingUpdateCall = pg.query.mock.calls.find(([sql]) =>
+      String(sql).startsWith('UPDATE bookings'),
     );
-    expect(expiryClearCall).toBeUndefined();
+    expect(bookingUpdateCall).toBeUndefined();
   });
 
   it('a webhook that loses the event_key race returns duplicate:true instead of crashing', async () => {

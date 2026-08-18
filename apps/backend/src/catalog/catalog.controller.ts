@@ -58,8 +58,11 @@ export class CatalogController {
   }
 
   @Get('transports')
-  transports() {
-    return this.catalogService.transports();
+  transports(
+    @Query('check_in') checkIn?: string,
+    @Query('check_out') checkOut?: string,
+  ) {
+    return this.catalogService.transports(checkIn, checkOut);
   }
 }
 

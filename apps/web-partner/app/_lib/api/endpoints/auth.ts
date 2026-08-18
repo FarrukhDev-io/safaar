@@ -3,6 +3,10 @@ import { request } from '../client';
 
 export interface OtpRequestResponse {
   sent: boolean;
+  challenge_id: string;
+  expires_in_seconds: number;
+  resend_after_seconds: number;
+  dev_code?: string;
 }
 
 export interface PartnerEmailOtpRequestResponse {

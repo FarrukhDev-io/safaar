@@ -348,20 +348,30 @@ export class AdminController {
 
   @Post('refunds/:id/approve')
   @Permissions(Permission.FinanceWrite)
-  refundApprove(@Param('id') id: string) {
-    return this.adminService.refundStatus(id, 'approved');
+  refundApprove(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminService.refundApprove(actor, id, body);
   }
 
   @Post('refunds/:id/reject')
   @Permissions(Permission.FinanceWrite)
-  refundReject(@Param('id') id: string) {
-    return this.adminService.refundStatus(id, 'rejected');
+  refundReject(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.adminService.refundReject(actor, id);
   }
 
   @Post('refunds/:id/retry')
   @Permissions(Permission.FinanceWrite)
-  refundRetry(@Param('id') id: string) {
-    return this.adminService.refundStatus(id, 'retrying');
+  refundRetry(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.adminService.refundRetry(actor, id);
   }
 
   @Get('finance/overview')

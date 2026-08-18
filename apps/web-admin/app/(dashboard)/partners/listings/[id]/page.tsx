@@ -248,7 +248,7 @@ export default function ListingDetailsPage() {
           </div>
 
           {/* Rules */}
-          {listing.rules && (
+          {listing.rules && listing.type !== "bus" && (
             <div className="p-6 rounded-2xl border border-[var(--border)] bg-white flex flex-col gap-4">
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Uy qoidalari</h3>
               

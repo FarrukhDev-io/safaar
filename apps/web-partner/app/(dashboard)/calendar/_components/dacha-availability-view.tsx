@@ -1,9 +1,10 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Home, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BookingStatus } from "@safaar/types";
 import { Button } from "../../../_components/ui/button";
+import { EmptyState } from "../../../_components/ui/empty-state";
 import { PageHeader } from "../../../_components/layout/page-header";
 import { WalkInDialog, type WalkInInitial } from "../../../_components/domain/walk-in-dialog";
 import { useReservations } from "../../../_hooks/use-reservations";
@@ -13,8 +14,15 @@ import { useAuthStore } from "../../../_stores/auth-store";
 import { TODAY_ISO } from "../../../_lib/utils/date";
 import { cn } from "../../../_lib/utils/cn";
 
-const WEEKDAY_LABEL = ["Yak", "Du", "Se", "Cho", "Pa", "Ju", "Sha"];
-const VIEW_DAYS = 30;
+const WEEKDAY_SHORT = ["Yak", "Du", "Se", "Cho", "Pa", "Ju", "Sha"];
+const MONTH_UZ = [
+  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+  "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
+];
+
+function toIso(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
 function addDays(iso: string, days: number): string {
   const d = new Date(iso);
@@ -22,33 +30,58 @@ function addDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Dacha uchun soddalashtirilgan mavjudlik ko'rinishi — xona tanlash yo'q, yagona birlik. */
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+/** Dacha uchun oylik bandlik ko'rinishi */
 export function DachaAvailabilityView() {
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
-  const { data: rooms } = useRooms();
-  const room = rooms[0];
+  const { data: rooms, isLoading } = useRooms();
+  const room = rooms[0] ?? null;
   const { data: reservations } = useReservations();
 
-  const [startOffset, setStartOffset] = useState(0);
+  // Oylik navigatsiya
+  const todayDate = new Date(TODAY_ISO);
+  const [year, setYear] = useState(todayDate.getFullYear());
+  const [month, setMonth] = useState(todayDate.getMonth());
+
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkInInitial, setWalkInInitial] = useState<WalkInInitial>({});
 
-  const startDate = addDays(TODAY_ISO, startOffset);
-  const days = useMemo(
-    () => Array.from({ length: VIEW_DAYS }, (_, i) => addDays(startDate, i)),
-    [startDate],
+  const prevMonth = () => {
+    if (month === 0) { setYear((y) => y - 1); setMonth(11); }
+    else setMonth((m) => m - 1);
+  };
+  const nextMonth = () => {
+    if (month === 11) { setYear((y) => y + 1); setMonth(0); }
+    else setMonth((m) => m + 1);
+  };
+  const goToday = () => {
+    setYear(todayDate.getFullYear());
+    setMonth(todayDate.getMonth());
+  };
+
+  // Oyning birinchi kunidan oldin nechtasi (haftaning necha o'tgan kuni)
+  const firstDow = new Date(year, month, 1).getDay(); // 0=Yak
+  const totalDays = daysInMonth(year, month);
+
+  // Barcha kunlar ISO formatda
+  const dayIsos = useMemo(
+    () => Array.from({ length: totalDays }, (_, i) => toIso(year, month, i + 1)),
+    [year, month, totalDays],
   );
 
+  // Band kunlar set'i
   const activeReservations = useMemo(
     () =>
       reservations.filter(
         (r) =>
-          r.roomNumber === room?.number &&
           r.status !== BookingStatus.CANCELLED &&
           r.status !== BookingStatus.EXPIRED,
       ),
-    [reservations, room?.number],
+    [reservations],
   );
 
   const bookedDays = useMemo(() => {
@@ -61,15 +94,17 @@ export function DachaAvailabilityView() {
     return set;
   }, [activeReservations]);
 
-  const visibleBookedCount = days.filter((d) => bookedDays.has(d)).length;
+  const bookedCount = dayIsos.filter((d) => bookedDays.has(d)).length;
+  const freeCount = totalDays - bookedCount;
 
-  const handleDayClick = (dateIso: string) => {
-    if (bookedDays.has(dateIso)) return;
-    setWalkInInitial({ checkIn: dateIso, checkOut: addDays(dateIso, 1) });
+  const handleDayClick = (iso: string) => {
+    if (bookedDays.has(iso)) return;
+    setWalkInInitial({ checkIn: iso, checkOut: addDays(iso, 1) });
     setWalkInOpen(true);
   };
 
-  if (!room) return null;
+  const isCurrentMonth =
+    year === todayDate.getFullYear() && month === todayDate.getMonth();
 
   return (
     <div className="flex flex-col gap-4">
@@ -91,39 +126,55 @@ export function DachaAvailabilityView() {
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-2">
+      {/* Statistika */}
+      <section className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
           <p className="text-xs font-medium text-[var(--muted-foreground)]">
-            {labels.availabilityLabel}
+            Bo'sh kunlar
           </p>
-          <p className="mt-1 text-lg font-semibold text-[var(--foreground)]">
-            {VIEW_DAYS - visibleBookedCount} / {VIEW_DAYS} kun bo'sh
+          <p className="mt-1 text-2xl font-bold text-accent-600 dark:text-accent-400">
+            {freeCount}
+            <span className="ml-1 text-sm font-normal text-[var(--muted-foreground)]">
+              / {totalDays} kun
+            </span>
+          </p>
+        </div>
+        <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+          <p className="text-xs font-medium text-[var(--muted-foreground)]">
+            Band kunlar
+          </p>
+          <p className="mt-1 text-2xl font-bold text-brand-600 dark:text-brand-400">
+            {bookedCount}
+            <span className="ml-1 text-sm font-normal text-[var(--muted-foreground)]">
+              kun
+            </span>
           </p>
         </div>
         <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
           <p className="text-xs font-medium text-[var(--muted-foreground)]">
             Davrdagi bronlar
           </p>
-          <p className="mt-1 text-lg font-semibold text-[var(--foreground)]">
+          <p className="mt-1 text-2xl font-bold text-[var(--foreground)]">
             {activeReservations.length}
           </p>
         </div>
       </section>
 
-      <div className="flex items-center gap-1 rounded-card border border-[var(--border)] bg-[var(--surface)] p-3">
+      {/* Oy navigatsiyasi */}
+      <div className="flex items-center gap-2 rounded-card border border-[var(--border)] bg-[var(--surface)] p-3">
         <Button
           variant="outline"
           size="icon"
-          onClick={() => setStartOffset((v) => v - VIEW_DAYS)}
-          aria-label="Oldingi davr"
+          onClick={prevMonth}
+          aria-label="Oldingi oy"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden />
         </Button>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setStartOffset(0)}
-          disabled={startOffset === 0}
+          onClick={goToday}
+          disabled={isCurrentMonth}
         >
           <CalendarDays className="h-3.5 w-3.5" aria-hidden />
           Bugun
@@ -131,41 +182,119 @@ export function DachaAvailabilityView() {
         <Button
           variant="outline"
           size="icon"
-          onClick={() => setStartOffset((v) => v + VIEW_DAYS)}
-          aria-label="Keyingi davr"
+          onClick={nextMonth}
+          aria-label="Keyingi oy"
         >
           <ChevronRight className="h-4 w-4" aria-hidden />
         </Button>
+        <span className="ml-2 text-base font-semibold text-[var(--foreground)]">
+          {MONTH_UZ[month]} {year}
+        </span>
+        {/* Legend */}
+        <div className="ml-auto flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-sm bg-brand-500" aria-hidden />
+            Band
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-sm bg-accent-400" aria-hidden />
+            Bo'sh
+          </span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5 sm:grid-cols-10">
-        {days.map((iso) => {
-          const isToday = iso === TODAY_ISO;
-          const isBooked = bookedDays.has(iso);
-          const d = new Date(iso);
-          return (
-            <button
-              key={iso}
-              type="button"
-              onClick={() => handleDayClick(iso)}
-              disabled={isBooked}
-              title={isBooked ? "Band" : "Bo'sh — bosib bron yaratish"}
-              className={cn(
-                "flex flex-col items-center justify-center gap-0.5 rounded-lg border p-2 text-xs transition-colors",
-                isBooked
-                  ? "cursor-not-allowed border-brand-200 bg-brand-100 text-brand-800 dark:border-brand-900/60 dark:bg-brand-900/40 dark:text-brand-200"
-                  : "cursor-pointer border-accent-200 bg-accent-50 text-accent-800 hover:bg-accent-100 dark:border-accent-900/60 dark:bg-accent-950/20 dark:text-accent-200",
-                isToday && "ring-2 ring-brand-500",
-              )}
-            >
-              <span className="text-[10px] uppercase tracking-wide opacity-70">
-                {WEEKDAY_LABEL[d.getDay()]}
-              </span>
-              <span className="text-sm font-bold leading-none">{d.getDate()}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Yillik band bo'lmagan holat */}
+      {!isLoading && !room ? (
+        <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-8">
+          <EmptyState
+            icon={<Home className="h-10 w-10" aria-hidden />}
+            title="Dacha qo'shilmagan"
+            description="Bandlik kalendarini ko'rish uchun avval Sozlamalar bo'limidan dachani qo'shing."
+          />
+        </div>
+      ) : (
+        /* Oylik kalendar grid */
+        <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+          {/* Hafta sarlavhalari */}
+          <div className="grid grid-cols-7 border-b border-[var(--border)]">
+            {WEEKDAY_SHORT.map((label) => (
+              <div
+                key={label}
+                className="py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-foreground)]"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* Kunlar */}
+          <div className="grid grid-cols-7">
+            {/* Bo'sh kataklar (oyning 1-kuni haftaning qaysi kuni) */}
+            {Array.from({ length: firstDow }, (_, i) => (
+              <div
+                key={`empty-${i}`}
+                className="min-h-[64px] border-b border-r border-[var(--border)] bg-[var(--surface-muted)]/40"
+              />
+            ))}
+
+            {dayIsos.map((iso) => {
+              const day = new Date(iso).getDate();
+              const dow = new Date(iso).getDay();
+              const isToday = iso === TODAY_ISO;
+              const isBooked = bookedDays.has(iso);
+              const isWeekend = dow === 0 || dow === 6;
+              const isPast = iso < TODAY_ISO;
+
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  onClick={() => handleDayClick(iso)}
+                  disabled={isBooked}
+                  title={
+                    isBooked
+                      ? "Band — bu kun bron mavjud"
+                      : isPast
+                      ? "O'tgan kun"
+                      : "Bo'sh — bosib yangi bron yarating"
+                  }
+                  className={cn(
+                    "relative flex min-h-[64px] flex-col items-start justify-between p-2 text-left transition-colors",
+                    "border-b border-r border-[var(--border)]",
+                    isBooked
+                      ? "cursor-not-allowed bg-brand-50 dark:bg-brand-900/30"
+                      : isPast
+                      ? "cursor-default bg-[var(--surface-muted)]/50 opacity-60"
+                      : "cursor-pointer bg-[var(--surface)] hover:bg-accent-50 dark:hover:bg-accent-900/20",
+                    isWeekend && !isBooked && !isToday && "bg-zinc-50/60 dark:bg-zinc-900/20",
+                  )}
+                >
+                  {/* Kun raqami */}
+                  <span
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full text-sm font-semibold leading-none",
+                      isToday
+                        ? "bg-brand-600 text-white"
+                        : isBooked
+                        ? "text-brand-700 dark:text-brand-300"
+                        : "text-[var(--foreground)]",
+                    )}
+                  >
+                    {day}
+                  </span>
+
+                  {/* Band belgisi */}
+                  {isBooked && (
+                    <span className="w-full rounded text-center text-[9px] font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-300 bg-brand-100 dark:bg-brand-900/50 px-1 py-0.5">
+                      Band
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <WalkInDialog
         open={walkInOpen}

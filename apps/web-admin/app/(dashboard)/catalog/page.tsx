@@ -24,6 +24,8 @@ export default function CatalogPage() {
   const [editing, setEditing] = useState<CatalogRegion | CatalogAmenity | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [type, setType] = useState<CatalogAmenity['type']>("hotel");
+  const [amenitiesFilter, setAmenitiesFilter] = useState<CatalogAmenity['type'] | 'all'>('all');
 
   const load = useCallback(() => {
     Promise.all([AdminApi.getRegions(), AdminApi.getAmenities()])
@@ -43,13 +45,20 @@ export default function CatalogPage() {
     setEditing(null);
     setName("");
     setCode("");
+    setType(amenitiesFilter !== "all" ? amenitiesFilter as CatalogAmenity['type'] : "hotel");
     setModalOpen(true);
   };
 
   const openEdit = (item: CatalogRegion | CatalogAmenity) => {
     setEditing(item);
     setName(item.name);
-    setCode("");
+    if ("code" in item) {
+      setCode(item.code);
+      setType(item.type);
+    } else {
+      setCode("");
+      setType("hotel");
+    }
     setModalOpen(true);
   };
 
@@ -80,7 +89,8 @@ export default function CatalogPage() {
             setSaving(false);
             return;
           }
-          await AdminApi.createAmenity(trimmedCode, trimmedName);
+          const finalCode = trimmedCode.startsWith(`${type}_`) ? trimmedCode : `${type}_${trimmedCode}`;
+          await AdminApi.createAmenity(finalCode, trimmedName);
           toast.success("Qulaylik qo'shildi!");
         }
       }
@@ -148,7 +158,14 @@ export default function CatalogPage() {
   const amenityColumns: Column<CatalogAmenity>[] = [
     { key: "id", label: "ID", render: (row) => <span className="text-xs font-mono">{row.id}</span> },
     { key: "name", label: "Qulaylik nomi", render: (row) => <span className="font-medium">{row.name}</span> },
-    { key: "type", label: "Turi", render: (row) => <span className="text-sm text-[var(--text-secondary)]">{row.type === "hotel" ? "Mehmonxona uchun" : "Xona uchun"}</span> },
+    { 
+      key: "type", 
+      label: "Bo'lim", 
+      render: (row) => {
+        const labels: Record<string, string> = { hotel: "Mehmonxona", room: "Xona", dacha: "Dacha", restaurant: "Restoran", transport: "Transport" };
+        return <span className="text-sm text-[var(--text-secondary)]">{labels[row.type] || "Boshqa"}</span>;
+      }
+    },
     {
       key: "isActive",
       label: "Holat",
@@ -210,11 +227,32 @@ export default function CatalogPage() {
         </button>
       </div>
 
-      <div className="mt-2">
+      <div className="mt-2 flex flex-col gap-4">
+        {activeTab === "amenities" && (
+          <div className="flex justify-end">
+            <select
+              className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--background)] text-sm outline-none focus:border-[var(--primary)]"
+              value={amenitiesFilter}
+              onChange={(e) => setAmenitiesFilter(e.target.value as CatalogAmenity['type'] | 'all')}
+            >
+              <option value="all">Barcha bo'limlar</option>
+              <option value="hotel">Mehmonxona</option>
+              <option value="room">Mehmonxona xonasi</option>
+              <option value="dacha">Dacha</option>
+              <option value="restaurant">Restoran</option>
+              <option value="transport">Transport</option>
+            </select>
+          </div>
+        )}
         {activeTab === "regions" ? (
           <DataTable columns={regionColumns} data={regions} keyField="id" emptyMessage="Viloyatlar topilmadi" />
         ) : (
-          <DataTable columns={amenityColumns} data={amenities} keyField="id" emptyMessage="Qulayliklar topilmadi" />
+          <DataTable 
+            columns={amenityColumns} 
+            data={amenitiesFilter === 'all' ? amenities : amenities.filter(a => a.type === amenitiesFilter)} 
+            keyField="id" 
+            emptyMessage="Qulayliklar topilmadi" 
+          />
         )}
       </div>
 
@@ -239,12 +277,28 @@ export default function CatalogPage() {
       >
         <div className="flex flex-col gap-4">
           {activeTab === "amenities" && !editing && (
-            <Input
-              label="Kod"
-              placeholder="wifi"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-            />
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium">Bo'lim (Turi)</label>
+                <select 
+                  className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--background)] text-sm outline-none focus:border-[var(--primary)]"
+                  value={type} 
+                  onChange={(e) => setType(e.target.value as CatalogAmenity['type'])}
+                >
+                  <option value="hotel">Mehmonxona</option>
+                  <option value="room">Mehmonxona xonasi</option>
+                  <option value="dacha">Dacha</option>
+                  <option value="restaurant">Restoran</option>
+                  <option value="transport">Transport</option>
+                </select>
+              </div>
+              <Input
+                label="Kod"
+                placeholder="wifi"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+            </>
           )}
           <Input
             label="Nomi"

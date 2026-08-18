@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsIn } from 'class-validator';
 
 export class CreatePaymentDto {
   @ApiProperty({ enum: ['click', 'payme', 'uzcard', 'humo', 'cash'] })
@@ -7,29 +7,11 @@ export class CreatePaymentDto {
   provider!: string;
 }
 
-export class ProviderWebhookDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  booking_id?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  transaction_id?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  event_id?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsNumber()
-  amount?: number;
-
-  @ApiPropertyOptional({ example: 'UZS' })
-  @IsOptional()
-  @IsString()
-  currency?: string;
-}
+// Webhook tanasi uchun qat'iy DTO ATAYLAB yo'q — real to'lov provayderlari
+// (Click/Payme/Uzcard/Humo) o'zlarining maxsus maydonlarini yuboradi, va
+// global ValidationPipe'dagi `forbidNonWhitelisted` bunday DTO orqali
+// ularni butunlay rad etar edi. Safaar o'zi tan oladigan maydonlar
+// (`payments.controller.ts`dagi marshrutlar `Record<string, unknown>`
+// qabul qiladi): booking_id/bookingId/account, transaction_id, event_id,
+// amount, currency — bular `PaymentsService.providerWebhook()` ichida
+// qo'lda o'qib olinadi.

@@ -9,6 +9,7 @@ import { Button } from "../../../../_components/ui/button";
 import { Dialog } from "../../../../_components/ui/dialog";
 import { Input } from "../../../../_components/ui/input";
 import { Label } from "../../../../_components/ui/label";
+import Link from "next/link";
 import { useAuthStore } from "../../../../_stores/auth-store";
 import {
   useCreateRoom,
@@ -46,7 +47,7 @@ interface Props {
 
 export function RoomDialog({ open, onClose, editing }: Props) {
   const { data: roomTypes } = useRoomTypes();
-  const { data: rooms } = useRooms();
+  const { data: rooms, allRooms } = useRooms();
   const createRoomType = useCreateRoomType();
   const createRoom = useCreateRoom();
   const updateRoom = useUpdateRoom();
@@ -100,13 +101,19 @@ export function RoomDialog({ open, onClose, editing }: Props) {
   }, [open, editing, form, roomTypes]);
 
   const onSubmit = form.handleSubmit(async (values) => {
-    const duplicate = rooms.some(
+    // Check for duplicates in active rooms
+    const activeDuplicate = rooms.find(
       (room) => room.number === values.number && room.id !== editing?.id,
     );
-    if (duplicate) {
+    if (activeDuplicate) {
       toast.error(`${unitCap} ${values.number} allaqachon mavjud.`);
       return;
     }
+
+    // Check for soft-deleted room with same number
+    const inactiveDuplicate = !editing 
+      ? allRooms.find(r => r.number === values.number && (r as any)._rawStatus === 'inactive')
+      : undefined;
 
     try {
       let finalRoomTypeId = values.roomTypeId;
@@ -139,6 +146,16 @@ export function RoomDialog({ open, onClose, editing }: Props) {
       if (editing) {
         await updateRoom.mutateAsync({ id: editing.id, values: submitValues });
         toast.success(`${unitCap} ${values.number} yangilandi`);
+      } else if (inactiveDuplicate) {
+        await updateRoom.mutateAsync({ id: inactiveDuplicate.id, values: submitValues });
+        if (isHostel) {
+          const roomType = roomTypes.find((rt) => rt.id === finalRoomTypeId);
+          await generateBeds.mutateAsync({
+            roomId: inactiveDuplicate.id,
+            count: roomType?.capacity ?? 1,
+          });
+        }
+        toast.success(`${unitCap} ${values.number} tiklandi va qo'shildi`);
       } else {
         const created = await createRoom.mutateAsync(submitValues as any);
         if (isHostel) {
@@ -198,10 +215,10 @@ export function RoomDialog({ open, onClose, editing }: Props) {
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="r-number">{isBus ? "Transport / Davlat raqami" : `${unitCap} raqami`}</Label>
+            <Label htmlFor="r-number">{labels.unitIdentifierLabel}</Label>
             <Input
               id="r-number"
-              placeholder={isBus ? "01 A 777 AA" : "101"}
+              placeholder={labels.unitIdentifierPlaceholder}
               aria-invalid={Boolean(err.number)}
               {...form.register("number")}
             />
@@ -260,6 +277,15 @@ export function RoomDialog({ open, onClose, editing }: Props) {
                   ))
                 )}
               </select>
+              {roomTypes.length === 0 && (
+                <Link
+                  href="/listing"
+                  className="mt-1 inline-block text-[13px] font-semibold text-brand-600 transition-colors hover:text-brand-700 hover:underline dark:text-brand-400 dark:hover:text-brand-300"
+                  onClick={onClose}
+                >
+                  + Yangi {labels.unitTypeLabel.toLowerCase()} yaratish
+                </Link>
+              )}
               {err.roomTypeId && (
                 <p className="text-xs text-red-600">{err.roomTypeId.message}</p>
               )}
@@ -268,7 +294,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
 
           {editing && !isHostel && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="r-status">{unitCap} holati</Label>
+              <Label htmlFor="r-status">{labels.unitStatusLabel}</Label>
               <select
                 id="r-status"
                 className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"

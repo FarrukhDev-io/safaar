@@ -19,18 +19,25 @@ export function useRooms() {
     queryKey: roomsQueryKey,
     queryFn: async () => {
       const [hotel] = pageItems(await partners.listHotels(accessToken));
-      if (!hotel) return [];
+      if (!hotel) return { allRooms: [], activeRooms: [] };
       const rawRooms = await partners.listRooms(hotel.id, accessToken);
-      return rawRooms.map(toRoom);
+      return {
+        allRooms: rawRooms.map(toRoom),
+        activeRooms: rawRooms.filter((r) => r.status !== "inactive").map(toRoom)
+      };
     },
     enabled: Boolean(accessToken),
   });
 
   useEffect(() => {
-    if (query.data) setRooms(query.data);
+    if (query.data) setRooms(query.data.activeRooms);
   }, [query.data, setRooms]);
 
-  return { data: query.data ?? EMPTY_ROOMS, isLoading: query.isLoading && !query.data };
+  return { 
+    data: query.data?.activeRooms ?? EMPTY_ROOMS, 
+    allRooms: query.data?.allRooms ?? EMPTY_ROOMS,
+    isLoading: query.isLoading && !query.data 
+  };
 }
 
 function roomBody(values: RoomDraft) {

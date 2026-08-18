@@ -7,6 +7,20 @@ import { access, auth } from '../_lib/api';
 import { buildPartnerSession } from '../_lib/auth/session';
 import { useAuthStore } from '../_stores/auth-store';
 
+// ─── Demo rejim ───────────────────────────────────────────────────────────────
+// Backend o'chiq bo'lganda ishlab chiqish uchun ishlatiladi.
+// HECH QACHON production'ga chiqarma.
+const DEMO_PHONE = '+998901234567';
+const DEMO_CODE = '000000';
+const DEMO_TOKENS = {
+  accessToken: 'demo.eyJzdWIiOiJkZW1vLXVzZXIiLCJvcmdhbml6YXRpb25faWQiOiJkZW1vLW9yZyJ9.demo',
+  refreshToken: 'demo-refresh-token',
+  organization_id: 'demo-org-id',
+  organizationId: 'demo-org-id',
+  partner_role: 'owner',
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function usePartnerPhoneLogin() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
@@ -52,14 +66,25 @@ export function usePartnerPhoneLogin() {
   });
 }
 
-export function usePartnerEmailOtpRequest() {
+export function usePartnerPhoneOtpRequest() {
   return useMutation({
-    mutationFn: async (email: string) => {
-      const normalizedEmail = email.trim().toLowerCase();
+    mutationFn: async (phone: string) => {
+      const normalizedPhone = phone.replace(/\D/g, '');
+
+      // ── Demo rejim ──────────────────────────────────────────────────────────
+      if (phone === DEMO_PHONE || normalizedPhone === '998901234567') {
+        return {
+          phone,
+          challengeId: 'demo-challenge-id',
+          expiresInSeconds: 300,
+          resendAfterSeconds: 60,
+          partnerType: 'hotel',
+        };
+      }
+      // ────────────────────────────────────────────────────────────────────────
+
       const accessStatus = await access
-        .getPartnerAccessStatus({
-          email: normalizedEmail,
-        })
+        .getPartnerAccessStatus({ phone })
         .catch(() => ({ status: 'approved' as const, request: { type: 'hotel' } }));
 
       if (accessStatus.status !== 'approved') {
@@ -74,15 +99,15 @@ export function usePartnerEmailOtpRequest() {
           throw new Error('Arizangiz hali admin tomonidan tasdiqlanmagan.');
         }
         throw new Error(
-          'Bu email uchun hamkorlik access topilmadi. Avval ariza yuboring.',
+          'Bu telefon raqam uchun hamkorlik access topilmadi. Avval ariza yuboring.',
         );
       }
 
       let challenge;
       try {
-        challenge = await auth.requestPartnerEmailOtp(normalizedEmail);
-      } catch (err) {
-        console.warn('Backend OTP request failed, switching to demo challenge', err);
+        challenge = await auth.requestOtp(phone);
+      } catch {
+        // Backend o'chiq — demo rejimga o'tamiz
         challenge = {
           sent: true,
           challenge_id: 'demo-challenge-id',
@@ -92,15 +117,26 @@ export function usePartnerEmailOtpRequest() {
       }
 
       return {
-        email: normalizedEmail,
+        phone,
         challengeId: challenge.challenge_id,
         expiresInSeconds: challenge.expires_in_seconds,
         resendAfterSeconds: challenge.resend_after_seconds,
         partnerType: accessStatus.request?.type || 'hotel',
+        devCode: challenge.dev_code,
       };
     },
-    onSuccess: () => {
-      toast.success('Tasdiqlash kodi yuborildi.');
+    onSuccess: ({ challengeId, phone }) => {
+      if (challengeId === 'demo-challenge-id') {
+        toast.info(
+          `Demo rejim: ${phone === DEMO_PHONE ? `"${DEMO_CODE}"` : '"000000"'} kodni kiriting`,
+          { duration: 8000 },
+        );
+      } else {
+        toast.success(
+          '📱 SMS orqali kod yuborildi',
+          { duration: 4000 },
+        );
+      }
     },
     onError: (error) => {
       toast.error(error.message || 'Kod yuborishda xatolik yuz berdi');
@@ -108,67 +144,69 @@ export function usePartnerEmailOtpRequest() {
   });
 }
 
-export function usePartnerEmailOtpVerify() {
+
+export function usePartnerPhoneOtpVerify() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
 
   return useMutation({
     mutationFn: async ({
-      email,
+      phone,
       code,
       challengeId,
       partnerType,
     }: {
-      email: string;
+      phone: string;
       code: string;
       challengeId: string;
       partnerType?: string;
     }) => {
-      const normalizedEmail = email.trim().toLowerCase();
-      let tokens;
-      try {
-        if (challengeId === 'demo-challenge-id') {
-          throw new Error('Demo challenge mode');
+      // ── Demo rejim ──────────────────────────────────────────────────────────
+      if (challengeId === 'demo-challenge-id') {
+        if (code !== DEMO_CODE) {
+          throw new Error(`Demo rejimda kod: ${DEMO_CODE}`);
         }
-        tokens = await auth.verifyPartnerEmailOtp({
-          email: normalizedEmail,
-          code,
-          challenge_id: challengeId,
-        });
-      } catch (err) {
-        console.warn('Backend OTP verify failed, fallback to backend phone login token', err);
-        try {
-          tokens = await auth.partnerPhoneLogin('+998901112201');
-        } catch {
-          tokens = {
-            accessToken: 'demo-access-token',
-            refreshToken: 'demo-refresh-token',
-            organization_id: '00000000-0000-3001-0000-000000000001',
-            partner_role: 'owner',
-          };
-        }
+        return {
+          phone,
+          tokens: DEMO_TOKENS as any,
+          organizationId: 'demo-org-id',
+          partnerType: partnerType || 'hotel',
+          isDemo: true,
+        };
       }
+      // ────────────────────────────────────────────────────────────────────────
+
+      const tokens = await auth.verifyOtp({
+        phone,
+        code,
+        challenge_id: challengeId,
+      }) as any;
 
       return {
-        email: normalizedEmail,
+        phone,
         tokens,
-        organizationId:
-          tokens.organizationId ?? tokens.organization_id ?? 'demo-org-id',
+        organizationId: tokens.organizationId ?? tokens.organization_id,
         partnerType: partnerType || 'hotel',
+        isDemo: false,
       };
     },
-    onSuccess: ({ email, tokens, organizationId, partnerType }) => {
-      const { user } = buildPartnerSession(email, tokens, partnerType, 'email');
+    onSuccess: ({ phone, tokens, organizationId, partnerType, isDemo }) => {
+      const { user } = buildPartnerSession(phone, tokens, partnerType, 'phone');
       user.organizationId = organizationId;
       setSession(user, tokens);
-      toast.success('Xush kelibsiz!');
+      if (isDemo) {
+        toast.success('Demo rejimda kirildingiz. Ma\'lumotlar ko\'rsatilmaydi.');
+      } else {
+        toast.success('Xush kelibsiz!');
+      }
       router.replace('/');
     },
     onError: (error) => {
-      toast.error(error.message || 'Kodni tekshirishda xatolik yuz berdi');
+      toast.error(error.message || "Kod noto'g'ri yoki muddati tugagan");
     },
   });
 }
+
 
 export function useLogout() {
   const router = useRouter();

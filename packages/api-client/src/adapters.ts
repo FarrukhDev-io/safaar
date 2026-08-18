@@ -1,4 +1,3 @@
-import { tiyinToSum } from "./money";
 import type {
   Locale,
   BookingView,
@@ -65,7 +64,7 @@ export function toBookingView(raw: RawEnvelope): BookingView {
     bookingNumber: booking.bookingNumber ?? "",
     status: booking.status ?? "PENDING",
     type: booking.type ?? "hotel",
-    totalSum: tiyinToSum(booking.totalAmount ?? 0),
+    totalSum: Number(booking.totalAmount ?? 0),
     currency: "UZS",
     createdAt: booking.createdAt ?? "",
     payment: toPaymentView(payment),
@@ -118,7 +117,7 @@ function toHotelBase(raw: RawHotel, locale: Locale): HotelListItem {
     stars: raw.stars ?? 0,
     rating: raw.ratingAverage ?? 0,
     reviewsCount: raw.reviewsCount ?? 0,
-    minPriceSum: tiyinToSum(raw.minPrice ?? 0),
+    minPriceSum: Number(raw.minPrice ?? 0),
     imageUrl: raw.images?.[0],
     latitude: raw.latitude,
     longitude: raw.longitude,
@@ -133,7 +132,7 @@ function toRoomView(raw: RawRoom, locale: Locale): RoomTypeView {
   return {
     id: raw.id,
     name: pickLocale(raw.name, locale),
-    priceSum: tiyinToSum(raw.basePrice ?? 0),
+    priceSum: Number(raw.basePrice ?? 0),
     capacity: raw.baseOccupancy ?? raw.maxAdults ?? 1,
     available: raw.available ?? raw.totalInventory ?? 0,
   };
@@ -181,7 +180,7 @@ export function toProfileView(raw: RawUser): ProfileView {
     fullName: fullName || (raw.phone ?? ""),
     email: raw.email ?? "",
     avatarUrl: (raw as any).avatarUrl || (raw as any).avatar_url,
-    bonusBalanceSum: tiyinToSum(raw.bonusBalance ?? 0),
+    bonusBalanceSum: Number(raw.bonusBalance ?? 0),
     preferredLanguage: raw.preferredLanguage ?? "uz",
     status: raw.status ?? "active",
     createdAt: raw.createdAt ?? "",
@@ -202,7 +201,7 @@ interface RawBonuses {
 
 export function toBonusView(raw: RawBonuses): BonusView {
   return {
-    balanceSum: tiyinToSum(raw.balance ?? 0),
+    balanceSum: Number(raw.balance ?? 0),
     currency: "UZS",
     entries: (raw.ledger ?? []).map(toBonusEntryView),
   };
@@ -211,7 +210,7 @@ export function toBonusView(raw: RawBonuses): BonusView {
 function toBonusEntryView(raw: RawBonusEntry): BonusEntryView {
   return {
     id: raw.id ?? "",
-    amountSum: tiyinToSum(raw.amount ?? 0),
+    amountSum: Number(raw.amount ?? 0),
     reason: raw.reason ?? "",
     createdAt: raw.createdAt ?? "",
   };

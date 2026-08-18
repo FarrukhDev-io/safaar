@@ -55,13 +55,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadDashboard() {
-      const [overviewData, activities, summary, hotelBookings, busBookings] = await Promise.all([
-        AdminApi.getDashboardStats(),
-        AdminApi.getActivity(),
-        AdminApi.getNotificationSummary(),
-        AdminApi.getBookings(),
-        AdminApi.getBusBookings(),
-      ]);
+      try {
+        const overviewData = await AdminApi.getDashboardStats();
+        const activities = await AdminApi.getActivity().catch(() => []);
+        const summary = await AdminApi.getNotificationSummary().catch(() => ({ partnerRequests: 0, supportOpen: 0, supportClosed: 0 }));
+        const hotelBookings = await AdminApi.getBookings().catch(() => []);
+        const busBookings = await AdminApi.getBusBookings().catch(() => []);
       const totalServiceBookings = hotelBookings.length + busBookings.length;
 
       setOverview(overviewData);
@@ -96,6 +95,9 @@ export default function DashboardPage() {
             ]
           : [],
       );
+      } catch (err) {
+        console.error("Dashboard yuklashda xatolik:", err);
+      }
     }
 
     loadDashboard().finally(() => setLoading(false));

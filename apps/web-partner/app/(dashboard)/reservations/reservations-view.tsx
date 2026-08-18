@@ -554,9 +554,11 @@ function ReservationCard({
                 icon={<CalendarRange />}
                 label={isBus ? "Qaytarish vaqti" : "Ketish"}
                 value={
-                  isBus || restaurant
+                  restaurant
                     ? formatDate(reservation.checkOut)
-                    : `${formatDate(reservation.checkOut)} · ${reservation.nights} kech.`
+                    : isBus
+                      ? `${formatDate(reservation.checkOut)} · ${reservation.nights} kun`
+                      : `${formatDate(reservation.checkOut)} · ${reservation.nights} kech.`
                 }
               />
               <MiniInfo

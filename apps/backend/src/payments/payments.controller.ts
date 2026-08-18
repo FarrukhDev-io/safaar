@@ -13,7 +13,7 @@ import { CurrentActor, type RequestActor } from '../common/actor';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
 import { PaymentsService } from './payments.service';
-import { CreatePaymentDto, ProviderWebhookDto } from './dto/payment.dto';
+import { CreatePaymentDto } from './dto/payment.dto';
 
 @ApiTags('payments')
 @Controller()
@@ -45,9 +45,15 @@ export class PaymentsController {
     );
   }
 
+  // Webhook tanasi ataylab `Record<string, unknown>` — real provayderlar
+  // (Click, Payme, Uzcard, Humo) o'zining maxsus maydonlarini yuboradi
+  // (masalan Click'ning click_trans_id/sign_string/action kabi), va
+  // global ValidationPipe'dagi `forbidNonWhitelisted` qattiq DTO klassi
+  // bilan ularni butunlay rad etar edi. `ProviderWebhookDto` hujjatlash
+  // (Swagger) uchun saqlanadi, lekin runtime validatsiyasida ishlatilmaydi.
   @Post('webhooks/click/prepare')
   clickPrepare(
-    @Body() body: ProviderWebhookDto,
+    @Body() body: Record<string, unknown>,
     @Headers() headers: Record<string, string | string[] | undefined>,
   ) {
     return this.paymentsService.providerWebhook(
@@ -60,7 +66,7 @@ export class PaymentsController {
 
   @Post('webhooks/click/complete')
   clickComplete(
-    @Body() body: ProviderWebhookDto,
+    @Body() body: Record<string, unknown>,
     @Headers() headers: Record<string, string | string[] | undefined>,
   ) {
     return this.paymentsService.providerWebhook(
@@ -73,7 +79,7 @@ export class PaymentsController {
 
   @Post('webhooks/payme')
   payme(
-    @Body() body: ProviderWebhookDto,
+    @Body() body: Record<string, unknown>,
     @Headers() headers: Record<string, string | string[] | undefined>,
   ) {
     return this.paymentsService.providerWebhook(
@@ -86,7 +92,7 @@ export class PaymentsController {
 
   @Post('webhooks/uzcard')
   uzcard(
-    @Body() body: ProviderWebhookDto,
+    @Body() body: Record<string, unknown>,
     @Headers() headers: Record<string, string | string[] | undefined>,
   ) {
     return this.paymentsService.providerWebhook(
@@ -99,7 +105,7 @@ export class PaymentsController {
 
   @Post('webhooks/humo')
   humo(
-    @Body() body: ProviderWebhookDto,
+    @Body() body: Record<string, unknown>,
     @Headers() headers: Record<string, string | string[] | undefined>,
   ) {
     return this.paymentsService.providerWebhook(
@@ -113,7 +119,7 @@ export class PaymentsController {
   @Post('webhooks/payment/:provider')
   paymentProvider(
     @Param('provider') provider: string,
-    @Body() body: ProviderWebhookDto,
+    @Body() body: Record<string, unknown>,
     @Headers() headers: Record<string, string | string[] | undefined>,
   ) {
     return this.paymentsService.providerWebhook(

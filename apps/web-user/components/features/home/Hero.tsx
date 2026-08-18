@@ -1,17 +1,32 @@
+import Image from "next/image";
 import type { HomeDict } from "@/i18n/dictionaries";
 import HeroSectionTextHover from "@/components/animata/hero/hero-section-text-hover";
 
 export function Hero({ dict }: { dict: HomeDict["hero"] }) {
   return (
-    <section className="relative overflow-hidden pt-6 pb-2 sm:pt-8 sm:pb-4 lg:pt-10 lg:pb-6">
-      <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
+    <section className="relative flex min-h-[40vh] min-h-[400px] flex-col items-center justify-center overflow-hidden rounded-3xl mx-4 sm:mx-6 lg:mx-8 mt-4">
+      {/* Orqa fon rasmi */}
+      <Image
+        src="/samarqans.jpg"
+        alt="Safaar Samarqand"
+        fill
+        priority
+        className="object-cover object-center"
+        sizes="100vw"
+        quality={85}
+      />
+      
+      {/* Matn o'qilishi uchun qora gradient qoplama */}
+      <div className="absolute inset-0 bg-black/40 bg-gradient-to-t from-black/60 to-transparent" />
+
+      <div className="relative z-10 mx-auto max-w-4xl px-4 pt-16 pb-24 text-center sm:px-6 lg:pt-24 lg:pb-32">
         {/* Title */}
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-5xl md:text-6xl animate-in fade-in zoom-in-95 duration-1000">
+        <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl md:text-6xl animate-in fade-in zoom-in-95 duration-1000 drop-shadow-lg">
           <HeroSectionTextHover />
         </h1>
 
         {/* Subtitle */}
-        <p className="mx-auto mt-4 max-w-2xl text-base font-bold leading-relaxed text-slate-600 sm:text-lg md:text-xl animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-150 fill-mode-both">
+        <p className="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-slate-100 sm:text-lg md:text-xl animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-150 fill-mode-both drop-shadow-md">
           {dict.subtitle}
         </p>
       </div>
