@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/Button";
 
 export type { PropertyType, SearchDefaults };
 
-const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 md:rounded-full md:border-transparent md:bg-transparent md:px-6 md:py-3.5 md:hover:bg-slate-100 cursor-pointer";
+const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 md:rounded-2xl md:border-transparent md:bg-transparent md:px-6 md:py-4 md:hover:bg-slate-100 cursor-pointer";
 
 export function SearchBar({
   locale,
@@ -80,18 +80,15 @@ export function SearchBar({
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-6xl">
       <form
         onSubmit={handleSubmit}
-        className="relative flex flex-col gap-3 rounded-3xl border border-slate-300 bg-white p-3.5 shadow-xl shadow-slate-300/40 transition-all duration-300 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-full md:p-2 sm:p-4"
+        className="relative flex flex-col gap-3 rounded-3xl border border-slate-300 bg-white p-3.5 shadow-xl shadow-slate-300/40 transition-all duration-300 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-3xl md:p-2 sm:p-4"
       >
         {/* 1. Shahar / Destinatsiya */}
         <div className={fieldWrapperClass}>
           <MapPin className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
-              {dict.city}
-            </span>
             <CityPicker
               cities={cities}
               value={cityId}
@@ -107,12 +104,10 @@ export function SearchBar({
         <div className={fieldWrapperClass}>
           <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
-              {dict.checkIn}
-            </span>
             <DatePicker
               locale={locale}
               label=""
+              placeholder={dict.checkIn}
               value={checkIn}
               min={today}
               icon={null}
@@ -131,12 +126,10 @@ export function SearchBar({
         <div className={fieldWrapperClass}>
           <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
-              {dict.checkOut}
-            </span>
             <DatePicker
               locale={locale}
               label=""
+              placeholder={dict.checkOut}
               value={checkOut}
               min={checkIn || today}
               icon={null}
@@ -153,9 +146,6 @@ export function SearchBar({
           <div className="flex w-full items-center gap-3">
             <Users className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
             <div className="flex-1">
-              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
-                {dict.guests}
-              </span>
               <GuestPicker value={guests} onChange={setGuests} />
             </div>
           </div>
@@ -167,8 +157,8 @@ export function SearchBar({
             type="submit"
             variant="primary"
             size="lg"
-            rounded="full"
-            className="w-full md:w-auto uppercase tracking-wide px-8 h-12 md:h-14"
+            rounded="2xl"
+            className="w-full md:w-auto uppercase tracking-wide px-8 h-12 md:h-[60px]"
           >
             <Search className="h-5 w-5 stroke-[2.5]" aria-hidden />
             <span>{dict.submit}</span>

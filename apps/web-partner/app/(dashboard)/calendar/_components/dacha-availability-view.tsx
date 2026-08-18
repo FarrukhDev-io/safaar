@@ -79,7 +79,8 @@ export function DachaAvailabilityView() {
       reservations.filter(
         (r) =>
           r.status !== BookingStatus.CANCELLED &&
-          r.status !== BookingStatus.EXPIRED,
+          r.status !== BookingStatus.EXPIRED &&
+          r.status !== BookingStatus.PENDING,
       ),
     [reservations],
   );
@@ -98,7 +99,13 @@ export function DachaAvailabilityView() {
   const freeCount = totalDays - bookedCount;
 
   const handleDayClick = (iso: string) => {
-    if (bookedDays.has(iso)) return;
+    if (bookedDays.has(iso)) {
+      const res = activeReservations.find(r => r.checkIn <= iso && r.checkOut > iso);
+      if (res) {
+        window.location.href = `/reservations/${res.id}`;
+      }
+      return;
+    }
     setWalkInInitial({ checkIn: iso, checkOut: addDays(iso, 1) });
     setWalkInOpen(true);
   };
@@ -250,10 +257,9 @@ export function DachaAvailabilityView() {
                   key={iso}
                   type="button"
                   onClick={() => handleDayClick(iso)}
-                  disabled={isBooked}
                   title={
                     isBooked
-                      ? "Band — bu kun bron mavjud"
+                      ? "Band — batafsil ko'rish uchun bosing"
                       : isPast
                       ? "O'tgan kun"
                       : "Bo'sh — bosib yangi bron yarating"
@@ -262,7 +268,7 @@ export function DachaAvailabilityView() {
                     "relative flex min-h-[64px] flex-col items-start justify-between p-2 text-left transition-colors",
                     "border-b border-r border-[var(--border)]",
                     isBooked
-                      ? "cursor-not-allowed bg-brand-50 dark:bg-brand-900/30"
+                      ? "cursor-pointer bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/30 dark:hover:bg-brand-900/50"
                       : isPast
                       ? "cursor-default bg-[var(--surface-muted)]/50 opacity-60"
                       : "cursor-pointer bg-[var(--surface)] hover:bg-accent-50 dark:hover:bg-accent-900/20",

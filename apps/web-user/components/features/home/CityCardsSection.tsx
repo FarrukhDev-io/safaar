@@ -52,6 +52,7 @@ export async function CityCardsSection({
             height={400}
             accentColor="#0284c7"
             expandRatio={0.5}
+            grayscale={false}
           />
         </div>
 

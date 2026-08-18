@@ -181,6 +181,7 @@ export function CalendarView() {
         if (
           r.status === BookingStatus.CANCELLED ||
           r.status === BookingStatus.EXPIRED ||
+          r.status === BookingStatus.PENDING ||
           !r.roomNumber ||
           !row.matches(r)
         ) {
@@ -224,7 +225,8 @@ export function CalendarView() {
     const visible = reservations.filter((r) => {
       if (
         r.status === BookingStatus.CANCELLED ||
-        r.status === BookingStatus.EXPIRED
+        r.status === BookingStatus.EXPIRED ||
+        r.status === BookingStatus.PENDING
       ) {
         return false;
       }

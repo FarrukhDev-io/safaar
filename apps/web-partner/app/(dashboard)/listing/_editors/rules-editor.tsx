@@ -16,12 +16,15 @@ import {
   useListing,
   useUpdateListingRules,
 } from "../../../_hooks/use-listing";
+import { useRoomTypes, useCreateRoomType, useUpdateRoomType } from "../../../_hooks/use-room-types";
+import { useRooms, useCreateRoom } from "../../../_hooks/use-rooms";
 import { useAuthStore } from "../../../_stores/auth-store";
-import { getPartnerLabels, isRestaurant } from "../../../_lib/utils/partner-labels";
+import { getPartnerLabels, isRestaurant, isDacha } from "../../../_lib/utils/partner-labels";
 import {
   CANCELLATION_POLICY_INFO,
   CancellationPolicy,
 } from "../../../_lib/domain/listing";
+import { RoomStatus } from "../../../_lib/domain/types";
 import { cn } from "../../../_lib/utils/cn";
 import { formatMoney } from "../../../_lib/utils/format";
 
@@ -32,6 +35,9 @@ const schema = z.object({
   smokingAllowed: z.boolean(),
   petsAllowed: z.boolean(),
   childrenAllowed: z.boolean(),
+  dachaPrice: z.number().min(0).optional(),
+  dachaCapacity: z.number().min(1).optional(),
+  dachaRoomsCount: z.number().min(1).optional(),
 });
 
 type Values = z.infer<typeof schema>;
@@ -48,15 +54,35 @@ export function RulesEditor({
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const restaurant = isRestaurant(partnerType);
+  const dacha = isDacha(partnerType);
+  
+  const { data: roomTypes } = useRoomTypes();
+  const roomType = roomTypes[0];
+  const createRoomType = useCreateRoomType();
+  const updateRoomType = useUpdateRoomType();
+  const { data: rooms } = useRooms();
+  const createRoom = useCreateRoom();
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: data,
+    defaultValues: {
+      ...data,
+      dachaPrice: roomType?.basePrice ?? 0,
+      dachaCapacity: roomType?.capacity ?? 2,
+      dachaRoomsCount: parseInt(roomType?.description || "3", 10) || 3,
+    },
   });
 
   useEffect(() => {
-    if (open) form.reset(data);
-  }, [open, data, form]);
+    if (open) {
+      form.reset({
+        ...data,
+        dachaPrice: roomType?.basePrice ?? 0,
+        dachaCapacity: roomType?.capacity ?? 2,
+        dachaRoomsCount: parseInt(roomType?.description || "3", 10) || 3,
+      });
+    }
+  }, [open, data, form, roomType]);
 
   const watched = useWatch({ control: form.control });
   const currentPolicy = watched.cancellationPolicy ?? data.cancellationPolicy;
@@ -67,6 +93,34 @@ export function RulesEditor({
   const onSave = form.handleSubmit(async (v) => {
     try {
       await update.mutateAsync({ ...v, extraFees: data.extraFees });
+      
+      if (dacha) {
+        const rtValues = {
+          name: "Asosiy",
+          basePrice: v.dachaPrice ?? 0,
+          capacity: v.dachaCapacity ?? 2,
+          description: v.dachaRoomsCount ? String(v.dachaRoomsCount) : "3",
+          amenities: roomType?.amenities ?? [],
+        };
+        let finalRoomTypeId = roomType?.id;
+        if (roomType) {
+          await updateRoomType.mutateAsync({ id: roomType.id, values: rtValues });
+        } else {
+          const newRt = await createRoomType.mutateAsync(rtValues);
+          finalRoomTypeId = newRt?.id;
+        }
+
+        if (finalRoomTypeId && rooms.length === 0) {
+          await createRoom.mutateAsync({
+            number: "Asosiy",
+            floor: 1,
+            roomTypeId: finalRoomTypeId,
+            status: RoomStatus.VACANT_CLEAN,
+            isListed: true,
+          });
+        }
+      }
+
       toast.success("Uy qoidalari saqlandi");
       onClose();
     } catch (error) {
@@ -80,8 +134,8 @@ export function RulesEditor({
     <Drawer
       open={open}
       onClose={onClose}
-      title="Uy qoidalari"
-      description="Ish vaqtlari, bekor qilish siyosati va qo'shimcha to'lovlar."
+      title={dacha ? "Xonalar, narx va qoidalar" : "Uy qoidalari"}
+      description={dacha ? "Dacha narxi, sig'imi, ish vaqtlari va bekor qilish siyosati." : "Ish vaqtlari, bekor qilish siyosati va qo'shimcha to'lovlar."}
       size="lg"
       footer={
         <>
@@ -90,7 +144,7 @@ export function RulesEditor({
           </Button>
           <Button
             onClick={onSave}
-            disabled={!form.formState.isDirty || update.isPending}
+            disabled={!form.formState.isDirty || update.isPending || createRoomType.isPending || updateRoomType.isPending}
           >
             Saqlash
           </Button>
@@ -98,6 +152,43 @@ export function RulesEditor({
       }
     >
       <div className="flex flex-col gap-6">
+        {dacha && (
+          <section className="flex flex-col gap-3 border-b border-[var(--border)] pb-6">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">
+              Dacha ma'lumotlari
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="dachaRoomsCount">Xonalar soni</Label>
+                <Input
+                  id="dachaRoomsCount"
+                  type="number"
+                  min={1}
+                  {...form.register("dachaRoomsCount", { valueAsNumber: true })}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="dachaCapacity">Sig'imi (necha kishi)</Label>
+                <Input
+                  id="dachaCapacity"
+                  type="number"
+                  min={1}
+                  {...form.register("dachaCapacity", { valueAsNumber: true })}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="dachaPrice">1 kechalik narx (so'm)</Label>
+                <Input
+                  id="dachaPrice"
+                  type="number"
+                  min={0}
+                  step={10000}
+                  {...form.register("dachaPrice", { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+          </section>
+        )}
         {/* Vaqtlar */}
         <section className="flex flex-col gap-3">
           <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">
