@@ -52,11 +52,11 @@ export function CityPills({ cities, locale }: CityPillsProps) {
           canScrollLeft ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="h-full w-10 bg-gradient-to-r from-white/80 to-transparent dark:from-slate-950/80" />
+        <div className="h-full w-20 bg-gradient-to-r from-slate-50 via-slate-50/80 to-transparent dark:from-slate-950 dark:via-slate-950/80" />
       </div>
       <button
         onClick={() => scroll("left")}
-        className={`absolute left-1 top-1/2 z-20 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 ${
+        className={`absolute left-2 top-1/2 z-20 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 ${
           canScrollLeft ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         aria-label="Chapga"
@@ -86,11 +86,11 @@ export function CityPills({ cities, locale }: CityPillsProps) {
           canScrollRight ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="h-full w-10 bg-gradient-to-l from-white/80 to-transparent dark:from-slate-950/80" />
+        <div className="h-full w-20 bg-gradient-to-l from-slate-50 via-slate-50/80 to-transparent dark:from-slate-950 dark:via-slate-950/80" />
       </div>
       <button
         onClick={() => scroll("right")}
-        className={`absolute right-1 top-1/2 z-20 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 ${
+        className={`absolute right-2 top-1/2 z-20 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 ${
           canScrollRight ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         aria-label="O'ngga"
