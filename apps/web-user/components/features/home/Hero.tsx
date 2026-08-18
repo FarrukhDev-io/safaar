@@ -1,6 +1,5 @@
 import Image from "next/image";
 import type { HomeDict } from "@/i18n/dictionaries";
-import HeroSectionTextHover from "@/components/animata/hero/hero-section-text-hover";
 
 export function Hero({ dict }: { dict: HomeDict["hero"] }) {
   return (
@@ -22,7 +21,7 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
       <div className="relative z-10 mx-auto max-w-4xl px-4 pt-16 pb-24 text-center sm:px-6 lg:pt-24 lg:pb-32">
         {/* Title */}
         <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl md:text-6xl animate-in fade-in zoom-in-95 duration-1000 drop-shadow-lg">
-          <HeroSectionTextHover />
+          {dict.title}
         </h1>
 
         {/* Subtitle */}
