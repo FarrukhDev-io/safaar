@@ -299,21 +299,28 @@ function RoomCard({
         </div>
       </div>
 
-      {isBus && (
-        <div className="mt-3 w-full border-t border-zinc-100 pt-3 dark:border-zinc-800/80">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push("/listing");
-            }}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-50 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-100 dark:bg-brand-900/40 dark:text-brand-300 dark:hover:bg-brand-900/60"
-          >
-            <CarFront className="h-3.5 w-3.5" />
-            Reklamaga chiqarish (Rasm qo'shish)
-          </button>
-        </div>
-      )}
+      <div className="mt-3 w-full border-t border-zinc-100 pt-3 dark:border-zinc-800/80">
+        <button
+          type="button"
+          disabled={isUpdating}
+          onClick={(e) => {
+            e.stopPropagation();
+            updateRoom({
+              id: room.id,
+              values: {
+                number: room.number,
+                floor: room.floor,
+                roomTypeId: room.roomTypeId,
+                status: room.status,
+                isListed: !room.isListed,
+              }
+            });
+          }}
+          className={`flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-colors ${room.isListed ? 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700' : 'bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-900/40 dark:text-brand-300 dark:hover:bg-brand-900/60'}`}
+        >
+          {room.isListed ? "E'londan olish (Yashirish)" : "E'longa chiqarish (Sotish)"}
+        </button>
+      </div>
     </div>
   );
 }

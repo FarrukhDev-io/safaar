@@ -624,3 +624,30 @@ export function getWithdrawals(token?: string | null) {
 export function createWithdrawal(body: Record<string, unknown>, token?: string | null) {
   return request<WithdrawalRequest>('/partner/withdrawals', { method: 'POST', body, token });
 }
+
+// VEHICLES (Rent-Car)
+export interface BackendVehicle {
+  id: string;
+  company_id: string;
+  name: string;
+  plate_number: string | null;
+  seats_count: number;
+  price_per_day: number;
+  seat_layout: unknown | null;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+}
+
+export function listVehicles(token?: string | null) {
+  return request<BackendVehicle[]>('/partners/vehicles', { token });
+}
+
+export function createVehicle(body: Record<string, unknown>, token?: string | null) {
+  return request<BackendVehicle>('/partners/vehicles', { method: 'POST', body, token });
+}
+
+export function updateVehicle(id: string, body: Record<string, unknown>, token?: string | null) {
+  return request<BackendVehicle>(`/partners/vehicles/${id}`, { method: 'PATCH', body, token });
+}
+

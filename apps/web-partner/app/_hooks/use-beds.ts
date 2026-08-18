@@ -7,6 +7,7 @@ import { partners } from "../_lib/api";
 import { useAuthStore } from "../_stores/auth-store";
 import { useDataStore, type BedDraft } from "../_stores/data-store";
 import { getPrimaryHotel } from "./use-primary-hotel";
+import { hasBeds } from "../_lib/utils/partner-labels";
 
 export const bedsQueryKey = ["partner", "beds"] as const;
 
@@ -14,6 +15,7 @@ const EMPTY_BEDS: ReturnType<typeof toBed>[] = [];
 
 export function useBeds() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
+  const partnerType = useAuthStore((s) => s.user?.partnerType);
   const setBeds = useDataStore((s) => s.setBeds);
   const query = useQuery({
     queryKey: bedsQueryKey,
@@ -21,7 +23,7 @@ export function useBeds() {
       const hotel = await getPrimaryHotel(accessToken);
       return (await partners.listBeds(hotel.id, accessToken)).map(toBed);
     },
-    enabled: Boolean(accessToken),
+    enabled: Boolean(accessToken) && hasBeds(partnerType),
   });
 
   useEffect(() => {

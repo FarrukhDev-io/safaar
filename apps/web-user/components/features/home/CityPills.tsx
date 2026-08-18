@@ -45,18 +45,18 @@ export function CityPills({ cities, locale }: CityPillsProps) {
   const displayCities = cities.slice(0, 8);
 
   return (
-    <div className="relative mx-auto mt-2 w-full max-w-5xl sm:mt-4">
+    <div className="relative mx-auto mt-2 w-full max-w-6xl sm:mt-4">
       {/* Left fade + arrow */}
       <div
         className={`pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center transition-opacity duration-200 ${
           canScrollLeft ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="h-full w-10 bg-gradient-to-r from-white/80 to-transparent dark:from-slate-950/80" />
+        <div className="h-full w-20 bg-gradient-to-r from-slate-50 via-slate-50/80 to-transparent dark:from-slate-950 dark:via-slate-950/80" />
       </div>
       <button
         onClick={() => scroll("left")}
-        className={`absolute left-1 top-1/2 z-20 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 ${
+        className={`absolute left-2 top-1/2 z-20 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 ${
           canScrollLeft ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         aria-label="Chapga"
@@ -73,7 +73,7 @@ export function CityPills({ cities, locale }: CityPillsProps) {
           <Link
             key={city.id}
             href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-            className="shrink-0 rounded-full border border-slate-300 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-800 shadow-sm transition-all duration-200 hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 hover:shadow-md active:scale-[0.97] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-primary-500 dark:hover:bg-slate-700"
+            className="shrink-0 rounded-full border border-slate-300 bg-white px-6 py-3 text-sm sm:text-[15px] font-bold text-slate-800 shadow-sm transition-all duration-200 hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 hover:shadow-md active:scale-[0.97] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-primary-500 dark:hover:bg-slate-700"
           >
             <span className="capitalize">{city.name}</span>
           </Link>
@@ -86,11 +86,11 @@ export function CityPills({ cities, locale }: CityPillsProps) {
           canScrollRight ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="h-full w-10 bg-gradient-to-l from-white/80 to-transparent dark:from-slate-950/80" />
+        <div className="h-full w-20 bg-gradient-to-l from-slate-50 via-slate-50/80 to-transparent dark:from-slate-950 dark:via-slate-950/80" />
       </div>
       <button
         onClick={() => scroll("right")}
-        className={`absolute right-1 top-1/2 z-20 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 ${
+        className={`absolute right-2 top-1/2 z-20 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 ${
           canScrollRight ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         aria-label="O'ngga"
