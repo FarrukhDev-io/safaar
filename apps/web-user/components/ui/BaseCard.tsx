@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { ImageOff } from "lucide-react";
 
 export interface BaseCardProps {
   imageSrc?: string | null;
@@ -38,8 +39,8 @@ export function BaseCard({
     <article className={`flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-card shadow-md dark:border-slate-800 dark:bg-slate-900/60 dark:backdrop-blur-md ${className}`}>
       {variant === "overlay" ? (
         /* Overlay variant (e.g. City Card) */
-        <div className="relative aspect-[4/3] w-full overflow-hidden">
-          {imageSrc && (
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+          {imageSrc ? (
             <Image
               src={imageSrc}
               alt={imageAlt}
@@ -48,6 +49,11 @@ export function BaseCard({
               className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               quality={85}
             />
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center text-slate-400 opacity-60">
+              <ImageOff className="mb-2 h-8 w-8" />
+              <span className="text-xs font-medium uppercase tracking-wider">Rasm yo'q</span>
+            </div>
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           {badge && <div className="absolute left-3 top-3 z-10">{badge}</div>}
@@ -65,8 +71,8 @@ export function BaseCard({
       ) : (
         /* Default variant (standard card) */
         <>
-          <div className="relative aspect-[3/2] w-full overflow-hidden rounded-t-3xl bg-slate-100 dark:bg-slate-800">
-            {imageSrc && (
+          <div className="relative aspect-[3/2] w-full overflow-hidden rounded-t-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+            {imageSrc ? (
               <Image
                 src={imageSrc}
                 alt={imageAlt}
@@ -75,6 +81,10 @@ export function BaseCard({
                 className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                 quality={85}
               />
+            ) : (
+              <div className="flex flex-col items-center justify-center text-slate-400 opacity-60">
+                <ImageOff className="mb-2 h-10 w-10" />
+              </div>
             )}
             {badge && <div className="absolute left-3 top-3 z-10">{badge}</div>}
           </div>
