@@ -73,7 +73,7 @@ export function CityPills({ cities, locale }: CityPillsProps) {
           <Link
             key={city.id}
             href={`/${locale}/hotels?city_id=${encodeURIComponent(city.id)}`}
-            className="shrink-0 rounded-full border border-slate-300 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-800 shadow-sm transition-all duration-200 hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 hover:shadow-md active:scale-[0.97] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-primary-500 dark:hover:bg-slate-700"
+            className="shrink-0 rounded-full border border-slate-300 bg-white px-6 py-3 text-sm sm:text-[15px] font-bold text-slate-800 shadow-sm transition-all duration-200 hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 hover:shadow-md active:scale-[0.97] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-primary-500 dark:hover:bg-slate-700"
           >
             <span className="capitalize">{city.name}</span>
           </Link>
