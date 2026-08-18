@@ -583,7 +583,7 @@ export function ListingOverview() {
               }}
             />
           </div>
-        ) : (
+        ) : !dacha ? (
           <div id="room-listings-panel">
             <RoomListingsPanel
               roomAds={roomAds}
@@ -603,7 +603,7 @@ export function ListingOverview() {
               onAddRoom={() => setRoomDialogOpen(true)}
             />
           </div>
-        )}
+        ) : null}
       </section>
 
       <aside className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-20 xl:self-start">
