@@ -274,6 +274,10 @@ export function ListingOverview() {
       ];
     }
 
+    if (isBus) {
+      return base;
+    }
+
     return [
       ...base,
       {
@@ -545,7 +549,7 @@ export function ListingOverview() {
 
         {dacha ? (
           <DachaUnitPanel listingName={listing.name} />
-        ) : (
+        ) : isBus ? null : (
           <div id="room-listings-panel">
             <RoomListingsPanel
               roomAds={roomAds}
