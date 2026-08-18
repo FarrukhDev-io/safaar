@@ -76,6 +76,9 @@ function useListingMutation<TVariables>(
   return useMutation({
     mutationFn: async (variables: TVariables) => {
       const hotel = await getPrimaryHotel(accessToken);
+      if (!hotel) {
+        throw new Error("Backendda ushbu hamkor turi (Avtopark) uchun E'lon profili saqlash qo'llab-quvvatlanmaydi.");
+      }
       return mutationFn(hotel.id, accessToken, variables);
     },
     onSuccess: (listing) => {
