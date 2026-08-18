@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/Button";
 
 export type { PropertyType, SearchDefaults };
 
-const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 md:rounded-full md:border-transparent md:bg-transparent md:px-6 md:py-3.5 md:hover:bg-slate-100 cursor-pointer";
+const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 md:rounded-full md:border-transparent md:bg-transparent md:px-6 md:py-4 md:hover:bg-slate-100 cursor-pointer";
 
 export function SearchBar({
   locale,
@@ -80,7 +80,7 @@ export function SearchBar({
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-6xl">
       <form
         onSubmit={handleSubmit}
         className="relative flex flex-col gap-3 rounded-3xl border border-slate-300 bg-white p-3.5 shadow-xl shadow-slate-300/40 transition-all duration-300 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-full md:p-2 sm:p-4"
@@ -158,7 +158,7 @@ export function SearchBar({
             variant="primary"
             size="lg"
             rounded="full"
-            className="w-full md:w-auto uppercase tracking-wide px-8 h-12 md:h-14"
+            className="w-full md:w-auto uppercase tracking-wide px-8 h-12 md:h-[60px]"
           >
             <Search className="h-5 w-5 stroke-[2.5]" aria-hidden />
             <span>{dict.submit}</span>
