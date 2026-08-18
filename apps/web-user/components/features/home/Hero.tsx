@@ -19,7 +19,7 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
       {/* Matn o'qilishi uchun qora gradient qoplama */}
       <div className="absolute inset-0 bg-black/40 bg-gradient-to-t from-black/60 to-transparent" />
 
-      <div className="relative z-10 mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 lg:py-24">
+      <div className="relative z-10 mx-auto max-w-4xl px-4 pt-16 pb-24 text-center sm:px-6 lg:pt-24 lg:pb-32">
         {/* Title */}
         <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl md:text-6xl animate-in fade-in zoom-in-95 duration-1000 drop-shadow-lg">
           <HeroSectionTextHover />
