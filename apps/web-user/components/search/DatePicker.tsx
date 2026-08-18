@@ -146,7 +146,7 @@ export function DatePicker({
             <span className="text-xs font-medium text-slate-600">{label}</span>
           )}
           <span
-            className={`truncate text-sm font-bold ${
+            className={`truncate text-base font-bold ${
               displayValue ? "text-slate-900" : "text-slate-600"
             }`}
           >

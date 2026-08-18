@@ -89,7 +89,7 @@ export function SearchBar({
         <div className={fieldWrapperClass}>
           <MapPin className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
+            <span className="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
               {dict.city}
             </span>
             <CityPicker
@@ -107,7 +107,7 @@ export function SearchBar({
         <div className={fieldWrapperClass}>
           <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
+            <span className="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
               {dict.checkIn}
             </span>
             <DatePicker
@@ -131,7 +131,7 @@ export function SearchBar({
         <div className={fieldWrapperClass}>
           <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
+            <span className="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
               {dict.checkOut}
             </span>
             <DatePicker
@@ -153,7 +153,7 @@ export function SearchBar({
           <div className="flex w-full items-center gap-3">
             <Users className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
             <div className="flex-1">
-              <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
+              <span className="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
                 {dict.guests}
               </span>
               <GuestPicker value={guests} onChange={setGuests} />
