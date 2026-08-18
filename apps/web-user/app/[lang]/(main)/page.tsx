@@ -68,7 +68,7 @@ export default async function HomePage({
 
         <div className="relative z-40 -mt-10 sm:-mt-12 lg:-mt-14">
           <section id="search-section" className="bg-transparent pb-4 sm:pb-6">
-            <div className="mx-auto max-w-4xl px-4">
+            <div className="mx-auto max-w-5xl px-4 sm:px-6">
               <SearchBar locale={locale} dict={common.search} cities={cities} />
             </div>
           </section>

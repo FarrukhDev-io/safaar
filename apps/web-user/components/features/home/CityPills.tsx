@@ -45,7 +45,7 @@ export function CityPills({ cities, locale }: CityPillsProps) {
   const displayCities = cities.slice(0, 8);
 
   return (
-    <div className="relative mx-auto mt-2 w-full max-w-5xl sm:mt-4">
+    <div className="relative mx-auto mt-2 w-full max-w-6xl sm:mt-4">
       {/* Left fade + arrow */}
       <div
         className={`pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center transition-opacity duration-200 ${
