@@ -79,7 +79,8 @@ export function DachaAvailabilityView() {
       reservations.filter(
         (r) =>
           r.status !== BookingStatus.CANCELLED &&
-          r.status !== BookingStatus.EXPIRED,
+          r.status !== BookingStatus.EXPIRED &&
+          r.status !== BookingStatus.PENDING,
       ),
     [reservations],
   );
@@ -98,7 +99,13 @@ export function DachaAvailabilityView() {
   const freeCount = totalDays - bookedCount;
 
   const handleDayClick = (iso: string) => {
-    if (bookedDays.has(iso)) return;
+    if (bookedDays.has(iso)) {
+      const res = activeReservations.find(r => r.checkIn <= iso && r.checkOut > iso);
+      if (res) {
+        window.location.href = `/reservations/${res.id}`;
+      }
+      return;
+    }
     setWalkInInitial({ checkIn: iso, checkOut: addDays(iso, 1) });
     setWalkInOpen(true);
   };
