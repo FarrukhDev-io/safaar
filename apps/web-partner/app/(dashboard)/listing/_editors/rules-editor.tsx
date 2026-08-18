@@ -37,7 +37,7 @@ const schema = z.object({
   childrenAllowed: z.boolean(),
   dachaPrice: z.number().min(0).optional(),
   dachaCapacity: z.number().min(1).optional(),
-  dachaRoomsCount: z.string().optional(),
+  dachaRoomsCount: z.number().min(1).optional(),
 });
 
 type Values = z.infer<typeof schema>;
@@ -69,7 +69,7 @@ export function RulesEditor({
       ...data,
       dachaPrice: roomType?.basePrice ?? 0,
       dachaCapacity: roomType?.capacity ?? 2,
-      dachaRoomsCount: roomType?.description ?? "2 xona",
+      dachaRoomsCount: parseInt(roomType?.description || "3", 10) || 3,
     },
   });
 
@@ -79,7 +79,7 @@ export function RulesEditor({
         ...data,
         dachaPrice: roomType?.basePrice ?? 0,
         dachaCapacity: roomType?.capacity ?? 2,
-        dachaRoomsCount: roomType?.description ?? "2 xona",
+        dachaRoomsCount: parseInt(roomType?.description || "3", 10) || 3,
       });
     }
   }, [open, data, form, roomType]);
@@ -99,7 +99,7 @@ export function RulesEditor({
           name: "Asosiy",
           basePrice: v.dachaPrice ?? 0,
           capacity: v.dachaCapacity ?? 2,
-          description: v.dachaRoomsCount ?? "",
+          description: v.dachaRoomsCount ? String(v.dachaRoomsCount) : "3",
           amenities: roomType?.amenities ?? [],
         };
         let finalRoomTypeId = roomType?.id;
@@ -159,11 +159,12 @@ export function RulesEditor({
             </h3>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="dachaRoomsCount">Nechta xona (masalan: 3 xona)</Label>
+                <Label htmlFor="dachaRoomsCount">Xonalar soni</Label>
                 <Input
                   id="dachaRoomsCount"
-                  placeholder="3 xona"
-                  {...form.register("dachaRoomsCount")}
+                  type="number"
+                  min={1}
+                  {...form.register("dachaRoomsCount", { valueAsNumber: true })}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
