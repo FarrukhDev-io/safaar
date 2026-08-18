@@ -9,6 +9,7 @@ import { Button } from "../../../../_components/ui/button";
 import { Dialog } from "../../../../_components/ui/dialog";
 import { Input } from "../../../../_components/ui/input";
 import { Label } from "../../../../_components/ui/label";
+import Link from "next/link";
 import { useAuthStore } from "../../../../_stores/auth-store";
 import {
   useCreateRoom,
@@ -276,6 +277,15 @@ export function RoomDialog({ open, onClose, editing }: Props) {
                   ))
                 )}
               </select>
+              {roomTypes.length === 0 && (
+                <Link
+                  href="/listing"
+                  className="mt-1 inline-block text-[13px] font-semibold text-brand-600 transition-colors hover:text-brand-700 hover:underline dark:text-brand-400 dark:hover:text-brand-300"
+                  onClick={onClose}
+                >
+                  + Yangi {labels.unitTypeLabel.toLowerCase()} yaratish
+                </Link>
+              )}
               {err.roomTypeId && (
                 <p className="text-xs text-red-600">{err.roomTypeId.message}</p>
               )}

@@ -3,6 +3,7 @@
 import { BedDouble, BedSingle, UtensilsCrossed, Users, CarFront } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "../../_components/layout/page-header";
 import { useBeds } from "../../_hooks/use-beds";
 import { useRooms, useUpdateRoom } from "../../_hooks/use-rooms";
@@ -85,38 +86,62 @@ export function RoomsView() {
       </div>
 
       <div className="flex flex-col gap-10">
-        {floors.map(({ floor, rooms }) => (
-          <section key={floor} className="flex flex-col gap-4">
-            <div className="flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
-                {floor}-{labels.floorSingular.charAt(0).toUpperCase()}{labels.floorSingular.slice(1)}
-              </h2>
-              <span className="text-sm font-medium text-zinc-500">
-                {rooms.length} ta {labels.unitSingular}
-              </span>
+        {floors.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 py-20 px-6 text-center dark:border-zinc-800 dark:bg-zinc-900/20">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100/50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 mb-4">
+              {isBus ? <CarFront className="h-8 w-8" /> : restaurant ? <UtensilsCrossed className="h-8 w-8" /> : <BedDouble className="h-8 w-8" />}
             </div>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
+              Hali hech qanday {labels.unitSingular} qo'shilmagan
+            </h3>
+            <p className="mt-2 mb-6 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
+              {labels.unitSingular} qo'shishdan oldin, avval uning {labels.unitTypeLabel.toLowerCase()}sini yaratishingiz kerak (masalan, narxi va rasmlari bilan).
+            </p>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={() => router.push('/listing')}>
+                {labels.unitTypeLabel} yaratish
+              </Button>
+              {roomTypes.length > 0 && (
+                <Button onClick={() => setAddingRoom(true)}>
+                  {labels.addUnitLabel}
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          floors.map(({ floor, rooms }) => (
+            <section key={floor} className="flex flex-col gap-4">
+              <div className="flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+                  {floor}-{labels.floorSingular.charAt(0).toUpperCase()}{labels.floorSingular.slice(1)}
+                </h2>
+                <span className="text-sm font-medium text-zinc-500">
+                  {rooms.length} ta {labels.unitSingular}
+                </span>
+              </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {rooms.map(room => {
-                const roomType = roomTypes.find(t => t.id === room.roomTypeId);
-                const roomBeds = isHostel ? beds.filter((b) => b.roomId === room.id) : [];
-                return (
-                  <RoomCard
-                    key={room.id}
-                    room={room}
-                    roomType={roomType}
-                    beds={isHostel ? roomBeds : undefined}
-                    restaurant={restaurant}
-                    isBus={isBus}
-                    onEdit={() => setEditingRoom(room)}
-                    onManageBeds={isHostel ? () => setManagingBedsFor(room) : undefined}
-                    labels={labels}
-                  />
-                );
-              })}
-            </div>
-          </section>
-        ))}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {rooms.map(room => {
+                  const roomType = roomTypes.find(t => t.id === room.roomTypeId);
+                  const roomBeds = isHostel ? beds.filter((b) => b.roomId === room.id) : [];
+                  return (
+                    <RoomCard
+                      key={room.id}
+                      room={room}
+                      roomType={roomType}
+                      beds={isHostel ? roomBeds : undefined}
+                      restaurant={restaurant}
+                      isBus={isBus}
+                      onEdit={() => setEditingRoom(room)}
+                      onManageBeds={isHostel ? () => setManagingBedsFor(room) : undefined}
+                      labels={labels}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          ))
+        )}
       </div>
 
       <RoomDialog
