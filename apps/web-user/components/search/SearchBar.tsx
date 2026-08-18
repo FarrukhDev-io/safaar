@@ -113,6 +113,7 @@ export function SearchBar({
             <DatePicker
               locale={locale}
               label=""
+              placeholder={dict.checkIn}
               value={checkIn}
               min={today}
               icon={null}
@@ -137,6 +138,7 @@ export function SearchBar({
             <DatePicker
               locale={locale}
               label=""
+              placeholder={dict.checkOut}
               value={checkOut}
               min={checkIn || today}
               icon={null}

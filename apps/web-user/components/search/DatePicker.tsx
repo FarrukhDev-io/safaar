@@ -35,6 +35,7 @@ export function DatePicker({
   min,
   icon,
   compact,
+  placeholder,
 }: {
   locale: Locale;
   label: string;
@@ -45,6 +46,7 @@ export function DatePicker({
   icon: React.ReactNode;
   /** Compact rejim: wrapper border/shadow yo'q, mobil karta ichida ishlatish uchun. */
   compact?: boolean;
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -150,7 +152,7 @@ export function DatePicker({
               displayValue ? "text-slate-900" : "text-slate-600"
             }`}
           >
-            {displayValue ?? "—"}
+            {displayValue ?? placeholder ?? "—"}
           </span>
         </span>
       </button>
