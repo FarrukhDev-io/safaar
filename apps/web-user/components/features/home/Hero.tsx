@@ -11,7 +11,7 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
         alt="Safaar Samarqand"
         fill
         priority
-        className="object-cover object-center"
+        className="object-cover object-top"
         sizes="100vw"
         quality={85}
       />
