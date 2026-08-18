@@ -46,8 +46,24 @@ export default async function HomePage({
     api.cms.getPublicStats().catch(() => null),
   ]);
 
-  const hotels = featuredResult.items;
+  const hotels = [...featuredResult.items];
 
+  // UI'da qanday ko'rinishini bilish uchun vaqtinchalik 4-kartani qo'shamiz
+  if (hotels.length === 3) {
+    hotels.push({
+      id: "dummy-hotel-4",
+      slug: "hyatt-regency-tashkent",
+      name: "Hyatt Regency Tashkent",
+      cityName: "Toshkent",
+      stars: 5,
+      rating: 4.8,
+      reviewsCount: 342,
+      minPriceSum: 1800000,
+      imageUrl: "/Samarkand-Registan-cinematic.jpeg",
+      latitude: 41.3131,
+      longitude: 69.2797,
+    });
+  }
   const deals: DealItem[] = rawDeals.map((d) => ({
     id: d.id,
     slug: d.slug,
