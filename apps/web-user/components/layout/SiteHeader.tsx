@@ -29,12 +29,12 @@ function AuthButtons({
       <div className={`flex gap-1.5 ${isCol ? "flex-col" : "items-center"}`}>
         <Link
           href={`${base}/account`}
-          className={buttonVariants({ variant: "ghost", rounded: "full", className: sizeClass })}
+          className={buttonVariants({ variant: "ghost", rounded: "xl", className: sizeClass })}
         >
           {dict.actions.account}
         </Link>
         <form action={logoutAction.bind(null, locale)} className={isCol ? "w-full flex" : ""}>
-          <Button size="sm" variant="secondary" rounded="full" type="submit" className={isCol ? "w-full flex-1 min-h-[44px]" : ""}>
+          <Button size="sm" variant="secondary" rounded="xl" type="submit" className={isCol ? "w-full flex-1 min-h-[44px]" : ""}>
             {dict.actions.logout}
           </Button>
         </form>
@@ -44,13 +44,13 @@ function AuthButtons({
 
   const loginClasses = buttonVariants({ 
     variant: "secondary", 
-    rounded: "full", 
+    rounded: "xl", 
     className: cn(sizeClass, "!h-10 min-h-[40px] px-4 text-[15px] font-bold") 
   });
   
   const registerClasses = buttonVariants({ 
     variant: "primary", 
-    rounded: "full", 
+    rounded: "xl", 
     className: cn(sizeClass, "!h-10 min-h-[40px] px-4 text-[15px] font-bold") 
   });
 
