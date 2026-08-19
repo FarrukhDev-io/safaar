@@ -84,9 +84,10 @@ export function SearchBar({
       <form
         onSubmit={handleSubmit}
         className="relative flex flex-col gap-3 rounded-3xl bg-white p-3.5 shadow-xl shadow-slate-300/40 transition-all duration-300 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-3xl md:p-2 sm:p-4"
+        style={{ border: '4px solid #FFB600' }}
       >
         {/* 1. Shahar / Destinatsiya */}
-        <div className={fieldWrapperClass} style={{ border: '2px solid #FFB600' }}>
+        <div className={fieldWrapperClass}>
           <MapPin className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
             <CityPicker
@@ -101,7 +102,7 @@ export function SearchBar({
         <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
         {/* 2. Kirish sanasi */}
-        <div className={fieldWrapperClass} style={{ border: '2px solid #FFB600' }}>
+        <div className={fieldWrapperClass}>
           <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
             <DatePicker
@@ -123,7 +124,7 @@ export function SearchBar({
         <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
         {/* 3. Chiqish sanasi */}
-        <div className={fieldWrapperClass} style={{ border: '2px solid #FFB600' }}>
+        <div className={fieldWrapperClass}>
           <Calendar className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
           <div className="min-w-0 flex-1">
             <DatePicker
@@ -142,7 +143,7 @@ export function SearchBar({
         <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
         {/* 3. Mehmonlar soni */}
-        <div className={fieldWrapperClass} style={{ border: '2px solid #FFB600' }}>
+        <div className={fieldWrapperClass}>
           <div className="flex w-full items-center gap-3">
             <Users className="h-5 w-5 shrink-0 text-primary-600 group-hover:text-primary-700 transition-colors" aria-hidden />
             <div className="flex-1">
