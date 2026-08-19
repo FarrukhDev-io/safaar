@@ -78,23 +78,27 @@ export function DatePicker({
   }, [open]);
 
   // Oy nomi va hafta kunlari (tilga moslangan)
+  // "uz" locale Intl'da to'liq qo'llab-quvvatlanmaydi → "2026 M08" kabi chiqadi.
+  // Shuning uchun uz→ru, boshqalar o'z locale'da.
+  const safeLocale = locale === "uz" ? "ru" : locale;
+
   const monthLabel = useMemo(
     () =>
-      new Intl.DateTimeFormat(locale, {
+      new Intl.DateTimeFormat(safeLocale, {
         month: "long",
         year: "numeric",
       }).format(view),
-    [locale, view],
+    [safeLocale, view],
   );
 
   const weekdays = useMemo(() => {
-    const fmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
+    const fmt = new Intl.DateTimeFormat(safeLocale, { weekday: "short" });
     // Dushanba boshlanishi (1..7)
     const base = new Date(2024, 0, 1); // 2024-01-01 = Dushanba
     return Array.from({ length: 7 }, (_, i) =>
       fmt.format(new Date(base.getFullYear(), base.getMonth(), base.getDate() + i)),
     );
-  }, [locale]);
+  }, [safeLocale]);
 
   // Oyning kunlari grid (dushanbadan)
   const days = useMemo(() => {
@@ -111,7 +115,7 @@ export function DatePicker({
   }, [view]);
 
   const displayValue = selected
-    ? new Intl.DateTimeFormat(locale, {
+    ? new Intl.DateTimeFormat(safeLocale, {
         day: "numeric",
         month: "short",
       }).format(selected)
