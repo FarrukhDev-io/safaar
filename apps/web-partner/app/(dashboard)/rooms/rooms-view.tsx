@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, BedSingle, UtensilsCrossed, Users, CarFront } from "lucide-react";
+import { BedDouble, BedSingle, UtensilsCrossed, Users, CarFront, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,7 +19,7 @@ import { getPartnerLabels, hasBeds, hasBuses, isDacha, isRestaurant } from "../.
 
 export function RoomsView() {
   const router = useRouter();
-  const { data: rooms } = useRooms();
+  const { allRooms: rooms } = useRooms();
   const { data: roomTypes } = useRoomTypes();
   useBeds();
   const beds = useDataStore((s) => s.beds);
@@ -41,7 +41,9 @@ export function RoomsView() {
   // Qavatlar bo'yicha guruhlash
   const floors = useMemo(() => {
     const map = new Map<number, Room[]>();
-    rooms.forEach(room => {
+    rooms
+      .filter((room) => !room.number.startsWith("DELETED_"))
+      .forEach(room => {
       if (!map.has(room.floor)) {
         map.set(room.floor, []);
       }
@@ -207,27 +209,42 @@ function RoomCard({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onEdit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onEdit();
-      }}
-      className={`relative flex h-full w-full cursor-pointer flex-col rounded-xl border border-zinc-200 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-1 dark:border-zinc-800 dark:bg-[var(--surface-muted)] ${room.status === RoomStatus.OUT_OF_SERVICE ? 'opacity-70' : ''}`}
+      className={`relative flex h-full w-full flex-col rounded-xl border border-zinc-200 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:shadow-md dark:border-zinc-800 dark:bg-[var(--surface-muted)] ${!room.isListed ? 'opacity-50 bg-zinc-50 dark:bg-zinc-900/50 grayscale-[50%]' : room.status === RoomStatus.OUT_OF_SERVICE ? 'opacity-70' : ''}`}
     >
       <div className="flex items-start justify-between">
-        <span className="text-2xl font-bold text-zinc-900 dark:text-white">
-          {room.number}
-        </span>
+        <div className="flex items-center gap-2">
+          <button 
+            type="button" 
+            onClick={onEdit}
+            className="text-2xl font-bold text-zinc-900 hover:text-brand-600 dark:text-white dark:hover:text-brand-400 transition-colors text-left"
+            title="Tahrirlash"
+          >
+            {room.number}
+          </button>
+          {!room.isListed && (
+            <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+              YASHIRILGAN
+            </span>
+          )}
+        </div>
         <div className="flex flex-col items-end gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400">
-            {isBus ? (
-              <CarFront className="h-4 w-4" />
-            ) : restaurant ? (
-              <UtensilsCrossed className="h-4 w-4" />
-            ) : (
-              <BedDouble className="h-4 w-4" />
-            )}
+          <div className="flex gap-2">
+            <button
+              onClick={onEdit}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 text-zinc-500 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:text-zinc-400 dark:hover:bg-zinc-800 transition-colors"
+              title="Tahrirlash"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            </button>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400">
+              {isBus ? (
+                <CarFront className="h-4 w-4" />
+              ) : restaurant ? (
+                <UtensilsCrossed className="h-4 w-4" />
+              ) : (
+                <BedDouble className="h-4 w-4" />
+              )}
+            </div>
           </div>
           {isBus && (
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${room.status === RoomStatus.OUT_OF_SERVICE ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -262,7 +279,7 @@ function RoomCard({
               {labels.priceLabel}
             </span>
             <div className="font-semibold text-brand-700 dark:text-brand-300 mt-0.5">
-              {roomType ? formatMoney(roomType.basePrice) : "—"}
+              {room.nightlyPrice ?? roomType?.basePrice ? formatMoney(room.nightlyPrice ?? roomType!.basePrice) : "—"}
             </div>
           </div>
         )}
@@ -299,27 +316,27 @@ function RoomCard({
         </div>
       </div>
 
-      <div className="mt-3 w-full border-t border-zinc-100 pt-3 dark:border-zinc-800/80">
-        <button
-          type="button"
-          disabled={isUpdating}
-          onClick={(e) => {
-            e.stopPropagation();
-            updateRoom({
-              id: room.id,
-              values: {
-                number: room.number,
-                floor: room.floor,
-                roomTypeId: room.roomTypeId,
-                status: room.status,
-                isListed: !room.isListed,
-              }
-            });
-          }}
-          className={`flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-colors ${room.isListed ? 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700' : 'bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-900/40 dark:text-brand-300 dark:hover:bg-brand-900/60'}`}
-        >
-          {room.isListed ? "E'londan olish (Yashirish)" : "E'longa chiqarish (Sotish)"}
-        </button>
+      <div className="mt-auto pt-4 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800">
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Sotuvda ko'rsatish
+        </span>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input 
+            type="checkbox" 
+            className="sr-only peer" 
+            checked={room.isListed}
+            disabled={isUpdating}
+            onChange={(e) => {
+              updateRoom({
+                id: room.id,
+                values: {
+                  isListed: e.target.checked,
+                }
+              });
+            }}
+          />
+          <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand-500/30 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-zinc-600 peer-checked:bg-brand-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+        </label>
       </div>
     </div>
   );

@@ -255,7 +255,7 @@ export function ReservationDetailView({ id }: { id: string }) {
                 label="Telefon"
                 value={
                   <a
-                    href={`tel:+${data.guest.phone}`}
+                    href={data.guest.phone.startsWith("+") ? `tel:${data.guest.phone}` : `tel:+${data.guest.phone}`}
                     className="text-brand-700 hover:underline dark:text-brand-300"
                   >
                     {formatPhone(data.guest.phone)}
