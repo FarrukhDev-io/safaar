@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore, useEffect } from "react";
 import Link from "next/link";
 import { Sparkles, X, ArrowRight } from "lucide-react";
 import { type PromoBarConfig, getLocalizedText } from "@/lib/promo";
+import { PromoShinyText } from "@/components/ui/PromoShinyText";
 
 interface PromoBarProps {
   config?: PromoBarConfig | null;
@@ -61,7 +62,7 @@ export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
           <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-pulse hidden sm:inline" aria-hidden />
         )}
 
-        <span className="line-clamp-1 drop-shadow-xs">{text}</span>
+        <PromoShinyText className="line-clamp-1 drop-shadow-xs">{text}</PromoShinyText>
 
         {config?.link && (
           <Link
