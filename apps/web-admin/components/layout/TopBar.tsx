@@ -3,7 +3,7 @@
 import { Bell, LogOut, User, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Cookies from "js-cookie";
+import { adminLogoutAction } from "@/lib/auth/actions";
 import { useAuthStore } from "@/lib/store/auth";
 import { useNotificationsStore } from "@/lib/store/notifications";
 import { AdminApi } from "@/lib/api/admin-api";
@@ -55,8 +55,7 @@ export default function TopBar() {
 
   const handleLogout = () => {
     logout();
-    Cookies.remove("admin_token");
-    router.push("/login");
+    adminLogoutAction().finally(() => router.push("/login"));
   };
 
   const displayName = user?.name || "Admin";

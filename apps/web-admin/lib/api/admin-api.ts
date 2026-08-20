@@ -985,51 +985,14 @@ function isNotFoundError(error: unknown): boolean {
 
 export const AdminApi = {
   // Auth
-  login: async (username: string, password: string) => {
-    const { data } = await apiClient.post('/auth/admin/login', {
-      username,
-      password,
-    });
-    if (data.requires_2fa) {
-      return { requires2FA: true, challengeId: data.challenge_id };
-    }
-    const token = data.accessToken ?? data.access_token;
-    if (!token) {
-      throw new Error('Login token qaytmadi');
-    }
-    return {
-      requires2FA: false,
-      token,
-      user: {
-        id: data.admin?.id ?? 'admin',
-        name: data.admin?.full_name ?? data.admin?.email ?? 'Admin',
-        email: data.admin?.email ?? username,
-        role: data.admin?.role ?? 'SUPER_ADMIN',
-        has2FA: data.admin?.has_2fa ?? false,
-      },
-    };
-  },
-
-  verify2FA: async (challengeId: string, code: string) => {
-    const { data } = await apiClient.post('/auth/admin/verify-2fa', {
-      challenge_id: challengeId,
-      code,
-    });
-    const token = data.accessToken ?? data.access_token;
-    if (!token) {
-      throw new Error('Login token qaytmadi');
-    }
-    return {
-      token,
-      user: {
-        id: data.admin?.id ?? 'admin',
-        name: data.admin?.full_name ?? data.admin?.email ?? 'Admin',
-        email: data.admin?.email ?? 'admin@safaar.uz',
-        role: data.admin?.role ?? 'SUPER_ADMIN',
-        has2FA: data.admin?.has_2fa ?? true,
-      },
-    };
-  },
+  //
+  // `login`/`verify2FA` ilgari shu yerda edi, lekin login vaqtida haqiqiy
+  // JWT'ni to'g'ridan-to'g'ri klientga qaytarib, keyin `js-cookie` orqali
+  // JS o'qiy oladigan cookie'ga yozib qo'yishardi (XSS bo'lsa,
+  // SUPER_ADMIN tokeni to'liq o'g'irlanishi mumkin edi). Endi bu ikkalasi
+  // `lib/auth/actions.ts`dagi Server Action'lar (`adminLoginAction`,
+  // `adminVerify2FAAction`) — token hech qachon klient JS'iga chiqmaydi,
+  // to'g'ridan-to'g'ri serverda httpOnly cookie'ga yoziladi.
 
   setup2FA: async () => {
     const { data } = await apiClient.post('/auth/admin/2fa/setup');

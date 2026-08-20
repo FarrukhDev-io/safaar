@@ -28,7 +28,7 @@ import { SmsService } from '../infrastructure/sms.service';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { otpStore, type OtpPurpose } from './otp-store';
 import { authSessionStore } from './session-store';
-import { signJwt, verifyJwt } from './security';
+import { isProduction, signJwt, verifyJwt } from './security';
 import { createTotpSetup, verifyTotpCode, type TotpSetup } from './totp';
 
 type DbRow = Record<string, unknown>;
@@ -113,45 +113,6 @@ export class AuthService {
 
   sendUserOtp(phone: string) {
     return this.sendOtpDemoOrFail(this.normalizePhone(phone), 'user_login');
-  }
-
-  async sendUserEmailOtp(email: string) {
-    const normalizedEmail = this.normalizeEmail(email);
-    if (!this.isValidEmail(normalizedEmail)) {
-      throw new BadRequestException({
-        code: 'EMAIL_INVALID',
-        message: "To'g'ri email manzil kiriting",
-      });
-    }
-
-    const response = this.createOtpChallenge(normalizedEmail, 'user_login');
-    const code = otpStore.getDeliveryCode(response.challenge_id);
-
-    if (this.isDemoAuthEnabled()) {
-      return { ...response, dev_code: code };
-    }
-
-    const message = {
-      to: normalizedEmail,
-      subject: 'Safaar kirish kodi',
-      text: `Safaar hisobingizga kirish kodingiz: ${code ?? '******'}`,
-      html: `<p>Safaar hisobingizga kirish kodingiz:</p><h2>${code ?? '******'}</h2>`,
-    };
-
-    const delivery = await this.sendEmailOrFail(message);
-    if (!delivery.accepted) {
-      throw new ServiceUnavailableException({
-        code: 'EMAIL_DELIVERY_FAILED',
-        message: 'Tasdiqlash kodini emailga yuborib bo\u2018lmadi',
-      });
-    }
-
-    return {
-      sent: response.sent,
-      challenge_id: response.challenge_id,
-      expires_in_seconds: response.expires_in_seconds,
-      resend_after_seconds: response.resend_after_seconds,
-    };
   }
 
   sendPartnerOtp(phone: string) {
@@ -250,62 +211,6 @@ export class AuthService {
     return {
       ...(await this.issueTokens({
         actorId: String(user['id']),
-        actorType: 'user',
-        role: Role.USER,
-      })),
-      user,
-    };
-  }
-
-  async verifyUserEmailOtp(dto: {
-    email: string;
-    code: string;
-    challenge_id?: string;
-  }): Promise<OAuthExchangeResult> {
-    const email = this.normalizeEmail(dto.email);
-    if (!this.isValidEmail(email)) {
-      throw new BadRequestException({
-        code: 'EMAIL_INVALID',
-        message: "To'g'ri email manzil kiriting",
-      });
-    }
-
-    this.consumeOtp({
-      challengeId: dto.challenge_id,
-      phone: email,
-      purpose: 'user_login',
-      code: dto.code,
-    });
-
-    const now = new Date().toISOString();
-    const id = randomUUID();
-    const rows = await this.pg.query<DbRow>(
-      `INSERT INTO users
-         (id, phone, email, status, preferred_language, bonus_balance,
-          email_verified_at, last_login_at, created_at, updated_at)
-       VALUES ($1::uuid, null, $2, 'active', 'uz', 0, $3, $3, $3, $3)
-       ON CONFLICT (email) DO UPDATE
-       SET email_verified_at = EXCLUDED.email_verified_at,
-           last_login_at = EXCLUDED.last_login_at,
-           status = CASE
-             WHEN users.status = 'unverified' THEN 'active'::"UserStatus"
-             ELSE users.status
-           END,
-           updated_at = EXCLUDED.updated_at
-       RETURNING id::text, email, first_name, last_name, status::text`,
-      [id, email, now],
-    );
-    if (rows[0]?.['status'] !== 'active') {
-      throw new UnauthorizedException({
-        code: 'USER_NOT_ACTIVE',
-        message: 'Foydalanuvchi hisobi faol emas',
-      });
-    }
-    const user = this.oauthUser(rows[0]);
-
-    return {
-      ...(await this.issueTokens({
-        actorId: user.id,
         actorType: 'user',
         role: Role.USER,
       })),
@@ -1220,8 +1125,12 @@ export class AuthService {
       } = {
         sent: true,
         challenge_id: challenge.id,
-        expires_in_seconds: 300,
-        resend_after_seconds: 60,
+        expires_in_seconds: Math.round(
+          (challenge.expiresAt - Date.now()) / 1000,
+        ),
+        resend_after_seconds: Math.round(
+          (challenge.resendAfter - Date.now()) / 1000,
+        ),
       };
 
       return response;
@@ -1230,6 +1139,12 @@ export class AuthService {
         throw new BadRequestException({
           code: 'OTP_RATE_LIMITED',
           message: 'OTP so\u2018rovlar limiti oshdi',
+        });
+      }
+      if (error instanceof Error && error.message === 'OTP_RESEND_TOO_SOON') {
+        throw new BadRequestException({
+          code: 'OTP_RESEND_TOO_SOON',
+          message: 'Kodni qayta so\u2018rashdan oldin biroz kuting',
         });
       }
       throw error;
@@ -1989,18 +1904,25 @@ export class AuthService {
   }
 
   /**
-   * Mahsulot hali haqiqiy foydalanuvchilar bilan ishga tushmagan bosqichda
-   * (yoki SMS/email provayder credentials hali sozlanmagan bo'lsa),
    * `ENABLE_DEMO_AUTH=true` bo'lsa, OTP kodi haqiqiy SMS/email o'rniga
-   * to'g'ridan-to'g'ri javobda
-   * (`dev_code`) qaytariladi — frontend uni ko'rsatib, verification
-   * oqimini providersiz sinab ko'rishi mumkin. Operator bu bayroqni real
-   * foydalanuvchilar chiqqanda `false`ga o'zgartirishi kerak (NODE_ENV
-   * qiymatidan qat'iy nazar — chunki NODE_ENV=production shu loyihada
-   * boshqa maqsadlarda ham, hali ishga tushirilmagan bosqichda ham
-   * ishlatiladi).
+   * to'g'ridan-to'g'ri javobda (`dev_code`) qaytariladi — faqat local
+   * development/staging'da provider credentials sozlanmagan paytda oqimni
+   * sinash uchun.
+   *
+   * MUHIM (xavfsizlik): bu ikkita mustaqil himoya qatlami bilan
+   * ta'minlangan. (1) `env.validation.ts` — `NODE_ENV=production` va
+   * `ENABLE_DEMO_AUTH=true` birga bo'lsa, ilova butunlay ishga
+   * tushishidan bosh tortadi (boot-time fail-fast). (2) shu yerdagi
+   * `!isProduction()` tekshiruvi — ikkinchi, mustaqil chiziq: hatto
+   * birinchi tekshiruv negadir chetlab o'tilgan taqdirda ham (masalan
+   * `NODE_ENV` runtime'da almashtirilgan holat), production muhitida bu
+   * funksiya HECH QACHON `true` qaytarmaydi, demak real OTP kodi hech
+   * qachon API javobida chiqmaydi.
    */
   private isDemoAuthEnabled(): boolean {
+    if (isProduction()) {
+      return false;
+    }
     return String(process.env.ENABLE_DEMO_AUTH ?? '').toLowerCase() === 'true';
   }
 

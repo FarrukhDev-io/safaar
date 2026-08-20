@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Shield, Lock, User, KeyRound, ArrowLeft } from "lucide-react";
-import Cookies from "js-cookie";
-import { AdminApi } from "../../../lib/api/admin-api";
+import { adminLoginAction, adminVerify2FAAction } from "../../../lib/auth/actions";
 import { useAuthStore } from "../../../lib/store/auth";
 
 export default function LoginPage() {
@@ -31,13 +30,14 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const data = await AdminApi.login(username, password);
-      
-      if (data.requires2FA) {
-        setChallengeId(data.challengeId!);
-      } else if (data.token && data.user) {
-        Cookies.set("admin_token", data.token, { expires: 1, path: "/" });
-        login(data.user);
+      const result = await adminLoginAction(username, password);
+
+      if ("error" in result) {
+        setError(result.error);
+      } else if (result.requires2FA) {
+        setChallengeId(result.challengeId);
+      } else {
+        login(result.user);
         router.push("/dashboard");
       }
     } catch (err) {
@@ -58,17 +58,16 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const data = await AdminApi.verify2FA(challengeId!, otpCode);
-      Cookies.set("admin_token", data.token, { expires: 1, path: "/" });
-      login(data.user);
-      router.push("/dashboard");
-    } catch (err: any) {
-      if (err?.response?.status === 401 && err?.response?.data?.error === 'AUTH_2FA_EXPIRED') {
-        setError("Vaqt tugadi, qaytadan kiring");
+      const result = await adminVerify2FAAction(challengeId!, otpCode);
+      if (result.ok) {
+        login(result.user);
+        router.push("/dashboard");
+      } else if (result.expired) {
+        setError(result.error);
         setChallengeId(null);
         setOtpCode("");
       } else {
-        setError("Kod noto'g'ri");
+        setError(result.error);
       }
     } finally {
       setLoading(false);

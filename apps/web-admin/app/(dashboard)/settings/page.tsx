@@ -7,7 +7,7 @@ import Button from "@/components/ui/Button";
 import { AdminApi } from "@/lib/api/admin-api";
 import { useAuthStore } from "@/lib/store/auth";
 import { QRCodeSVG } from "qrcode.react";
-import Cookies from "js-cookie";
+import { adminLogoutAction } from "@/lib/auth/actions";
 import { createPortal } from "react-dom";
 
 export default function SettingsPage() {
@@ -110,7 +110,7 @@ export default function SettingsPage() {
     try {
       await AdminApi.disable2FA();
       toast.success("2FA o'chirildi. Tizimdan chiqilmoqda...");
-      Cookies.remove("admin_token");
+      await adminLogoutAction();
       window.location.href = "/login";
     } catch (err) {
       toast.error("2FA ni o'chirib bo'lmadi");

@@ -47,7 +47,7 @@ function isDemoMode(): boolean {
   if (typeof window === 'undefined') return false;
   try {
     const auth = JSON.parse(
-      localStorage.getItem('uzbron-partner-auth') || '{}',
+      localStorage.getItem('safaar-partner-auth') || '{}',
     );
     const token: unknown = auth?.state?.tokens?.accessToken;
     return typeof token === 'string' && token.startsWith('demo.');

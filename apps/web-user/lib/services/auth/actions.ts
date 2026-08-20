@@ -35,7 +35,7 @@ export async function loginAction(
     await setSession({
       userId: result.user.id,
       role: Role.USER,
-      email: result.user.email,
+      email: result.user.email ?? undefined,
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
     });
@@ -56,11 +56,11 @@ export async function requestOtpAction(
   _prev: OtpState,
   formData: FormData,
 ): Promise<OtpState> {
-  const email = String(formData.get("email") ?? "").trim();
-  if (!email) return { ok: false, error: "EMAIL_REQUIRED" };
+  const phone = String(formData.get("phone") ?? "").trim();
+  if (!phone) return { ok: false, error: "PHONE_REQUIRED" };
 
   try {
-    const result = await api.auth.sendEmailOtp(email);
+    const result = await api.auth.sendPhoneOtp(phone);
     return { ok: true, devCode: result.devCode };
   } catch (error) {
     return {
@@ -91,11 +91,11 @@ export async function verifyOtpAction(
   const password = String(formData.get("password") ?? "");
 
   try {
-    const result = await api.auth.verifyEmailOtp(email, code);
+    const result = await api.auth.verifyPhoneOtp(phone, code);
     await setSession({
       userId: result.user.id,
       role: Role.USER,
-      email: result.user.email,
+      email: result.user.email ?? undefined,
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
     });

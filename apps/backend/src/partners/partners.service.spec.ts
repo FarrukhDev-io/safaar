@@ -6,6 +6,14 @@ import { PostgresService } from '../infrastructure/postgres.service';
 import { EventsService } from '../realtime/events.service';
 import { PartnersService } from './partners.service';
 
+jest.mock('../common/ssrf-guard', () => ({
+  assertPublicHttpUrl: jest.fn((rawUrl: string) =>
+    Promise.resolve(new URL(rawUrl)),
+  ),
+}));
+
+import { assertPublicHttpUrl } from '../common/ssrf-guard';
+
 describe('PartnersService frontend action endpoints', () => {
   let service: PartnersService;
   let pgMock: jest.Mocked<Pick<PostgresService, 'query'>> & {
@@ -618,7 +626,10 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
     mockBalanceQueries(700_000, 0);
 
     await expect(
-      service.withdrawal(actor, { amount: 700_001, bankAccount: '8600 1111 2222 3333' }),
+      service.withdrawal(actor, {
+        amount: 700_001,
+        bankAccount: '8600 1111 2222 3333',
+      }),
     ).rejects.toMatchObject({
       response: { code: 'WITHDRAWAL_EXCEEDS_BALANCE' },
     });
@@ -629,7 +640,10 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
     mockBalanceQueries(700_000, 700_000);
 
     await expect(
-      service.withdrawal(actor, { amount: 1, bankAccount: '8600 1111 2222 3333' }),
+      service.withdrawal(actor, {
+        amount: 1,
+        bankAccount: '8600 1111 2222 3333',
+      }),
     ).rejects.toMatchObject({
       response: { code: 'WITHDRAWAL_EXCEEDS_BALANCE' },
     });
@@ -666,7 +680,10 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
     mockBalanceQueries(0, 0);
 
     await expect(
-      service.withdrawal(actor, { amount: 1, bankAccount: '8600 1111 2222 3333' }),
+      service.withdrawal(actor, {
+        amount: 1,
+        bankAccount: '8600 1111 2222 3333',
+      }),
     ).rejects.toMatchObject({
       response: { code: 'WITHDRAWAL_EXCEEDS_BALANCE' },
     });
@@ -1517,5 +1534,79 @@ describe('PartnersService.deleteTeamMember (regression: L-1 false success on cro
     const result = await service.deleteTeamMember(actor, 'member-1');
 
     expect(result).toEqual({ id: 'member-1', deleted: true });
+  });
+});
+
+describe('PartnersService webhooks (SSRF guard)', () => {
+  let service: PartnersService;
+  let pg: jest.Mocked<Pick<PostgresService, 'query'>>;
+  const actor: RequestActor = {
+    id: '00000000-0000-0000-0000-000000000001',
+    actorType: 'partner',
+    role: Role.PARTNER,
+    roles: [Role.PARTNER],
+    organizationId: '00000000-0000-0000-0000-000000000002',
+    sessionId: 'test-session-id',
+  };
+
+  beforeEach(() => {
+    (assertPublicHttpUrl as jest.Mock).mockClear();
+    (assertPublicHttpUrl as jest.Mock).mockImplementation((rawUrl: string) =>
+      Promise.resolve(new URL(rawUrl)),
+    );
+    pg = { query: jest.fn().mockResolvedValue([{ id: 'webhook-1' }]) };
+    service = new PartnersService(
+      pg as unknown as PostgresService,
+      { add: jest.fn() } as unknown as JobQueueService,
+    );
+  });
+
+  it('createWebhook validates the URL through the SSRF guard before inserting it', async () => {
+    await service.createWebhook(actor, {
+      url: 'https://partner.example.com/hook',
+    });
+
+    expect(assertPublicHttpUrl).toHaveBeenCalledWith(
+      'https://partner.example.com/hook',
+    );
+  });
+
+  it('createWebhook rejects (and never inserts) a URL the SSRF guard blocks', async () => {
+    (assertPublicHttpUrl as jest.Mock).mockRejectedValueOnce(
+      new Error('WEBHOOK_URL_NOT_ALLOWED'),
+    );
+
+    await expect(
+      service.createWebhook(actor, {
+        url: 'http://169.254.169.254/latest/meta-data',
+      }),
+    ).rejects.toThrow('WEBHOOK_URL_NOT_ALLOWED');
+
+    expect(pg.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO partner_webhook_endpoints'),
+      expect.anything(),
+    );
+  });
+
+  it('updateWebhook validates a new URL through the SSRF guard before persisting it', async () => {
+    await service.updateWebhook(actor, 'webhook-1', {
+      url: 'https://partner.example.com/new-hook',
+    });
+
+    expect(assertPublicHttpUrl).toHaveBeenCalledWith(
+      'https://partner.example.com/new-hook',
+    );
+  });
+
+  it('updateWebhook rejects a URL the SSRF guard blocks', async () => {
+    (assertPublicHttpUrl as jest.Mock).mockRejectedValueOnce(
+      new Error('WEBHOOK_URL_NOT_ALLOWED'),
+    );
+
+    await expect(
+      service.updateWebhook(actor, 'webhook-1', {
+        url: 'http://10.0.0.5/hook',
+      }),
+    ).rejects.toThrow('WEBHOOK_URL_NOT_ALLOWED');
   });
 });

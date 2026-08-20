@@ -13,7 +13,6 @@
     "@tanstack/react-query": "^5.101.1",
     "axios": "^1.18.1",
     "date-fns": "^4.4.0",
-    "js-cookie": "^3.0.8",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
     "qrcode.react": "^4.2.0",
@@ -26,7 +25,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

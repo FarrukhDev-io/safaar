@@ -1,4 +1,4 @@
-import { randomInt, randomUUID } from 'node:crypto';
+import { randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { hashSecret } from './security';
 
 export type OtpPurpose = 'user_login' | 'partner_login' | 'password_reset';
@@ -14,7 +14,7 @@ export interface OtpChallenge {
   createdAt: string;
 }
 
-const otpTtlMs = 5 * 60_000;
+const otpTtlMs = toPositiveInt(process.env.OTP_TTL_SECONDS, 300) * 1000;
 const resendMs = 60_000;
 const maxAttempts = 5;
 const maxPerHour = 8;
@@ -22,24 +22,29 @@ const maxPerHour = 8;
 class OtpStore {
   private readonly challenges = new Map<string, OtpChallenge>();
   private readonly phoneRate = new Map<string, number[]>();
+  private readonly resendGuard = new Map<string, number>();
   private readonly deliveryCodes = new Map<string, string>();
 
   create(phone: string, purpose: OtpPurpose): OtpChallenge {
     this.assertRateLimit(phone);
+    this.assertResendCooldown(phone, purpose);
+
     const code = randomInt(100_000, 1_000_000).toString();
+    const now = Date.now();
     const challenge: OtpChallenge = {
       id: randomUUID(),
       phone,
       purpose,
       codeHash: hashSecret(code, this.otpPepper(phone, purpose)),
       attempts: 0,
-      expiresAt: Date.now() + otpTtlMs,
-      resendAfter: Date.now() + resendMs,
-      createdAt: new Date().toISOString(),
+      expiresAt: now + otpTtlMs,
+      resendAfter: now + resendMs,
+      createdAt: new Date(now).toISOString(),
     };
 
     this.challenges.set(challenge.id, challenge);
     this.deliveryCodes.set(challenge.id, code);
+    this.resendGuard.set(this.resendKey(phone, purpose), now);
     return challenge;
   }
 
@@ -62,7 +67,7 @@ class OtpStore {
 
     if (
       challenge.attempts > maxAttempts ||
-      challenge.codeHash !== expectedHash
+      !constantTimeEqual(challenge.codeHash, expectedHash)
     ) {
       throw new Error('OTP_INVALID');
     }
@@ -73,6 +78,14 @@ class OtpStore {
 
   getDeliveryCode(challengeId: string): string | undefined {
     return this.deliveryCodes.get(challengeId);
+  }
+
+  /** Faqat testlar uchun — modul darajasidagi singleton holatini tozalaydi. */
+  resetForTests(): void {
+    this.challenges.clear();
+    this.phoneRate.clear();
+    this.resendGuard.clear();
+    this.deliveryCodes.clear();
   }
 
   private findChallenge(input: {
@@ -115,9 +128,46 @@ class OtpStore {
     this.phoneRate.set(phone, hits);
   }
 
+  /**
+   * `resendAfter` challenge maydonida hisoblanardi, lekin hech qayerda
+   * majburlanmasdi — client uni e'tiborsiz qoldirib, kod so'rovini
+   * darhol qayta yuborishi mumkin edi (SMS bombing/cost-abuse vektori).
+   */
+  private assertResendCooldown(phone: string, purpose: OtpPurpose) {
+    const lastSentAt = this.resendGuard.get(this.resendKey(phone, purpose));
+    if (lastSentAt !== undefined && lastSentAt + resendMs > Date.now()) {
+      throw new Error('OTP_RESEND_TOO_SOON');
+    }
+  }
+
+  private resendKey(phone: string, purpose: OtpPurpose): string {
+    return `${purpose}:${phone}`;
+  }
+
   private otpPepper(phone: string, purpose: OtpPurpose): string {
     return `${process.env.OTP_PEPPER ?? 'safaar-dev-otp-pepper'}:${purpose}:${phone}`;
   }
+}
+
+/**
+ * Oddiy `!==` string solishtirish hash uzunligi/prefiks mos kelishiga
+ * qarab bir necha nanosekund farqli vaqt sarflaydi — nazariy jihatdan
+ * timing-attack orqali hash'ni bo'lak-bo'lak tiklashga imkon beradi.
+ * `timingSafeEqual` buferlar uzunligi teng bo'lishini talab qiladi,
+ * shu sabab uzunlik farqini alohida tekshiramiz.
+ */
+function constantTimeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
+}
+
+function toPositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 export const otpStore = new OtpStore();
