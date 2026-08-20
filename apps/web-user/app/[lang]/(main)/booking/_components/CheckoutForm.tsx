@@ -49,6 +49,12 @@ export function CheckoutForm({
   const nights = nightsBetween(checkIn, checkOut);
   const total = room.priceSum * Math.max(nights, 0);
 
+  const getErrorMessage = (error: string) => {
+    if (error === "ERROR") return dict.error;
+    const errorsDict = (dict as any).errors as Record<string, string> | undefined;
+    return errorsDict?.[error] ?? error;
+  };
+
   const handleSubmitForm = (formData: FormData) => {
     trackBookingStarted({
       hotelId,
@@ -186,7 +192,7 @@ export function CheckoutForm({
         )}
         {state.error && (
           <p className="text-sm text-red-600">
-            {state.error === "ERROR" ? dict.error : state.error}
+            {getErrorMessage(state.error)}
           </p>
         )}
 

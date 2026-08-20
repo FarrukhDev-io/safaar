@@ -13,5 +13,11 @@
   "perDay": "в день",
   "driverIncluded": "С водителем",
   "withoutDriver": "Без водителя",
-  "seats": "мест"
+  "seats": "мест",
+  "checkAvailability": "Проверить доступность",
+  "checkIn": "Дата получения",
+  "checkOut": "Дата возврата",
+  "noVehiclesAvailable": "Нет свободных машин на выбранные даты",
+  "noVehiclesAvailableDesc": "Пожалуйста, выберите другие даты.",
+  "noData": "Данные не найдены"
 }

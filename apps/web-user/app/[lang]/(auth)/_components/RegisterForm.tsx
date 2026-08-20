@@ -96,18 +96,18 @@ export function RegisterForm({
       </header>
 
       <form action={action} className="flex flex-col gap-4">
-        {/* Email + Send code */}
+        {/* Phone + Send code */}
         <div className="flex items-end gap-2">
           <label className="flex flex-1 flex-col gap-1.5">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.phone}</span>
             <Input
-              name="email"
-              type="email"
-              autoComplete="email"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={dict.emailPlaceholder}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder={dict.phonePlaceholder || "+998901234567"}
             />
           </label>
           <Button
@@ -125,7 +125,7 @@ export function RegisterForm({
         </div>
 
         {otpState.error && (
-          <p className="-mt-2 text-sm font-bold text-red-600">{otpState.error === "EMAIL_REQUIRED" ? dict.emailRequired : dict.error}</p>
+          <p className="-mt-2 text-sm font-bold text-red-600">{otpState.error === "PHONE_REQUIRED" ? (dict.phoneRequired ?? "Telefon raqamini kiriting.") : dict.error}</p>
         )}
 
         {otpState.devCode && (
@@ -170,14 +170,17 @@ export function RegisterForm({
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.phoneOptional}</span>
+          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+            {dict.email} <span className="text-red-500">*</span>
+          </span>
           <Input
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            placeholder={dict.phonePlaceholder}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder={dict.emailPlaceholder}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </label>
 
@@ -236,6 +239,7 @@ export function RegisterForm({
 
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="next" value={next} />
+        <input type="hidden" name="phone" value={phone} />
 
         {errorMsg && (
           <p className="text-sm font-bold text-red-600">

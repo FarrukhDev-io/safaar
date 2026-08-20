@@ -13,5 +13,11 @@
   "perDay": "kuniga",
   "driverIncluded": "Haydovchi bilan",
   "withoutDriver": "Haydovchisiz",
-  "seats": "o'rin"
+  "seats": "o'rin",
+  "checkAvailability": "Mavjudlikni tekshirish",
+  "checkIn": "Olib ketish sanasi",
+  "checkOut": "Qaytarish sanasi",
+  "noVehiclesAvailable": "Tanlangan sanalarda bo'sh mashina yo'q",
+  "noVehiclesAvailableDesc": "Boshqa sanalarni tanlab ko'ring.",
+  "noData": "Ma'lumot topilmadi"
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Car, PhoneCall, ShieldCheck, Users, Search } from "lucide-react";
 import { formatSum } from "@/lib/money";
-import type { CatalogDict } from "@/i18n/dictionaries";
+import type { TransportDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import type { TransportItem } from "@/components/catalog/types";
 import { BaseCard } from "@/components/ui/BaseCard";
@@ -11,6 +12,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { CategoryTabs, type CategoryTab } from "@/components/ui/CategoryTabs";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { Button } from "@/components/ui/Button";
+import type { Locale } from "@/i18n/config";
 
 export type { TransportItem };
 
@@ -19,7 +23,7 @@ function TransportCard({
   dict,
 }: {
   item: TransportItem;
-  dict: CatalogDict["transport"];
+  dict: TransportDict;
 }) {
   const categoryLabel = dict.categories?.[item.categoryKey] ?? item.categoryDefault;
 
@@ -79,14 +83,32 @@ function TransportCard({
 export function TransportView({
   dict,
   items,
+  locale,
+  initialCheckIn = "",
+  initialCheckOut = "",
 }: {
-  dict: CatalogDict["transport"];
+  dict: TransportDict;
   items: TransportItem[];
+  locale: Locale;
+  initialCheckIn?: string;
+  initialCheckOut?: string;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [hasDriverFilter, setHasDriverFilter] = useState<string>("all");
+  const [checkIn, setCheckIn] = useState(initialCheckIn);
+  const [checkOut, setCheckOut] = useState(initialCheckOut);
+
+  const handleSearchAvailability = () => {
+    const params = new URLSearchParams();
+    if (checkIn) params.set("checkIn", checkIn);
+    if (checkOut) params.set("checkOut", checkOut);
+    const queryStr = params.toString();
+    router.push(queryStr ? `${pathname}?${queryStr}` : pathname);
+  };
 
   const categories = useMemo(
     () => [
@@ -148,7 +170,7 @@ export function TransportView({
           </>
         }
         filterControls={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-end gap-2">
             <Select
               value={selectedCity}
               onChange={setSelectedCity}
@@ -168,6 +190,31 @@ export function TransportView({
               ]}
               className="w-44"
             />
+            <div className="flex items-end gap-2">
+              <DatePicker
+                locale={locale}
+                label={dict.checkIn}
+                value={checkIn}
+                onChange={setCheckIn}
+                min={new Date().toISOString().split("T")[0]}
+                className="w-36"
+              />
+              <DatePicker
+                locale={locale}
+                label={dict.checkOut}
+                value={checkOut}
+                onChange={setCheckOut}
+                min={checkIn || new Date().toISOString().split("T")[0]}
+                className="w-36"
+              />
+              <Button
+                variant="primary"
+                onClick={handleSearchAvailability}
+                className="font-bold shrink-0 min-h-[44px]"
+              >
+                {dict.checkAvailability}
+              </Button>
+            </div>
           </div>
         }
       />
@@ -179,7 +226,8 @@ export function TransportView({
       {filtered.length === 0 ? (
         <EmptyState
           icon={<ShieldCheck className="h-6 w-6" />}
-          title="Ma'lumot topilmadi"
+          title={initialCheckIn && initialCheckOut ? (dict.noVehiclesAvailable ?? "Tanlangan sanalarda bo'sh mashina yo'q") : (dict.noData ?? "Ma'lumot topilmadi")}
+          description={initialCheckIn && initialCheckOut ? (dict.noVehiclesAvailableDesc ?? "Boshqa sanalarni tanlab ko'ring.") : undefined}
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">

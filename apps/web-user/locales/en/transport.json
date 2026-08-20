@@ -13,5 +13,11 @@
   "perDay": "per day",
   "driverIncluded": "With Driver",
   "withoutDriver": "Self-drive",
-  "seats": "seats"
+  "seats": "seats",
+  "checkAvailability": "Check availability",
+  "checkIn": "Pick-up date",
+  "checkOut": "Return date",
+  "noVehiclesAvailable": "No cars available for selected dates",
+  "noVehiclesAvailableDesc": "Please try selecting other dates.",
+  "noData": "No data found"
 }

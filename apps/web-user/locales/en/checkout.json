@@ -20,5 +20,13 @@
   "total": "Total",
   "confirm": "Confirm booking",
   "needDates": "Select check-in and check-out dates to continue.",
-  "error": "Booking failed. Please try again."
+  "error": "Booking failed. Please try again.",
+  "errors": {
+    "ROOM_ALREADY_BOOKED": "The selected room is already booked for these dates.",
+    "VEHICLE_ALREADY_BOOKED": "The selected vehicle is already booked for these dates.",
+    "BOOKING_DATES_INVALID": "Invalid booking dates.",
+    "GUEST_DETAILS_REQUIRED": "Guest details are required.",
+    "PROMO_INVALID": "Promo code is invalid or expired.",
+    "PROMO_LIMIT_REACHED": "Promo code usage limit reached."
+  }
 }
