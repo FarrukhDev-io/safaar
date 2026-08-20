@@ -4,30 +4,46 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { KeyRound, Mail } from 'lucide-react';
+import { KeyRound, Phone, FlaskConical } from 'lucide-react';
 import { Button } from '../../_components/ui/button';
 import { Input } from '../../_components/ui/input';
 import { Label } from '../../_components/ui/label';
 import {
-  usePartnerEmailOtpRequest,
-  usePartnerEmailOtpVerify,
+  usePartnerPhoneOtpRequest,
+  usePartnerPhoneOtpVerify,
 } from '../../_hooks/use-auth';
 import type { PartnerAccessStatus } from '../../_lib/api/endpoints/access';
 
+// ─── Demo tur tanlash ─────────────────────────────────────────────────────────
+const DEMO_PHONE = '+998901234567';
+
+const DEMO_TYPES = [
+  { value: 'hotel',      emoji: '🏨', label: 'Mehmonxona' },
+  { value: 'hostel',     emoji: '🛏️', label: 'Hostel' },
+  { value: 'dacha',      emoji: '🏡', label: 'Dacha' },
+  { value: 'restaurant', emoji: '🍽️', label: 'Restoran' },
+  { value: 'bus',        emoji: '🚗', label: 'Rent Car' },
+  { value: 'guesthouse', emoji: '🏠', label: 'Mehmon uyi' },
+  { value: 'motel',      emoji: '🛣️', label: 'Motel' },
+] as const;
+// ─────────────────────────────────────────────────────────────────────────────
+
 const loginSchema = z.object({
-  email: z
+  phone: z
     .string()
     .trim()
-    .min(1, 'Email kiriting')
-    .email("Email noto'g'ri formatda")
-    .transform((value) => value.toLowerCase()),
+    .min(1, 'Telefon raqam kiriting')
+    .refine((val) => {
+      const digits = val.replace(/\D/g, '');
+      return digits.length === 9 || (digits.startsWith('998') && digits.length === 12);
+    }, "Noto'g'ri telefon raqami formati. Masalan: +998901234567"),
   code: z.string().optional(),
 });
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-interface EmailChallenge {
-  email: string;
+interface PhoneChallenge {
+  phone: string;
   challengeId: string;
   partnerType?: string;
   accessStatus?: PartnerAccessStatus;
@@ -35,28 +51,33 @@ interface EmailChallenge {
 }
 
 export function LoginForm() {
-  const [challenge, setChallenge] = useState<EmailChallenge | null>(null);
-  const otpRequest = usePartnerEmailOtpRequest();
-  const otpVerify = usePartnerEmailOtpVerify();
+  const [challenge, setChallenge] = useState<PhoneChallenge | null>(null);
+  const [demoType, setDemoType] = useState<string>('hotel');
+  const [watchedPhone, setWatchedPhone] = useState('');
+  const otpRequest = usePartnerPhoneOtpRequest();
+  const otpVerify = usePartnerPhoneOtpVerify();
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', code: '' },
+    defaultValues: { phone: '+998', code: '' },
   });
+
+  const isDemo = watchedPhone.trim() === DEMO_PHONE || watchedPhone.replace(/\D/g, '') === '998901234567';
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (!challenge) {
       try {
-        const result = await otpRequest.mutateAsync(values.email);
+        const result = await otpRequest.mutateAsync(values.phone);
         setChallenge({
-          email: result.email,
+          phone: result.phone,
           challengeId: result.challengeId,
-          partnerType: result.partnerType,
+          // Demo rejimda foydalanuvchi tanlagan turni ishlatamiz
+          partnerType: (result.phone === DEMO_PHONE || result.phone.replace(/\D/g, '') === '998901234567') ? demoType : result.partnerType,
           accessStatus: result.accessStatus,
           devCode: result.devCode,
         });
-        form.setValue('email', result.email);
+        form.setValue('phone', result.phone);
       } catch (error) {
-        form.setError('email', {
+        form.setError('phone', {
           message:
             error instanceof Error
               ? error.message
@@ -69,14 +90,14 @@ export function LoginForm() {
     const code = String(values.code ?? '').trim();
     if (code.length !== 6) {
       form.setError('code', {
-        message: 'Emailga yuborilgan 6 xonali kodni kiriting',
+        message: 'Telefon raqamga yuborilgan kodni kiriting',
       });
       return;
     }
 
     try {
       await otpVerify.mutateAsync({
-        email: challenge.email,
+        phone: challenge.phone,
         code,
         challengeId: challenge.challengeId,
         partnerType: challenge.partnerType,
@@ -95,7 +116,7 @@ export function LoginForm() {
   const resetChallenge = () => {
     setChallenge(null);
     form.setValue('code', '');
-    form.setFocus('email');
+    form.setFocus('phone');
   };
 
   const loading = otpRequest.isPending || otpVerify.isPending;
@@ -104,60 +125,89 @@ export function LoginForm() {
     <form
       className="flex flex-col gap-4 fade-in"
       onSubmit={onSubmit}
-      aria-label="Email bilan kirish"
+      aria-label="Telefon raqam bilan kirish"
       noValidate
     >
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="email">Email</Label>
+        <label htmlFor="phone" className="text-xs font-bold text-slate-700">
+          Telefon raqam
+        </label>
         <div className="relative">
-          <Mail
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+          <Phone
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
             aria-hidden
           />
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            placeholder="email@example.com"
-            className="pl-9"
+          <input
+            id="phone"
+            type="tel"
+            autoComplete="tel"
+            inputMode="tel"
+            placeholder="+998 90 123 45 67"
+            className="w-full pl-10 pr-4 py-3 text-sm rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 focus:bg-white transition-all disabled:opacity-50"
             disabled={Boolean(challenge)}
-            aria-invalid={Boolean(form.formState.errors.email)}
-            aria-describedby="email-help email-error"
-            {...form.register('email')}
+            aria-invalid={Boolean(form.formState.errors.phone)}
+            aria-describedby="phone-help phone-error"
+            {...form.register('phone', {
+              onChange: (e) => setWatchedPhone(e.target.value),
+            })}
           />
         </div>
-        <p id="email-help" className="text-xs text-[var(--muted-foreground)]">
-          Admin tasdiqlagan email bilan kabinetga kirasiz.
+        <p id="phone-help" className="text-[11px] text-slate-500 font-medium">
+          Admin tasdiqlagan telefon raqam bilan kabinetga kirasiz.
         </p>
-        {form.formState.errors.email && (
-          <p id="email-error" role="alert" className="text-xs text-red-600">
-            {form.formState.errors.email.message}
+        {form.formState.errors.phone && (
+          <p id="phone-error" role="alert" className="text-xs text-rose-600 font-semibold">
+            {form.formState.errors.phone.message}
           </p>
         )}
       </div>
 
-      {challenge?.devCode ? (
-        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-          Dev kod: <strong className="tracking-[0.2em]">{challenge.devCode}</strong>
-        </p>
-      ) : null}
+      {/* ── Demo rejim: tur tanlash paneli ──────────────────────────────── */}
+      {isDemo && !challenge && (
+        <div className="rounded-2xl border border-orange-200 bg-orange-50/80 p-3.5 flex flex-col gap-2.5">
+          <p className="text-xs font-bold text-orange-800 flex items-center gap-1.5">
+            <FlaskConical className="h-4 w-4 text-orange-600 animate-bounce" />
+            Demo rejim — Sinov uchun hamkor turini tanlang:
+          </p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {DEMO_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setDemoType(t.value)}
+                className={[
+                  'flex flex-col items-center gap-1 rounded-xl border px-1 py-2 text-center text-xs transition-all cursor-pointer',
+                  demoType === t.value
+                    ? 'border-orange-500 bg-white font-bold text-orange-900 shadow-md shadow-orange-500/10 ring-2 ring-orange-500/20'
+                    : 'border-transparent bg-orange-100/60 hover:bg-white text-slate-600 hover:text-slate-900',
+                ].join(' ')}
+              >
+                <span className="text-lg leading-none">{t.emoji}</span>
+                <span className="leading-tight text-[11px]">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* ─────────────────────────────────────────────────────────────────── */}
 
       {challenge ? (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="code">Tasdiqlash kodi</Label>
+        <div className="flex flex-col gap-1.5 animate-fade-in">
+          <label htmlFor="code" className="text-xs font-bold text-slate-700">
+            Tasdiqlash kodi
+          </label>
           <div className="relative">
             <KeyRound
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
               aria-hidden
             />
-            <Input
+            <input
               id="code"
               type="text"
               autoComplete="one-time-code"
               inputMode="numeric"
-              placeholder="6 xonali kod"
-              className="pl-9 tracking-[0.25em]"
+              placeholder={challenge.phone === DEMO_PHONE || challenge.phone.replace(/\D/g, '') === '998901234567' ? '000000' : '6 xonali kod'}
+              className="w-full pl-10 pr-4 py-3 tracking-[0.3em] font-mono text-center text-lg rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 focus:bg-white transition-all"
               aria-invalid={Boolean(form.formState.errors.code)}
               aria-describedby="code-help code-error"
               {...form.register('code', {
@@ -169,30 +219,50 @@ export function LoginForm() {
               })}
             />
           </div>
-          <p id="code-help" className="text-xs text-[var(--muted-foreground)]">
-            Kod {challenge.email} manziliga yuborildi.
+          <p id="code-help" className="text-[11px] text-slate-500 font-medium">
+            {challenge.phone === DEMO_PHONE || challenge.phone.replace(/\D/g, '') === '998901234567'
+              ? '🎮 Demo rejim: kodni kiriting → 000000'
+              : `Kod ${challenge.phone} raqamiga yuborildi.`}
           </p>
+          
+          {challenge.devCode && (
+            <div className="mt-1 rounded-xl bg-emerald-50 p-2.5 border border-emerald-200">
+              <p className="text-xs font-medium text-emerald-800 flex items-center justify-between">
+                <span>🛠️ Dasturlash rejimi kodi:</span>
+                <strong className="text-sm tracking-widest bg-emerald-600 text-white px-2 py-0.5 rounded-lg shadow-sm">{challenge.devCode}</strong>
+              </p>
+            </div>
+          )}
+
           {form.formState.errors.code && (
-            <p id="code-error" role="alert" className="text-xs text-red-600">
+            <p id="code-error" role="alert" className="text-xs text-rose-600 font-semibold">
               {form.formState.errors.code.message}
             </p>
           )}
         </div>
       ) : null}
 
-      <Button type="submit" size="lg" loading={loading} className="mt-2">
-        {challenge ? 'Kirish' : 'Kod yuborish'}
-      </Button>
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full py-3 px-4 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-600/25 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-2"
+      >
+        {loading ? (
+          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        ) : (
+          challenge ? 'Kabinetga kirish' : 'SMS Kodini yuborish'
+        )}
+      </button>
 
       {challenge ? (
-        <Button
+        <button
           type="button"
-          variant="outline"
           disabled={loading}
           onClick={resetChallenge}
+          className="w-full py-2.5 px-4 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-200 transition-colors cursor-pointer"
         >
-          Emailni o'zgartirish
-        </Button>
+          Telefon raqamini o'zgartirish
+        </button>
       ) : null}
     </form>
   );

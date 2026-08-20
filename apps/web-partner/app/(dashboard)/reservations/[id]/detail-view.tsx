@@ -106,7 +106,9 @@ export function ReservationDetailView({ id }: { id: string }) {
         description={
           restaurant && data.slotTime
             ? `${formatDate(data.checkIn)} · ${data.slotTime}`
-            : `${formatDate(data.checkIn)} → ${formatDate(data.checkOut)} · ${data.nights} kech.`
+            : (partnerType === "bus" || partnerType === "BUS")
+              ? `${formatDate(data.checkIn)} → ${formatDate(data.checkOut)} · ${data.nights} kun`
+              : `${formatDate(data.checkIn)} → ${formatDate(data.checkOut)} · ${data.nights} kech.`
         }
         actions={
           <>
@@ -242,8 +244,10 @@ export function ReservationDetailView({ id }: { id: string }) {
               {!restaurant && (
                 <InfoItem
                   icon={<CalendarRange className="h-4 w-4" aria-hidden />}
-                  label="Ketish"
-                  value={`${formatDate(data.checkOut)} (${data.nights} kech.)`}
+                  label={(partnerType === "bus" || partnerType === "BUS") ? "Qaytarish" : "Ketish"}
+                  value={(partnerType === "bus" || partnerType === "BUS") 
+                    ? `${formatDate(data.checkOut)} (${data.nights} kun)`
+                    : `${formatDate(data.checkOut)} (${data.nights} kech.)`}
                 />
               )}
               {data.specialRequests && (
@@ -272,7 +276,7 @@ export function ReservationDetailView({ id }: { id: string }) {
                 label="Telefon"
                 value={
                   <a
-                    href={`tel:+${data.guest.phone}`}
+                    href={data.guest.phone.startsWith("+") ? `tel:${data.guest.phone}` : `tel:+${data.guest.phone}`}
                     className="text-brand-700 hover:underline dark:text-brand-300"
                   >
                     {formatPhone(data.guest.phone)}

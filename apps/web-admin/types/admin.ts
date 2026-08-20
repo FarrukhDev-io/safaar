@@ -45,12 +45,26 @@ export interface AdminListing {
     cancellationPolicy?: string;
   };
   roomsCount?: number;
+  type?: string;
   status: 'draft' | 'under_review' | 'published' | 'rejected';
   submittedAt: string;
   completeness?: {
     isPublishable: boolean;
     missingFields: string[];
   };
+}
+
+export interface AdminRefund {
+  id: string;
+  bookingId: string;
+  userId?: string;
+  status: 'requested' | 'approved' | 'rejected' | 'processing' | 'refunded' | 'failed';
+  requestedAmount: number;
+  approvedAmount?: number;
+  currency: string;
+  reason?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /* ────────────────────────────────────────────
@@ -207,6 +221,38 @@ export interface PartnerDocument {
   url: string;
 }
 
+export interface PartnerLedgerEntry {
+  id: string;
+  partnerId: string;
+  type: 'booking_revenue' | 'commission_fee' | 'withdrawal' | 'adjustment' | 'refund';
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  referenceId?: string;
+  createdAt: string;
+}
+
+export interface DeveloperApiKey {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  name: string;
+  keyPrefix: string;
+  lastUsedAt?: string;
+  createdAt: string;
+}
+
+export interface DeveloperWebhook {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  url: string;
+  events: string[];
+  isActive: boolean;
+  failedDeliveries: number;
+  createdAt: string;
+}
+
 /* ────────────────────────────────────────────
    Bookings (Admin view)
    ──────────────────────────────────────────── */
@@ -245,10 +291,8 @@ export interface AdminBusBooking {
   customerName: string;
   customerPhone: string;
   companyName: string;
-  route: string;
-  departureDate: string;
-  departureTime: string;
-  seatNumber: string;
+  checkIn: string;
+  checkOut: string;
   amount: number;
   paymentMethod: PaymentMethod;
   commission: number;
@@ -324,7 +368,7 @@ export interface BookingDetail {
    Finance
    ──────────────────────────────────────────── */
 
-export type WithdrawalStatus = 'pending' | 'approved' | 'rejected';
+export type WithdrawalStatus = 'pending' | 'approved' | 'rejected' | 'paid';
 
 export interface WithdrawalRequest {
   id: string;
@@ -343,6 +387,56 @@ export interface FinanceReport {
   totalRevenue: number;
   totalCommission: number;
   dateGenerated: string;
+}
+
+export interface AdminPaymentTransaction {
+  id: string;
+  bookingId: string;
+  customerName: string;
+  amount: number;
+  provider: 'click' | 'payme' | 'uzcard' | 'humo' | 'stripe';
+  status: 'pending' | 'success' | 'failed' | 'refunded';
+  providerTransactionId?: string;
+  createdAt: string;
+}
+
+export interface AdminRefundTransaction {
+  id: string;
+  paymentId: string;
+  bookingId: string;
+  customerName: string;
+  amount: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected' | 'failed' | 'completed';
+  createdAt: string;
+}
+
+export interface FinanceOverviewData {
+  totalRevenue: number;
+  totalCommission: number;
+  pendingWithdrawals: number;
+  paidWithdrawals: number;
+  totalRefunds: number;
+}
+
+export interface ProviderReconciliation {
+  provider: string;
+  expectedAmount: number;
+  actualAmount: number;
+  difference: number;
+  status: 'matched' | 'mismatched';
+  lastSyncedAt: string;
+}
+
+export interface FinanceDocument {
+  id: string;
+  type: 'invoice' | 'tax_report' | 'act';
+  title: string;
+  partnerName?: string;
+  period: string;
+  url: string;
+  status: 'generated' | 'failed' | 'pending';
+  createdAt: string;
 }
 
 /* ────────────────────────────────────────────
@@ -372,6 +466,16 @@ export interface CmsArticle {
    Catalog
    ──────────────────────────────────────────── */
 
+export interface BroadcastNotification {
+  id: string;
+  title: string;
+  message: string;
+  targetType: 'all' | 'users' | 'partners';
+  status: 'draft' | 'sending' | 'sent' | 'failed';
+  sentCount: number;
+  createdAt: string;
+}
+
 export interface CatalogRegion {
   id: string;
   name: string;
@@ -381,9 +485,10 @@ export interface CatalogRegion {
 
 export interface CatalogAmenity {
   id: string;
+  code: string;
   name: string;
   icon: string;
-  type: 'hotel' | 'room';
+  type: 'hotel' | 'room' | 'dacha' | 'restaurant' | 'transport' | 'other';
   isActive: boolean;
 }
 

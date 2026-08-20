@@ -76,6 +76,9 @@ function useListingMutation<TVariables>(
   return useMutation({
     mutationFn: async (variables: TVariables) => {
       const hotel = await getPrimaryHotel(queryClient, accessToken);
+      if (!hotel) {
+        throw new Error("Sizning hamkor turingiz uchun alohida e'lon profili saqlanmaydi yoki obyektingiz hali tasdiqlanmagan.");
+      }
       return mutationFn(hotel.id, accessToken, variables);
     },
     onSuccess: (listing) => {

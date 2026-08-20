@@ -6,6 +6,7 @@ import {
   CarFront,
   Camera,
   CheckCircle2,
+  CheckSquare,
   Cigarette,
   Dog,
   Eye,
@@ -34,7 +35,8 @@ import { LocationEditor } from './_editors/location-editor';
 import { RulesEditor } from './_editors/rules-editor';
 import { RoomDialog } from '../settings/rooms/_dialogs/room-dialog';
 import { RoomTypeDialog } from '../settings/rooms/_dialogs/room-type-dialog';
-import { DachaUnitPanel } from './_components/dacha-unit-panel';
+import { PublishRoomsDialog } from './_dialogs/publish-rooms-dialog';
+
 import {
   AMENITY_GROUPS,
   CANCELLATION_POLICY_INFO,
@@ -62,6 +64,9 @@ import {
 } from '../../_lib/utils/partner-labels';
 import { cn } from '../../_lib/utils/cn';
 import { formatMoney } from '../../_lib/utils/format';
+import { useAmenities } from '../../_hooks/use-catalog';
+import { useVehicles, useUpdateVehicle } from '../../_hooks/use-vehicles';
+import { VehicleDialog } from '../rooms/vehicles-view';
 
 const AMENITY_LABEL = new Map<string, string>();
 for (const group of [...AMENITY_GROUPS, ...RESTAURANT_AMENITY_GROUPS]) {
@@ -93,6 +98,7 @@ export function ListingOverview() {
   const { data: listing } = useListing();
   const { data: rooms } = useRooms();
   const { data: roomTypes } = useRoomTypes();
+  const { data: allAmenities = [] } = useAmenities();
   useBeds();
   const beds = useDataStore((s) => s.beds);
   const updateStatus = useUpdateListingStatus();
@@ -112,6 +118,19 @@ export function ListingOverview() {
     import('../../_lib/domain/types').RoomType | null
   >(null);
   const [roomDialogOpen, setRoomDialogOpen] = useState(false);
+  const [publishRoomsOpen, setPublishRoomsOpen] = useState(false);
+  const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<any>(null);
+
+  const { data: vehicles = [] } = useVehicles();
+
+  const dynamicAmenityLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    allAmenities.forEach((a: any) => {
+      map.set(a.code, typeof a.name === 'string' ? a.name : ((a.name as any)?.uz || a.code));
+    });
+    return map;
+  }, [allAmenities]);
 
   const statusInfo = LISTING_STATUS_INFO[listing.status];
   const cover =
@@ -221,7 +240,10 @@ export function ListingOverview() {
           ? 'Manzil va xarita nuqtasini kiriting.'
           : undefined,
       },
-      {
+    ];
+
+    if (!isBus) {
+      base.push({
         id: 'rules',
         title: 'Uy qoidalari',
         subtitle: `${labels.checkInLabel}, ${labels.checkOutLabel.toLowerCase()} va bekor qilish shartlari`,
@@ -234,11 +256,27 @@ export function ListingOverview() {
         missing: !rulesComplete
           ? `${labels.checkInLabel} va ${labels.checkOutLabel.toLowerCase()} vaqtlarini kiriting.`
           : undefined,
-      },
-    ];
+      });
+    }
 
     if (dacha) {
-      return base;
+      return [
+        ...base,
+        {
+          id: 'rooms',
+          title: 'Dacha narxlari',
+          subtitle: `Mijozlar band qilishi uchun narx va sig'imni kiriting`,
+          action: `Narx kiritish`,
+          complete: roomAds.length > 0 && listedRooms.length > 0,
+          summary: roomAds.length > 0 && listedRooms.length > 0
+            ? `Narxlar va sig'im e'lon qilingan`
+            : `Hali narx belgilanmagan`,
+          icon: <BedDouble className="h-4 w-4" aria-hidden />,
+          missing: roomAds.length === 0 || listedRooms.length === 0
+            ? `Dachangizning xona turini qo'shing va e'longa chiqaring.`
+            : undefined,
+        },
+      ];
     }
 
     if (restaurant) {
@@ -261,24 +299,27 @@ export function ListingOverview() {
       ];
     }
 
-    return [
-      ...base,
-      {
-        id: 'roomTypes',
-        title: labels.unitTypesTitle,
-        subtitle: `Mijoz tanlaydigan ${labels.unitSingular} variantlari`,
-        action: `${labels.unitTypeLabel} qo'shish`,
-        complete: roomTypesComplete,
-        summary:
-          roomAds.length > 0
-            ? `${roomAds.length} tur · ${listedRooms.length} ${labels.unitPlural} sotuvda`
-            : `Hali ${labels.unitTypeLabel.toLowerCase()} yo'q`,
-        icon: isBus ? <CarFront className="h-4 w-4" aria-hidden /> : <BedDouble className="h-4 w-4" aria-hidden />,
-        missing: !roomTypesComplete
-          ? `Kamida bitta ${labels.unitTypeLabel.toLowerCase()} yarating va sotuvga qo'ying.`
-          : undefined,
-      },
-    ];
+    if (isBus) {
+      return [
+        ...base,
+        {
+          id: 'rooms',
+          title: 'Avtomobillar',
+          subtitle: `Mijoz bron qilishi mumkin bo'lgan avtomobillar`,
+          action: `Avto qo'shish`,
+          complete: vehicles.some(v => v.status === 'active'),
+          summary: vehicles.length > 0
+            ? `${vehicles.filter(v => v.status === 'active').length} ta avto sotuvda`
+            : `Hali avtomobillar qo'shilmagan`,
+          icon: <CarFront className="h-4 w-4" aria-hidden />,
+          missing: !vehicles.some(v => v.status === 'active')
+            ? `Kamida bitta avtomobil qo'shing va sotuvga chiqaring.`
+            : undefined,
+        },
+      ];
+    }
+
+    return base;
   }, [cover, listing, showStars, labels, dacha, restaurant, isBus, roomAds, listedRooms]);
 
   const completedCount = sections.filter((section) => section.complete).length;
@@ -288,13 +329,8 @@ export function ListingOverview() {
   const readyToSubmit = missing.length === 0;
 
   const openSection = (id: SectionId) => {
-    if (id === 'roomTypes') {
-      setEditingRoomType(null);
-      setRoomTypeDialogOpen(true);
-      return;
-    }
-    if (id === 'rooms') {
-      setRoomDialogOpen(true);
+    if (id === 'roomTypes' || id === 'rooms') {
+      document.getElementById('room-listings-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
     setOpenEditor(id as OpenEditor);
@@ -535,24 +571,43 @@ export function ListingOverview() {
           ))}
         </div>
 
-        {dacha ? (
-          <DachaUnitPanel listingName={listing.name} />
+        {isBus ? (
+          <div id="room-listings-panel">
+            <VehicleListingsPanel
+              vehicles={vehicles}
+              onAdd={() => {
+                setEditingVehicle(null);
+                setVehicleDialogOpen(true);
+              }}
+              onEdit={(vehicle) => {
+                setEditingVehicle(vehicle);
+                setVehicleDialogOpen(true);
+              }}
+            />
+          </div>
         ) : (
-          <RoomListingsPanel
-            roomAds={roomAds}
-            labels={labels}
-            isHostel={isHostel}
-            restaurant={restaurant}
-            onAddRoomType={() => {
-              setEditingRoomType(null);
-              setRoomTypeDialogOpen(true);
-            }}
-            onEditRoomType={(roomType) => {
-              setEditingRoomType(roomType);
-              setRoomTypeDialogOpen(true);
-            }}
-            onAddRoom={() => setRoomDialogOpen(true)}
-          />
+          <div id="room-listings-panel">
+            <RoomListingsPanel
+              roomAds={roomAds}
+              labels={labels}
+              isHostel={isHostel}
+              restaurant={restaurant}
+              isBus={isBus}
+              amenityLabels={dynamicAmenityLabels}
+              onPublishRooms={() => setPublishRoomsOpen(true)}
+              onAddRoomType={() => {
+                setEditingRoomType(null);
+                setRoomTypeDialogOpen(true);
+              }}
+              onEditRoomType={(rt) => {
+                setEditingRoomType(rt);
+                setRoomTypeDialogOpen(true);
+              }}
+              onAddRoom={() => {
+                setRoomDialogOpen(true);
+              }}
+            />
+          </div>
         )}
       </section>
 
@@ -613,10 +668,12 @@ export function ListingOverview() {
               }
               label="Xaritadagi nuqta"
             />
-            <ChecklistItem
-              done={Boolean(listing.checkInTime && listing.checkOutTime)}
-              label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
-            />
+            {!isBus && (
+              <ChecklistItem
+                done={Boolean(listing.checkInTime && listing.checkOutTime)}
+                label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
+              />
+            )}
             <ChecklistItem
               done={restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
               label={restaurant ? 'Stollar' : labels.unitTypesTitle}
@@ -624,34 +681,36 @@ export function ListingOverview() {
           </CardBody>
         </Card>
 
-        <Card>
-          <CardBody className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold">Qoidalar qisqacha</h2>
-            <div className="grid gap-2 text-sm">
-              <RuleChip
-                on={listing.childrenAllowed}
-                icon={<Baby />}
-                label="Bolalar"
-              />
-              <RuleChip
-                on={listing.petsAllowed}
-                icon={<Dog />}
-                label="Uy hayvonlari"
-              />
-              <RuleChip
-                on={listing.smokingAllowed}
-                icon={<Cigarette />}
-                label="Chekish"
-              />
-            </div>
-            <div className="rounded-md bg-[var(--surface-muted)] p-3 text-xs leading-5 text-[var(--muted-foreground)]">
-              Bekor qilish:{' '}
-              <span className="font-semibold text-[var(--foreground)]">
-                {CANCELLATION_POLICY_INFO[listing.cancellationPolicy].label}
-              </span>
-            </div>
-          </CardBody>
-        </Card>
+        {!isBus && (
+          <Card>
+            <CardBody className="flex flex-col gap-3">
+              <h2 className="text-sm font-semibold">Qoidalar qisqacha</h2>
+              <div className="grid gap-2 text-sm">
+                <RuleChip
+                  on={listing.childrenAllowed}
+                  icon={<Baby />}
+                  label="Bolalar"
+                />
+                <RuleChip
+                  on={listing.petsAllowed}
+                  icon={<Dog />}
+                  label="Uy hayvonlari"
+                />
+                <RuleChip
+                  on={listing.smokingAllowed}
+                  icon={<Cigarette />}
+                  label="Chekish"
+                />
+              </div>
+              <div className="rounded-md bg-[var(--surface-muted)] p-3 text-xs leading-5 text-[var(--muted-foreground)]">
+                Bekor qilish:{' '}
+                <span className="font-semibold text-[var(--foreground)]">
+                  {CANCELLATION_POLICY_INFO[listing.cancellationPolicy].label}
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
       </aside>
 
       <GeneralEditor
@@ -688,6 +747,16 @@ export function ListingOverview() {
         onClose={() => setRoomDialogOpen(false)}
         editing={null}
       />
+      <VehicleDialog
+        open={vehicleDialogOpen}
+        onClose={() => setVehicleDialogOpen(false)}
+        editing={editingVehicle}
+      />
+
+      <PublishRoomsDialog
+        open={publishRoomsOpen}
+        onClose={() => setPublishRoomsOpen(false)}
+      />
     </div>
   );
 }
@@ -697,6 +766,9 @@ function RoomListingsPanel({
   labels,
   isHostel,
   restaurant,
+  isBus,
+  amenityLabels,
+  onPublishRooms,
   onAddRoomType,
   onEditRoomType,
   onAddRoom,
@@ -712,11 +784,12 @@ function RoomListingsPanel({
   labels: import('../../_lib/utils/partner-labels').PartnerLabels;
   isHostel: boolean;
   restaurant: boolean;
-  onAddRoomType: () => void;
-  onEditRoomType: (
-    roomType: import('../../_lib/domain/types').RoomType,
-  ) => void;
-  onAddRoom: () => void;
+  isBus?: boolean;
+  amenityLabels: Map<string, string>;
+  onPublishRooms: () => void;
+  onAddRoomType?: () => void;
+  onEditRoomType?: (roomType: import('../../_lib/domain/types').RoomType) => void;
+  onAddRoom?: () => void;
 }) {
   return (
     <Card>
@@ -735,24 +808,33 @@ function RoomListingsPanel({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={onAddRoom}>
-              <Plus className="h-4 w-4" aria-hidden />
-              {labels.addUnitLabel}
-            </Button>
-            <Button size="sm" onClick={onAddRoomType}>
-              {restaurant ? (
-                <UtensilsCrossed className="h-4 w-4" aria-hidden />
-              ) : (
-                <BedDouble className="h-4 w-4" aria-hidden />
-              )}
-              {labels.unitTypeLabel} qo'shish
+            {onAddRoomType && (
+              <Button size="sm" variant="outline" onClick={onAddRoomType}>
+                <Plus className="h-4 w-4 mr-1.5" aria-hidden />
+                {labels.unitTypeLabel} yaratish
+              </Button>
+            )}
+            {onAddRoom && (
+              <Button size="sm" variant="outline" onClick={onAddRoom}>
+                <Plus className="h-4 w-4 mr-1.5" aria-hidden />
+                {labels.addUnitLabel}
+              </Button>
+            )}
+            <Button size="sm" onClick={onPublishRooms}>
+              <CheckSquare className="h-4 w-4 mr-1.5" aria-hidden />
+              {labels.unitSingular}larni e'longa chiqarish
             </Button>
           </div>
         </div>
 
         {roomAds.length === 0 ? (
           <div className="rounded-card border border-dashed border-[var(--border)] bg-[var(--surface-muted)] p-6 text-center">
-            {restaurant ? (
+            {isBus ? (
+              <CarFront
+                className="mx-auto h-8 w-8 text-[var(--muted-foreground)]"
+                aria-hidden
+              />
+            ) : restaurant ? (
               <UtensilsCrossed
                 className="mx-auto h-8 w-8 text-[var(--muted-foreground)]"
                 aria-hidden
@@ -767,14 +849,22 @@ function RoomListingsPanel({
               Hali {labels.unitTypeLabel.toLowerCase()} yo'q
             </h3>
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[var(--muted-foreground)]">
-              Avval Standart, Lyuks yoki Family kabi{' '}
+              Avval {isBus ? 'Sedan, Miniven yoki Avtobus kabi' : 'Standart, Lyuks yoki Family kabi'}{' '}
               {labels.unitTypeLabel.toLowerCase()}ni yarating. Keyin real{' '}
               {labels.unitSingular} raqamlarini shu e'longa bog'laysiz.
             </p>
-            <Button className="mt-4" onClick={onAddRoomType}>
-              <Plus className="h-4 w-4" aria-hidden />
-              Birinchi {labels.unitTypeLabel.toLowerCase()}ni yaratish
-            </Button>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {onAddRoomType && (
+                <Button onClick={onAddRoomType}>
+                  <Plus className="h-4 w-4 mr-1.5" aria-hidden />
+                  {labels.unitTypeLabel} yaratish
+                </Button>
+              )}
+              <Button variant="outline" onClick={onPublishRooms}>
+                <CheckSquare className="h-4 w-4 mr-1.5" aria-hidden />
+                {labels.unitSingular}larni e'longa chiqarish
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
@@ -801,7 +891,9 @@ function RoomListingsPanel({
                   totalUnits={isHostel ? totalBeds : relatedRooms.length}
                   listedUnits={isHostel ? listedBedCount : listedCount}
                   restaurant={restaurant}
-                  onEdit={() => onEditRoomType(roomType)}
+                  isBus={isBus}
+                  amenityLabels={amenityLabels}
+                  onEdit={onEditRoomType ? () => onEditRoomType(roomType) : undefined}
                 />
               ),
             )}
@@ -825,6 +917,8 @@ function RoomAdCard({
   totalUnits,
   listedUnits,
   restaurant,
+  isBus,
+  amenityLabels,
   onEdit,
 }: {
   name: string;
@@ -839,7 +933,9 @@ function RoomAdCard({
   totalUnits: number;
   listedUnits: number;
   restaurant: boolean;
-  onEdit: () => void;
+  isBus?: boolean;
+  amenityLabels?: Map<string, string>;
+  onEdit?: () => void;
 }) {
   return (
     <div className="overflow-hidden rounded-card border border-[var(--border)] bg-[var(--surface)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
@@ -873,9 +969,9 @@ function RoomAdCard({
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--muted-foreground)]">
                 <span className="inline-flex items-center gap-1">
                   <Users className="h-3.5 w-3.5" aria-hidden />
-                  {capacity} kishi
+                  {capacity} {isBus ? "o'rindiq" : "kishi"}
                 </span>
-                {!restaurant && bedType && <span>{bedType}</span>}
+                {!restaurant && !isBus && bedType && <span>{bedType}</span>}
                 {!restaurant && typeof sizeSqm === 'number' && sizeSqm > 0 && (
                   <span>{sizeSqm} m²</span>
                 )}
@@ -889,23 +985,21 @@ function RoomAdCard({
                 </p>
               )}
             </div>
-            <div className="shrink-0 text-right">
-              <p className="text-[11px] text-[var(--muted-foreground)]">
-                {restaurant ? 'narxi' : '1 kecha'}
-              </p>
-              <p className="text-base font-semibold text-brand-700 dark:text-brand-300">
-                {formatMoney(minPrice)}
-              </p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="mt-2"
-                onClick={onEdit}
-              >
-                <Pencil className="h-4 w-4" aria-hidden />
-                Tahrirlash
-              </Button>
+            <div className="shrink-0 text-right flex flex-col items-end gap-2">
+              <div>
+                <p className="text-[11px] text-[var(--muted-foreground)]">
+                  {restaurant ? 'narxi' : isBus ? '1 kunlik' : '1 kecha'}
+                </p>
+                <p className="text-base font-semibold text-brand-700 dark:text-brand-300">
+                  {formatMoney(minPrice)}
+                </p>
+              </div>
+              {onEdit && (
+                <Button size="sm" variant="outline" onClick={onEdit} className="h-7 text-xs px-2">
+                  <Pencil className="h-3 w-3 mr-1" aria-hidden />
+                  Tahrirlash
+                </Button>
+              )}
             </div>
           </div>
 
@@ -915,7 +1009,7 @@ function RoomAdCard({
                 key={amenity}
                 className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[11px]"
               >
-                {AMENITY_LABEL.get(amenity) ?? amenity}
+                {amenityLabels?.get(amenity) ?? AMENITY_LABEL.get(amenity) ?? amenity}
               </span>
             ))}
             {amenities.length > 5 && (
@@ -932,6 +1026,116 @@ function RoomAdCard({
         </div>
       </div>
     </div>
+  );
+}
+
+function VehicleListingsPanel({
+  vehicles,
+  onAdd,
+  onEdit,
+}: {
+  vehicles: any[];
+  onAdd: () => void;
+  onEdit: (vehicle: any) => void;
+}) {
+  const updateVehicle = useUpdateVehicle();
+
+  const toggleStatus = async (vehicle: any) => {
+    const newStatus = vehicle.status === 'active' ? 'inactive' : 'active';
+    await updateVehicle.mutateAsync({
+      id: vehicle.id,
+      values: { status: newStatus },
+    });
+  };
+
+  return (
+    <Card>
+      <CardBody className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-brand-700 dark:text-brand-300">
+              Avtomobillar
+            </span>
+            <h2 className="mt-1 text-xl font-semibold">
+              E'longa chiqarilgan avtomobillar
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--muted-foreground)]">
+              Mijozlar faqat "Faol" holatdagi avtomobillarni ko'radi va bron qila oladi.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={onAdd}>
+              <CarFront className="mr-2 h-4 w-4" aria-hidden />
+              Avtomobil qo'shish
+            </Button>
+          </div>
+        </div>
+
+        {vehicles.length === 0 ? (
+          <div className="rounded-card border border-dashed border-[var(--border)] bg-[var(--surface-muted)] p-6 text-center">
+            <CarFront
+              className="mx-auto h-8 w-8 text-[var(--muted-foreground)]"
+              aria-hidden
+            />
+            <h3 className="mt-3 text-sm font-semibold">
+              Hali avtomobil yo'q
+            </h3>
+            <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[var(--muted-foreground)]">
+              Mijozlarga ko'rinishi uchun avval avtomobillarni qo'shing.
+            </p>
+            <Button className="mt-4" onClick={onAdd}>
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
+              Birinchi avtomobilni qo'shish
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {vehicles.map((vehicle) => (
+              <div key={vehicle.id} className="overflow-hidden rounded-card border border-[var(--border)] bg-[var(--surface)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="truncate text-base font-semibold">{vehicle.name}</h3>
+                      <span className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+                        vehicle.status === 'active' ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300"
+                      )}>
+                        {vehicle.status === 'active' ? "E'londa (Faol)" : 'Yashirilgan'}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-[var(--muted-foreground)]">{vehicle.plateNumber}</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-[var(--muted-foreground)]">O'rindiqlar:</span>{' '}
+                        <span className="font-medium">{vehicle.seatsCount} kishi</span>
+                      </div>
+                      <div>
+                        <span className="text-[var(--muted-foreground)]">Kunlik narxi:</span>{' '}
+                        <span className="font-medium text-brand-600 dark:text-brand-400">{formatMoney(vehicle.pricePerDay)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 border-t border-[var(--border)] pt-4">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => onEdit(vehicle)}>
+                    <Pencil className="mr-2 h-4 w-4" /> Tahrirlash
+                  </Button>
+                  <Button 
+                    variant={vehicle.status === 'active' ? 'outline' : 'primary'} 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => toggleStatus(vehicle)}
+                    disabled={updateVehicle.isPending}
+                  >
+                    {vehicle.status === 'active' ? "E'londan olish" : "E'longa chiqarish"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardBody>
+    </Card>
   );
 }
 

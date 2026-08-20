@@ -135,9 +135,7 @@ export function WalkInDialog({
   }, [open, initialValues, form, roomTypes]);
 
   const watchedRoomTypeId = useWatch({ control: form.control, name: "roomTypeId" });
-  const availableTables = restaurant
-    ? rooms.filter((r) => r.roomTypeId === watchedRoomTypeId)
-    : [];
+  const availableRooms = rooms.filter((r) => !watchedRoomTypeId || r.roomTypeId === watchedRoomTypeId);
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
@@ -303,7 +301,7 @@ export function WalkInDialog({
             {initialValues.roomNumber}
           </div>
         ) : (
-          restaurant && (
+          !dacha && (
             <div className="flex flex-col gap-1.5 md:col-span-2">
               <Label htmlFor="roomNumber">{unitCap}</Label>
               <select
@@ -311,10 +309,10 @@ export function WalkInDialog({
                 className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus:border-brand-600 focus:outline-none"
                 {...form.register("roomNumber")}
               >
-                <option value="">{`${unitCap}ni tanlang`}</option>
-                {availableTables.map((r) => (
+                <option value="">{`${unitCap}ni tanlang ${restaurant ? '' : '(ixtiyoriy)'}`}</option>
+                {availableRooms.map((r) => (
                   <option key={r.id} value={r.number}>
-                    {r.number}
+                    {r.number} {r.roomTypeName ? `(${r.roomTypeName})` : ''}
                   </option>
                 ))}
               </select>

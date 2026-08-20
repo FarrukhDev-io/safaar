@@ -40,7 +40,7 @@ export function CityPicker({ cities, value, onChange, placeholder }: Props) {
         className="flex w-full items-center justify-between gap-1 text-left focus:outline-hidden before:absolute before:inset-0 before:z-10"
       >
         <span
-          className={`truncate text-sm font-bold ${
+          className={`truncate text-base font-bold ${
             selected ? "text-slate-900" : "text-slate-600"
           }`}
         >

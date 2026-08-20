@@ -25,7 +25,7 @@ export function DealsMobileCarousel({
       const isMobile = window.matchMedia("(max-width: 639px)").matches;
       if (isMobile) {
         timer.current = setInterval(() => {
-          const cardW = el.clientWidth / 2;
+          const cardW = el.querySelector("div")?.clientWidth ?? el.clientWidth / 2;
           const maxScroll = el.scrollWidth - el.clientWidth;
 
           if (el.scrollLeft + cardW >= maxScroll - 4) {

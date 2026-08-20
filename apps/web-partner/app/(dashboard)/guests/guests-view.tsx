@@ -172,7 +172,8 @@ export function GuestsView() {
                   </td>
                   <td className="px-4 py-3">
                     <a
-                      href={`tel:+${g.phone}`}
+                      href={g.phone.startsWith("+") ? `tel:${g.phone}` : `tel:+${g.phone}`}
+                      onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1 text-brand-700 hover:underline dark:text-brand-300"
                     >
                       <Phone className="h-3 w-3" aria-hidden />

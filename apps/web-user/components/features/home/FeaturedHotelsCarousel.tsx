@@ -19,7 +19,7 @@ export function FeaturedHotelsCarousel({
   if (cards.length === 0) return null;
 
   return (
-    <section className="mx-auto mt-6 w-full max-w-6xl px-4 sm:mt-8 sm:px-6 relative">
+    <section className="mx-auto mt-6 w-full max-w-7xl px-4 sm:mt-8 sm:px-6 relative">
       <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="text-base font-bold tracking-tight sm:text-lg">
           {dict.title}
@@ -39,7 +39,7 @@ export function FeaturedHotelsCarousel({
         {cards.map((hotel) => (
           <div
             key={hotel.id}
-            className="w-[calc(50%-0.375rem)] shrink-0 snap-start"
+            className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
           >
             <FeaturedHotelCard hotel={hotel} locale={locale} dict={dict} />
           </div>

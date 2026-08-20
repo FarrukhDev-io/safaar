@@ -578,6 +578,116 @@ export function updateBusCompany(
   });
 }
 
+// TEAM MANAGEMENT
+export interface PartnerTeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'manager' | 'staff';
+  status: 'active' | 'invited' | 'blocked';
+  last_login?: string;
+  created_at: string;
+}
+
+export function listTeamMembers(token?: string | null) {
+  return request<PartnerTeamMember[]>('/partner/team', { token });
+}
+
+export function inviteTeamMember(body: Record<string, unknown>, token?: string | null) {
+  return request<PartnerTeamMember>('/partner/team', { method: 'POST', body, token });
+}
+
+export function updateTeamMember(id: string, body: Record<string, unknown>, token?: string | null) {
+  return request<PartnerTeamMember>(`/partner/team/${id}`, { method: 'PATCH', body, token });
+}
+
+export function deleteTeamMember(id: string, token?: string | null) {
+  return request<{ ok: boolean }>(`/partner/team/${id}`, { method: 'DELETE', token });
+}
+
+// DOCUMENTS
+export interface PartnerDocument {
+  id: string;
+  name: string;
+  type: string;
+  status: 'pending' | 'approved' | 'rejected';
+  url: string;
+  uploaded_at: string;
+}
+
+export function listDocuments(token?: string | null) {
+  return request<PartnerDocument[]>('/partner/documents', { token });
+}
+
+export function uploadDocument(body: Record<string, unknown>, token?: string | null) {
+  return request<PartnerDocument>('/partner/documents', { method: 'POST', body, token });
+}
+
+// DEVELOPER API KEYS & WEBHOOKS
+export interface PartnerApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  lastUsedAt?: string;
+  createdAt: string;
+}
+
+export interface PartnerWebhook {
+  id: string;
+  url: string;
+  events: string[];
+  isActive: boolean;
+  failedDeliveries: number;
+  createdAt: string;
+}
+
+export function listApiKeys(token?: string | null) {
+  return request<PartnerApiKey[]>('/partner/api-keys', { token });
+}
+
+export function createApiKey(body: Record<string, unknown>, token?: string | null) {
+  return request<PartnerApiKey & { key: string }>('/partner/api-keys', { method: 'POST', body, token });
+}
+
+export function deleteApiKey(id: string, token?: string | null) {
+  return request<{ ok: boolean }>(`/partner/api-keys/${id}`, { method: 'DELETE', token });
+}
+
+export function listWebhooks(token?: string | null) {
+  return request<PartnerWebhook[]>('/partner/webhooks', { token });
+}
+
+export function createWebhook(body: Record<string, unknown>, token?: string | null) {
+  return request<PartnerWebhook>('/partner/webhooks', { method: 'POST', body, token });
+}
+
+export function updateWebhook(id: string, body: Record<string, unknown>, token?: string | null) {
+  return request<PartnerWebhook>(`/partner/webhooks/${id}`, { method: 'PATCH', body, token });
+}
+
+export function deleteWebhook(id: string, token?: string | null) {
+  return request<{ ok: boolean }>(`/partner/webhooks/${id}`, { method: 'DELETE', token });
+}
+
+// FINANCE WITHDRAWALS
+export interface WithdrawalRequest {
+  id: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected' | 'paid';
+  requestDate: string;
+  bankAccount: string;
+}
+
+export function getWithdrawals(token?: string | null) {
+  return request<WithdrawalRequest[]>('/partner/withdrawals', { token });
+}
+
+export function createWithdrawal(body: Record<string, unknown>, token?: string | null) {
+  return request<WithdrawalRequest>('/partner/withdrawals', { method: 'POST', body, token });
+}
+
+// VEHICLES (Rent-Car)
+
 export function listVehicles(token?: string | null) {
   return request<BackendVehicle[]>('/partners/vehicles', { token });
 }

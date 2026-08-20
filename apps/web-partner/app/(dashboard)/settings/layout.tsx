@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Building2, UserCircle2 } from "lucide-react";
+import { Building2, UserCircle2, Users, FileText, Code2 } from "lucide-react";
 import { isLimitedPartnerAccessStatus } from "../../_lib/auth/access-status";
 import { useAuthStore } from "../../_stores/auth-store";
 import { SettingsTabLink } from "./_components/settings-tab-link";
@@ -17,7 +17,25 @@ const TABS = [
     href: "/settings/profile",
     label: "Profil",
     icon: UserCircle2,
-    desc: "Foydalanuvchi accessi",
+    desc: "Shaxsiy ma'lumotlar",
+  },
+  {
+    href: "/settings/team",
+    label: "Jamoa",
+    icon: Users,
+    desc: "Xodimlar accessi",
+  },
+  {
+    href: "/settings/documents",
+    label: "Hujjatlar",
+    icon: FileText,
+    desc: "Verifikatsiya hujjatlari",
+  },
+  {
+    href: "/settings/developer",
+    label: "Dasturchi (API)",
+    icon: Code2,
+    desc: "API va Webhook",
   },
 ];
 

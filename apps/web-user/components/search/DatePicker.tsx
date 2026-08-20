@@ -23,6 +23,19 @@ function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+/** O'zbek tilida oy nomlari (Intl "uz" locale'ni to'g'ri ko'rsatmaganligi sababli). */
+const UZ_MONTHS = [
+  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+  "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr",
+];
+
+/** Locale → BCP-47 xarita (Intl uchun). */
+const INTL_LOCALE: Record<string, string> = {
+  uz: "ru-RU",
+  ru: "ru-RU",
+  en: "en-US",
+};
+
 /**
  * Custom kalendar — bizning yashil uslubda.
  * Native date input o'rniga: tugma + ochiluvchi oy kalendari.
@@ -35,6 +48,7 @@ export function DatePicker({
   min,
   icon,
   compact,
+  placeholder,
 }: {
   locale: Locale;
   label: string;
@@ -45,6 +59,7 @@ export function DatePicker({
   icon: React.ReactNode;
   /** Compact rejim: wrapper border/shadow yo'q, mobil karta ichida ishlatish uchun. */
   compact?: boolean;
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -76,23 +91,27 @@ export function DatePicker({
   }, [open]);
 
   // Oy nomi va hafta kunlari (tilga moslangan)
-  const monthLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        month: "long",
-        year: "numeric",
-      }).format(view),
-    [locale, view],
-  );
+  // "uz" locale Intl'da to'liq qo'llab-quvvatlanmaydi → UZ_MONTHS hardcoded.
+  const intlLocale = INTL_LOCALE[locale] ?? "en-US";
+
+  const monthLabel = useMemo(() => {
+    if (locale === "uz") {
+      return `${UZ_MONTHS[view.getMonth()]} ${view.getFullYear()}`;
+    }
+    return new Intl.DateTimeFormat(intlLocale, {
+      month: "long",
+      year: "numeric",
+    }).format(view);
+  }, [locale, intlLocale, view]);
 
   const weekdays = useMemo(() => {
-    const fmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
+    const fmt = new Intl.DateTimeFormat(intlLocale, { weekday: "short" });
     // Dushanba boshlanishi (1..7)
     const base = new Date(2024, 0, 1); // 2024-01-01 = Dushanba
     return Array.from({ length: 7 }, (_, i) =>
       fmt.format(new Date(base.getFullYear(), base.getMonth(), base.getDate() + i)),
     );
-  }, [locale]);
+  }, [intlLocale]);
 
   // Oyning kunlari grid (dushanbadan)
   const days = useMemo(() => {
@@ -109,7 +128,7 @@ export function DatePicker({
   }, [view]);
 
   const displayValue = selected
-    ? new Intl.DateTimeFormat(locale, {
+    ? new Intl.DateTimeFormat(intlLocale, {
         day: "numeric",
         month: "short",
       }).format(selected)
@@ -146,11 +165,11 @@ export function DatePicker({
             <span className="text-xs font-medium text-slate-600">{label}</span>
           )}
           <span
-            className={`truncate text-sm font-bold ${
+            className={`truncate text-base font-bold ${
               displayValue ? "text-slate-900" : "text-slate-600"
             }`}
           >
-            {displayValue ?? "—"}
+            {displayValue ?? placeholder ?? "—"}
           </span>
         </span>
       </button>

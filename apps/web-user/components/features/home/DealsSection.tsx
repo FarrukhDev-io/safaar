@@ -91,7 +91,7 @@ export function DealsSection({
   const now = Date.now();
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+    <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
       <div className="mb-4 sm:mb-5">
         <h2 className="text-xl font-black tracking-tight sm:text-2xl">
           <ShinyText>{dict.title}</ShinyText>
@@ -106,7 +106,7 @@ export function DealsSection({
         {deals.map((deal) => (
           <div
             key={deal.id}
-            className="w-[calc(50%-0.375rem)] shrink-0 snap-start"
+            className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
           >
             <DealCard deal={deal} locale={locale} dict={dict} now={now} />
           </div>

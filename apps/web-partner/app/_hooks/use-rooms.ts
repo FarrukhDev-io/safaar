@@ -19,29 +19,36 @@ export function useRooms() {
     queryKey: roomsQueryKey,
     queryFn: async () => {
       const [hotel] = pageItems(await partners.listHotels(accessToken));
-      if (!hotel) return [];
+      if (!hotel) return { allRooms: [], activeRooms: [] };
       const rawRooms = await partners.listRooms(hotel.id, accessToken);
-      return rawRooms.map(toRoom);
+      return {
+        allRooms: rawRooms.map(toRoom),
+        activeRooms: rawRooms.filter((r) => r.status !== "inactive").map(toRoom)
+      };
     },
     enabled: Boolean(accessToken),
   });
 
   useEffect(() => {
-    if (query.data) setRooms(query.data);
+    if (query.data) setRooms(query.data.activeRooms);
   }, [query.data, setRooms]);
 
-  return { data: query.data ?? EMPTY_ROOMS, isLoading: query.isLoading && !query.data };
+  return { 
+    data: query.data?.activeRooms ?? EMPTY_ROOMS, 
+    allRooms: query.data?.allRooms ?? EMPTY_ROOMS,
+    isLoading: query.isLoading && !query.data 
+  };
 }
 
-function roomBody(values: RoomDraft) {
-  return {
-    number: values.number,
-    floor: values.floor,
-    roomTypeId: values.roomTypeId,
-    status: values.status,
-    isListed: values.isListed,
-    nightlyPrice: values.nightlyPrice,
-  };
+function roomBody(values: Partial<RoomDraft>) {
+  const body: Record<string, any> = {};
+  if (values.number !== undefined) body.number = values.number;
+  if (values.floor !== undefined) body.floor = values.floor;
+  if (values.roomTypeId !== undefined) body.roomTypeId = values.roomTypeId;
+  if (values.status !== undefined) body.status = values.status;
+  if (values.isListed !== undefined) body.isListed = values.isListed;
+  if (values.nightlyPrice !== undefined) body.nightlyPrice = values.nightlyPrice;
+  return body;
 }
 
 export function useCreateRoom() {
@@ -62,7 +69,7 @@ export function useUpdateRoom() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, values }: { id: string; values: RoomDraft }) => {
+    mutationFn: async ({ id, values }: { id: string; values: Partial<RoomDraft> }) => {
       const hotel = await getPrimaryHotel(queryClient, accessToken);
       return toRoom(
         await partners.updateRoom(hotel.id, id, roomBody(values), accessToken),

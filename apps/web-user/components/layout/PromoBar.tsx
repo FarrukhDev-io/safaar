@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore, useEffect } from "react";
 import Link from "next/link";
 import { Sparkles, X, ArrowRight } from "lucide-react";
 import { type PromoBarConfig, getLocalizedText } from "@/lib/promo";
+import { PromoShinyText } from "@/components/ui/PromoShinyText";
 
 interface PromoBarProps {
   config?: PromoBarConfig | null;
@@ -49,8 +50,7 @@ export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
   return (
     <div
       role="region"
-      aria-label="Aksiya va e'lonlar"
-      className="relative flex min-h-[36px] items-center justify-center border-b border-indigo-500/30 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-8 py-1.5 text-center text-xs font-semibold text-white shadow-md backdrop-blur-xs transition-all duration-300 sm:text-sm"
+      className="relative flex min-h-[36px] items-center justify-center bg-primary-700/95 px-8 py-1.5 text-center text-xs font-semibold text-white shadow-md backdrop-blur-md transition-all duration-300 sm:text-sm"
     >
       <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
         {badgeText ? (
@@ -62,7 +62,7 @@ export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
           <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-pulse hidden sm:inline" aria-hidden />
         )}
 
-        <span className="line-clamp-1 drop-shadow-xs">{text}</span>
+        <PromoShinyText className="line-clamp-1 drop-shadow-xs">{text}</PromoShinyText>
 
         {config?.link && (
           <Link

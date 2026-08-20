@@ -10,9 +10,9 @@ import {
   useUpdateListingAmenities,
 } from "../../../_hooks/use-listing";
 import { useAuthStore } from "../../../_stores/auth-store";
-import { isRestaurant } from "../../../_lib/utils/partner-labels";
-import { AMENITY_GROUPS, RESTAURANT_AMENITY_GROUPS } from "../../../_lib/domain/listing";
 import { cn } from "../../../_lib/utils/cn";
+import { useAmenities } from "../../../_hooks/use-catalog";
+import { useMemo } from "react";
 
 function sameAmenities(a: string[], b: string[]) {
   if (a.length !== b.length) return false;
@@ -29,7 +29,31 @@ export function AmenitiesEditor({
   const { data } = useListing();
   const updateAmenities = useUpdateListingAmenities();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
-  const groups = isRestaurant(partnerType) ? RESTAURANT_AMENITY_GROUPS : AMENITY_GROUPS;
+  const { data: allAmenities = [], isLoading } = useAmenities();
+
+  const sectionAmenities = useMemo(() => {
+    return allAmenities.filter((a: any) => {
+      const code = a.code || '';
+      if (partnerType === 'restaurant') return code.startsWith('restaurant_');
+      if (partnerType === 'dacha') return code.startsWith('dacha_');
+      if (partnerType === 'bus' || partnerType === 'transport') return code.startsWith('transport_') || code.startsWith('bus_');
+
+      // Default / Hotel
+      return code.startsWith('hotel_') || !code.includes('_');
+    }).map((a: any) => ({
+      id: a.code,
+      label: typeof a.name === 'string' ? a.name : ((a.name as any)?.uz || a.code)
+    }));
+  }, [allAmenities, partnerType]);
+
+  const groups = [
+    {
+      key: "general",
+      label: "Barcha qulayliklar",
+      items: sectionAmenities,
+    }
+  ];
+
   const [draftAmenities, setDraftAmenities] = useState(data.amenities);
   const draftRef = useRef(draftAmenities);
   const lastSavedRef = useRef(data.amenities);
@@ -129,13 +153,20 @@ export function AmenitiesEditor({
       }
     >
       <div className="flex flex-col gap-6">
-        {groups.map((group) => (
+        {isLoading ? (
+          <div className="flex justify-center p-8">Yuklanmoqda...</div>
+        ) : sectionAmenities.length === 0 ? (
+          <div className="text-center text-sm text-[var(--muted-foreground)] py-8">
+            Hozircha qulayliklar qo'shilmagan.
+          </div>
+        ) : (
+          groups.map((group) => (
           <div key={group.key} className="flex flex-col gap-2.5">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">
               {group.label}
             </h3>
             <div className="grid gap-2 sm:grid-cols-2">
-              {group.items.map((item) => {
+              {group.items.map((item: any) => {
                 const isOn = selected.has(item.id);
                 return (
                   <button
@@ -177,7 +208,8 @@ export function AmenitiesEditor({
               })}
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
     </Drawer>
   );

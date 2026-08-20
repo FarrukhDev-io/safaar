@@ -47,14 +47,14 @@ export function SiteFooter({
             <div className="mt-1 flex items-center gap-3">
               <a
                 href="#"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20 hover:text-white"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-primary-500 transition-colors hover:bg-primary-500 hover:text-white"
                 aria-label="Instagram"
               >
                 <Camera className="h-5 w-5" />
               </a>
               <a
                 href="#"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20 hover:text-white"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-primary-500 transition-colors hover:bg-primary-500 hover:text-white"
                 aria-label="Telegram"
               >
                 <Send className="h-5 w-5 -ml-0.5 mt-0.5" />
@@ -131,13 +131,13 @@ export function SiteFooter({
             <h3 className="text-base font-bold text-white">{sections.contact}</h3>
             <ul className="flex flex-col gap-3 text-sm">
               <li className="flex items-start gap-3">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-white/70" />
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
                 <span className="leading-relaxed">
                   O'zbekiston, Toshkent shahri,<br />Yunusobod tumani
                 </span>
               </li>
               <li className="flex items-center gap-3">
-                <Mail className="h-4 w-4 shrink-0 text-white/70" />
+                <Mail className="h-4 w-4 shrink-0 text-primary-500" />
                 <a
                   href={`mailto:${dict.footer.email}`}
                   className="transition-colors hover:text-white hover:underline"

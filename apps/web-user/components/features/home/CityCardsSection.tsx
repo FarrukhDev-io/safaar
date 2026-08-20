@@ -35,7 +35,7 @@ export async function CityCardsSection({
 
   return (
     <section aria-labelledby="city-cards-heading">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
         <div className="mb-4 sm:mb-6">
           <div className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
             <SoftBlurIn text={dict.title} className="h-8 sm:h-10" holdMs={999999} />
@@ -52,6 +52,7 @@ export async function CityCardsSection({
             height={400}
             accentColor="#0284c7"
             expandRatio={0.5}
+            grayscale={false}
           />
         </div>
 

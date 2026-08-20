@@ -10,7 +10,11 @@ export const primaryHotelQueryKey = ["partner", "primary-hotel"] as const;
 async function fetchPrimaryHotel(token?: string | null) {
   let [hotel] = pageItems(await partners.listHotels(token));
   if (!hotel) {
-    hotel = await partners.createHotel({ name: 'Yangi obyekt' }, token);
+    const user = useAuthStore.getState().user;
+    const partnerType = user?.partnerType;
+    if (partnerType && partnerType !== 'bus') {
+      hotel = await partners.createHotel({ name: 'Yangi obyekt' }, token);
+    }
   }
   return hotel;
 }

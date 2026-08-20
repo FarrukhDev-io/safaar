@@ -139,8 +139,8 @@ export function CalendarView() {
     () =>
       [...filteredRows].sort(
         (a, b) =>
-          Number(a.roomNumber) - Number(b.roomNumber) ||
-          a.primaryLabel.localeCompare(b.primaryLabel),
+          a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true, sensitivity: "base" }) ||
+          a.primaryLabel.localeCompare(b.primaryLabel, undefined, { numeric: true, sensitivity: "base" }),
       ),
     [filteredRows],
   );
@@ -182,6 +182,7 @@ export function CalendarView() {
         if (
           r.status === BookingStatus.CANCELLED ||
           r.status === BookingStatus.EXPIRED ||
+          r.status === BookingStatus.PENDING ||
           !r.roomNumber ||
           !row.matches(r)
         ) {
@@ -225,7 +226,8 @@ export function CalendarView() {
     const visible = reservations.filter((r) => {
       if (
         r.status === BookingStatus.CANCELLED ||
-        r.status === BookingStatus.EXPIRED
+        r.status === BookingStatus.EXPIRED ||
+        r.status === BookingStatus.PENDING
       ) {
         return false;
       }

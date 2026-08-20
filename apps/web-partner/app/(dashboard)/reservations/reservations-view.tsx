@@ -142,7 +142,11 @@ export function ReservationsView() {
       [BookingStatus.CANCELLED]: 0,
       [BookingStatus.EXPIRED]: 0,
     };
-    for (const r of data) c[r.status]++;
+    for (const r of data) {
+      if (r.status in c) {
+        c[r.status as FilterKey]++;
+      }
+    }
     return c;
   }, [data]);
 
@@ -563,9 +567,11 @@ function ReservationCard({
                 icon={<CalendarRange />}
                 label={isBus ? "Qaytarish vaqti" : "Ketish"}
                 value={
-                  isBus || restaurant
+                  restaurant
                     ? formatDate(reservation.checkOut)
-                    : `${formatDate(reservation.checkOut)} · ${reservation.nights} kech.`
+                    : isBus
+                      ? `${formatDate(reservation.checkOut)} · ${reservation.nights} kun`
+                      : `${formatDate(reservation.checkOut)} · ${reservation.nights} kech.`
                 }
               />
               <MiniInfo
