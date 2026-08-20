@@ -91,8 +91,7 @@ describe('EmailService', () => {
         socketTimeout: expect.any(Number),
       }),
     );
-    const options = (nodemailer.createTransport as jest.Mock).mock
-      .calls[0]![0];
+    const options = (nodemailer.createTransport as jest.Mock).mock.calls[0]![0];
     expect(options.connectionTimeout).toBeLessThanOrEqual(15_000);
     expect(options.greetingTimeout).toBeLessThanOrEqual(15_000);
     expect(options.socketTimeout).toBeLessThanOrEqual(15_000);

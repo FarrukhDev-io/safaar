@@ -13,6 +13,7 @@ import {
   createWebhook, 
   deleteWebhook 
 } from "@/app/_lib/api/endpoints/partners";
+import { toApiKey, toWebhook } from "@/app/_lib/api/adapters";
 import { formatDate } from "@/app/_lib/utils/format";
 
 export default function DeveloperSettingsPage() {
@@ -37,8 +38,8 @@ export default function DeveloperSettingsPage() {
         listApiKeys(null),
         listWebhooks(null),
       ]);
-      setApiKeys(keysData);
-      setWebhooks(webhooksData);
+      setApiKeys(keysData.map(toApiKey));
+      setWebhooks(webhooksData.map(toWebhook));
     } catch (e) {
       toast.error("Ma'lumotlarni yuklab bo'lmadi");
     } finally {
@@ -56,7 +57,7 @@ export default function DeveloperSettingsPage() {
     setSubmitting(true);
     try {
       const data = await createApiKey({ name: keyName }, null);
-      setNewKeyString(data.key);
+      setNewKeyString(toApiKey(data).key ?? null);
       setKeyName("");
       fetchData();
     } catch (e) {

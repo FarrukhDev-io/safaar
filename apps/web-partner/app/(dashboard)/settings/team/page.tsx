@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Users, UserPlus, Mail, Shield, Trash2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PartnerTeamMember, listTeamMembers, inviteTeamMember, deleteTeamMember, updateTeamMember } from "@/app/_lib/api/endpoints/partners";
+import { toTeamMember } from "@/app/_lib/api/adapters";
 
 export default function TeamSettingsPage() {
   const [members, setMembers] = useState<PartnerTeamMember[]>([]);
@@ -17,7 +18,7 @@ export default function TeamSettingsPage() {
     try {
       setLoading(true);
       const data = await listTeamMembers(null);
-      setMembers(data);
+      setMembers(data.map(toTeamMember));
     } catch (e) {
       toast.error("Jamoa a'zolarini yuklab bo'lmadi");
     } finally {
@@ -37,7 +38,10 @@ export default function TeamSettingsPage() {
     }
     setSubmitting(true);
     try {
-      await inviteTeamMember(inviteForm, null);
+      await inviteTeamMember(
+        { full_name: inviteForm.name, email: inviteForm.email, role: inviteForm.role },
+        null,
+      );
       toast.success("Taklif yuborildi");
       setShowInviteModal(false);
       setInviteForm({ name: "", email: "", role: "staff" });

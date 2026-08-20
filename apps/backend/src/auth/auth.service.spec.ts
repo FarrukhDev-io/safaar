@@ -10,6 +10,7 @@ import type {
 } from '../infrastructure/postgres.service';
 import type { JobQueueService } from '../infrastructure/job-queue.service';
 import type { EmailService } from '../infrastructure/email.service';
+import type { SmsService } from '../infrastructure/sms.service';
 import type { AppCacheService } from '../infrastructure/cache.service';
 import type { EmailMessage } from '../integrations/email/email-provider.interface';
 import { authSessionStore } from './session-store';
@@ -28,6 +29,7 @@ describe('AuthService email and OAuth', () => {
   const jobs = { add: jest.fn() };
   const sentMessages: EmailMessage[] = [];
   const email = { send: jest.fn() };
+  const sms = { send: jest.fn() };
   const cache = {
     get: jest.fn(),
     set: jest.fn(),
@@ -51,12 +53,14 @@ describe('AuthService email and OAuth', () => {
       sentMessages.push(message);
       return Promise.resolve({ accepted: true });
     });
+    sms.send.mockResolvedValue({ accepted: true, providerMessageId: '' });
     jobs.add.mockResolvedValue(undefined);
     cache.set.mockResolvedValue(undefined);
     service = new AuthService(
       pg as unknown as PostgresService,
       jobs as unknown as JobQueueService,
       email as unknown as EmailService,
+      sms as unknown as SmsService,
       cache as unknown as AppCacheService,
     );
   });
@@ -363,6 +367,7 @@ describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column 
   const pg = { query: jest.fn(), transaction: jest.fn() };
   const jobs = { add: jest.fn() };
   const email = { send: jest.fn() };
+  const sms = { send: jest.fn() };
   const cache = { get: jest.fn(), set: jest.fn(), take: jest.fn() };
   let service: AuthService;
   const adminActor = {
@@ -378,13 +383,14 @@ describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column 
     pg.query.mockResolvedValue([{ id: 'admin-1', email: 'admin@safaar.uz' }]);
     pg.transaction.mockImplementation(
       (operation: (tx: PostgresTransaction) => unknown) =>
-        operation({ query: pg.query } as unknown as PostgresTransaction),
+        operation({ query: pg.query }),
     );
     jest.spyOn(authSessionStore, 'revokeActor').mockResolvedValue(1);
     service = new AuthService(
       pg as unknown as PostgresService,
       jobs as unknown as JobQueueService,
       email as unknown as EmailService,
+      sms as unknown as SmsService,
       cache as unknown as AppCacheService,
     );
   });
@@ -456,6 +462,7 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
   const pg = { query: jest.fn(), transaction: jest.fn() };
   const jobs = { add: jest.fn() };
   const email = { send: jest.fn() };
+  const sms = { send: jest.fn() };
   let store: Map<string, { value: unknown; expiresAt: number }>;
   const cache = {
     get: jest.fn((key: string) => {
@@ -482,13 +489,14 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
     store = new Map();
     pg.transaction.mockImplementation(
       (operation: (tx: PostgresTransaction) => unknown) =>
-        operation({ query: pg.query } as unknown as PostgresTransaction),
+        operation({ query: pg.query }),
     );
     jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
     service = new AuthService(
       pg as unknown as PostgresService,
       jobs as unknown as JobQueueService,
       email as unknown as EmailService,
+      sms as unknown as SmsService,
       cache as unknown as AppCacheService,
     );
   });
@@ -627,11 +635,12 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
   });
 });
 
-describe('AuthService demo-mode OTP (ENABLE_DEMO_AUTH — no real SMS/email provider yet)', () => {
+describe('AuthService demo-mode OTP (ENABLE_DEMO_AUTH — SMS/email provider unconfigured in tests)', () => {
   const originalEnv = { ...process.env };
   const pg = { query: jest.fn(), transaction: jest.fn() };
   const jobs = { add: jest.fn() };
   const email = { send: jest.fn() };
+  const sms = { send: jest.fn() };
   const cache = { get: jest.fn(), set: jest.fn(), take: jest.fn() };
   let service: AuthService;
 
@@ -640,10 +649,17 @@ describe('AuthService demo-mode OTP (ENABLE_DEMO_AUTH — no real SMS/email prov
     delete process.env.NODE_ENV;
     delete process.env.ENABLE_DEMO_AUTH;
     jobs.add.mockResolvedValue(undefined);
+    sms.send.mockRejectedValue(
+      new ServiceUnavailableException({
+        code: 'SMS_PROVIDER_NOT_CONFIGURED',
+        message: 'SMS provayder ulanmagan',
+      }),
+    );
     service = new AuthService(
       pg as unknown as PostgresService,
       jobs as unknown as JobQueueService,
       email as unknown as EmailService,
+      sms as unknown as SmsService,
       cache as unknown as AppCacheService,
     );
   });
@@ -656,21 +672,31 @@ describe('AuthService demo-mode OTP (ENABLE_DEMO_AUTH — no real SMS/email prov
     process.env = originalEnv;
   });
 
-  it('sendUserOtp still fails cleanly when demo mode is off (default)', () => {
-    expect.assertions(1);
-    try {
-      service.sendUserOtp('+998901234567');
-    } catch (error) {
-      expect(error).toMatchObject({
-        response: { code: 'SMS_PROVIDER_NOT_CONFIGURED' },
-      });
-    }
+  it('sendUserOtp still fails cleanly when demo mode is off (default)', async () => {
+    await expect(service.sendUserOtp('+998901234567')).rejects.toMatchObject({
+      response: { code: 'SMS_PROVIDER_NOT_CONFIGURED' },
+    });
+  });
+
+  it('sendUserOtp sends a real SMS when demo mode is off and the provider is configured', async () => {
+    sms.send.mockResolvedValueOnce({ accepted: true, providerMessageId: 'sms-1' });
+
+    const result = (await service.sendUserOtp('+998901234567')) as {
+      sent: boolean;
+      dev_code?: string;
+    };
+
+    expect(sms.send).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: '+998901234567' }),
+    );
+    expect(result.sent).toBe(true);
+    expect(result).not.toHaveProperty('dev_code');
   });
 
   it('sendUserOtp returns a real, usable dev_code when ENABLE_DEMO_AUTH=true', async () => {
     process.env.ENABLE_DEMO_AUTH = 'true';
 
-    const result = service.sendUserOtp('+998901234567') as {
+    const result = (await service.sendUserOtp('+998901234567')) as {
       sent: boolean;
       challenge_id: string;
       dev_code?: string;
@@ -678,6 +704,7 @@ describe('AuthService demo-mode OTP (ENABLE_DEMO_AUTH — no real SMS/email prov
 
     expect(result.sent).toBe(true);
     expect(result.dev_code).toMatch(/^\d{6}$/);
+    expect(sms.send).not.toHaveBeenCalled();
 
     // dev_code haqiqiy OTP kod bo'lishi kerak — u bilan verify qilish
     // ishlashi kerak (frontend uni ko'rsatib, user shu kod bilan davom
@@ -695,20 +722,20 @@ describe('AuthService demo-mode OTP (ENABLE_DEMO_AUTH — no real SMS/email prov
     ).resolves.toBeDefined();
   });
 
-  it('sendPartnerOtp behaves the same way (fails off, dev_code on)', () => {
+  it('sendPartnerOtp behaves the same way (fails off, dev_code on)', async () => {
     process.env.ENABLE_DEMO_AUTH = 'true';
 
-    const result = service.sendPartnerOtp('+998901234567') as {
+    const result = (await service.sendPartnerOtp('+998901234567')) as {
       dev_code?: string;
     };
     expect(result.dev_code).toMatch(/^\d{6}$/);
   });
 
-  it('demo mode works regardless of NODE_ENV — it is gated solely by the explicit ENABLE_DEMO_AUTH flag', () => {
+  it('demo mode works regardless of NODE_ENV — it is gated solely by the explicit ENABLE_DEMO_AUTH flag', async () => {
     process.env.NODE_ENV = 'production';
     process.env.ENABLE_DEMO_AUTH = 'true';
 
-    const result = service.sendUserOtp('+998901234567') as {
+    const result = (await service.sendUserOtp('+998901234567')) as {
       dev_code?: string;
     };
 

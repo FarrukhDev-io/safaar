@@ -926,6 +926,7 @@ model WithdrawalRequest {
   amount         Decimal  @db.Decimal(18, 2)
   currency       String   @default("UZS") @db.Char(3)
   status         String   @default("requested") @db.VarChar(32)
+  bankAccount    String?  @map("bank_account") @db.VarChar(255)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
 

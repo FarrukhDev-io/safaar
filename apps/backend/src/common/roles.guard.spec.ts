@@ -12,7 +12,10 @@ jest.mock('../auth/session-store', () => ({
 function contextFor(
   headers: Record<string, string> = {},
   overrides: { requiredRoles?: Role[]; requiredPermissions?: string[] } = {},
-): { context: ExecutionContext; request: { user?: unknown; headers: Record<string, string> } } {
+): {
+  context: ExecutionContext;
+  request: { user?: unknown; headers: Record<string, string> };
+} {
   const request: { user?: unknown; headers: Record<string, string> } = {
     headers,
   };
@@ -57,7 +60,9 @@ describe('RolesGuard — optional-auth actor resolution (regression: guest-check
     const token = userToken();
     pg.query.mockResolvedValueOnce([{ status: 'active' }]); // users status check
 
-    const { context, request } = contextFor({ authorization: `Bearer ${token}` });
+    const { context, request } = contextFor({
+      authorization: `Bearer ${token}`,
+    });
     await expect(guard.canActivate(context)).resolves.toBe(true);
 
     expect(request.user).toMatchObject({
@@ -77,13 +82,17 @@ describe('RolesGuard — optional-auth actor resolution (regression: guest-check
     const token = userToken();
     pg.query.mockResolvedValueOnce([{ status: 'blocked' }]);
 
-    const { context, request } = contextFor({ authorization: `Bearer ${token}` });
+    const { context, request } = contextFor({
+      authorization: `Bearer ${token}`,
+    });
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.user).toBeUndefined();
   });
 
   it('still enforces roles/permissions normally when @Roles() IS present (no regression)', async () => {
-    reflector.getAllAndOverride.mockReturnValueOnce([Role.PARTNER]).mockReturnValueOnce(undefined);
+    reflector.getAllAndOverride
+      .mockReturnValueOnce([Role.PARTNER])
+      .mockReturnValueOnce(undefined);
     const token = userToken(); // actor is a plain USER, not PARTNER
     pg.query.mockResolvedValueOnce([{ status: 'active' }]);
 
@@ -94,7 +103,9 @@ describe('RolesGuard — optional-auth actor resolution (regression: guest-check
   });
 
   it('still rejects a missing token when @Roles() IS required (no regression)', async () => {
-    reflector.getAllAndOverride.mockReturnValueOnce([Role.USER]).mockReturnValueOnce(undefined);
+    reflector.getAllAndOverride
+      .mockReturnValueOnce([Role.USER])
+      .mockReturnValueOnce(undefined);
     const { context } = contextFor({});
     await expect(guard.canActivate(context)).rejects.toMatchObject({
       status: 401,

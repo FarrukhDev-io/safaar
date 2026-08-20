@@ -298,11 +298,13 @@ export class PartnersService {
   async documents(actor: RequestActor | undefined) {
     const organizationId = this.organizationId(actor);
     return this.pg.query(
-      `SELECT id::text, organization_id::text, type, file_id::text, status,
-              created_at, updated_at
-       FROM partner_documents
-       WHERE organization_id = $1
-       ORDER BY created_at DESC`,
+      `SELECT pd.id::text, pd.organization_id::text, pd.type, pd.file_id::text,
+              pd.status, pd.created_at, pd.updated_at,
+              mf.url AS file_url, mf.caption AS file_name
+       FROM partner_documents pd
+       LEFT JOIN media_files mf ON mf.id = pd.file_id
+       WHERE pd.organization_id = $1
+       ORDER BY pd.created_at DESC`,
       [organizationId],
     );
   }
@@ -1147,7 +1149,7 @@ export class PartnersService {
       throw new ConflictException({
         code: 'ROOM_TYPE_CODE_TAKEN',
         message:
-          "Bu kod bilan xona turi boshqa mehmonxonada allaqachon mavjud. Boshqa kod tanlang.",
+          'Bu kod bilan xona turi boshqa mehmonxonada allaqachon mavjud. Boshqa kod tanlang.',
       });
     }
 
@@ -1196,7 +1198,10 @@ export class PartnersService {
    * "hech kimga bog'lanmagan" holat ham "meniki" deb hisoblanadi, lekin
    * BOSHQA mehmonxonaga bog'langan bo'lsa qat'iy rad etiladi.
    */
-  private async assertRoomTypeOwnedByHotel(hotelId: string, roomTypeId: string) {
+  private async assertRoomTypeOwnedByHotel(
+    hotelId: string,
+    roomTypeId: string,
+  ) {
     const [row] = await this.pg.query<{ owned: boolean }>(
       `SELECT NOT EXISTS (
          SELECT 1 FROM hotel_rooms
@@ -1932,9 +1937,9 @@ export class PartnersService {
         });
       }
 
-      const totalCount = this.optionalNonNegativeNumber(
-        item.total_count ?? item.totalCount,
-      ) ?? room.total_inventory;
+      const totalCount =
+        this.optionalNonNegativeNumber(item.total_count ?? item.totalCount) ??
+        room.total_inventory;
       const closed = Boolean(item.closed ?? false);
 
       const [savedRow] = await this.pg.query(
@@ -2417,12 +2422,14 @@ export class PartnersService {
       [organizationId],
     );
     if (existing) {
-      return this.pg.query(
-        `SELECT id::text, partner_organization_id::text, name, status,
+      return this.pg
+        .query(
+          `SELECT id::text, partner_organization_id::text, name, status,
                 rating_average::float8, reviews_count, created_at, updated_at
          FROM bus_companies WHERE id = $1`,
-        [existing.id],
-      ).then((rows) => rows[0]);
+          [existing.id],
+        )
+        .then((rows) => rows[0]);
     }
 
     const name =
@@ -2509,7 +2516,10 @@ export class PartnersService {
    */
   private static readonly MAX_VEHICLE_SEATS = 30;
   private static readonly MAX_VEHICLE_PRICE_PER_DAY = 50_000_000;
-  private static readonly VEHICLE_STATUS_VALUES = new Set(['active', 'inactive']);
+  private static readonly VEHICLE_STATUS_VALUES = new Set([
+    'active',
+    'inactive',
+  ]);
 
   private validateVehicleSeats(seatsCount: number): void {
     if (
@@ -2588,7 +2598,15 @@ export class PartnersService {
        VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $7)
        RETURNING id::text, company_id::text, name, plate_number, seats_count,
                  price_per_day::float8, seat_layout, status, created_at, updated_at`,
-      [randomUUID(), companyId, name, plateNumber, seatsCount, pricePerDay, now],
+      [
+        randomUUID(),
+        companyId,
+        name,
+        plateNumber,
+        seatsCount,
+        pricePerDay,
+        now,
+      ],
     );
     this.invalidatePublicTransportCache();
     return vehicle;
@@ -2609,8 +2627,7 @@ export class PartnersService {
       body.plate_number !== undefined
         ? this.normalizeVehiclePlate(body.plate_number)
         : undefined;
-    const statusValue =
-      body.status !== undefined ? String(body.status) : null;
+    const statusValue = body.status !== undefined ? String(body.status) : null;
 
     if (seatsInput !== null) this.validateVehicleSeats(seatsInput);
     if (priceValue !== null) this.validateVehiclePrice(priceValue);
@@ -3245,7 +3262,10 @@ export class PartnersService {
       'BOOKING_SOURCE_REQUIRED',
       'Bron manbasi kiritilishi kerak',
     );
-    const commissionAmount = calculateCommission(totalAmount, hotel.commission_rate);
+    const commissionAmount = calculateCommission(
+      totalAmount,
+      hotel.commission_rate,
+    );
     const guestName = String(body.fullName ?? body.full_name ?? '').trim();
     const guestPhone = String(body.phone ?? '').trim();
     const guestEmail = body.email ? String(body.email).toLowerCase() : null;
@@ -3769,6 +3789,16 @@ export class PartnersService {
       });
     }
 
+    const bankAccount = String(
+      body.bankAccount ?? body.bank_account ?? '',
+    ).trim();
+    if (!bankAccount) {
+      throw new BadRequestException({
+        code: 'WITHDRAWAL_BANK_ACCOUNT_REQUIRED',
+        message: 'Bank hisob raqami kiritilishi kerak',
+      });
+    }
+
     const now = new Date().toISOString();
     return this.pg.transaction(async (tx: PostgresTransaction) => {
       // Tashkilot qatorini qulflab, shu tashkilot uchun parallel keladigan
@@ -3796,10 +3826,10 @@ export class PartnersService {
 
       const [request] = await tx.query(
         `INSERT INTO withdrawal_requests
-           (id, organization_id, amount, currency, status, created_at, updated_at)
-         VALUES ($1, $2, $3, 'UZS', 'requested', $4, $5)
+           (id, organization_id, amount, currency, status, bank_account, created_at, updated_at)
+         VALUES ($1, $2, $3, 'UZS', 'requested', $4, $5, $6)
          RETURNING *`,
-        [randomUUID(), organizationId, amount, now, now],
+        [randomUUID(), organizationId, amount, bankAccount, now, now],
       );
       return request;
     });

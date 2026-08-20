@@ -590,15 +590,15 @@ export interface PartnerTeamMember {
 }
 
 export function listTeamMembers(token?: string | null) {
-  return request<PartnerTeamMember[]>('/partner/team', { token });
+  return request<import('../adapters').BackendTeamMember[]>('/partner/team', { token });
 }
 
 export function inviteTeamMember(body: Record<string, unknown>, token?: string | null) {
-  return request<PartnerTeamMember>('/partner/team', { method: 'POST', body, token });
+  return request<import('../adapters').BackendTeamMember>('/partner/team', { method: 'POST', body, token });
 }
 
 export function updateTeamMember(id: string, body: Record<string, unknown>, token?: string | null) {
-  return request<PartnerTeamMember>(`/partner/team/${id}`, { method: 'PATCH', body, token });
+  return request<import('../adapters').BackendTeamMember>(`/partner/team/${id}`, { method: 'PATCH', body, token });
 }
 
 export function deleteTeamMember(id: string, token?: string | null) {
@@ -616,11 +616,64 @@ export interface PartnerDocument {
 }
 
 export function listDocuments(token?: string | null) {
-  return request<PartnerDocument[]>('/partner/documents', { token });
+  return request<import('../adapters').BackendDocument[]>('/partner/documents', { token });
 }
 
-export function uploadDocument(body: Record<string, unknown>, token?: string | null) {
-  return request<PartnerDocument>('/partner/documents', { method: 'POST', body, token });
+interface PresignResult {
+  upload_url: string;
+  method: string;
+  headers?: Record<string, string>;
+  url: string;
+  mime_type: string;
+}
+
+/**
+ * Hujjat yuklash 3 bosqichli: (1) presigned URL olish, (2) faylni
+ * to'g'ridan-to'g'ri R2'ga PUT qilish, (3) natijani `media_files`ga
+ * ro'yxatga olish. Backend `/partner/documents` esa faqat tayyor
+ * `file_id`ni kutadi — shu sabab bu yerda zanjir sifatida qilingan.
+ */
+export async function uploadDocument(
+  file: File,
+  type: string,
+  token?: string | null,
+) {
+  const presign = await request<PresignResult>('/uploads/presign', {
+    method: 'POST',
+    body: {
+      type: 'document',
+      mime_type: file.type,
+      size: file.size,
+      filename: file.name,
+    },
+    token,
+  });
+
+  const uploadResponse = await fetch(presign.upload_url, {
+    method: presign.method,
+    headers: presign.headers,
+    body: file,
+  });
+  if (!uploadResponse.ok) {
+    throw new Error("Fayl saqlash xizmatiga yuklab bo'lmadi");
+  }
+
+  const registered = await request<{ id: string }>('/uploads/documents', {
+    method: 'POST',
+    body: {
+      url: presign.url,
+      mime_type: presign.mime_type,
+      size: file.size,
+      caption: file.name,
+    },
+    token,
+  });
+
+  return request<import('../adapters').BackendDocument>('/partner/documents', {
+    method: 'POST',
+    body: { type, file_id: registered.id },
+    token,
+  });
 }
 
 // DEVELOPER API KEYS & WEBHOOKS
@@ -642,11 +695,11 @@ export interface PartnerWebhook {
 }
 
 export function listApiKeys(token?: string | null) {
-  return request<PartnerApiKey[]>('/partner/api-keys', { token });
+  return request<import('../adapters').BackendApiKey[]>('/partner/api-keys', { token });
 }
 
 export function createApiKey(body: Record<string, unknown>, token?: string | null) {
-  return request<PartnerApiKey & { key: string }>('/partner/api-keys', { method: 'POST', body, token });
+  return request<import('../adapters').BackendApiKey>('/partner/api-keys', { method: 'POST', body, token });
 }
 
 export function deleteApiKey(id: string, token?: string | null) {
@@ -654,15 +707,15 @@ export function deleteApiKey(id: string, token?: string | null) {
 }
 
 export function listWebhooks(token?: string | null) {
-  return request<PartnerWebhook[]>('/partner/webhooks', { token });
+  return request<import('../adapters').BackendWebhook[]>('/partner/webhooks', { token });
 }
 
 export function createWebhook(body: Record<string, unknown>, token?: string | null) {
-  return request<PartnerWebhook>('/partner/webhooks', { method: 'POST', body, token });
+  return request<import('../adapters').BackendWebhook>('/partner/webhooks', { method: 'POST', body, token });
 }
 
 export function updateWebhook(id: string, body: Record<string, unknown>, token?: string | null) {
-  return request<PartnerWebhook>(`/partner/webhooks/${id}`, { method: 'PATCH', body, token });
+  return request<import('../adapters').BackendWebhook>(`/partner/webhooks/${id}`, { method: 'PATCH', body, token });
 }
 
 export function deleteWebhook(id: string, token?: string | null) {
@@ -679,11 +732,11 @@ export interface WithdrawalRequest {
 }
 
 export function getWithdrawals(token?: string | null) {
-  return request<WithdrawalRequest[]>('/partner/withdrawals', { token });
+  return request<import('../adapters').BackendWithdrawal[]>('/partner/withdrawals', { token });
 }
 
 export function createWithdrawal(body: Record<string, unknown>, token?: string | null) {
-  return request<WithdrawalRequest>('/partner/withdrawals', { method: 'POST', body, token });
+  return request<import('../adapters').BackendWithdrawal>('/partner/withdrawals', { method: 'POST', body, token });
 }
 
 // VEHICLES (Rent-Car)

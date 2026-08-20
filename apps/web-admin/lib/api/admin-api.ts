@@ -703,7 +703,7 @@ function toPaymentTransaction(row: ApiRecord): AdminPaymentTransaction {
     amount: asNumber(row.amount),
     provider: asString(row.provider, 'payme') as any,
     status: asString(row.status, 'pending') as any,
-    providerTransactionId: asString(row.provider_transaction_id ?? row.providerTransactionId) || undefined,
+    providerTransactionId: asString(row.provider_reference ?? row.provider_transaction_id ?? row.providerTransactionId) || undefined,
     createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
   };
 }

@@ -12,6 +12,13 @@ import {
   PhotoCategory,
   type Listing,
 } from '../domain/listing';
+import type {
+  PartnerTeamMember,
+  PartnerDocument,
+  PartnerApiKey,
+  PartnerWebhook,
+  WithdrawalRequest,
+} from './endpoints/partners';
 
 type Localized =
   | string
@@ -128,6 +135,64 @@ export interface BackendBooking {
     nights?: number;
   };
   created_at?: string;
+}
+
+export interface BackendTeamMember {
+  id: string;
+  organization_id?: string;
+  email: string;
+  full_name?: string | null;
+  role: string;
+  status: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface BackendDocument {
+  id: string;
+  organization_id?: string;
+  type: string;
+  file_id?: string;
+  status: string;
+  file_url?: string | null;
+  file_name?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface BackendApiKey {
+  id: string;
+  organization_id?: string;
+  name: string;
+  key_prefix: string;
+  scopes?: string[];
+  status: string;
+  created_at: string;
+  updated_at?: string;
+  api_key?: string;
+}
+
+export interface BackendWebhook {
+  id: string;
+  organization_id?: string;
+  url: string;
+  events: string[];
+  status: string;
+  secret_hash?: string | null;
+  failed_deliveries?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface BackendWithdrawal {
+  id: string;
+  organization_id?: string;
+  amount: number | string;
+  currency?: string;
+  status: string;
+  bank_account?: string | null;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface BackendDashboard {
@@ -280,6 +345,88 @@ export function toReservation(booking: BackendBooking): ReservationView {
     paidAmount: booking.paid_amount ?? 0,
     source: normalizeReservationSource(booking.policy_snapshot?.source),
     createdAt: booking.created_at ?? '',
+  };
+}
+
+const TEAM_ROLES = ['admin', 'manager', 'staff'] as const;
+const TEAM_STATUSES = ['active', 'invited', 'blocked'] as const;
+const DOCUMENT_STATUSES = ['pending', 'approved', 'rejected'] as const;
+const WITHDRAWAL_STATUSES = ['pending', 'approved', 'rejected', 'paid'] as const;
+
+export function toTeamMember(raw: BackendTeamMember): PartnerTeamMember {
+  const role = TEAM_ROLES.includes(raw.role as (typeof TEAM_ROLES)[number])
+    ? (raw.role as PartnerTeamMember['role'])
+    : 'staff';
+  const status = TEAM_STATUSES.includes(
+    raw.status as (typeof TEAM_STATUSES)[number],
+  )
+    ? (raw.status as PartnerTeamMember['status'])
+    : 'invited';
+  return {
+    id: raw.id,
+    name: raw.full_name || raw.email,
+    email: raw.email,
+    role,
+    status,
+    created_at: raw.created_at,
+  };
+}
+
+export function toDocument(raw: BackendDocument): PartnerDocument {
+  // Backend 'uploaded' — hujjat qabul qilingan, tekshiruv navbatida
+  // ('pending' bilan bir xil ma'no, frontend uchun mos qiymatga o'giramiz).
+  const status =
+    raw.status === 'approved' || raw.status === 'rejected'
+      ? raw.status
+      : 'pending';
+  return {
+    id: raw.id,
+    name: raw.file_name || `${raw.type}.pdf`,
+    type: raw.type,
+    status,
+    url: raw.file_url ?? '',
+    uploaded_at: raw.created_at,
+  };
+}
+
+export function toApiKey(
+  raw: BackendApiKey,
+): PartnerApiKey & { key?: string } {
+  return {
+    id: raw.id,
+    name: raw.name,
+    keyPrefix: raw.key_prefix,
+    createdAt: raw.created_at,
+    key: raw.api_key,
+  };
+}
+
+export function toWebhook(raw: BackendWebhook): PartnerWebhook {
+  return {
+    id: raw.id,
+    url: raw.url,
+    events: raw.events ?? [],
+    isActive: raw.status === 'active',
+    failedDeliveries: raw.failed_deliveries ?? 0,
+    createdAt: raw.created_at,
+  };
+}
+
+export function toWithdrawal(raw: BackendWithdrawal): WithdrawalRequest {
+  const status = WITHDRAWAL_STATUSES.includes(
+    raw.status as (typeof WITHDRAWAL_STATUSES)[number],
+  )
+    ? (raw.status as WithdrawalRequest['status'])
+    // Backend'da boshlang'ich holat "requested" deb ataladi.
+    : raw.status === 'requested'
+      ? 'pending'
+      : 'pending';
+  return {
+    id: raw.id,
+    amount: Number(raw.amount),
+    status,
+    requestDate: raw.created_at,
+    bankAccount: raw.bank_account ?? '',
   };
 }
 

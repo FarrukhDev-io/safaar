@@ -2846,9 +2846,10 @@ export class AdminService {
       }
 
       const requestedAmount = Number(refund.requested_amount);
-      const approvedAmount = body.approved_amount != null
-        ? Number(body.approved_amount)
-        : requestedAmount;
+      const approvedAmount =
+        body.approved_amount != null
+          ? Number(body.approved_amount)
+          : requestedAmount;
       if (!Number.isFinite(approvedAmount) || approvedAmount <= 0) {
         throw new BadRequestException({
           code: 'REFUND_AMOUNT_INVALID',
@@ -2919,7 +2920,9 @@ export class AdminService {
     });
     this.invalidateAdminCache();
     this.events.adminDashboardUpdated();
-    return result ?? { id, status: 'approved', updated_at: new Date().toISOString() };
+    return (
+      result ?? { id, status: 'approved', updated_at: new Date().toISOString() }
+    );
   }
 
   async refundReject(actor: RequestActor | undefined, id: string) {
@@ -4013,6 +4016,21 @@ export class AdminService {
     return row ?? { open: 0, closed: 0 };
   }
 
+  /**
+   * Frontend sarlavha/matnni oddiy string sifatida yuboradi, `cms_entries`
+   * esa CMS'ning umumiy naqshiga mos `{uz, ru, en}` lokalizatsiya obyektini
+   * kutadi (`title ->> 'uz'` orqali o'qiladi) — oddiy string kelsa, uni
+   * shu shaklga o'raymiz, aks holda `->> 'uz'` NULL qaytarib, matn
+   * ro'yxat/detail sahifalarida jim yo'qolib qolardi.
+   */
+  private toLocalizedJsonb(value: unknown, fallbackUz: string): string {
+    if (value && typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    const text = value != null ? String(value) : fallbackUz;
+    return JSON.stringify({ uz: text });
+  }
+
   async notificationBroadcastCreate(body: Record<string, unknown>) {
     const rows = await this.rows(
       `insert into cms_entries (id, type, slug, title, body, status, metadata, updated_at)
@@ -4020,9 +4038,11 @@ export class AdminService {
        returning id::text, type, slug, title, body, status, metadata, created_at, updated_at`,
       [
         `broadcast-${randomUUID().slice(0, 8)}`,
-        JSON.stringify(body.title ?? { uz: 'Broadcast' }),
-        JSON.stringify(body.body ?? {}),
-        JSON.stringify(body.metadata ?? {}),
+        this.toLocalizedJsonb(body.title, 'Broadcast'),
+        this.toLocalizedJsonb(body.body, ''),
+        JSON.stringify(
+          body.metadata ?? { target_type: body.target_type ?? 'all' },
+        ),
       ],
     );
     return rows[0];
@@ -4033,6 +4053,7 @@ export class AdminService {
       select id::text, type, slug,
              coalesce(title ->> 'uz', slug) as title,
              coalesce(body ->> 'uz', '') as body,
+             coalesce(metadata ->> 'target_type', 'all') as target_type,
              status, metadata, created_at, updated_at
       from cms_entries
       where type = 'broadcast'
@@ -4046,6 +4067,7 @@ export class AdminService {
       `select id::text, type, slug,
               coalesce(title ->> 'uz', slug) as title,
               coalesce(body ->> 'uz', '') as body,
+              coalesce(metadata ->> 'target_type', 'all') as target_type,
               status, metadata, created_at, updated_at
        from cms_entries
        where id = $1::uuid and type = 'broadcast'`,

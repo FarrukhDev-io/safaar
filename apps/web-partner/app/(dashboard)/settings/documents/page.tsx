@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { FileText, Upload, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { PartnerDocument, listDocuments, uploadDocument } from "@/app/_lib/api/endpoints/partners";
+import { toDocument } from "@/app/_lib/api/adapters";
 import { formatDate } from "@/app/_lib/utils/format";
 
 export default function DocumentsSettingsPage() {
@@ -17,7 +18,7 @@ export default function DocumentsSettingsPage() {
     try {
       setLoading(true);
       const data = await listDocuments(null);
-      setDocuments(data);
+      setDocuments(data.map(toDocument));
     } catch (e) {
       toast.error("Hujjatlarni yuklab bo'lmadi");
     } finally {
@@ -33,12 +34,9 @@ export default function DocumentsSettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Simulated file upload for now
     setUploading(true);
     try {
-      // Create a dummy URL (in reality, you upload to a storage bucket first, get URL, then send to backend)
-      const mockUrl = URL.createObjectURL(file);
-      await uploadDocument({ name: file.name, type: selectedType, url: mockUrl }, null);
+      await uploadDocument(file, selectedType, null);
       toast.success("Hujjat yuklandi va tasdiqlash uchun yuborildi");
       fetchDocs();
     } catch (e) {

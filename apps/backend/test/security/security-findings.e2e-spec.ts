@@ -70,9 +70,8 @@ describe('Security regression tests', () => {
 
   it('requires signed, idempotent payment webhooks', async () => {
     const pg = postgresMock();
-    pg.transaction.mockImplementation(
-      (operation: (tx: unknown) => unknown) =>
-        operation({ query: pg.query }),
+    pg.transaction.mockImplementation((operation: (tx: unknown) => unknown) =>
+      operation({ query: pg.query }),
     );
     const payments = new PaymentsService(pg as unknown as PostgresService);
     const body = {

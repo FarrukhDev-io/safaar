@@ -51,12 +51,21 @@ describe('ExportsService.download (regression: no more fake "always ready")', ()
 
   it('returns a null download_url without calling R2 when the job is still queued', async () => {
     pg.query.mockResolvedValueOnce([
-      { id: 'export-1', owner_id: 'user-1', status: 'queued', download_key: null },
+      {
+        id: 'export-1',
+        owner_id: 'user-1',
+        status: 'queued',
+        download_key: null,
+      },
     ]);
 
     const result = await service.download(owner, 'export-1');
 
-    expect(result).toEqual({ id: 'export-1', status: 'queued', download_url: null });
+    expect(result).toEqual({
+      id: 'export-1',
+      status: 'queued',
+      download_url: null,
+    });
     expect(uploads.signDocumentDownload).not.toHaveBeenCalled();
   });
 
@@ -101,7 +110,9 @@ describe('ExportsService.download (regression: no more fake "always ready")', ()
         download_key: 'export/partner/org-1/export-1.csv',
       },
     ]);
-    uploads.signDocumentDownload.mockResolvedValueOnce('https://r2.example.com/x');
+    uploads.signDocumentDownload.mockResolvedValueOnce(
+      'https://r2.example.com/x',
+    );
 
     const result = await service.download(partnerActor, 'export-1');
     expect(result.download_url).toBe('https://r2.example.com/x');

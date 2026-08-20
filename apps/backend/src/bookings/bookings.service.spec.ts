@@ -6,7 +6,9 @@ import { PromosService } from '../promos/promos.service';
 import { EventsService } from '../realtime/events.service';
 import { BookingsService } from './bookings.service';
 
-function noopPromosService(): jest.Mocked<Pick<PromosService, 'validate' | 'redeem'>> {
+function noopPromosService(): jest.Mocked<
+  Pick<PromosService, 'validate' | 'redeem'>
+> {
   return {
     validate: jest.fn().mockResolvedValue({
       code: '',
@@ -53,7 +55,9 @@ describe('BookingsService.createHotel guest checkout', () => {
       adminDashboardUpdated: jest.fn(),
     };
     email = {
-      send: jest.fn().mockResolvedValue({ providerMessageId: '', accepted: true }),
+      send: jest
+        .fn()
+        .mockResolvedValue({ providerMessageId: '', accepted: true }),
     };
     promos = noopPromosService();
     service = new BookingsService(
@@ -302,7 +306,7 @@ describe('BookingsService.createHotel guest checkout', () => {
       }),
     ).rejects.toMatchObject({ status: 404 });
 
-    const [sql] = pg.query.mock.calls[0]!;
+    const [sql] = pg.query.mock.calls[0];
     expect(String(sql)).toContain("po.status = 'approved'");
   });
 });
@@ -373,7 +377,7 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
     expect(result.booking.check_out).toBe('2026-08-10');
     expect(result.booking.slot_time).toBe('19:00');
 
-    const conflictCall = pg.query.mock.calls[2]!;
+    const conflictCall = pg.query.mock.calls[2];
     expect(String(conflictCall[0])).toContain('90 minutes');
     expect(conflictCall[1]).toEqual([
       'table-1',
@@ -815,9 +819,9 @@ describe('BookingsService.findOne — authorization (regression: unauthenticated
       roles: [Role.USER],
     };
 
-    await expect(
-      service.findOne(otherUser, 'booking-1'),
-    ).rejects.toMatchObject({ status: 403 });
+    await expect(service.findOne(otherUser, 'booking-1')).rejects.toMatchObject(
+      { status: 403 },
+    );
   });
 
   it('bron egasi o‘z bronini ko‘ra oladi', async () => {
@@ -896,9 +900,9 @@ describe('BookingsService.lookupBooking (guest — booking_number + email)', () 
   });
 
   it("bo'sh bron raqami yoki email uchun 400 qaytaradi", async () => {
-    await expect(service.lookupBooking('', 'guest@example.com')).rejects.toMatchObject(
-      { status: 400 },
-    );
+    await expect(
+      service.lookupBooking('', 'guest@example.com'),
+    ).rejects.toMatchObject({ status: 400 });
   });
 });
 

@@ -59,7 +59,7 @@ export class PaymentsController {
     return this.paymentsService.providerWebhook(
       'click',
       'prepare',
-      body as unknown as Record<string, unknown>,
+      body,
       headers,
     );
   }
@@ -72,7 +72,7 @@ export class PaymentsController {
     return this.paymentsService.providerWebhook(
       'click',
       'complete',
-      body as unknown as Record<string, unknown>,
+      body,
       headers,
     );
   }
@@ -85,7 +85,7 @@ export class PaymentsController {
     return this.paymentsService.providerWebhook(
       'payme',
       'callback',
-      body as unknown as Record<string, unknown>,
+      body,
       headers,
     );
   }
@@ -98,7 +98,7 @@ export class PaymentsController {
     return this.paymentsService.providerWebhook(
       'uzcard',
       'callback',
-      body as unknown as Record<string, unknown>,
+      body,
       headers,
     );
   }
@@ -111,7 +111,7 @@ export class PaymentsController {
     return this.paymentsService.providerWebhook(
       'humo',
       'callback',
-      body as unknown as Record<string, unknown>,
+      body,
       headers,
     );
   }
@@ -125,7 +125,7 @@ export class PaymentsController {
     return this.paymentsService.providerWebhook(
       provider,
       'callback',
-      body as unknown as Record<string, unknown>,
+      body,
       headers,
     );
   }

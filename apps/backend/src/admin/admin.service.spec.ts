@@ -512,7 +512,7 @@ describe('AdminService frontend action endpoints', () => {
       role: 'moderator',
     });
 
-    const [sql, params] = pgMock.query.mock.calls[0]!;
+    const [sql, params] = pgMock.query.mock.calls[0];
     expect(String(sql)).toContain('gen_random_uuid()');
     expect(String(sql)).toContain('password_hash');
     const [email, passwordHash, fullName, role, updatedAt] = params as string[];
@@ -551,10 +551,15 @@ describe('AdminService frontend action endpoints', () => {
 
     const job = await service.exportJob(actor, 'admin-users', 'xlsx');
 
-    const [sql, params] = pgMock.query.mock.calls[0]!;
+    const [sql, params] = pgMock.query.mock.calls[0];
     expect(String(sql)).toContain('gen_random_uuid()');
     expect(String(sql)).toContain('created_at');
-    expect(params).toEqual([actor.id, 'admin-users', 'xlsx', expect.any(String)]);
+    expect(params).toEqual([
+      actor.id,
+      'admin-users',
+      'xlsx',
+      expect.any(String),
+    ]);
     expect(job.id).toBe('export-1');
   });
 
@@ -573,9 +578,9 @@ describe('AdminService frontend action endpoints', () => {
       two_factor_reset: true,
       sessions_revoked: true,
     });
-    const [updateSql] = pgMock.query.mock.calls[0]!;
+    const [updateSql] = pgMock.query.mock.calls[0];
     expect(String(updateSql)).toContain('totp_secret = null');
-    const [deleteSql] = pgMock.query.mock.calls[1]!;
+    const [deleteSql] = pgMock.query.mock.calls[1];
     expect(String(deleteSql)).toContain('delete from admin_recovery_codes');
     expect(revokeSpy).toHaveBeenCalledWith('target-admin-1');
 
@@ -749,7 +754,7 @@ describe('AdminService frontend action endpoints', () => {
       const result = await service.refundRetry(actor, refundId);
 
       expect(result).toMatchObject({ status: 'requested' });
-      const [sql] = pgMock.query.mock.calls[0]!;
+      const [sql] = pgMock.query.mock.calls[0];
       expect(String(sql)).not.toContain('retrying');
     });
 
@@ -758,9 +763,9 @@ describe('AdminService frontend action endpoints', () => {
         .mockResolvedValueOnce([]) // UPDATE ... WHERE status = 'rejected' -> no match
         .mockResolvedValueOnce([{ status: 'approved' }]); // existing-status lookup
 
-      await expect(
-        service.refundRetry(actor, refundId),
-      ).rejects.toMatchObject({ status: 409 });
+      await expect(service.refundRetry(actor, refundId)).rejects.toMatchObject({
+        status: 409,
+      });
     });
   });
 
@@ -772,7 +777,7 @@ describe('AdminService frontend action endpoints', () => {
       const result = await service.withdrawalStatus(withdrawalId, 'approved');
       expect(result).toMatchObject({ status: 'approved' });
 
-      const [, params] = pgMock.query.mock.calls[0]!;
+      const [, params] = pgMock.query.mock.calls[0];
       expect(params).toEqual([withdrawalId, 'approved', ['requested']]);
     });
 
@@ -781,7 +786,7 @@ describe('AdminService frontend action endpoints', () => {
       const result = await service.withdrawalStatus(withdrawalId, 'paid');
       expect(result).toMatchObject({ status: 'paid' });
 
-      const [, params] = pgMock.query.mock.calls[0]!;
+      const [, params] = pgMock.query.mock.calls[0];
       expect(params).toEqual([withdrawalId, 'paid', ['approved']]);
     });
 

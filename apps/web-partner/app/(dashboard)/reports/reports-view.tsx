@@ -38,6 +38,7 @@ import { getPartnerLabels, hasBuses, isDacha, isRestaurant } from "../../_lib/ut
 import { TODAY_ISO } from "../../_lib/utils/date";
 import { cn } from "../../_lib/utils/cn";
 import { getWithdrawals, createWithdrawal, WithdrawalRequest } from "../../_lib/api/endpoints/partners";
+import { toWithdrawal } from "../../_lib/api/adapters";
 import { formatDate } from "../../_lib/utils/format";
 
 type TimeRange = "7days" | "30days" | "year";
@@ -73,7 +74,7 @@ export function ReportsView() {
     try {
       setFinanceLoading(true);
       const data = await getWithdrawals(null);
-      setWithdrawals(data);
+      setWithdrawals(data.map(toWithdrawal));
     } catch (e) {
       toast.error("Pul yechish tarixini yuklab bo'lmadi");
     } finally {
