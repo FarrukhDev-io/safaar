@@ -42,8 +42,16 @@ describe('JobQueueService (regression: BullMQ rejects ":" in custom jobId)', () 
     const service = makeService();
     const key = 'user-data-export:user-1';
 
-    const first = await service.add('user-data-export', { a: 1 }, { idempotencyKey: key });
-    const second = await service.add('user-data-export', { a: 2 }, { idempotencyKey: key });
+    const first = await service.add(
+      'user-data-export',
+      { a: 1 },
+      { idempotencyKey: key },
+    );
+    const second = await service.add(
+      'user-data-export',
+      { a: 2 },
+      { idempotencyKey: key },
+    );
 
     expect(first.id).toBe(key);
     expect(second).toBe(first);

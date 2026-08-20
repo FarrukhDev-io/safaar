@@ -19,7 +19,7 @@ describe('WebhookDeliveryService', () => {
     pg = { query: jest.fn() };
     service = new WebhookDeliveryService(pg as unknown as PostgresService);
     fetchMock = jest.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = fetchMock;
   });
 
   it('marks delivery as delivered on a 2xx response', async () => {
@@ -36,7 +36,7 @@ describe('WebhookDeliveryService', () => {
       'https://partner.example.com/webhook',
       expect.objectContaining({ method: 'POST' }),
     );
-    const updateCall = pg.query.mock.calls[1]!;
+    const updateCall = pg.query.mock.calls[1];
     expect(updateCall[1]).toEqual([
       'delivered',
       200,
@@ -56,7 +56,7 @@ describe('WebhookDeliveryService', () => {
 
     await expect(service.deliver('delivery-1')).rejects.toThrow();
 
-    const updateCall = pg.query.mock.calls[1]!;
+    const updateCall = pg.query.mock.calls[1];
     expect((updateCall[1] as unknown[])[0]).toBe('failed');
     expect((updateCall[1] as unknown[])[1]).toBe(500);
   });
@@ -65,11 +65,9 @@ describe('WebhookDeliveryService', () => {
     pg.query.mockResolvedValueOnce([deliveryRow]).mockResolvedValueOnce([]);
     fetchMock.mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
-    await expect(service.deliver('delivery-1')).rejects.toThrow(
-      'ECONNREFUSED',
-    );
+    await expect(service.deliver('delivery-1')).rejects.toThrow('ECONNREFUSED');
 
-    const updateCall = pg.query.mock.calls[1]!;
+    const updateCall = pg.query.mock.calls[1];
     expect((updateCall[1] as unknown[])[0]).toBe('failed');
     expect((updateCall[1] as unknown[])[1]).toBeNull();
     expect((updateCall[1] as unknown[])[2]).toContain('ECONNREFUSED');
@@ -83,7 +81,7 @@ describe('WebhookDeliveryService', () => {
     await service.deliver('delivery-1');
 
     expect(fetchMock).not.toHaveBeenCalled();
-    const updateCall = pg.query.mock.calls[1]!;
+    const updateCall = pg.query.mock.calls[1];
     expect((updateCall[1] as unknown[])[0]).toBe('skipped');
   });
 

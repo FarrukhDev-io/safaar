@@ -29,9 +29,9 @@ describe('PaymentsService — authorization (regression: unauthenticated IDOR)',
   it('anonim (actor yo‘q) chaqiruv 401 bilan rad etiladi', async () => {
     pg.query.mockResolvedValueOnce([bookingRow]);
 
-    await expect(
-      service.payment(undefined, 'booking-1'),
-    ).rejects.toMatchObject({ status: 401 });
+    await expect(service.payment(undefined, 'booking-1')).rejects.toMatchObject(
+      { status: 401 },
+    );
   });
 
   it('boshqa foydalanuvchi bron to‘lovini ko‘ra olmaydi (403)', async () => {
@@ -43,9 +43,9 @@ describe('PaymentsService — authorization (regression: unauthenticated IDOR)',
       roles: [Role.USER],
     };
 
-    await expect(
-      service.payment(otherUser, 'booking-1'),
-    ).rejects.toMatchObject({ status: 403 });
+    await expect(service.payment(otherUser, 'booking-1')).rejects.toMatchObject(
+      { status: 403 },
+    );
   });
 
   it('bron egasi o‘z to‘lovini ko‘ra oladi', async () => {
@@ -100,7 +100,7 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
     pg = { query: jest.fn(), transaction: jest.fn() };
     pg.transaction.mockImplementation(
       (operation: (tx: PostgresTransaction) => unknown) =>
-        operation({ query: pg.query } as unknown as PostgresTransaction),
+        operation({ query: pg.query }),
     );
     service = new PaymentsService(pg as unknown as PostgresService);
   });
@@ -227,7 +227,9 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
       'x-safaar-signature': sign('click', 'complete', body),
     });
 
-    expect(result).toMatchObject({ booking_outcome: 'lost_race_refund_requested' });
+    expect(result).toMatchObject({
+      booking_outcome: 'lost_race_refund_requested',
+    });
     expect(result.payment?.status).toBe('paid');
 
     // Bron statusi hech qachon "confirmed"ga jim o'zgartirilmasligi kerak.

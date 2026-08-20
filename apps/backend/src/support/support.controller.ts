@@ -4,7 +4,10 @@ import { CurrentActor, type RequestActor } from '../common/actor';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
 import { SupportService } from './support.service';
-import { CreateSupportMessageDto, CreateSupportTicketDto } from './dto/support.dto';
+import {
+  CreateSupportMessageDto,
+  CreateSupportTicketDto,
+} from './dto/support.dto';
 
 @Controller('support/tickets')
 @UseGuards(RolesGuard)

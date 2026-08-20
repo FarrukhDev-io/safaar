@@ -33,6 +33,7 @@ interface MediaInputFields {
   size?: unknown;
   type?: unknown;
   filename?: unknown;
+  caption?: unknown;
 }
 
 export interface UploadedFile {
@@ -110,10 +111,7 @@ export class UploadsService implements OnModuleInit {
     return this.storeMedia(ownerType, ownerId, type, body, file, options);
   }
 
-  async presign(
-    actor: RequestActor | undefined,
-    body: MediaInputFields,
-  ) {
+  async presign(actor: RequestActor | undefined, body: MediaInputFields) {
     const currentActor = this.requireActor(actor);
     const type =
       String(body.type ?? 'image') === 'document' ? 'document' : 'image';
@@ -428,11 +426,12 @@ export class UploadsService implements OnModuleInit {
       stored?.objectKey ?? `${ownerType}/${ownerId}/${randomUUID()}`;
     const url = stored?.url ?? providedUrl;
     const visibility = this.visibilityForBucket(bucket);
+    const caption = body.caption ? String(body.caption).slice(0, 255) : null;
 
     try {
       const [media] = await this.pg.query(
-        `INSERT INTO media_files (id, owner_type, owner_id, bucket, object_key, url, mime_type, size, visibility, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO media_files (id, owner_type, owner_id, bucket, object_key, url, mime_type, size, visibility, caption, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           id,
@@ -444,6 +443,7 @@ export class UploadsService implements OnModuleInit {
           mimeType,
           size,
           visibility,
+          caption,
           now,
         ],
       );

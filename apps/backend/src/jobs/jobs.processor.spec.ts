@@ -30,7 +30,9 @@ describe('JobsProcessor', () => {
   });
 
   it('routes partner-webhook-delivery jobs to WebhookDeliveryService', async () => {
-    await processor.process(job('partner-webhook-delivery', { delivery_id: 'd1' }));
+    await processor.process(
+      job('partner-webhook-delivery', { delivery_id: 'd1' }),
+    );
     expect(webhooks.deliver).toHaveBeenCalledWith('d1');
   });
 
@@ -62,7 +64,9 @@ describe('JobsProcessor', () => {
         columns: [{ key: 'a', header: 'A' }],
         rows: [{ a: 1 }],
       });
-      uploads.uploadDocument.mockResolvedValueOnce({ objectKey: 'export/x.csv' });
+      uploads.uploadDocument.mockResolvedValueOnce({
+        objectKey: 'export/x.csv',
+      });
 
       await processor.process(job('partner-export', { export_id: 'export-1' }));
 
@@ -72,7 +76,7 @@ describe('JobsProcessor', () => {
         'partner-bookings',
       );
       expect(uploads.uploadDocument).toHaveBeenCalledTimes(1);
-      const updateCall = pg.query.mock.calls[1]!;
+      const updateCall = pg.query.mock.calls[1];
       expect(updateCall[0]).toContain("status = 'ready'");
       expect((updateCall[1] as unknown[])[0]).toContain(
         'export/partner/partner-1/export-1',
@@ -88,7 +92,7 @@ describe('JobsProcessor', () => {
       ).rejects.toThrow('DB kutilmagan xato');
 
       expect(uploads.uploadDocument).not.toHaveBeenCalled();
-      const updateCall = pg.query.mock.calls[1]!;
+      const updateCall = pg.query.mock.calls[1];
       expect(updateCall[0]).toContain("status = 'failed'");
       expect((updateCall[1] as unknown[])[0]).toContain('DB kutilmagan xato');
     });

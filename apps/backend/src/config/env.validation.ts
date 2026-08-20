@@ -1,3 +1,5 @@
+import { isWeakSecret } from './secret-strength';
+
 interface EnvironmentConfig {
   NODE_ENV: string;
   APP_NAME: string;
@@ -19,6 +21,8 @@ interface EnvironmentConfig {
   OTP_PEPPER?: string;
   PARTNER_API_KEY_PEPPER?: string;
   PAYMENT_WEBHOOK_SECRET?: string;
+  RECOVERY_CODE_PEPPER?: string;
+  PARTNER_WEBHOOK_SIGNING_SECRET?: string;
   DB_CONNECTION_TIMEOUT_MS: number;
   DB_QUERY_TIMEOUT_MS: number;
   DB_QUERY_ATTEMPTS: number;
@@ -87,6 +91,8 @@ export function validateEnv(
       'OTP_PEPPER',
       'PARTNER_API_KEY_PEPPER',
       'PAYMENT_WEBHOOK_SECRET',
+      'RECOVERY_CODE_PEPPER',
+      'PARTNER_WEBHOOK_SIGNING_SECRET',
       'CORS_ORIGINS',
     ]) {
       if (!config[key]) {
@@ -101,9 +107,10 @@ export function validateEnv(
       'OTP_PEPPER',
       'PARTNER_API_KEY_PEPPER',
       'PAYMENT_WEBHOOK_SECRET',
+      'RECOVERY_CODE_PEPPER',
+      'PARTNER_WEBHOOK_SIGNING_SECRET',
     ]) {
-      const value = String(config[key] ?? '');
-      if (value.length < 32 || value.toLowerCase().includes('change_me')) {
+      if (isWeakSecret(config[key] ? String(config[key]) : undefined)) {
         throw new Error(`${key} production uchun kuchli qiymat bo'lishi kerak`);
       }
     }
@@ -111,6 +118,18 @@ export function validateEnv(
     if (String(config.CORS_ORIGINS).includes('*')) {
       throw new Error(
         'CORS_ORIGINS production muhitida * bo‘lishi mumkin emas',
+      );
+    }
+
+    if (String(config.ENABLE_DEMO_AUTH ?? 'false').toLowerCase() === 'true') {
+      throw new Error(
+        'ENABLE_DEMO_AUTH production muhitida true bo‘lishi mumkin emas — bu OTP kodlarini API javobida ochiq qoldiradi',
+      );
+    }
+
+    if (String(config.SWAGGER_ENABLED ?? '').toLowerCase() === 'true') {
+      throw new Error(
+        'SWAGGER_ENABLED production muhitida true bo‘lishi mumkin emas — API sxemasi autentifikatsiyasiz ochiq qolib ketadi',
       );
     }
   }
@@ -149,6 +168,12 @@ export function validateEnv(
       : undefined,
     PAYMENT_WEBHOOK_SECRET: config.PAYMENT_WEBHOOK_SECRET
       ? String(config.PAYMENT_WEBHOOK_SECRET)
+      : undefined,
+    RECOVERY_CODE_PEPPER: config.RECOVERY_CODE_PEPPER
+      ? String(config.RECOVERY_CODE_PEPPER)
+      : undefined,
+    PARTNER_WEBHOOK_SIGNING_SECRET: config.PARTNER_WEBHOOK_SIGNING_SECRET
+      ? String(config.PARTNER_WEBHOOK_SIGNING_SECRET)
       : undefined,
     DB_CONNECTION_TIMEOUT_MS: toNumber(
       config.DB_CONNECTION_TIMEOUT_MS,

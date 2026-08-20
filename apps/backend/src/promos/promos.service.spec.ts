@@ -18,7 +18,7 @@ describe('PromosService.redeem (regression: H-2 usage_limit was decorative)', ()
     expect(result).toBe(true);
     const [sql, params] = pg.query.mock.calls[0]!;
     expect(String(sql)).toContain('jsonb_set');
-    expect(String(sql)).toContain("usedCount")
+    expect(String(sql)).toContain('usedCount');
     expect(params).toEqual(['one_use']);
   });
 

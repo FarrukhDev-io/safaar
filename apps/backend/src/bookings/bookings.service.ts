@@ -18,7 +18,10 @@ import {
   PostgresService,
   type PostgresTransaction,
 } from '../infrastructure/postgres.service';
-import { calculatePromoDiscount, PromosService } from '../promos/promos.service';
+import {
+  calculatePromoDiscount,
+  PromosService,
+} from '../promos/promos.service';
 import { EventsService } from '../realtime/events.service';
 
 /**
@@ -150,7 +153,7 @@ export class BookingsService {
           [
             BS.CANCELLED,
             now,
-            "Hamkor tasdiqlash muddatida javob bermadi — tizim tomonidan avtomatik bekor qilindi",
+            'Hamkor tasdiqlash muddatida javob bermadi — tizim tomonidan avtomatik bekor qilindi',
             BS.AWAITING_PARTNER_CONFIRMATION,
           ],
         );
@@ -376,7 +379,11 @@ export class BookingsService {
 
       const subtotal = Number(room.base_price) * nights * rooms;
       const discountAmount = promo
-        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        ? calculatePromoDiscount(
+            subtotal,
+            promo.discount_type,
+            promo.discount_value,
+          )
         : 0;
 
       if (promo) {
@@ -549,7 +556,11 @@ export class BookingsService {
 
       const subtotal = Number(locked.price_per_day) * days;
       const discountAmount = promo
-        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        ? calculatePromoDiscount(
+            subtotal,
+            promo.discount_type,
+            promo.discount_value,
+          )
         : 0;
 
       if (promo) {
@@ -717,7 +728,11 @@ export class BookingsService {
 
       const subtotal = seats.reduce((sum, seat) => sum + Number(seat.price), 0);
       const discountAmount = promo
-        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        ? calculatePromoDiscount(
+            subtotal,
+            promo.discount_type,
+            promo.discount_value,
+          )
         : 0;
 
       if (promo) {
@@ -815,7 +830,7 @@ export class BookingsService {
     }
 
     const [payment] = await this.pg.query(
-      "SELECT status, provider, amount, currency FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1",
+      'SELECT status, provider, amount, currency FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1',
       [booking.id],
     );
 
@@ -906,7 +921,10 @@ export class BookingsService {
       // Guest (login qilmagan) mijoz uchun ham ishlaydi — avval faqat
       // `POST /refunds` orqali (login talab qiladigan) qo'lda so'rash
       // mumkin edi.
-      const [payment] = await tx.query<{ amount: number | string; currency: string }>(
+      const [payment] = await tx.query<{
+        amount: number | string;
+        currency: string;
+      }>(
         `SELECT amount, currency FROM payments
          WHERE booking_id = $1 AND status = 'paid'
          ORDER BY created_at DESC LIMIT 1`,
@@ -934,12 +952,7 @@ export class BookingsService {
         }
       }
 
-      await this.addStatusHistory(
-        tx,
-        row as Parameters<typeof this.addStatusHistory>[1],
-        'cancelled',
-        actor,
-      );
+      await this.addStatusHistory(tx, row, 'cancelled', actor);
 
       return row;
     });

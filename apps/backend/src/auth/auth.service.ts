@@ -24,6 +24,7 @@ import {
 } from '../infrastructure/postgres.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import { EmailService } from '../infrastructure/email.service';
+import { SmsService } from '../infrastructure/sms.service';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { otpStore, type OtpPurpose } from './otp-store';
 import { authSessionStore } from './session-store';
@@ -106,6 +107,7 @@ export class AuthService {
     private readonly pg: PostgresService,
     private readonly jobs: JobQueueService,
     private readonly emailService: EmailService,
+    private readonly smsService: SmsService,
     private readonly cache: AppCacheService,
   ) {}
 
@@ -153,10 +155,7 @@ export class AuthService {
   }
 
   sendPartnerOtp(phone: string) {
-    return this.sendOtpDemoOrFail(
-      this.normalizePhone(phone),
-      'partner_login',
-    );
+    return this.sendOtpDemoOrFail(this.normalizePhone(phone), 'partner_login');
   }
 
   async sendPartnerEmailOtp(email: string) {
@@ -1968,9 +1967,32 @@ export class AuthService {
   }
 
   /**
-   * Loyiha hali real SMS/email provayderga ulanmagan (mahsulot hali
-   * haqiqiy foydalanuvchilar bilan ishga tushmagan). `ENABLE_DEMO_AUTH=true`
-   * bo'lsa, OTP kodi haqiqiy SMS/email o'rniga to'g'ridan-to'g'ri javobda
+   * `smsService.send()` xato tashlasa (masalan Eskiz tokeni yaroqsiz/vaqt
+   * tugagan), buni ushlab, controller darajasida kutilgan
+   * `SMS_DELIVERY_FAILED` (503) xatosiga aylantiradi — aks holda bu
+   * tipsiz xato umumiy 500 sifatida chiqib ketardi.
+   */
+  private async sendSmsOrFail(
+    message: Parameters<SmsService['send']>[0],
+  ): ReturnType<SmsService['send']> {
+    try {
+      return await this.smsService.send(message);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new ServiceUnavailableException({
+        code: 'SMS_DELIVERY_FAILED',
+        message: 'Tasdiqlash kodini SMS orqali yuborib bo‘lmadi',
+      });
+    }
+  }
+
+  /**
+   * Mahsulot hali haqiqiy foydalanuvchilar bilan ishga tushmagan bosqichda
+   * (yoki SMS/email provayder credentials hali sozlanmagan bo'lsa),
+   * `ENABLE_DEMO_AUTH=true` bo'lsa, OTP kodi haqiqiy SMS/email o'rniga
+   * to'g'ridan-to'g'ri javobda
    * (`dev_code`) qaytariladi — frontend uni ko'rsatib, verification
    * oqimini providersiz sinab ko'rishi mumkin. Operator bu bayroqni real
    * foydalanuvchilar chiqqanda `false`ga o'zgartirishi kerak (NODE_ENV
@@ -1982,17 +2004,31 @@ export class AuthService {
     return String(process.env.ENABLE_DEMO_AUTH ?? '').toLowerCase() === 'true';
   }
 
-  private sendOtpDemoOrFail(phone: string, purpose: OtpPurpose) {
-    if (!this.isDemoAuthEnabled()) {
+  private async sendOtpDemoOrFail(phone: string, purpose: OtpPurpose) {
+    const response = this.createOtpChallenge(phone, purpose);
+    const code = otpStore.getDeliveryCode(response.challenge_id);
+
+    if (this.isDemoAuthEnabled()) {
+      return { ...response, dev_code: code };
+    }
+
+    const delivery = await this.sendSmsOrFail({
+      phone,
+      text: `Safaar kirish kodingiz: ${code ?? '******'}`,
+    });
+    if (!delivery.accepted) {
       throw new ServiceUnavailableException({
-        code: 'SMS_PROVIDER_NOT_CONFIGURED',
-        message: 'SMS provayder ulanmagan',
+        code: 'SMS_DELIVERY_FAILED',
+        message: 'Tasdiqlash kodini SMS orqali yuborib bo‘lmadi',
       });
     }
 
-    const response = this.createOtpChallenge(phone, purpose);
-    const code = otpStore.getDeliveryCode(response.challenge_id);
-    return { ...response, dev_code: code };
+    return {
+      sent: response.sent,
+      challenge_id: response.challenge_id,
+      expires_in_seconds: response.expires_in_seconds,
+      resend_after_seconds: response.resend_after_seconds,
+    };
   }
 
   private invalidCredentials() {
@@ -2028,7 +2064,11 @@ export class AuthService {
 
   private async recordFailedLogin(key: string): Promise<void> {
     const attempts = (await this.cache.get<number>(key)) ?? 0;
-    await this.cache.set(key, attempts + 1, AuthService.LOGIN_LOCKOUT_TTL_SECONDS);
+    await this.cache.set(
+      key,
+      attempts + 1,
+      AuthService.LOGIN_LOCKOUT_TTL_SECONDS,
+    );
   }
 
   private async resetLoginAttempts(key: string): Promise<void> {

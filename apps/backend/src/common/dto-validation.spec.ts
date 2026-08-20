@@ -17,7 +17,10 @@ import { CreateMediaDto, PresignUploadDto } from '../uploads/dto/upload.dto';
 describe('DTO validation now actually runs (regression: M-3)', () => {
   it('CreateSupportTicketDto rejects an empty body (missing required subject)', async () => {
     const dto = plainToInstance(CreateSupportTicketDto, {});
-    const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
     expect(errors.length).toBeGreaterThan(0);
   });
 
@@ -26,8 +29,13 @@ describe('DTO validation now actually runs (regression: M-3)', () => {
       subject: 'Yordam kerak',
       assigned_to_admin_id: '11111111-1111-1111-1111-111111111111',
     });
-    const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
-    expect(errors.some((e) => e.property === 'assigned_to_admin_id')).toBe(true);
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    expect(errors.some((e) => e.property === 'assigned_to_admin_id')).toBe(
+      true,
+    );
   });
 
   it('CreateSupportTicketDto accepts a well-formed body', async () => {
@@ -35,19 +43,28 @@ describe('DTO validation now actually runs (regression: M-3)', () => {
       subject: 'Yordam kerak',
       priority: 'high',
     });
-    const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
     expect(errors).toHaveLength(0);
   });
 
   it('ValidatePromoDto rejects a missing code (was silently accepted before)', async () => {
     const dto = plainToInstance(ValidatePromoDto, {});
-    const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
     expect(errors.length).toBeGreaterThan(0);
   });
 
   it('UpdateProfileDto rejects an invalid email format', async () => {
     const dto = plainToInstance(UpdateProfileDto, { email: 'not-an-email' });
-    const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
     expect(errors.some((e) => e.property === 'email')).toBe(true);
   });
 
@@ -56,19 +73,31 @@ describe('DTO validation now actually runs (regression: M-3)', () => {
       first_name: 'Laziz',
       status: 'admin',
     });
-    const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
     expect(errors.some((e) => e.property === 'status')).toBe(true);
   });
 
   it('CreateMediaDto tolerates a string size (multipart form-data quirk) without erroring', async () => {
-    const dto = plainToInstance(CreateMediaDto, { url: 'https://x.test/a.png', size: '12345' });
-    const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+    const dto = plainToInstance(CreateMediaDto, {
+      url: 'https://x.test/a.png',
+      size: '12345',
+    });
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
     expect(errors).toHaveLength(0);
   });
 
   it('PresignUploadDto rejects an invalid type value', async () => {
     const dto = plainToInstance(PresignUploadDto, { type: 'video' });
-    const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
     expect(errors.some((e) => e.property === 'type')).toBe(true);
   });
 });

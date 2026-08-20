@@ -202,7 +202,7 @@ export class PaymentsService {
         };
       }
 
-      const eventRow = claimed[0]!;
+      const eventRow = claimed[0];
 
       const bookingId = String(
         body.booking_id ?? body.bookingId ?? body.account ?? '',
@@ -283,11 +283,18 @@ export class PaymentsService {
              WHERE id = $3`,
             [nextStatus, now, booking.id],
           );
-          await this.recordStatusHistory(tx, booking.id, nextStatus, 'payment_paid');
+          await this.recordStatusHistory(
+            tx,
+            booking.id,
+            nextStatus,
+            'payment_paid',
+          );
           await this.creditPartnerLedger(tx, booking);
 
           bookingOutcome =
-            nextStatus === BS.CONFIRMED ? 'confirmed' : 'awaiting_partner_confirmation';
+            nextStatus === BS.CONFIRMED
+              ? 'confirmed'
+              : 'awaiting_partner_confirmation';
         } else if (SETTLED_BOOKING_STATUSES.includes(booking.status)) {
           // Poyga yutqazildi: pul haqiqatan keldi, lekin bron cron
           // tomonidan allaqachon "expired"/"cancelled" qilingan — xona/
@@ -349,7 +356,10 @@ export class PaymentsService {
    * to'g'ridan-to'g'ri `bookings.total_amount`dan, holatidan qat'iy nazar,
    * hisoblab chiqilardi).
    */
-  private async creditPartnerLedger(tx: PostgresTransaction, booking: BookingRow) {
+  private async creditPartnerLedger(
+    tx: PostgresTransaction,
+    booking: BookingRow,
+  ) {
     await tx.query(
       `INSERT INTO partner_ledger_entries (id, organization_id, booking_id, type, amount, currency, created_at)
        VALUES ($1, $2, $3, 'booking_earned', $4, $5, $6)`,
