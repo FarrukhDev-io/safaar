@@ -23,6 +23,7 @@ import {
 import { AppCacheService } from '../infrastructure/cache.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import { hashSecret, partnerApiPepper, randomToken } from '../auth/security';
+import { assertPublicHttpUrl } from '../common/ssrf-guard';
 import { randomUUID } from 'node:crypto';
 import { EventsService } from '../realtime/events.service';
 
@@ -4058,6 +4059,7 @@ export class PartnersService {
     const now = new Date().toISOString();
     const webhookId = randomUUID();
     const organizationId = this.organizationId(actor);
+    const url = await assertPublicHttpUrl(String(body.url ?? ''));
 
     await this.pg.query(
       `INSERT INTO partner_webhook_endpoints (id, organization_id, url, events, status, created_at, updated_at)
@@ -4065,7 +4067,7 @@ export class PartnersService {
       [
         webhookId,
         organizationId,
-        String(body.url ?? ''),
+        url.toString(),
         Array.isArray(body.events)
           ? body.events.map((event) => String(event))
           : ['booking.created'],
@@ -4094,8 +4096,9 @@ export class PartnersService {
     let idx = 1;
 
     if (body.url !== undefined) {
+      const url = await assertPublicHttpUrl(String(body.url));
       sets.push(`url = $${idx++}`);
-      params.push(String(body.url));
+      params.push(url.toString());
     }
     if (body.events !== undefined) {
       sets.push(`events = $${idx++}`);

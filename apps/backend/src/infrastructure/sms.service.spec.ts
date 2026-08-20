@@ -35,7 +35,9 @@ describe('SmsService', () => {
   it('logs in then sends the SMS via the eskiz API', async () => {
     const fetchMock = jest
       .fn()
-      .mockResolvedValueOnce(jsonResponse(200, { data: { token: 'eskiz-token' } }))
+      .mockResolvedValueOnce(
+        jsonResponse(200, { data: { token: 'eskiz-token' } }),
+      )
       .mockResolvedValueOnce(jsonResponse(200, { id: 'sms-1' }));
     global.fetch = fetchMock;
 
@@ -59,9 +61,7 @@ describe('SmsService', () => {
       'https://notify.eskiz.uz/api/auth/login',
     );
     const sendCall = fetchMock.mock.calls[1];
-    expect(sendCall?.[0]).toBe(
-      'https://notify.eskiz.uz/api/message/sms/send',
-    );
+    expect(sendCall?.[0]).toBe('https://notify.eskiz.uz/api/message/sms/send');
     const sendInit = sendCall?.[1] as RequestInit;
     expect(sendInit.headers).toMatchObject({
       Authorization: 'Bearer eskiz-token',
@@ -76,9 +76,13 @@ describe('SmsService', () => {
   it('re-authenticates once and retries when the cached token has expired (401)', async () => {
     const fetchMock = jest
       .fn()
-      .mockResolvedValueOnce(jsonResponse(200, { data: { token: 'stale-token' } }))
+      .mockResolvedValueOnce(
+        jsonResponse(200, { data: { token: 'stale-token' } }),
+      )
       .mockResolvedValueOnce(jsonResponse(401, {}))
-      .mockResolvedValueOnce(jsonResponse(200, { data: { token: 'fresh-token' } }))
+      .mockResolvedValueOnce(
+        jsonResponse(200, { data: { token: 'fresh-token' } }),
+      )
       .mockResolvedValueOnce(jsonResponse(200, { id: 'sms-2' }));
     global.fetch = fetchMock;
 
@@ -119,7 +123,9 @@ describe('SmsService', () => {
   it('throws SMS_SEND_FAILED when the eskiz send request is rejected', async () => {
     global.fetch = jest
       .fn()
-      .mockResolvedValueOnce(jsonResponse(200, { data: { token: 'eskiz-token' } }))
+      .mockResolvedValueOnce(
+        jsonResponse(200, { data: { token: 'eskiz-token' } }),
+      )
       .mockResolvedValueOnce(
         jsonResponse(400, { message: 'Balance yetarli emas' }),
       );

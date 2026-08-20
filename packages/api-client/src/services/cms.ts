@@ -1,7 +1,7 @@
 import { rawApi } from "../client";
 import { camelizeKeys } from "../case";
 import { tiyinToSum } from "../money";
-import type { Locale } from "../types";
+import type { CmsPageView, Locale } from "../types";
 
 export interface PublicStatsView {
   totalHotels: number;
@@ -11,11 +11,19 @@ export interface PublicStatsView {
   totalPartners: number;
 }
 
-type Localized = Partial<Record<Locale, string>> & Record<string, string>;
+type Localized = Partial<Record<Locale, string | null>> &
+  Record<string, string | null | undefined>;
+type LocalizedValue = Localized | string | null | undefined;
 
-function pickLocale(value: Localized | undefined, locale: Locale): string {
+function pickLocale(value: LocalizedValue, locale: Locale): string {
   if (!value) return "";
-  return value[locale] ?? value.uz ?? Object.values(value)[0] ?? "";
+  if (typeof value === "string") return value;
+  return (
+    value[locale] ??
+    value.uz ??
+    Object.values(value).find((entry) => Boolean(entry)) ??
+    ""
+  );
 }
 
 export interface DealView {
@@ -34,14 +42,34 @@ export interface DealView {
 interface RawDeal {
   id: string;
   slug: string;
-  name: Localized;
-  cityName?: Localized;
+  name: LocalizedValue;
+  cityName?: LocalizedValue;
   imageUrl?: string;
   oldPrice?: number;
   newPrice?: number;
   discountPercent?: number;
   endsAt?: string;
   status?: string;
+}
+
+interface RawCmsPage {
+  id?: string;
+  slug?: string;
+  title?: LocalizedValue;
+  titleText?: string;
+  body?: LocalizedValue;
+  bodyText?: string;
+  content?: string;
+  status?: string;
+  metadata?: {
+    seoTitle?: string;
+    seoDescription?: string;
+    excerpt?: string;
+  };
+  seoTitle?: string;
+  seoDescription?: string;
+  publishedAt?: string;
+  updatedAt?: string;
 }
 
 function toDealView(raw: RawDeal, locale: Locale): DealView {
@@ -59,6 +87,26 @@ function toDealView(raw: RawDeal, locale: Locale): DealView {
   };
 }
 
+function toCmsPageView(raw: RawCmsPage, locale: Locale): CmsPageView {
+  const title = raw.titleText || pickLocale(raw.title, locale);
+  const content =
+    raw.content || raw.bodyText || pickLocale(raw.body, locale) || "";
+  const seoTitle = raw.seoTitle || raw.metadata?.seoTitle || title;
+
+  return {
+    id: raw.id ?? "",
+    slug: raw.slug ?? "",
+    title,
+    content,
+    status: raw.status ?? "published",
+    publishedAt: raw.publishedAt ?? "",
+    updatedAt: raw.updatedAt ?? "",
+    seoTitle,
+    seoDescription:
+      raw.seoDescription || raw.metadata?.seoDescription || raw.metadata?.excerpt || "",
+  };
+}
+
 export const cmsService = {
   /** `GET /cms/offers` — bosh sahifa "Chegirmadagi takliflar" uchun. */
   async getDeals(locale: Locale): Promise<DealView[]> {
@@ -72,6 +120,15 @@ export const cmsService = {
         return status === "active" || status === "published";
       })
       .map((item) => toDealView(item, locale));
+  },
+
+  /** `GET /cms/pages/:slug` — user paneldagi statik sahifalar uchun. */
+  async getPage(locale: Locale, slug: string): Promise<CmsPageView> {
+    const raw = await rawApi.get<unknown>(
+      `/cms/pages/${encodeURIComponent(slug)}`,
+      { cache: "no-store" },
+    );
+    return toCmsPageView(camelizeKeys<RawCmsPage>(raw), locale);
   },
 
   /** `GET /stats/public` — bosh sahifa "TrustBar" statistikasi uchun. */

@@ -16,6 +16,7 @@ export const Permission = {
   SupportWrite: 'support:write',
   SettingsWrite: 'settings:write',
   AdminUsersWrite: 'admin-users:write',
+  AuditLogsRead: 'audit-logs:read',
 } as const;
 
 export type PermissionValue = (typeof Permission)[keyof typeof Permission];
@@ -27,6 +28,7 @@ const adminPermissions: PermissionValue[] = [
   Permission.FinanceRead,
   Permission.CmsRead,
   Permission.SupportRead,
+  Permission.AuditLogsRead,
 ];
 
 const rolePermissions: Record<Role, PermissionValue[]> = {

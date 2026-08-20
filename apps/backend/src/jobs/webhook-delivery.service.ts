@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { hmacSha256, partnerWebhookSigningSecret } from '../auth/security';
+import { assertPublicHttpUrl } from '../common/ssrf-guard';
 import { PostgresService } from '../infrastructure/postgres.service';
 
 interface WebhookDeliveryRow {
@@ -63,11 +64,10 @@ export class WebhookDeliveryService {
 
     let deliveryError: Error | undefined;
     try {
-      const response = await fetch(delivery.url, {
+      const response = await this.fetchWithSsrfGuard(delivery.url, {
         method: 'POST',
         headers,
         body,
-        signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
       });
       const responseBody = await response.text().catch(() => '');
       const truncatedBody = responseBody.slice(0, 4000);
@@ -102,6 +102,43 @@ export class WebhookDeliveryService {
       // holbuki webhook yetkazishning butun maqsadi — vaqtincha
       // ishlamayotgan hamkor endpoint'iga avtomatik qayta urinishdir.
       throw deliveryError;
+    }
+  }
+
+  /**
+   * SSRF himoyasi: yetkazishdan darhol OLDIN URL'ni qayta tekshiradi
+   * (webhook yaratilgandan beri DNS o'zgargan bo'lishi mumkin) va
+   * redirect'larni avtomatik ergashtirmaydi — har bir `Location`
+   * manzilini xuddi shu tekshiruvdan qayta o'tkazadi. Aks holda ochiq
+   * ko'ringan URL ichki IP'ga (masalan cloud metadata) redirect qilib,
+   * himoyani chetlab o'tishi mumkin edi.
+   */
+  private async fetchWithSsrfGuard(
+    rawUrl: string,
+    init: { method: string; headers: Record<string, string>; body: string },
+    maxRedirects = 3,
+  ): Promise<Response> {
+    let currentUrl = (await assertPublicHttpUrl(rawUrl)).toString();
+
+    for (let hop = 0; ; hop += 1) {
+      const response = await fetch(currentUrl, {
+        ...init,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
+      });
+
+      const isRedirect = response.status >= 300 && response.status < 400;
+      const location = response.headers.get('location');
+      if (!isRedirect || !location) {
+        return response;
+      }
+      if (hop >= maxRedirects) {
+        throw new Error('Webhook endpoint juda ko‘p marta redirect qildi');
+      }
+
+      currentUrl = (
+        await assertPublicHttpUrl(new URL(location, currentUrl).toString())
+      ).toString();
     }
   }
 

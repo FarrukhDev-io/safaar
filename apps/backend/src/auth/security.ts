@@ -87,6 +87,17 @@ function resolveJwtSecret(
   return ephemeralRefreshSecret;
 }
 
+/**
+ * Faqat testlar uchun: process-darajasidagi ephemeral dev-secret keshini
+ * tozalaydi, shunda keyingi `jwtSecurityConfig()` chaqiruvi "yangi process"
+ * holatini simulyatsiya qilib, qaytadan tasodifiy qiymat generatsiya
+ * qiladi. Production kodda hech qachon chaqirilmaydi.
+ */
+export function resetEphemeralJwtSecretsForTests(): void {
+  ephemeralAccessSecret = undefined;
+  ephemeralRefreshSecret = undefined;
+}
+
 export function jwtSecurityConfig(): JwtSecurityConfig {
   return {
     accessSecret: resolveJwtSecret('JWT_ACCESS_SECRET'),

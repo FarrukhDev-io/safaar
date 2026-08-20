@@ -114,6 +114,7 @@ export class AdminController {
   }
 
   @Post('users/export')
+  @Permissions(Permission.UsersRead)
   usersExport(@CurrentActor() actor: RequestActor | undefined) {
     return this.adminService.exportJob(actor, 'admin-users', 'xlsx');
   }
@@ -197,6 +198,7 @@ export class AdminController {
   }
 
   @Get('partners/:id/ledger')
+  @Permissions(Permission.FinanceRead)
   partnerLedger(@Param('id') id: string) {
     return this.adminService.partnerLedger(id);
   }
@@ -212,6 +214,7 @@ export class AdminController {
   }
 
   @Post('partners/export')
+  @Permissions(Permission.PartnersRead)
   partnersExport(@CurrentActor() actor: RequestActor | undefined) {
     return this.adminService.exportJob(actor, 'admin-partners', 'xlsx');
   }
@@ -375,21 +378,25 @@ export class AdminController {
   }
 
   @Get('finance/overview')
+  @Permissions(Permission.FinanceRead)
   financeOverview() {
     return this.adminService.financeOverview();
   }
 
   @Get('finance/revenue-chart')
+  @Permissions(Permission.FinanceRead)
   financeRevenueChart() {
     return this.adminService.chart('finance-revenue');
   }
 
   @Get('finance/partners-report')
+  @Permissions(Permission.FinanceRead)
   partnersReport() {
     return this.adminService.partnersReport();
   }
 
   @Get('finance/provider-reconciliation')
+  @Permissions(Permission.FinanceRead)
   providerReconciliation() {
     return this.adminService.providerReconciliation();
   }
@@ -401,26 +408,31 @@ export class AdminController {
   }
 
   @Post('finance/tax-report-export')
+  @Permissions(Permission.FinanceRead)
   taxReportExport(@CurrentActor() actor: RequestActor | undefined) {
     return this.adminService.exportJob(actor, 'tax-report', 'pdf');
   }
 
   @Get('finance/documents')
+  @Permissions(Permission.FinanceRead)
   financeDocuments() {
     return this.adminService.financeDocuments();
   }
 
   @Post('finance/documents/:id/regenerate')
+  @Permissions(Permission.FinanceWrite)
   financeDocumentRegenerate(@Param('id') id: string) {
     return this.adminService.financeDocumentRegenerate(id);
   }
 
   @Get('withdrawals')
+  @Permissions(Permission.FinanceRead)
   withdrawals(@Query() query: Record<string, string | undefined>) {
     return this.adminService.withdrawals(query);
   }
 
   @Get('withdrawals/:id')
+  @Permissions(Permission.FinanceRead)
   withdrawal(@Param('id') id: string) {
     return this.adminService.withdrawal(id);
   }
@@ -488,6 +500,7 @@ export class AdminController {
   }
 
   @Post('cms/:resource/:id/unpublish')
+  @Permissions(Permission.CmsWrite)
   cmsUnpublish(@Param('resource') resource: string, @Param('id') id: string) {
     return this.adminService.cmsAction(resource, id, 'unpublish');
   }
@@ -499,6 +512,7 @@ export class AdminController {
   }
 
   @Post('cms/:resource/:id/reorder')
+  @Permissions(Permission.CmsWrite)
   cmsReorder(@Param('resource') resource: string, @Param('id') id: string) {
     return this.adminService.cmsAction(resource, id, 'reorder');
   }
@@ -514,11 +528,13 @@ export class AdminController {
   }
 
   @Post('cms/:resource/:id/schedule-publish')
+  @Permissions(Permission.CmsWrite)
   cmsSchedule(@Param('resource') resource: string, @Param('id') id: string) {
     return this.adminService.cmsAction(resource, id, 'schedule_publish');
   }
 
   @Post('cms/:resource/:id/translations')
+  @Permissions(Permission.CmsWrite)
   cmsTranslation(
     @Param('resource') resource: string,
     @Param('id') id: string,
@@ -656,6 +672,7 @@ export class AdminController {
   }
 
   @Post('notifications/broadcasts/:id/:action')
+  @Permissions(Permission.SupportWrite)
   notificationBroadcastAction(
     @Param('id') id: string,
     @Param('action') action: string,
@@ -713,6 +730,7 @@ export class AdminController {
   }
 
   @Get('audit-logs')
+  @Permissions(Permission.AuditLogsRead)
   auditLogs(@Query() query: Record<string, string | undefined>) {
     return this.adminService.auditLogs(query);
   }

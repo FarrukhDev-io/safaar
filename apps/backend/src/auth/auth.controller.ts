@@ -28,7 +28,6 @@ import {
   OAuthTokenDto,
   RefreshTokenDto,
   ResetPasswordDto,
-  SendEmailOtpDto,
   SendOtpDto,
   TotpSetupConfirmDto,
   UserForgotPasswordDto,
@@ -36,7 +35,6 @@ import {
   UserResetPasswordDto,
   UserVerifyResetCodeDto,
   Verify2faDto,
-  VerifyEmailOtpRequestDto,
   VerifyOtpRequestDto,
 } from './dto/auth.dto';
 
@@ -47,14 +45,14 @@ export class AuthController {
 
   @Post('user/send-otp')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  requestEmailOtp(@Body() dto: SendEmailOtpDto) {
-    return this.authService.sendUserEmailOtp(dto.email);
+  requestUserOtp(@Body() dto: SendOtpDto) {
+    return this.authService.sendUserOtp(dto.phone);
   }
 
   @Post('user/verify-otp')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  verifyEmailOtp(@Body() dto: VerifyEmailOtpRequestDto) {
-    return this.authService.verifyUserEmailOtp(dto);
+  verifyUserOtp(@Body() dto: VerifyOtpRequestDto) {
+    return this.authService.verifyUserOtp(dto);
   }
 
   @Post('otp/request')
