@@ -1,48 +1,53 @@
-import { Info } from 'lucide-react';
+import { ShieldAlert, ArrowRight, FileSearch } from 'lucide-react';
 import Link from 'next/link';
 import { LoginForm } from './login-form';
-import { Button } from '../../_components/ui/button';
 
 export default function LoginPage() {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold tracking-tight">Tizimga kirish</h2>
-        <p className="text-sm text-[var(--muted-foreground)]">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+          Tizimga Kirish
+        </h2>
+        <p className="text-sm text-slate-300">
           Telefon raqamingizni kiriting — SMS orqali tasdiqlash kodini yuboramiz.
         </p>
       </div>
 
       <div
         role="status"
-        className="flex items-start gap-2 rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-900 dark:bg-brand-900/30 dark:text-brand-200"
+        className="flex items-start gap-3 rounded-2xl bg-brand-500/10 border border-brand-500/20 px-4 py-3 text-xs text-brand-200 backdrop-blur-md"
       >
-        <Info
-          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-700 dark:text-brand-300"
+        <ShieldAlert
+          className="mt-0.5 h-4 w-4 shrink-0 text-brand-400"
           aria-hidden
         />
-        <p>
-          <strong>Access:</strong> avval hamkorlik arizasi yuboriladi, admin
-          tasdiqlagandan keyin kabinet ochiladi.
+        <p className="leading-relaxed">
+          <strong className="text-brand-300 font-semibold">Eslatma:</strong> Avval hamkorlik arizasi yuboriladi, admin tasdiqlagandan so'ng kabinetga kirish imkoni ochiladi.
         </p>
       </div>
 
       <LoginForm />
 
-      <div className="border-t border-[var(--border)] pt-4 text-center">
-        <p className="mb-3 text-sm text-[var(--muted-foreground)]">
-          Hali access yo'qmi?
-        </p>
-        <Link href="/register">
-          <Button variant="outline" className="w-full">
-            Hamkorlik arizasini yuborish
-          </Button>
-        </Link>
-        <Link href="/status" className="block mt-3">
-          <Button variant="ghost" className="w-full text-[var(--muted-foreground)]">
-            Ariza holatini tekshirish
-          </Button>
-        </Link>
+      <div className="border-t border-slate-800/80 pt-5 flex flex-col gap-3">
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <span>Hali hamkor emasmisiz?</span>
+          <span>Arizangiz bormi?</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/register" className="w-full">
+            <button className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700/80 hover:border-slate-600 hover:text-white">
+              Ariza berish
+              <ArrowRight className="h-3.5 w-3.5 text-brand-400" />
+            </button>
+          </Link>
+          <Link href="/status" className="w-full">
+            <button className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5 text-xs font-semibold text-slate-400 transition-all hover:bg-slate-800/60 hover:text-slate-200">
+              <FileSearch className="h-3.5 w-3.5 text-indigo-400" />
+              Holatni tekshirish
+            </button>
+          </Link>
+        </div>
       </div>
     </div>
   );
