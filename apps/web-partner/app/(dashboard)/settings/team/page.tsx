@@ -5,19 +5,22 @@ import { Users, UserPlus, Mail, Shield, Trash2, ShieldAlert } from "lucide-react
 import { toast } from "sonner";
 import { PartnerTeamMember, listTeamMembers, inviteTeamMember, deleteTeamMember, updateTeamMember } from "@/app/_lib/api/endpoints/partners";
 import { toTeamMember } from "@/app/_lib/api/adapters";
+import { useAuthStore } from "@/app/_stores/auth-store";
 
 export default function TeamSettingsPage() {
+  const token = useAuthStore((s) => s.tokens?.accessToken);
   const [members, setMembers] = useState<PartnerTeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  
+
   const [inviteForm, setInviteForm] = useState({ name: "", email: "", role: "staff" });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchMembers = async () => {
+    if (!token) return;
     try {
       setLoading(true);
-      const data = await listTeamMembers(null);
+      const data = await listTeamMembers(token);
       setMembers(data.map(toTeamMember));
     } catch (e) {
       toast.error("Jamoa a'zolarini yuklab bo'lmadi");
@@ -28,7 +31,8 @@ export default function TeamSettingsPage() {
 
   useEffect(() => {
     fetchMembers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +44,7 @@ export default function TeamSettingsPage() {
     try {
       await inviteTeamMember(
         { full_name: inviteForm.name, email: inviteForm.email, role: inviteForm.role },
-        null,
+        token,
       );
       toast.success("Taklif yuborildi");
       setShowInviteModal(false);
@@ -56,7 +60,7 @@ export default function TeamSettingsPage() {
   const handleRemove = async (id: string) => {
     if (!confirm("Ushbu xodimni rostdan ham o'chirmoqchimisiz? Uning tizimga kirish ruxsati bekor qilinadi.")) return;
     try {
-      await deleteTeamMember(id, null);
+      await deleteTeamMember(id, token);
       toast.success("Xodim o'chirildi");
       setMembers(members.filter((m) => m.id !== id));
     } catch (e) {
@@ -66,7 +70,7 @@ export default function TeamSettingsPage() {
 
   const handleRoleChange = async (id: string, newRole: string) => {
     try {
-      await updateTeamMember(id, { role: newRole }, null);
+      await updateTeamMember(id, { role: newRole }, token);
       toast.success("Rol o'zgartirildi");
       setMembers(members.map((m) => (m.id === id ? { ...m, role: newRole as any } : m)));
     } catch (e) {

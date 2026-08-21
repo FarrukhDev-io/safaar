@@ -11,7 +11,7 @@ export class RefundsController {
   constructor(private readonly refundsService: RefundsService) {}
 
   @Post('refunds')
-  @Roles(Role.USER)
+  @Roles(Role.USER, Role.ADMIN, Role.SUPER_ADMIN)
   create(
     @CurrentActor() actor: RequestActor | undefined,
     @Body() body: Record<string, unknown>,

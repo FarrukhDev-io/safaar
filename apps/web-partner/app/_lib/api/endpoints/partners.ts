@@ -206,6 +206,51 @@ export function listRooms(hotelId: string, token?: string | null) {
   );
 }
 
+export interface BackendInventoryDay {
+  room_id: string;
+  date: string;
+  total_count: number;
+  held_count: number;
+  booked_count: number;
+  closed: boolean;
+}
+
+export function getInventory(hotelId: string, token?: string | null) {
+  return request<BackendInventoryDay[]>(
+    `/partners/hotels/${encodeURIComponent(hotelId)}/inventory`,
+    { token },
+  );
+}
+
+export interface InventoryUpdateItem {
+  room_id: string;
+  date: string;
+  total_count?: number;
+  closed?: boolean;
+}
+
+export function updateInventory(
+  hotelId: string,
+  items: InventoryUpdateItem[],
+  token?: string | null,
+) {
+  return request<{ hotel_id: string; updated: boolean; items: BackendInventoryDay[] }>(
+    `/partners/hotels/${encodeURIComponent(hotelId)}/inventory`,
+    { method: 'PUT', body: { items }, token },
+  );
+}
+
+export function createBlackoutDates(
+  hotelId: string,
+  body: { dates: string[]; room_id?: string },
+  token?: string | null,
+) {
+  return request<{ hotel_id: string; room_id: string | null; dates: string[]; closed: boolean }>(
+    `/partners/hotels/${encodeURIComponent(hotelId)}/blackout-dates`,
+    { method: 'POST', body, token },
+  );
+}
+
 export function createRoom(
   hotelId: string,
   body: Record<string, unknown>,
@@ -289,6 +334,17 @@ export function createBooking(
 export function confirmBooking(id: string, token?: string | null) {
   return request<BackendBooking>(
     `/partners/bookings/${encodeURIComponent(id)}/confirm`,
+    {
+      method: 'POST',
+      token,
+    },
+  );
+}
+
+/** Mijoz joyida naqd to'laganini hamkor tasdiqlaydi — `payments.status`ni 'paid'ga o'tkazadi. */
+export function acceptCashPayment(id: string, token?: string | null) {
+  return request<{ booking_id: string; cash_status: string }>(
+    `/partners/bookings/${encodeURIComponent(id)}/cash-collected`,
     {
       method: 'POST',
       token,
@@ -722,6 +778,27 @@ export function deleteWebhook(id: string, token?: string | null) {
   return request<{ ok: boolean }>(`/partner/webhooks/${id}`, { method: 'DELETE', token });
 }
 
+export function testWebhook(id: string, token?: string | null) {
+  return request<import('../adapters').BackendWebhookDelivery>(
+    `/partner/webhooks/${id}/test`,
+    { method: 'POST', token },
+  );
+}
+
+export function getWebhookDeliveries(id: string, token?: string | null) {
+  return request<import('../adapters').BackendWebhookDelivery[]>(
+    `/partner/webhooks/${id}/deliveries`,
+    { token },
+  );
+}
+
+export function retryWebhookDelivery(deliveryId: string, token?: string | null) {
+  return request<import('../adapters').BackendWebhookDelivery>(
+    `/partner/webhooks/deliveries/${deliveryId}/retry`,
+    { method: 'POST', token },
+  );
+}
+
 // FINANCE WITHDRAWALS
 export interface WithdrawalRequest {
   id: string;
@@ -737,6 +814,53 @@ export function getWithdrawals(token?: string | null) {
 
 export function createWithdrawal(body: Record<string, unknown>, token?: string | null) {
   return request<import('../adapters').BackendWithdrawal>('/partner/withdrawals', { method: 'POST', body, token });
+}
+
+export function getFinanceOverview(token?: string | null) {
+  return request<import('../adapters').BackendFinanceOverview>('/partner/finance/overview', { token });
+}
+
+export interface LedgerQuery {
+  page?: number;
+  limit?: number;
+  sortBy?: 'created_at' | 'amount';
+  order?: 'asc' | 'desc';
+}
+
+export function getLedger(query: LedgerQuery = {}, token?: string | null) {
+  return request<import('../adapters').BackendLedgerEntry[]>('/partner/finance/ledger', {
+    token,
+    searchParams: {
+      page: query.page,
+      limit: query.limit,
+      sortBy: query.sortBy,
+      order: query.order,
+    },
+  });
+}
+
+export interface FinanceDocument {
+  id: string;
+  type: string;
+  format: string;
+  status: 'queued' | 'processing' | 'ready' | 'failed';
+  download_key?: string | null;
+  created_at: string;
+}
+
+export function createFinanceExport(body: Record<string, unknown>, token?: string | null) {
+  return request<{ id: string; status: string }>('/partner/exports/finance', { method: 'POST', body, token });
+}
+
+export function getFinanceDocuments(token?: string | null) {
+  return request<FinanceDocument[]>('/partner/finance/documents', { token });
+}
+
+export function getFinanceDocumentDownload(id: string, token?: string | null) {
+  return request<{ id: string; download_url: string }>(
+    `/partner/finance/documents/${id}/download`,
+    { token },
+  );
 }
 
 // VEHICLES (Rent-Car)

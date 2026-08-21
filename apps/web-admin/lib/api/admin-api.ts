@@ -683,6 +683,39 @@ function toWithdrawal(row: ApiRecord): WithdrawalRequest {
   };
 }
 
+function toDeveloperApiKey(row: ApiRecord): DeveloperApiKey {
+  return {
+    id: asString(row.id),
+    partnerId: asString(row.partnerId ?? row.partner_id),
+    partnerName: asString(row.partnerName ?? row.partner_name, 'Hamkor'),
+    name: asString(row.name),
+    keyPrefix: asString(row.keyPrefix ?? row.key_prefix),
+    lastUsedAt: (row.lastUsedAt ?? row.last_used_at)
+      ? asString(row.lastUsedAt ?? row.last_used_at)
+      : undefined,
+    createdAt: asString(
+      row.createdAt ?? row.created_at,
+      new Date().toISOString(),
+    ),
+  };
+}
+
+function toDeveloperWebhook(row: ApiRecord): DeveloperWebhook {
+  return {
+    id: asString(row.id),
+    partnerId: asString(row.partnerId ?? row.partner_id),
+    partnerName: asString(row.partnerName ?? row.partner_name, 'Hamkor'),
+    url: asString(row.url),
+    events: Array.isArray(row.events) ? row.events.map((e) => String(e)) : [],
+    isActive: asBoolean(row.isActive ?? row.is_active, true),
+    failedDeliveries: asNumber(row.failedDeliveries ?? row.failed_deliveries),
+    createdAt: asString(
+      row.createdAt ?? row.created_at,
+      new Date().toISOString(),
+    ),
+  };
+}
+
 function toBroadcast(row: ApiRecord): BroadcastNotification {
   return {
     id: asString(row.id),
@@ -716,7 +749,23 @@ function toRefundTransaction(row: ApiRecord): AdminRefundTransaction {
     customerName: asString(row.customer_name ?? row.customerName, 'Mijoz'),
     amount: asNumber(row.amount),
     reason: asString(row.reason, 'Sabab ko\'rsatilmagan'),
-    status: asString(row.status, 'pending') as any,
+    status: asString(row.status, 'requested') as any,
+    createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
+  };
+}
+
+export interface InternalNote {
+  id: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+function toInternalNote(row: ApiRecord): InternalNote {
+  return {
+    id: asString(row.id),
+    authorName: asString(row.author_name ?? row.authorName, "Admin"),
+    body: asString(row.body),
     createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
   };
 }
@@ -1057,6 +1106,19 @@ export const AdminApi = {
     return asNumber(asRecord(data).balance);
   },
 
+  sendUserSms: async (id: string, message: string): Promise<{ smsSent: boolean; smsError?: string }> => {
+    const { data } = await apiClient.post(`/admin/users/${id}/message`, { message });
+    const row = asRecord(data);
+    return {
+      smsSent: Boolean(row.sms_sent),
+      smsError: row.sms_error ? String(row.sms_error) : undefined,
+    };
+  },
+
+  sendBulkUserSms: async (userIds: string[], message: string): Promise<void> => {
+    await apiClient.post('/admin/users/message', { user_ids: userIds, message });
+  },
+
   // Partners
   getPartners: async (): Promise<Partner[]> => {
     const { data } = await apiClient.get('/admin/partners');
@@ -1124,7 +1186,7 @@ export const AdminApi = {
   // Developer (API & Webhooks)
   getDeveloperApiKeys: async (): Promise<DeveloperApiKey[]> => {
     const { data } = await apiClient.get('/admin/developer/api-keys');
-    return unknownItems(data).map(row => asRecord(row) as any);
+    return unknownItems(data).map((row) => toDeveloperApiKey(asRecord(row)));
   },
 
   deleteDeveloperApiKey: async (id: string): Promise<void> => {
@@ -1133,7 +1195,7 @@ export const AdminApi = {
 
   getDeveloperWebhooks: async (): Promise<DeveloperWebhook[]> => {
     const { data } = await apiClient.get('/admin/developer/webhooks');
-    return unknownItems(data).map(row => asRecord(row) as any);
+    return unknownItems(data).map((row) => toDeveloperWebhook(asRecord(row)));
   },
 
   // Team (Admin Users)
@@ -1256,9 +1318,13 @@ export const AdminApi = {
     }
   },
 
-  getNotifications: async (): Promise<AdminNotification[]> => {
+  getNotifications: async (): Promise<{ items: AdminNotification[]; unreadCount: number }> => {
     const { data } = await apiClient.get('/notifications');
-    return unknownItems(data).map((row) => toNotification(asRecord(row)));
+    const record = asRecord(data);
+    return {
+      items: unknownItems(data).map((row) => toNotification(asRecord(row))),
+      unreadCount: asNumber(record.unread_count ?? record.unreadCount),
+    };
   },
 
   markNotificationRead: async (id: string): Promise<AdminNotification> => {
@@ -1347,6 +1413,45 @@ export const AdminApi = {
   refundAction: async (id: string, action: 'approve' | 'reject' | 'retry'): Promise<AdminRefundTransaction> => {
     const { data } = await apiClient.post(`/admin/refunds/${id}/${action}`);
     return toRefundTransaction(asRecord(data));
+  },
+
+  createRefund: async (bookingId: string, reason: string): Promise<AdminRefundTransaction> => {
+    const { data } = await apiClient.post('/refunds', { booking_id: bookingId, reason });
+    return toRefundTransaction(asRecord(data));
+  },
+
+  getRoles: async (): Promise<{ id: string; permissions: string[] }[]> => {
+    const { data } = await apiClient.get('/admin/roles');
+    return unknownItems(data).map((row) => {
+      const record = asRecord(row);
+      return {
+        id: asString(record.id),
+        permissions: Array.isArray(record.permissions)
+          ? (record.permissions as unknown[]).map((p) => String(p))
+          : [],
+      };
+    });
+  },
+
+  // Internal notes (booking / partner)
+  getBookingNotes: async (bookingId: string): Promise<InternalNote[]> => {
+    const { data } = await apiClient.get(`/admin/bookings/${bookingId}/notes`);
+    return unknownItems(data).map((row) => toInternalNote(asRecord(row)));
+  },
+
+  addBookingNote: async (bookingId: string, body: string): Promise<InternalNote> => {
+    const { data } = await apiClient.post(`/admin/bookings/${bookingId}/notes`, { body });
+    return toInternalNote(asRecord(data));
+  },
+
+  getPartnerNotes: async (partnerId: string): Promise<InternalNote[]> => {
+    const { data } = await apiClient.get(`/admin/partners/${partnerId}/notes`);
+    return unknownItems(data).map((row) => toInternalNote(asRecord(row)));
+  },
+
+  addPartnerNote: async (partnerId: string, body: string): Promise<InternalNote> => {
+    const { data } = await apiClient.post(`/admin/partners/${partnerId}/notes`, { body });
+    return toInternalNote(asRecord(data));
   },
 
   getSettings: async (): Promise<AdminSettings> => {
@@ -1490,6 +1595,76 @@ export const AdminApi = {
   },
   deleteCmsBanner: async (id: string): Promise<void> => {
     await apiClient.post(`/admin/cms/banners/${id}/archive`);
+  },
+  createCmsNews: async (article: Partial<CmsArticle>): Promise<CmsArticle> => {
+    const { data } = await apiClient.post(
+      '/admin/cms/news',
+      cmsArticlePayload(article),
+    );
+    return toCmsArticle(asRecord(data), 'news');
+  },
+  updateCmsNews: async (
+    id: string,
+    article: Partial<CmsArticle>,
+  ): Promise<CmsArticle> => {
+    const { data } = await apiClient.patch(
+      `/admin/cms/news/${id}`,
+      cmsArticlePayload(article),
+    );
+    return toCmsArticle(asRecord(data), 'news');
+  },
+  setCmsNewsStatus: async (
+    id: string,
+    status: CmsArticle['status'],
+  ): Promise<CmsArticle> => {
+    const action = status === 'published' ? 'publish' : 'unpublish';
+    const { data } = await apiClient.post(`/admin/cms/news/${id}/${action}`);
+    return toCmsArticle(asRecord(data), 'news');
+  },
+  deleteCmsNews: async (id: string): Promise<void> => {
+    try {
+      await apiClient.delete(`/admin/cms/news/${id}`);
+    } catch (error) {
+      if (!isNotFoundError(error)) {
+        throw error;
+      }
+      await apiClient.post(`/admin/cms/news/${id}/archive`);
+    }
+  },
+  createCmsOffer: async (article: Partial<CmsArticle>): Promise<CmsArticle> => {
+    const { data } = await apiClient.post(
+      '/admin/cms/offers',
+      cmsArticlePayload(article),
+    );
+    return toCmsArticle(asRecord(data), 'offer');
+  },
+  updateCmsOffer: async (
+    id: string,
+    article: Partial<CmsArticle>,
+  ): Promise<CmsArticle> => {
+    const { data } = await apiClient.patch(
+      `/admin/cms/offers/${id}`,
+      cmsArticlePayload(article),
+    );
+    return toCmsArticle(asRecord(data), 'offer');
+  },
+  setCmsOfferStatus: async (
+    id: string,
+    status: CmsArticle['status'],
+  ): Promise<CmsArticle> => {
+    const action = status === 'published' ? 'publish' : 'unpublish';
+    const { data } = await apiClient.post(`/admin/cms/offers/${id}/${action}`);
+    return toCmsArticle(asRecord(data), 'offer');
+  },
+  deleteCmsOffer: async (id: string): Promise<void> => {
+    try {
+      await apiClient.delete(`/admin/cms/offers/${id}`);
+    } catch (error) {
+      if (!isNotFoundError(error)) {
+        throw error;
+      }
+      await apiClient.post(`/admin/cms/offers/${id}/archive`);
+    }
   },
   createCmsPage: async (article: Partial<CmsArticle>): Promise<CmsArticle> => {
     const { data } = await apiClient.post(

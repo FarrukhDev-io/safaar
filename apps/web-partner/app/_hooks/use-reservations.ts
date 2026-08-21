@@ -89,6 +89,20 @@ export function useConfirmReservation() {
   });
 }
 
+export function useAcceptCashPayment() {
+  const accessToken = useAuthStore((s) => s.tokens?.accessToken);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await partners.acceptCashPayment(id, accessToken);
+      return id;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: reservationsQueryKey });
+    },
+  });
+}
+
 export function useRejectReservation() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
   const rejectLocal = useDataStore((s) => s.rejectReservation);

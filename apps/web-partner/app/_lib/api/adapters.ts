@@ -195,6 +195,37 @@ export interface BackendWithdrawal {
   updated_at?: string;
 }
 
+export interface BackendFinanceOverview {
+  pending_balance: number | string;
+  available_balance: number | string;
+  currency: string;
+}
+
+export interface FinanceOverview {
+  pendingBalance: number;
+  availableBalance: number;
+  currency: string;
+}
+
+export interface BackendLedgerEntry {
+  id: string;
+  partner_id: string;
+  booking_id: string | null;
+  type: string;
+  amount: number | string;
+  currency: string;
+  created_at: string;
+}
+
+export interface LedgerEntry {
+  id: string;
+  bookingId: string | null;
+  type: string;
+  amount: number;
+  currency: string;
+  createdAt: string;
+}
+
 export interface BackendDashboard {
   today_bookings?: number;
   todayBookings?: number;
@@ -343,6 +374,7 @@ export function toReservation(booking: BackendBooking): ReservationView {
     children: booking.item?.children ?? 0,
     totalPrice: booking.total_amount ?? 0,
     paidAmount: booking.paid_amount ?? 0,
+    paymentMethod: booking.payment_method,
     source: normalizeReservationSource(booking.policy_snapshot?.source),
     createdAt: booking.created_at ?? '',
   };
@@ -412,6 +444,43 @@ export function toWebhook(raw: BackendWebhook): PartnerWebhook {
   };
 }
 
+export interface BackendWebhookDelivery {
+  id: string;
+  webhook_id: string;
+  event_type: string;
+  status: string;
+  payload?: unknown;
+  response_status?: number | null;
+  response_body?: string | null;
+  attempted_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  webhookId: string;
+  eventType: string;
+  status: string;
+  responseStatus: number | null;
+  responseBody: string | null;
+  attemptedAt: string | null;
+  createdAt: string;
+}
+
+export function toWebhookDelivery(raw: BackendWebhookDelivery): WebhookDelivery {
+  return {
+    id: raw.id,
+    webhookId: raw.webhook_id,
+    eventType: raw.event_type,
+    status: raw.status,
+    responseStatus: raw.response_status ?? null,
+    responseBody: raw.response_body ?? null,
+    attemptedAt: raw.attempted_at ?? null,
+    createdAt: raw.created_at,
+  };
+}
+
 export function toWithdrawal(raw: BackendWithdrawal): WithdrawalRequest {
   const status = WITHDRAWAL_STATUSES.includes(
     raw.status as (typeof WITHDRAWAL_STATUSES)[number],
@@ -427,6 +496,25 @@ export function toWithdrawal(raw: BackendWithdrawal): WithdrawalRequest {
     status,
     requestDate: raw.created_at,
     bankAccount: raw.bank_account ?? '',
+  };
+}
+
+export function toFinanceOverview(raw: BackendFinanceOverview): FinanceOverview {
+  return {
+    pendingBalance: Number(raw.pending_balance),
+    availableBalance: Number(raw.available_balance),
+    currency: raw.currency,
+  };
+}
+
+export function toLedgerEntry(raw: BackendLedgerEntry): LedgerEntry {
+  return {
+    id: raw.id,
+    bookingId: raw.booking_id,
+    type: raw.type,
+    amount: Number(raw.amount),
+    currency: raw.currency,
+    createdAt: raw.created_at,
   };
 }
 

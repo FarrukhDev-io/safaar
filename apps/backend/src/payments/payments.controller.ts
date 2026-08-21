@@ -52,29 +52,13 @@ export class PaymentsController {
   // bilan ularni butunlay rad etar edi. `ProviderWebhookDto` hujjatlash
   // (Swagger) uchun saqlanadi, lekin runtime validatsiyasida ishlatilmaydi.
   @Post('webhooks/click/prepare')
-  clickPrepare(
-    @Body() body: Record<string, unknown>,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    return this.paymentsService.providerWebhook(
-      'click',
-      'prepare',
-      body,
-      headers,
-    );
+  clickPrepare(@Body() body: Record<string, unknown>) {
+    return this.paymentsService.clickPrepare(body as never);
   }
 
   @Post('webhooks/click/complete')
-  clickComplete(
-    @Body() body: Record<string, unknown>,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    return this.paymentsService.providerWebhook(
-      'click',
-      'complete',
-      body,
-      headers,
-    );
+  clickComplete(@Body() body: Record<string, unknown>) {
+    return this.paymentsService.clickComplete(body as never);
   }
 
   @Post('webhooks/payme')

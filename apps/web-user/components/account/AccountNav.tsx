@@ -23,6 +23,7 @@ export function AccountNav({
   const links = [
     { href: base, label: dict.profile },
     { href: `${base}/bookings`, label: dict.bookings },
+    { href: `${base}/refunds`, label: dict.refunds },
     { href: `${base}/favorites`, label: dict.favorites },
     { href: `${base}/bonuses`, label: dict.bonuses },
   ];

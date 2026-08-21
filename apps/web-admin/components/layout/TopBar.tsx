@@ -34,8 +34,8 @@ export default function TopBar() {
     let cancelled = false;
     const loadNotifications = () => {
       AdminApi.getNotifications()
-        .then((nextNotifications) => {
-          if (!cancelled) setNotifications(nextNotifications);
+        .then(({ items, unreadCount: nextUnreadCount }) => {
+          if (!cancelled) setNotifications(items, nextUnreadCount);
         })
         .catch((error) => {
           console.error("Failed to load admin notifications", error);

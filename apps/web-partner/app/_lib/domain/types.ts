@@ -115,6 +115,7 @@ export interface ReservationView {
   children: number;
   totalPrice: number;
   paidAmount: number;
+  paymentMethod?: string;
   specialRequests?: string;
   internalNote?: string;
   createdAt: string;

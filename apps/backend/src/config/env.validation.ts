@@ -23,6 +23,11 @@ interface EnvironmentConfig {
   PAYMENT_WEBHOOK_SECRET?: string;
   RECOVERY_CODE_PEPPER?: string;
   PARTNER_WEBHOOK_SIGNING_SECRET?: string;
+  CLICK_SERVICE_ID?: string;
+  CLICK_MERCHANT_ID?: string;
+  CLICK_SECRET_KEY?: string;
+  PAYME_MERCHANT_ID?: string;
+  PAYME_KEY?: string;
   DB_CONNECTION_TIMEOUT_MS: number;
   DB_QUERY_TIMEOUT_MS: number;
   DB_QUERY_ATTEMPTS: number;
@@ -175,6 +180,19 @@ export function validateEnv(
     PARTNER_WEBHOOK_SIGNING_SECRET: config.PARTNER_WEBHOOK_SIGNING_SECRET
       ? String(config.PARTNER_WEBHOOK_SIGNING_SECRET)
       : undefined,
+    CLICK_SERVICE_ID: config.CLICK_SERVICE_ID
+      ? String(config.CLICK_SERVICE_ID)
+      : undefined,
+    CLICK_MERCHANT_ID: config.CLICK_MERCHANT_ID
+      ? String(config.CLICK_MERCHANT_ID)
+      : undefined,
+    CLICK_SECRET_KEY: config.CLICK_SECRET_KEY
+      ? String(config.CLICK_SECRET_KEY)
+      : undefined,
+    PAYME_MERCHANT_ID: config.PAYME_MERCHANT_ID
+      ? String(config.PAYME_MERCHANT_ID)
+      : undefined,
+    PAYME_KEY: config.PAYME_KEY ? String(config.PAYME_KEY) : undefined,
     DB_CONNECTION_TIMEOUT_MS: toNumber(
       config.DB_CONNECTION_TIMEOUT_MS,
       production ? 8000 : 5000,

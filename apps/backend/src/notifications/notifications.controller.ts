@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@safaar/types';
@@ -21,8 +22,11 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  list(@CurrentActor() actor: RequestActor | undefined) {
-    return this.notificationsService.list(actor);
+  list(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Query() query: Record<string, string | undefined>,
+  ) {
+    return this.notificationsService.list(actor, query);
   }
 
   @Patch(':id/read')

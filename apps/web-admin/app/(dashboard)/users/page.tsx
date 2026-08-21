@@ -32,6 +32,7 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
   const [smsMessage, setSmsMessage] = useState("");
+  const [smsSending, setSmsSending] = useState(false);
 
   useEffect(() => {
     AdminApi.getUsers()
@@ -179,14 +180,26 @@ export default function UsersPage() {
           <>
             <Button variant="ghost" onClick={() => setSmsModalOpen(false)}>Bekor qilish</Button>
             <Button
-              onClick={() => {
+              loading={smsSending}
+              onClick={async () => {
                 if (!smsMessage.trim()) {
                   toast.error("Xabar matnini kiriting");
                   return;
                 }
-                toast.success(`${filtered.length} ta foydalanuvchiga SMS yuborildi`);
-                setSmsMessage("");
-                setSmsModalOpen(false);
+                setSmsSending(true);
+                try {
+                  await AdminApi.sendBulkUserSms(
+                    filtered.map((u) => u.id),
+                    smsMessage,
+                  );
+                  toast.success(`${filtered.length} ta foydalanuvchiga SMS yuborildi`);
+                  setSmsMessage("");
+                  setSmsModalOpen(false);
+                } catch {
+                  toast.error("SMS yuborishda xatolik yuz berdi");
+                } finally {
+                  setSmsSending(false);
+                }
               }}
             >
               Yuborish

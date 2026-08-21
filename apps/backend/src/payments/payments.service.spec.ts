@@ -23,7 +23,12 @@ describe('PaymentsService — authorization (regression: unauthenticated IDOR)',
 
   beforeEach(() => {
     pg = { query: jest.fn() };
-    service = new PaymentsService(pg as unknown as PostgresService);
+    service = new PaymentsService(
+      pg as unknown as PostgresService,
+      { get: jest.fn() } as never,
+      { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
+    );
   });
 
   it('anonim (actor yo‘q) chaqiruv 401 bilan rad etiladi', async () => {
@@ -102,7 +107,12 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
       (operation: (tx: PostgresTransaction) => unknown) =>
         operation({ query: pg.query }),
     );
-    service = new PaymentsService(pg as unknown as PostgresService);
+    service = new PaymentsService(
+      pg as unknown as PostgresService,
+      { get: jest.fn() } as never,
+      { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
+    );
   });
 
   afterAll(() => {
@@ -296,5 +306,227 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
     });
 
     expect(result).toMatchObject({ accepted: true, duplicate: true });
+  });
+});
+
+describe('PaymentsService.createPayment (regression: payment_url was always null)', () => {
+  let pg: { query: jest.Mock; transaction: jest.Mock };
+  let click: { isConfigured: jest.Mock; buildCheckoutUrl: jest.Mock };
+  let payme: { isConfigured: jest.Mock; buildCheckoutUrl: jest.Mock };
+  let service: PaymentsService;
+  const owner: RequestActor = {
+    id: 'user-owner',
+    actorType: 'user',
+    role: Role.USER,
+    roles: [Role.USER],
+  };
+  const bookingRow = {
+    id: 'booking-1',
+    user_id: 'user-owner',
+    partner_organization_id: 'partner-1',
+    total_amount: 1300000,
+    currency: 'UZS',
+  };
+
+  beforeEach(() => {
+    pg = { query: jest.fn(), transaction: jest.fn() };
+    click = { isConfigured: jest.fn(), buildCheckoutUrl: jest.fn() };
+    payme = { isConfigured: jest.fn(), buildCheckoutUrl: jest.fn() };
+    service = new PaymentsService(
+      pg as unknown as PostgresService,
+      { get: jest.fn() } as never,
+      click as never,
+      payme as never,
+    );
+  });
+
+  it('returns a real checkout URL when Click is configured', async () => {
+    click.isConfigured.mockReturnValue(true);
+    click.buildCheckoutUrl.mockReturnValue('https://my.click.uz/services/pay?service_id=1');
+    pg.query
+      .mockResolvedValueOnce([bookingRow]) // assertBookingVisible
+      .mockResolvedValueOnce([]) // no existing pending payment
+      .mockResolvedValueOnce([]); // INSERT payments
+
+    const result = await service.createPayment(owner, 'booking-1', {
+      provider: 'click',
+    });
+
+    expect(result.payment_url).toBe(
+      'https://my.click.uz/services/pay?service_id=1',
+    );
+    const insertCall = pg.query.mock.calls.find(([sql]) =>
+      String(sql).includes('INSERT INTO payments'),
+    );
+    expect(insertCall?.[1]).toContain('https://my.click.uz/services/pay?service_id=1');
+  });
+
+  it('fails clearly instead of returning a fake/null payment_url when Click is not configured', async () => {
+    click.isConfigured.mockReturnValue(false);
+    pg.query
+      .mockResolvedValueOnce([bookingRow])
+      .mockResolvedValueOnce([]);
+
+    await expect(
+      service.createPayment(owner, 'booking-1', { provider: 'click' }),
+    ).rejects.toMatchObject({
+      status: 503,
+      response: { code: 'PAYMENT_PROVIDER_NOT_CONFIGURED' },
+    });
+  });
+
+  it('cash payments need no checkout URL and never call a provider', async () => {
+    pg.query
+      .mockResolvedValueOnce([bookingRow])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.createPayment(owner, 'booking-1', {
+      provider: 'cash',
+    });
+
+    expect(result.payment_url).toBeNull();
+    expect(click.buildCheckoutUrl).not.toHaveBeenCalled();
+    expect(payme.buildCheckoutUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe('PaymentsService.clickPrepare / clickComplete (real Click protocol)', () => {
+  let pg: { query: jest.Mock; transaction: jest.Mock };
+  let click: {
+    isConfigured: jest.Mock;
+    verifyPrepareSignature: jest.Mock;
+    verifyCompleteSignature: jest.Mock;
+  };
+  let service: PaymentsService;
+
+  const payment = {
+    id: 'payment-1',
+    booking_id: 'booking-1',
+    amount: '650000',
+    currency: 'UZS',
+    status: 'pending',
+  };
+  const openBooking = {
+    id: 'booking-1',
+    status: 'pending',
+    user_id: 'user-1',
+    partner_organization_id: 'partner-1',
+    confirmation_mode: 'instant_confirmation',
+    partner_payable: '572000',
+    currency: 'UZS',
+  };
+
+  beforeEach(() => {
+    pg = { query: jest.fn(), transaction: jest.fn() };
+    pg.transaction.mockImplementation(
+      (operation: (tx: PostgresTransaction) => unknown) =>
+        operation({ query: pg.query }),
+    );
+    click = {
+      isConfigured: jest.fn().mockReturnValue(true),
+      verifyPrepareSignature: jest.fn(),
+      verifyCompleteSignature: jest.fn(),
+    };
+    service = new PaymentsService(
+      pg as unknown as PostgresService,
+      { get: jest.fn() } as never,
+      click as never,
+      { isConfigured: () => false } as never,
+    );
+  });
+
+  it('rejects an unsigned/incorrectly signed Prepare request with error -1, HTTP-200-shaped (Click never gets a raw 401)', async () => {
+    click.verifyPrepareSignature.mockReturnValue(false);
+
+    const result = await service.clickPrepare({
+      click_trans_id: '111',
+      service_id: '123',
+      merchant_trans_id: 'booking-1',
+      amount: '650000',
+      action: '0',
+      sign_time: 't',
+      sign_string: 'wrong',
+    });
+
+    expect(result).toMatchObject({ error: -1, error_note: 'SIGN CHECK FAILED!' });
+    expect(pg.transaction).not.toHaveBeenCalled();
+  });
+
+  it('confirms a valid Prepare and echoes click_trans_id as merchant_prepare_id', async () => {
+    click.verifyPrepareSignature.mockReturnValue(true);
+    pg.query
+      .mockResolvedValueOnce([{ id: 'event-1', payment_id: null }])
+      .mockResolvedValueOnce([openBooking])
+      .mockResolvedValueOnce([payment])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.clickPrepare({
+      click_trans_id: '111',
+      service_id: '123',
+      merchant_trans_id: 'booking-1',
+      amount: '650000',
+      action: '0',
+      sign_time: 't',
+      sign_string: 'valid',
+    });
+
+    expect(result).toMatchObject({
+      click_trans_id: '111',
+      merchant_trans_id: 'booking-1',
+      merchant_prepare_id: '111',
+      error: 0,
+      error_note: 'Success',
+    });
+  });
+
+  it('confirms a valid Complete, transitions the booking, and credits the partner ledger', async () => {
+    click.verifyCompleteSignature.mockReturnValue(true);
+    pg.query
+      .mockResolvedValueOnce([{ id: 'event-2', payment_id: null }])
+      .mockResolvedValueOnce([openBooking])
+      .mockResolvedValueOnce([payment])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.clickComplete({
+      click_trans_id: '111',
+      service_id: '123',
+      merchant_trans_id: 'booking-1',
+      merchant_prepare_id: '111',
+      amount: '650000',
+      action: '1',
+      sign_time: 't',
+      sign_string: 'valid',
+    });
+
+    expect(result).toMatchObject({ error: 0, error_note: 'Success' });
+    const ledgerCall = pg.query.mock.calls.find(([sql]) =>
+      String(sql).includes('INSERT INTO partner_ledger_entries'),
+    );
+    expect(ledgerCall).toBeDefined();
+  });
+
+  it('treats a Click-reported cancellation (negative error field) as cancelled, not paid', async () => {
+    click.verifyCompleteSignature.mockReturnValue(true);
+
+    const result = await service.clickComplete({
+      click_trans_id: '111',
+      service_id: '123',
+      merchant_trans_id: 'booking-1',
+      merchant_prepare_id: '111',
+      amount: '650000',
+      action: '1',
+      sign_time: 't',
+      sign_string: 'valid',
+      error: -9,
+    });
+
+    expect(result).toMatchObject({ error: -9, error_note: 'Transaction cancelled' });
+    expect(pg.transaction).not.toHaveBeenCalled();
   });
 });

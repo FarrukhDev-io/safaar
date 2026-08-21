@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { PartnerDocument, listDocuments, uploadDocument } from "@/app/_lib/api/endpoints/partners";
 import { toDocument } from "@/app/_lib/api/adapters";
 import { formatDate } from "@/app/_lib/utils/format";
+import { useAuthStore } from "@/app/_stores/auth-store";
 
 export default function DocumentsSettingsPage() {
+  const token = useAuthStore((s) => s.tokens?.accessToken);
   const [documents, setDocuments] = useState<PartnerDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -15,9 +17,10 @@ export default function DocumentsSettingsPage() {
   const [selectedType, setSelectedType] = useState("license");
 
   const fetchDocs = async () => {
+    if (!token) return;
     try {
       setLoading(true);
-      const data = await listDocuments(null);
+      const data = await listDocuments(token);
       setDocuments(data.map(toDocument));
     } catch (e) {
       toast.error("Hujjatlarni yuklab bo'lmadi");
@@ -28,7 +31,8 @@ export default function DocumentsSettingsPage() {
 
   useEffect(() => {
     fetchDocs();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -36,7 +40,7 @@ export default function DocumentsSettingsPage() {
 
     setUploading(true);
     try {
-      await uploadDocument(file, selectedType, null);
+      await uploadDocument(file, selectedType, token);
       toast.success("Hujjat yuklandi va tasdiqlash uchun yuborildi");
       fetchDocs();
     } catch (e) {

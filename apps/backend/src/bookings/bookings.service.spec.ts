@@ -4,6 +4,7 @@ import { EmailService } from '../infrastructure/email.service';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { PromosService } from '../promos/promos.service';
 import { EventsService } from '../realtime/events.service';
+import type { PaymentsService } from '../payments/payments.service';
 import { BookingsService } from './bookings.service';
 
 function noopPromosService(): jest.Mocked<
@@ -65,6 +66,7 @@ describe('BookingsService.createHotel guest checkout', () => {
       events as unknown as EventsService,
       email as unknown as EmailService,
       promos as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -350,6 +352,7 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -469,6 +472,7 @@ describe('BookingsService.createBus (regression: BUG-04 seat double-selling)', (
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -572,6 +576,7 @@ describe('BookingsService.createVehicleRental (rent-a-car: date-range booking ag
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -587,8 +592,8 @@ describe('BookingsService.createVehicleRental (rent-a-car: date-range booking ag
 
     const result = await service.createVehicleRental(undefined, {
       vehicle_id: 'vehicle-1',
-      check_in: '2026-08-20',
-      check_out: '2026-08-23',
+      check_in: '2027-08-20',
+      check_out: '2027-08-23',
       firstName: 'Laziz',
       lastName: 'Shakarov',
       email: 'laziz@example.com',
@@ -611,8 +616,8 @@ describe('BookingsService.createVehicleRental (rent-a-car: date-range booking ag
     await expect(
       service.createVehicleRental(undefined, {
         vehicle_id: 'vehicle-1',
-        check_in: '2026-08-20',
-        check_out: '2026-08-23',
+        check_in: '2027-08-20',
+        check_out: '2027-08-23',
         guest_name: 'Test',
         guest_email: 'test@example.com',
         guest_phone: '+998901234567',
@@ -694,6 +699,7 @@ describe('BookingsService.cancel (regression: explicit cancellation never releas
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -799,6 +805,7 @@ describe('BookingsService.findOne — authorization (regression: unauthenticated
       } as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -853,6 +860,7 @@ describe('BookingsService.lookupBooking (guest — booking_number + email)', () 
       } as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -934,6 +942,7 @@ describe('BookingsService.expireStaleBookings (regression: BUG-09 hold expiry, a
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { RequestActor } from '../common/actor';
+import { actorHasPermissions, Permission } from '../common/permissions';
 import { PostgresService } from '../infrastructure/postgres.service';
 
 interface RefundBookingRow {
@@ -23,6 +24,15 @@ export class RefundsService {
 
   async create(actor: RequestActor | undefined, body: Record<string, unknown>) {
     const currentActor = this.requireActor(actor);
+    const isAdminActor = currentActor.actorType === 'admin';
+
+    if (isAdminActor && !actorHasPermissions(currentActor, [Permission.FinanceWrite])) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'Refund yaratish uchun ruxsat yo\'q',
+      });
+    }
+
     const bookingId = String(body.booking_id ?? '');
     const [booking] = await this.pg.query<RefundBookingRow>(
       'SELECT * FROM bookings WHERE id = $1',
@@ -34,16 +44,19 @@ export class RefundsService {
         message: 'Bron topilmadi',
       });
     }
-    if (booking.user_id !== currentActor.id) {
+    // Admin xohlagan mijozning bronidan refund yaratishi mumkin (mijoz
+    // o'rniga); oddiy foydalanuvchi esa faqat o'zining bronidan.
+    if (!isAdminActor && booking.user_id !== currentActor.id) {
       throw new ForbiddenException({
         code: 'BOOKING_FORBIDDEN',
         message: 'Bu bron sizga tegishli emas',
       });
     }
+    const ownerId = booking.user_id;
 
     const [existing] = await this.pg.query<RefundRow>(
       "SELECT * FROM refunds WHERE booking_id = $1 AND user_id = $2 AND status != 'rejected'",
-      [bookingId, currentActor.id],
+      [bookingId, ownerId],
     );
     if (existing) {
       return existing;
@@ -59,7 +72,7 @@ export class RefundsService {
       [
         id,
         bookingId,
-        currentActor.id,
+        ownerId,
         'requested',
         booking.currency,
         requestedAmount,
@@ -71,7 +84,7 @@ export class RefundsService {
     return {
       id,
       booking_id: bookingId,
-      user_id: currentActor.id,
+      user_id: ownerId,
       status: 'requested',
       currency: booking.currency,
       requested_amount: requestedAmount,

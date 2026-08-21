@@ -11,6 +11,11 @@ export default function CmsOffersPage() {
       addLabel="Taklif qo'shish"
       emptyMessage="Takliflar topilmadi"
       loadItems={AdminApi.getCmsOffers}
+      publishOnSave
+      createItem={AdminApi.createCmsOffer}
+      updateItem={AdminApi.updateCmsOffer}
+      setItemStatus={AdminApi.setCmsOfferStatus}
+      deleteItem={AdminApi.deleteCmsOffer}
     />
   );
 }

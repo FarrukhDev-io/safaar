@@ -9,18 +9,18 @@ import { AdminRefundTransaction } from "@/types/admin";
 import { cn, formatPrice } from "@/lib/utils";
 
 const STATUS_COLORS = {
-  pending: "bg-amber-100 text-amber-700",
-  approved: "bg-blue-100 text-blue-700",
-  completed: "bg-emerald-100 text-emerald-700",
-  failed: "bg-red-100 text-red-700",
-  rejected: "bg-slate-100 text-slate-700",
+  requested: "bg-amber-100 text-amber-700",
+  processing: "bg-blue-100 text-blue-700",
+  approved: "bg-emerald-100 text-emerald-700",
+  paid: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-red-100 text-red-700",
 };
 
 const STATUS_LABELS = {
-  pending: "Kutilmoqda",
+  requested: "Kutilmoqda",
+  processing: "Jarayonda",
   approved: "Tasdiqlangan",
-  completed: "Yakunlangan",
-  failed: "Xatolik",
+  paid: "To'landi",
   rejected: "Rad etilgan",
 };
 
@@ -164,7 +164,7 @@ export default function RefundsPage() {
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />
                             <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-20 py-1 overflow-hidden">
-                              {r.status === 'pending' && (
+                              {(r.status === 'requested' || r.status === 'processing') && (
                                 <>
                                   <button
                                     onClick={() => handleAction(r.id, 'approve')}
@@ -180,17 +180,17 @@ export default function RefundsPage() {
                                   </button>
                                 </>
                               )}
-                              
-                              {r.status === 'failed' && (
+
+                              {r.status === 'rejected' && (
                                 <button
                                   onClick={() => handleAction(r.id, 'retry')}
                                   className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 transition-colors font-medium"
                                 >
-                                  <RefreshCw size={16} /> Qayta urinish
+                                  <RefreshCw size={16} /> Qayta ochish
                                 </button>
                               )}
-                              
-                              {r.status !== 'pending' && r.status !== 'failed' && (
+
+                              {r.status !== 'requested' && r.status !== 'processing' && r.status !== 'rejected' && (
                                 <div className="px-4 py-2 text-xs text-slate-400">
                                   Boshqa amal mavjud emas
                                 </div>

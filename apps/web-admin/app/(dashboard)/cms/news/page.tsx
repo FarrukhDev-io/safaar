@@ -11,6 +11,11 @@ export default function CmsNewsPage() {
       addLabel="Yangilik qo'shish"
       emptyMessage="Yangiliklar topilmadi"
       loadItems={AdminApi.getCmsNews}
+      publishOnSave
+      createItem={AdminApi.createCmsNews}
+      updateItem={AdminApi.updateCmsNews}
+      setItemStatus={AdminApi.setCmsNewsStatus}
+      deleteItem={AdminApi.deleteCmsNews}
     />
   );
 }

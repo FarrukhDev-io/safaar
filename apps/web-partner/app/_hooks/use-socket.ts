@@ -56,6 +56,12 @@ export function useSocket(options?: UseSocketOptions) {
     socketRef.current = nextSocket;
 
     return () => {
+      // Reconnection'ni ataylab o'chirishdan oldin bekor qilamiz — aks
+      // holda socket.io eski (endi backend'da yaroqsiz) token bilan qayta
+      // ulanishga urinib, brauzer konsolida 401 xatosi qoldirishi mumkin
+      // edi (masalan chiqish paytida, real E2E orqali topilgan holat).
+      nextSocket.io.reconnection(false);
+      nextSocket.removeAllListeners();
       nextSocket.disconnect();
       socketRef.current = null;
       setConnected(false);

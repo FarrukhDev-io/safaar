@@ -407,7 +407,7 @@ export interface AdminRefundTransaction {
   customerName: string;
   amount: number;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected' | 'failed' | 'completed';
+  status: 'requested' | 'processing' | 'approved' | 'rejected' | 'paid';
   createdAt: string;
 }
 

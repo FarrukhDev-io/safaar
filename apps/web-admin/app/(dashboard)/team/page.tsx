@@ -23,11 +23,45 @@ const ROLE_COLORS: Record<AdminRole, string> = {
   CONTENT_ADMIN: "bg-amber-100 text-amber-700 border-amber-200",
 };
 
+const PERMISSION_LABELS: Record<string, string> = {
+  "users:read": "Foydalanuvchilarni ko'rish",
+  "users:write": "Foydalanuvchilarni tahrirlash",
+  "partners:read": "Hamkorlarni ko'rish",
+  "partners:write": "Hamkorlarni tahrirlash",
+  "bookings:read": "Bronlarni ko'rish",
+  "bookings:write": "Bronlarni tahrirlash",
+  "finance:read": "Moliyani ko'rish",
+  "finance:write": "Moliyani boshqarish",
+  "cms:read": "CMS'ni ko'rish",
+  "cms:write": "CMS'ni tahrirlash",
+  "support:read": "Support'ni ko'rish",
+  "support:write": "Support'ni boshqarish",
+  "settings:write": "Sozlamalarni o'zgartirish",
+  "admin-users:write": "Admin xodimlarni boshqarish",
+  "audit-logs:read": "Audit jurnalini ko'rish",
+};
+
 export default function TeamPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const { user: currentUser } = useAuthStore();
+
+  const [roles, setRoles] = useState<{ id: string; permissions: string[] }[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [rolesError, setRolesError] = useState(false);
+
+  const fetchRoles = async () => {
+    try {
+      setRolesLoading(true);
+      setRolesError(false);
+      setRoles(await AdminApi.getRoles());
+    } catch {
+      setRolesError(true);
+    } finally {
+      setRolesLoading(false);
+    }
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
@@ -60,6 +94,7 @@ export default function TeamPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchRoles();
   }, []);
 
   const openAddModal = () => {
@@ -289,6 +324,63 @@ export default function TeamPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Rollar va ruxsatlar (faqat ko'rish) */}
+      <div className="mt-6 bg-white border border-[var(--border)] rounded-xl shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border)]">
+          <h2 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <Shield size={16} className="text-[var(--text-secondary)]" />
+            Rollar va ruxsatlar
+          </h2>
+          <p className="text-xs text-[var(--text-secondary)] mt-1">
+            Har bir rolga backend kodida biriktirilgan haqiqiy ruxsatlar. Bu ro'yxat faqat ko'rish uchun —
+            ruxsatlarni o'zgartirish hozircha qo'llab-quvvatlanmaydi.
+          </p>
+        </div>
+
+        {rolesLoading ? (
+          <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">Yuklanmoqda...</div>
+        ) : rolesError ? (
+          <div className="px-6 py-8 flex flex-col items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <p>Rollarni yuklab bo'lmadi</p>
+            <button onClick={fetchRoles} className="text-[var(--primary)] hover:underline">
+              Qayta urinish
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-[var(--border)]">
+            {roles.map((role) => (
+              <div key={role.id} className="px-6 py-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-xs font-medium border",
+                      ROLE_COLORS[role.id as AdminRole] || "bg-slate-100 text-slate-700 border-slate-200",
+                    )}
+                  >
+                    {ROLE_LABELS[role.id as AdminRole] || role.id}
+                  </span>
+                </div>
+                {role.permissions.length === 0 ? (
+                  <p className="text-xs text-[var(--text-secondary)]">Ruxsatlar yo'q</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {role.permissions.map((p) => (
+                      <span
+                        key={p}
+                        className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600"
+                        title={p}
+                      >
+                        {PERMISSION_LABELS[p] || p}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Modal */}

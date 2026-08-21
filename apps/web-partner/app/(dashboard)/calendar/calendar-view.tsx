@@ -30,6 +30,7 @@ import { ReservationBar } from "./_components/reservation-bar";
 import { DachaAvailabilityView } from "./_components/dacha-availability-view";
 import { RestaurantScheduleView } from "./_components/restaurant-schedule-view";
 import { VehicleAvailabilityView } from "./_components/vehicle-availability-view";
+import { InventoryView } from "./_components/inventory-view";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAY_LABEL = ["Yak", "Du", "Se", "Cho", "Pa", "Ju", "Sha"];
@@ -92,6 +93,7 @@ export function CalendarView() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkInInitial, setWalkInInitial] = useState<WalkInInitial>({});
+  const [mainTab, setMainTab] = useState<"bookings" | "inventory">("bookings");
 
   const startDate = addDays(TODAY_ISO, startOffset);
   const days = useMemo(
@@ -257,19 +259,52 @@ export function CalendarView() {
         title={labels.calendarTitle}
         description={labels.calendarDescription}
         actions={
-          <Button
-            size="sm"
-            onClick={() => {
-              setWalkInInitial({});
-              setWalkInOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            {labels.newBookingLabel}
-          </Button>
+          mainTab === "bookings" ? (
+            <Button
+              size="sm"
+              onClick={() => {
+                setWalkInInitial({});
+                setWalkInOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              {labels.newBookingLabel}
+            </Button>
+          ) : undefined
         }
       />
 
+      <div className="flex items-center gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900/60 w-fit">
+        <button
+          type="button"
+          onClick={() => setMainTab("bookings")}
+          className={cn(
+            "rounded-lg px-4 py-1.5 text-sm font-semibold transition-all",
+            mainTab === "bookings"
+              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white"
+              : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200",
+          )}
+        >
+          Bronlar
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab("inventory")}
+          className={cn(
+            "rounded-lg px-4 py-1.5 text-sm font-semibold transition-all",
+            mainTab === "inventory"
+              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white"
+              : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200",
+          )}
+        >
+          Zaxira (Inventory)
+        </button>
+      </div>
+
+      {mainTab === "inventory" ? (
+        <InventoryView />
+      ) : (
+        <>
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <CalendarMetric
           label={labels.availabilityLabel}
@@ -506,6 +541,8 @@ export function CalendarView() {
         onClose={() => setWalkInOpen(false)}
         initialValues={walkInInitial}
       />
+        </>
+      )}
     </div>
   );
 }

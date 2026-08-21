@@ -2,21 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Code2, Key, Globe, Trash2, CheckCircle2, XCircle, Copy } from "lucide-react";
-import { 
-  PartnerApiKey, 
-  PartnerWebhook, 
-  listApiKeys, 
-  createApiKey, 
-  deleteApiKey, 
-  listWebhooks, 
-  createWebhook, 
-  deleteWebhook 
+import { Code2, Key, Globe, Trash2, CheckCircle2, XCircle, Copy, Send, History, RotateCcw, Power } from "lucide-react";
+import {
+  PartnerApiKey,
+  PartnerWebhook,
+  listApiKeys,
+  createApiKey,
+  deleteApiKey,
+  listWebhooks,
+  createWebhook,
+  updateWebhook,
+  deleteWebhook,
+  testWebhook,
+  getWebhookDeliveries,
+  retryWebhookDelivery,
 } from "@/app/_lib/api/endpoints/partners";
-import { toApiKey, toWebhook } from "@/app/_lib/api/adapters";
-import { formatDate } from "@/app/_lib/utils/format";
+import { toApiKey, toWebhook, toWebhookDelivery, WebhookDelivery } from "@/app/_lib/api/adapters";
+import { formatDate, formatDateTime } from "@/app/_lib/utils/format";
+import { useAuthStore } from "@/app/_stores/auth-store";
 
 export default function DeveloperSettingsPage() {
+  const token = useAuthStore((s) => s.tokens?.accessToken);
   const [apiKeys, setApiKeys] = useState<PartnerApiKey[]>([]);
   const [webhooks, setWebhooks] = useState<PartnerWebhook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,12 +37,22 @@ export default function DeveloperSettingsPage() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const [togglingWebhookId, setTogglingWebhookId] = useState<string | null>(null);
+  const [testingWebhookId, setTestingWebhookId] = useState<string | null>(null);
+
+  const [logsWebhook, setLogsWebhook] = useState<PartnerWebhook | null>(null);
+  const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
+  const [deliveriesLoading, setDeliveriesLoading] = useState(false);
+  const [deliveriesError, setDeliveriesError] = useState(false);
+  const [retryingDeliveryId, setRetryingDeliveryId] = useState<string | null>(null);
+
   const fetchData = async () => {
+    if (!token) return;
     try {
       setLoading(true);
       const [keysData, webhooksData] = await Promise.all([
-        listApiKeys(null),
-        listWebhooks(null),
+        listApiKeys(token),
+        listWebhooks(token),
       ]);
       setApiKeys(keysData.map(toApiKey));
       setWebhooks(webhooksData.map(toWebhook));
@@ -49,14 +65,15 @@ export default function DeveloperSettingsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const handleCreateKey = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyName) return;
     setSubmitting(true);
     try {
-      const data = await createApiKey({ name: keyName }, null);
+      const data = await createApiKey({ name: keyName }, token);
       setNewKeyString(toApiKey(data).key ?? null);
       setKeyName("");
       fetchData();
@@ -72,7 +89,7 @@ export default function DeveloperSettingsPage() {
     if (!webhookUrl) return;
     setSubmitting(true);
     try {
-      await createWebhook({ url: webhookUrl, events: ["booking.created", "booking.updated"] }, null);
+      await createWebhook({ url: webhookUrl, events: ["booking.created", "booking.updated"] }, token);
       toast.success("Webhook qo'shildi");
       setShowWebhookModal(false);
       setWebhookUrl("");
@@ -87,7 +104,7 @@ export default function DeveloperSettingsPage() {
   const handleDeleteKey = async (id: string) => {
     if (!confirm("Kalitni o'chirmoqchimisiz?")) return;
     try {
-      await deleteApiKey(id, null);
+      await deleteApiKey(id, token);
       toast.success("Kalit o'chirildi");
       setApiKeys(apiKeys.filter(k => k.id !== id));
     } catch (e) {
@@ -98,11 +115,68 @@ export default function DeveloperSettingsPage() {
   const handleDeleteWebhook = async (id: string) => {
     if (!confirm("Webhookni o'chirmoqchimisiz?")) return;
     try {
-      await deleteWebhook(id, null);
+      await deleteWebhook(id, token);
       toast.success("Webhook o'chirildi");
       setWebhooks(webhooks.filter(w => w.id !== id));
     } catch (e) {
       toast.error("Xatolik");
+    }
+  };
+
+  const handleToggleWebhook = async (webhook: PartnerWebhook) => {
+    setTogglingWebhookId(webhook.id);
+    try {
+      const updated = await updateWebhook(
+        webhook.id,
+        { status: webhook.isActive ? "disabled" : "active" },
+        token,
+      );
+      const mapped = toWebhook(updated);
+      setWebhooks((prev) => prev.map((w) => (w.id === webhook.id ? mapped : w)));
+      toast.success(mapped.isActive ? "Webhook faollashtirildi" : "Webhook o'chirildi");
+    } catch (e) {
+      toast.error("Holatni o'zgartirib bo'lmadi");
+    } finally {
+      setTogglingWebhookId(null);
+    }
+  };
+
+  const handleTestWebhook = async (id: string) => {
+    setTestingWebhookId(id);
+    try {
+      await testWebhook(id, token);
+      toast.success("Test so'rovi yuborildi. Natijani 'Loglar'dan ko'ring.");
+    } catch (e: any) {
+      toast.error(e?.message || "Test yuborishda xatolik");
+    } finally {
+      setTestingWebhookId(null);
+    }
+  };
+
+  const fetchDeliveries = async (webhook: PartnerWebhook) => {
+    setLogsWebhook(webhook);
+    setDeliveriesLoading(true);
+    setDeliveriesError(false);
+    try {
+      const data = await getWebhookDeliveries(webhook.id, token);
+      setDeliveries(data.map(toWebhookDelivery));
+    } catch (e) {
+      setDeliveriesError(true);
+    } finally {
+      setDeliveriesLoading(false);
+    }
+  };
+
+  const handleRetryDelivery = async (deliveryId: string) => {
+    setRetryingDeliveryId(deliveryId);
+    try {
+      await retryWebhookDelivery(deliveryId, token);
+      toast.success("Qayta yuborish navbatga qo'shildi");
+      if (logsWebhook) await fetchDeliveries(logsWebhook);
+    } catch (e: any) {
+      toast.error(e?.message || "Qayta yuborishda xatolik");
+    } finally {
+      setRetryingDeliveryId(null);
     }
   };
 
@@ -224,17 +298,49 @@ export default function DeveloperSettingsPage() {
                   <tr key={w.id}>
                     <td className="px-5 py-4 font-mono text-xs text-blue-600 max-w-[250px] truncate">{w.url}</td>
                     <td className="px-5 py-4">
-                      {w.isActive ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-medium"><CheckCircle2 size={14} /> Faol</span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-red-600 text-xs font-medium"><XCircle size={14} /> O'chirilgan</span>
-                      )}
+                      <button
+                        onClick={() => handleToggleWebhook(w)}
+                        disabled={togglingWebhookId === w.id}
+                        className="inline-flex items-center gap-1 text-xs font-medium disabled:opacity-50"
+                        title={w.isActive ? "O'chirish uchun bosing" : "Yoqish uchun bosing"}
+                      >
+                        {w.isActive ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-600"><CheckCircle2 size={14} /> Faol</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-red-600"><XCircle size={14} /> O'chirilgan</span>
+                        )}
+                      </button>
                     </td>
                     <td className="px-5 py-4 text-xs text-[var(--muted-foreground)]">{formatDate(w.createdAt)}</td>
                     <td className="px-5 py-4">
-                      <button onClick={() => handleDeleteWebhook(w.id)} className="text-[var(--destructive)] p-1 hover:bg-[var(--destructive)]/10 rounded">
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleTestWebhook(w.id)}
+                          disabled={testingWebhookId === w.id}
+                          title="Test yuborish"
+                          className="text-[var(--muted-foreground)] p-1.5 hover:bg-[var(--muted)] rounded disabled:opacity-50"
+                        >
+                          <Send size={16} />
+                        </button>
+                        <button
+                          onClick={() => fetchDeliveries(w)}
+                          title="Yetkazish loglari"
+                          className="text-[var(--muted-foreground)] p-1.5 hover:bg-[var(--muted)] rounded"
+                        >
+                          <History size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleToggleWebhook(w)}
+                          disabled={togglingWebhookId === w.id}
+                          title={w.isActive ? "O'chirish" : "Yoqish"}
+                          className="text-[var(--muted-foreground)] p-1.5 hover:bg-[var(--muted)] rounded disabled:opacity-50"
+                        >
+                          <Power size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteWebhook(w.id)} title="O'chirish (butunlay)" className="text-[var(--destructive)] p-1.5 hover:bg-[var(--destructive)]/10 rounded">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -319,6 +425,84 @@ export default function DeveloperSettingsPage() {
         </div>
       )}
 
+      {logsWebhook && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-xl bg-[var(--background)] shadow-xl border border-[var(--border)]">
+            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-lg font-semibold">Yetkazish loglari</h3>
+                <p className="text-xs text-[var(--muted-foreground)] font-mono mt-0.5 truncate max-w-md">{logsWebhook.url}</p>
+              </div>
+              <button
+                onClick={() => { setLogsWebhook(null); setDeliveries([]); }}
+                aria-label="Yopish"
+                className="text-[var(--muted-foreground)] hover:bg-[var(--muted)] p-1.5 rounded"
+              >
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {deliveriesLoading ? (
+                <div className="p-8 text-center text-sm text-[var(--muted-foreground)]">Yuklanmoqda...</div>
+              ) : deliveriesError ? (
+                <div className="p-8 flex flex-col items-center gap-2 text-sm text-[var(--muted-foreground)]">
+                  <p>Loglarni yuklab bo'lmadi</p>
+                  <button onClick={() => fetchDeliveries(logsWebhook)} className="text-[var(--primary)] hover:underline">
+                    Qayta urinish
+                  </button>
+                </div>
+              ) : deliveries.length === 0 ? (
+                <div className="p-8 text-center text-sm text-[var(--muted-foreground)]">Hali yetkazish urinishlari yo'q</div>
+              ) : (
+                <div className="divide-y divide-[var(--border)]">
+                  {deliveries.map((d) => (
+                    <div key={d.id} className="p-4 flex items-start justify-between gap-3">
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{d.eventType}</span>
+                          <DeliveryStatusBadge status={d.status} />
+                          {d.responseStatus !== null && (
+                            <span className="text-xs font-mono text-[var(--muted-foreground)]">HTTP {d.responseStatus}</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-[var(--muted-foreground)]">
+                          {d.attemptedAt ? formatDateTime(d.attemptedAt) : formatDateTime(d.createdAt)}
+                        </span>
+                      </div>
+                      {d.status === "failed" && (
+                        <button
+                          onClick={() => handleRetryDelivery(d.id)}
+                          disabled={retryingDeliveryId === d.id}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline disabled:opacity-50 shrink-0"
+                        >
+                          <RotateCcw size={13} />
+                          {retryingDeliveryId === d.id ? "Yuborilmoqda..." : "Qayta urinish"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
+  );
+}
+
+function DeliveryStatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    delivered: "bg-emerald-100 text-emerald-700",
+    queued: "bg-amber-100 text-amber-700",
+    failed: "bg-red-100 text-red-700",
+    skipped: "bg-slate-100 text-slate-600",
+  };
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${map[status] ?? "bg-slate-100 text-slate-600"}`}>
+      {status}
+    </span>
   );
 }

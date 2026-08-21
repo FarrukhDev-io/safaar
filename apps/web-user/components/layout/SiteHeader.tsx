@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/cn";
 import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
 import { LocaleSwitcher } from "./LocaleSwitcher";
+import { NotificationsBell } from "./NotificationsBell";
 
 function AuthButtons({
   authed,
@@ -70,10 +71,12 @@ export function SiteHeader({
   locale,
   dict,
   authed,
+  accessToken,
 }: {
   locale: Locale;
   dict: CommonDict;
   authed: boolean;
+  accessToken?: string;
 }) {
   const base = `/${locale}`;
   const navDict = dict.nav as typeof dict.nav & {
@@ -96,6 +99,7 @@ export function SiteHeader({
 
   const actions = (
     <div className="flex items-center gap-2">
+      {authed && <NotificationsBell locale={locale} token={accessToken} />}
       {localeSwitcherLight}
       {authActions}
     </div>

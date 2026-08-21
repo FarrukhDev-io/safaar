@@ -9,8 +9,8 @@ import {
   CreditCard,
   Banknote,
   X,
-  Lock,
   ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { formatSum } from "@/lib/money";
 import type { RestaurantDetailView } from "@safaar/api-client";
@@ -37,33 +37,15 @@ export function RestaurantBookingSection({
 
   // Payment Modal state
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">("card");
-  const [cardNumber, setCardNumber] = useState<string>("");
-  const [cardExpire, setCardExpire] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("online");
 
   const [loading, setLoading] = useState<boolean>(false);
   const [successBookingId, setSuccessBookingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [onlinePaymentUnavailable, setOnlinePaymentUnavailable] = useState<boolean>(false);
 
   const selectedTable = restaurant.tables.find((t) => t.id === selectedTableId);
   const totalAmount = selectedTable?.basePriceSum ?? 0;
-
-  // Format card number with spaces (e.g. 8600 1234 5678 9012)
-  const handleCardNumberChange = (val: string) => {
-    const digits = val.replace(/\D/g, "").slice(0, 16);
-    const formatted = digits.replace(/(.{4})/g, "$1 ").trim();
-    setCardNumber(formatted);
-  };
-
-  // Format card expire (e.g. 12/28)
-  const handleCardExpireChange = (val: string) => {
-    const digits = val.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 3) {
-      setCardExpire(`${digits.slice(0, 2)}/${digits.slice(2)}`);
-    } else {
-      setCardExpire(digits);
-    }
-  };
 
   const handleOpenModal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,19 +59,8 @@ export function RestaurantBookingSection({
 
   const handleProcessPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (paymentMethod === "card") {
-      const rawCard = cardNumber.replace(/\s/g, "");
-      if (rawCard.length < 16) {
-        setErrorMsg("Karta raqamini to'liq kiriting (16 xona)");
-        return;
-      }
-      if (cardExpire.length < 5) {
-        setErrorMsg("Karta amal qilish muddatini kiriting (MM/YY)");
-        return;
-      }
-    }
-
     setErrorMsg(null);
+    setOnlinePaymentUnavailable(false);
     setLoading(true);
 
     try {
@@ -106,13 +77,39 @@ export function RestaurantBookingSection({
         guestPhone,
         guestEmail,
         source: "web-user",
-        paymentMethod: paymentMethod === "card" ? "click" : "cash",
+        paymentMethod: paymentMethod === "online" ? "click" : "cash",
       });
 
-      const bookingId = booking.bookingNumber || booking.id || "CONFIRMED";
+      if (paymentMethod === "cash") {
+        const bookingId = booking.bookingNumber || booking.id || "CONFIRMED";
+        setSuccessBookingId(bookingId);
+        setShowPaymentModal(false);
+        return;
+      }
 
-      setSuccessBookingId(bookingId);
-      setShowPaymentModal(false);
+      // Onlayn to'lov — karta ma'lumotlari hech qachon bizning
+      // serverimizga yuborilmaydi (PCI). Mijoz Click'ning o'z xavfsiz
+      // to'lov sahifasiga yo'naltiriladi, karta raqamini o'sha yerda kiritadi.
+      const resolveCheckoutUrl = async (): Promise<string> => {
+        if (booking.payment?.url) return booking.payment.url;
+        try {
+          const session = await api.payments.createPaymentSession(booking.id, "click");
+          return session.paymentUrl ?? "";
+        } catch {
+          return "";
+        }
+      };
+      const checkoutUrl = await resolveCheckoutUrl();
+
+      if (checkoutUrl) {
+        // Real browser navigation to Click's hosted checkout — not a React
+        // state mutation, safe outside the compiler's render-purity checks.
+        // eslint-disable-next-line react-hooks/immutability
+        window.location.href = checkoutUrl;
+        return;
+      }
+
+      setOnlinePaymentUnavailable(true);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Xatolik yuz berdi");
     } finally {
@@ -125,7 +122,7 @@ export function RestaurantBookingSection({
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center shadow-md dark:border-emerald-800 dark:bg-emerald-950/40">
         <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
         <h3 className="mt-3 text-xl font-extrabold text-emerald-900 dark:text-emerald-200">
-          To'lov bajarildi va stol band qilindi!
+          Stol band qilindi!
         </h3>
         <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">
           Bron ID: <span className="font-mono font-bold">{successBookingId}</span>
@@ -135,7 +132,7 @@ export function RestaurantBookingSection({
           <p><strong>Stol:</strong> {selectedTable?.name ?? "Tanlangan stol"}</p>
           <p><strong>Sana va vaqt:</strong> {date} ({slotTime})</p>
           <p><strong>Mijoz:</strong> {guestName} ({guestPhone})</p>
-          <p><strong>To'lov usuli:</strong> {paymentMethod === "card" ? "Karta orqali" : "Naqd pul"}</p>
+          <p><strong>To'lov usuli:</strong> Naqd pul (joyida)</p>
         </div>
         <Button
           onClick={() => setSuccessBookingId(null)}
@@ -324,6 +321,13 @@ export function RestaurantBookingSection({
               </div>
             )}
 
+            {onlinePaymentUnavailable && (
+              <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>Onlayn to&apos;lov hozircha mavjud emas. Iltimos, &quot;Naqd (Joyida)&quot; usulini tanlang.</span>
+              </div>
+            )}
+
             {/* Order Summary box */}
             <div className="mt-4 rounded-xl bg-slate-50 p-3.5 text-xs dark:bg-slate-800/60">
               <div className="flex justify-between py-1">
@@ -355,20 +359,26 @@ export function RestaurantBookingSection({
                 <div className="mt-1.5 grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("card")}
+                    onClick={() => {
+                      setPaymentMethod("online");
+                      setOnlinePaymentUnavailable(false);
+                    }}
                     className={`flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold transition-all ${
-                      paymentMethod === "card"
+                      paymentMethod === "online"
                         ? "border-primary-600 bg-primary-50 text-primary-900 ring-2 ring-primary-500 dark:border-primary-500 dark:bg-primary-950/50 dark:text-white"
                         : "border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                     }`}
                   >
                     <CreditCard className="h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400" />
-                    Bank kartasi
+                    Onlayn (Click)
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("cash")}
+                    onClick={() => {
+                      setPaymentMethod("cash");
+                      setOnlinePaymentUnavailable(false);
+                    }}
                     className={`flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold transition-all ${
                       paymentMethod === "cash"
                         ? "border-primary-600 bg-primary-50 text-primary-900 ring-2 ring-primary-500 dark:border-primary-500 dark:bg-primary-950/50 dark:text-white"
@@ -381,45 +391,10 @@ export function RestaurantBookingSection({
                 </div>
               </div>
 
-              {/* Card Inputs if Payment Method === 'card' */}
-              {paymentMethod === "card" && (
-                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/40">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                      Karta raqami (Uzcard / Humo / Visa)
-                    </label>
-                    <div className="relative mt-1">
-                      <input
-                        type="text"
-                        placeholder="8600 0000 0000 0000"
-                        maxLength={19}
-                        value={cardNumber}
-                        onChange={(e) => handleCardNumberChange(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono tracking-wider text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                      Amal qilish muddati (MM/YY)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="12/28"
-                      maxLength={5}
-                      value={cardExpire}
-                      onChange={(e) => handleCardExpireChange(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                    <Lock className="h-3 w-3 text-emerald-500" />
-                    256-bit xavfsiz to'lov shifrlanishi
-                  </div>
+              {paymentMethod === "online" && (
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-500" />
+                  Karta ma&apos;lumotlarini Click&apos;ning o&apos;z xavfsiz to&apos;lov sahifasida kiritasiz — bu yerda saqlanmaydi.
                 </div>
               )}
 
@@ -436,9 +411,9 @@ export function RestaurantBookingSection({
                 className="w-full bg-primary-600 font-extrabold text-white hover:bg-primary-700 py-3 shadow-md"
               >
                 {loading
-                  ? "To'lov amalga oshirilmoqda..."
-                  : paymentMethod === "card"
-                  ? `${totalAmount > 0 ? formatSum(totalAmount) : "To'lovni tasdiqlash"}`
+                  ? "Yo'naltirilmoqda..."
+                  : paymentMethod === "online"
+                  ? `Click orqali to'lash ${totalAmount > 0 ? `(${formatSum(totalAmount)})` : ""}`
                   : "Bronni tasdiqlash (Naqd)"}
               </Button>
             </form>

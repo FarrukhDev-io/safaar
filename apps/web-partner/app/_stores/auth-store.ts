@@ -42,15 +42,20 @@ interface AuthState {
 /**
  * Hamkor sessiyasi.
  *
- * NOTE: hozircha tokenlar `localStorage`'da saqlanadi (skelet bosqichi).
- * Production'da `refreshToken`'ni httpOnly cookie'ga ko'chiramiz.
+ * `refreshToken` bu yerda ATAYLAB doim bo'sh satr — haqiqiy refresh token
+ * endi `localStorage`ga umuman tushmaydi, u faqat httpOnly cookie'da
+ * (`/api/auth/session` uni yozadi, `/api/auth/refresh` uni o'qiydi).
+ * `AuthTokens` tipi mos kelishi uchun maydon saqlanib qolgan, lekin
+ * qiymati hech qachon real token bo'lmasligi kerak — XSS orqali uzoq
+ * muddatli sessiyani o'g'irlab bo'lmasligi shu talab qilingan.
  */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
       tokens: null,
-      setSession: (user, tokens) => set({ user, tokens }),
+      setSession: (user, tokens) =>
+        set({ user, tokens: { accessToken: tokens.accessToken, refreshToken: '' } }),
       updateUser: (patch) =>
         set((state) =>
           state.user ? { user: { ...state.user, ...patch } } : state,

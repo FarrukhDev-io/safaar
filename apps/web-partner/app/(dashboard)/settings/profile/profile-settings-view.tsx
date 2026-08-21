@@ -12,7 +12,7 @@ import {
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Card,
@@ -28,7 +28,6 @@ import type { PartnerAccessStatus } from '../../../_lib/api/endpoints/access';
 import { useAuthStore } from '../../../_stores/auth-store';
 
 const schema = z.object({
-  fullName: z.string().min(2, "Ism kamida 2 belgi bo'lishi kerak"),
   email: z
     .string()
     .trim()
@@ -101,6 +100,7 @@ export function ProfileSettingsView() {
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.tokens?.accessToken);
   const updateUser = useAuthStore((s) => s.updateUser);
+  const queryClient = useQueryClient();
   const profileQuery = useQuery({
     queryKey: ['partner', 'profile'],
     queryFn: () => partners.getProfile(token),
@@ -111,18 +111,26 @@ export function ProfileSettingsView() {
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     values: {
-      fullName: user?.fullName ?? '',
       email: profile?.email ?? user?.email ?? '',
     },
   });
 
+  const updateEmail = useMutation({
+    mutationFn: (values: Values) =>
+      partners.updateProfile({ email: values.email }, token),
+    onSuccess: (updated, values) => {
+      updateUser({ email: values.email });
+      void queryClient.invalidateQueries({ queryKey: ['partner', 'profile'] });
+      toast.success("Profil ma'lumotlari saqlandi");
+      form.reset(values);
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Saqlashda xatolik yuz berdi");
+    },
+  });
+
   const onSubmit = form.handleSubmit((values) => {
-    updateUser({
-      fullName: values.fullName,
-      email: values.email,
-    });
-    toast.success("Profil ma'lumotlari saqlandi");
-    form.reset(values);
+    updateEmail.mutate(values);
   });
 
   useEffect(() => {
@@ -153,19 +161,7 @@ export function ProfileSettingsView() {
         </CardHeader>
         <CardBody>
           <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="fullName">Ism familiya</Label>
-              <Input
-                id="fullName"
-                aria-invalid={Boolean(err.fullName)}
-                {...form.register('fullName')}
-              />
-              {err.fullName ? (
-                <p className="text-xs text-red-600">{err.fullName.message}</p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 md:col-span-2">
               <Label htmlFor="email">Access emaili</Label>
               <Input
                 id="email"
@@ -180,9 +176,12 @@ export function ProfileSettingsView() {
             </div>
 
             <div className="md:col-span-2">
-              <Button type="submit" disabled={!form.formState.isDirty}>
+              <Button
+                type="submit"
+                disabled={!form.formState.isDirty || updateEmail.isPending}
+              >
                 <Save className="h-4 w-4" aria-hidden />
-                Saqlash
+                {updateEmail.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
               </Button>
             </div>
           </form>

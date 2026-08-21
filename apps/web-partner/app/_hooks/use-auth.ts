@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { access, auth } from '../_lib/api';
+import { setLoggingOut } from '../_lib/api/client';
 import type { PartnerAccessStatus } from '../_lib/api/endpoints/access';
 import type { PartnerLoginResponse } from '../_lib/api/endpoints/auth';
 import { isLimitedPartnerAccessStatus } from '../_lib/auth/access-status';
@@ -44,6 +45,28 @@ function statusFromTokens(
   ) as PartnerAccessStatus;
 }
 
+/**
+ * Backend'dan olingan refresh tokenni httpOnly cookie'ga topshiradi —
+ * shu daqiqadan boshlab u brauzer JS'iga hech qachon qaytmaydi
+ * (localStorage/Zustand'ga yozilmaydi, faqat `setSession` chaqirilganda
+ * bo'sh satr saqlanadi).
+ */
+async function establishServerSession(refreshToken: string): Promise<void> {
+  // Yangi haqiqiy sessiya boshlanmoqda — oldingi chiqishdan qolgan
+  // bayroq (agar bo'lsa) endi ahamiyatsiz.
+  setLoggingOut(false);
+  const res = await fetch('/api/auth/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      "Sessiyani xavfsiz saqlab bo'lmadi. Qayta urinib ko'ring.",
+    );
+  }
+}
+
 // ─── Demo rejim ───────────────────────────────────────────────────────────────
 // Backend o'chiq bo'lganda ishlab chiqish uchun ishlatiladi.
 // HECH QACHON production'ga chiqarma.
@@ -70,6 +93,7 @@ export function usePartnerPhoneLogin() {
       assertPartnerLoginAllowed(accessStatus.status);
 
       const tokens = await auth.partnerPhoneLogin(phone);
+      await establishServerSession(tokens.refreshToken);
       const partnerType = accessStatus.request?.type || 'hotel';
       return {
         phone,
@@ -211,6 +235,7 @@ export function usePartnerPhoneOtpVerify() {
         code,
         challenge_id: challengeId,
       }) as any;
+      await establishServerSession(tokens.refreshToken);
 
       return {
         phone,
@@ -253,9 +278,21 @@ export function useLogout() {
   const resetData = useDataStore((s) => s.reset);
   const queryClient = useQueryClient();
 
-  return () => {
+  return async () => {
+    // SessionExpiryHandler'ning "jim-refresh" effekti `hasTokens` false
+    // bo'lganda ishga tushadi — bu ataylab chiqishda ham sodir bo'lardi va
+    // logout so'rovi bilan poyga qilib, sessiyani qayta tiklab qo'yishi
+    // mumkin edi. Shu bayroq bilan uni to'xtatamiz.
+    setLoggingOut(true);
     clearSession();
     resetData();
+    // Cookie tozalanishini navigatsiyadan OLDIN kutamiz — fire-and-forget
+    // bo'lsa, brauzer tez orient qilib ketganda so'rov hali yuborilmagan
+    // holatda qolib, httpOnly refresh-token cookie'si tozalanmay qolishi
+    // mumkin edi (real E2E orqali topilgan holat).
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {
+      // cookie tozalanmasa ham chiqish davom etadi.
+    });
     // Boshqa hamkor tashkilotga (masalan boshqa biznes turi bilan) qayta
     // kirilganda oldingi tashkilotning keshlangan e'lon/xona/bron
     // ma'lumotlari ko'rinib qolmasligi uchun — session-expiry-handler.tsx

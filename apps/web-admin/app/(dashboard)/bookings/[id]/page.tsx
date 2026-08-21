@@ -5,8 +5,8 @@ import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { useAdminStore } from "@/lib/store";
-import { AdminApi } from "@/lib/api/admin-api";
+import Modal from "@/components/ui/Modal";
+import { AdminApi, InternalNote } from "@/lib/api/admin-api";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 import { BOOKING_STATUS_MAP, PAYMENT_METHOD_MAP } from "@/lib/constants";
 import {
@@ -20,17 +20,54 @@ import type { BookingDetail } from "@/types/admin";
 
 export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const bookingNotes = useAdminStore((s) => s.bookingNotes);
-  const setBookingNote = useAdminStore((s) => s.setBookingNote);
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [noteDraft, setNoteDraft] = useState(bookingNotes[id] ?? "");
+  const [notes, setNotes] = useState<InternalNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [notesError, setNotesError] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [isRefunding, setIsRefunding] = useState(false);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [existingRefund, setExistingRefund] = useState<Awaited<ReturnType<typeof AdminApi.getRefunds>>[number] | null>(null);
+  const [refundCheckLoading, setRefundCheckLoading] = useState(false);
+
+  const fetchNotes = async () => {
+    try {
+      setNotesLoading(true);
+      setNotesError(false);
+      setNotes(await AdminApi.getBookingNotes(id));
+    } catch {
+      setNotesError(true);
+    } finally {
+      setNotesLoading(false);
+    }
+  };
 
   useEffect(() => {
     AdminApi.getBookingDetail(id)
       .then((item) => setBooking(item))
       .finally(() => setLoading(false));
+    fetchNotes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const handleAddNote = async () => {
+    const text = noteDraft.trim();
+    if (!text) return;
+    setNoteSubmitting(true);
+    try {
+      const created = await AdminApi.addBookingNote(id, text);
+      setNotes((prev) => [created, ...prev]);
+      setNoteDraft("");
+      toast.success("Izoh saqlandi");
+    } catch (error: any) {
+      toast.error(error?.message || "Izohni saqlab bo'lmadi");
+    } finally {
+      setNoteSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -54,8 +91,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const isHotel = booking.serviceType === "hotel";
   const isRestaurant = booking.serviceType === "restaurant";
 
-  const [isRefunding, setIsRefunding] = useState(false);
-
   const handleCancel = async () => {
     if (confirm("Rostdan ham ushbu bronni bekor qilmoqchimisiz?")) {
       const updated = await AdminApi.cancelBooking(id);
@@ -64,28 +99,41 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
+  const openRefundModal = async () => {
+    setRefundReason("");
+    setRefundModalOpen(true);
+    setRefundCheckLoading(true);
+    try {
+      const refunds = await AdminApi.getRefunds();
+      setExistingRefund(refunds.find((r) => r.bookingId === booking.id) ?? null);
+    } catch {
+      setExistingRefund(null);
+    } finally {
+      setRefundCheckLoading(false);
+    }
+  };
+
   const handleRefund = async () => {
-    if (!confirm(`${formatPrice(booking.totalAmount)} miqdorida to'lovni qaytarmoqchimisiz?`)) return;
+    if (existingRefund && (existingRefund.status === 'approved' || existingRefund.status === 'paid')) {
+      toast.error("Ushbu bron uchun to'lov allaqachon qaytarilgan.");
+      return;
+    }
 
     setIsRefunding(true);
     try {
-      const refunds = await AdminApi.getRefunds();
-      const refund = refunds.find((r) => r.bookingId === booking.id);
+      // Backend refundable summani o'zi hisoblaydi (bookingdan) — frontend
+      // hech qanday summa yubormaydi/hisoblamaydi. Agar shu bron uchun
+      // refund allaqachon mavjud bo'lsa, backend xuddi o'shani qaytaradi
+      // (duplikat yaratmaydi).
+      const refund = await AdminApi.createRefund(booking.id, refundReason.trim());
 
-      if (!refund) {
-        toast.error("Bu bron uchun refund so'rovi mavjud emas. Mijoz avval bekor qilishi kerak.");
-        return;
+      if (refund.status === 'requested' || refund.status === 'processing') {
+        await AdminApi.refundAction(refund.id, 'approve');
       }
 
-      if (refund.status === 'approved' || refund.status === 'completed') {
-        toast.error("Ushbu bron uchun to'lov allaqachon qaytarilgan.");
-        return;
-      }
+      toast.success("To'lov muvaffaqiyatli qaytarildi!");
+      setRefundModalOpen(false);
 
-      await AdminApi.refundAction(refund.id, 'approve');
-      toast.success("To'lov muvaffaqiyatli qaytarildi (refund tasdiqlandi)!");
-
-      // Refresh booking detail
       const updated = await AdminApi.getBookingDetail(id);
       setBooking(updated);
     } catch (error: any) {
@@ -140,8 +188,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               Bekor qilish
             </Button>
           )}
-          <Button variant="secondary" size="sm" icon={<DollarSign size={14} />} onClick={handleRefund} disabled={isRefunding}>
-            {isRefunding ? "Kuting..." : "Refund"}
+          <Button variant="secondary" size="sm" icon={<DollarSign size={14} />} onClick={openRefundModal} disabled={isRefunding}>
+            Refund
           </Button>
           <Button variant="secondary" size="sm" icon={<Printer size={14} />} onClick={() => window.print()}>Chop etish</Button>
         </div>
@@ -347,34 +395,102 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </Card>
 
-          {/* Internal note */}
+          {/* Internal notes */}
           <Card padding="md">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <MessageSquare size={16} className="text-[var(--text-muted)]" />
-                <p className="text-sm font-semibold text-[var(--text-primary)]">Ichki izoh</p>
-              </div>
-              {noteDraft !== (bookingNotes[id] ?? "") && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setBookingNote(id, noteDraft);
-                    toast.success("Izoh saqlandi");
-                  }}
-                >
-                  Saqlash
-                </Button>
-              )}
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare size={16} className="text-[var(--text-muted)]" />
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Ichki izohlar</p>
             </div>
-            <textarea
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              placeholder="Izoh yozing..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none h-20"
-            />
+
+            {notesLoading ? (
+              <p className="text-xs text-[var(--text-muted)] py-2">Yuklanmoqda...</p>
+            ) : notesError ? (
+              <div className="flex items-center justify-between py-2">
+                <p className="text-xs text-red-500">Izohlarni yuklab bo'lmadi</p>
+                <button onClick={fetchNotes} className="text-xs text-[var(--primary)] hover:underline">
+                  Qayta urinish
+                </button>
+              </div>
+            ) : notes.length === 0 ? (
+              <p className="text-xs text-[var(--text-muted)] py-2">Hali izoh yo&apos;q</p>
+            ) : (
+              <div className="flex flex-col gap-3 mb-3 max-h-64 overflow-y-auto pr-1">
+                {notes.map((note) => (
+                  <div key={note.id} className="text-sm border-b border-[var(--border)] pb-2 last:border-0">
+                    <p className="text-[var(--text-primary)] whitespace-pre-wrap">{note.body}</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                      {note.authorName} · {formatDateTime(note.createdAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <textarea
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="Izoh yozing..."
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none h-16"
+              />
+              <Button size="sm" onClick={handleAddNote} disabled={noteSubmitting || !noteDraft.trim()} className="self-end">
+                {noteSubmitting ? "Saqlanmoqda..." : "Qo'shish"}
+              </Button>
+            </div>
           </Card>
         </div>
       </div>
+
+      <Modal
+        open={refundModalOpen}
+        onClose={() => setRefundModalOpen(false)}
+        title="To'lovni qaytarish"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRefundModalOpen(false)} disabled={isRefunding}>
+              Bekor qilish
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleRefund}
+              loading={isRefunding}
+              disabled={refundCheckLoading || Boolean(existingRefund && (existingRefund.status === 'approved' || existingRefund.status === 'paid'))}
+            >
+              Qaytarishni tasdiqlash
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-[var(--text-muted)]">
+            Bron summasi: <strong className="text-[var(--text-primary)]">{formatPrice(booking.totalAmount)}</strong>.
+            Qaytariladigan aniq summani backend hisoblaydi (qaytarish siyosatiga asosan).
+          </p>
+
+          {refundCheckLoading ? (
+            <p className="text-xs text-[var(--text-muted)]">Mavjud refund tekshirilmoqda...</p>
+          ) : existingRefund && (existingRefund.status === 'approved' || existingRefund.status === 'paid') ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+              Bu bron uchun to'lov allaqachon qaytarilgan ({formatPrice(existingRefund.amount)}).
+            </div>
+          ) : existingRefund ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              Bu bron uchun refund so'rovi allaqachon mavjud ({existingRefund.status}). Tasdiqlash uni yakunlaydi.
+            </div>
+          ) : null}
+
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Sabab (ixtiyoriy)</label>
+            <textarea
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              placeholder="Qaytarish sababini yozing..."
+              rows={3}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none"
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

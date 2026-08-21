@@ -22,16 +22,10 @@ interface AdminState {
   restaurantBookings: AdminRestaurantBooking[];
   cmsBanners: CmsBanner[];
   listings: AdminListing[];
-  /** Hamkor va bron sahifalaridagi "Ichki izoh" maydonlari — id bo'yicha. */
-  partnerNotes: Record<string, string>;
-  bookingNotes: Record<string, string>;
 
   // Partner Mutations
   setPartners: (partners: Partner[]) => void;
   setPartnerRequests: (requests: PartnerRequest[]) => void;
-  setPartnerRequestNote: (id: string, note: string) => void;
-  setPartnerNote: (id: string, note: string) => void;
-  setBookingNote: (id: string, note: string) => void;
 
   // User Mutations
   setUsers: (users: AdminManagedUser[]) => void;
@@ -59,28 +53,9 @@ export const useAdminStore = create<AdminState>((set) => ({
   restaurantBookings: [],
   cmsBanners: [],
   listings: [],
-  partnerNotes: {},
-  bookingNotes: {},
 
   setPartners: (partners) => set({ partners }),
   setPartnerRequests: (partnerRequests) => set({ partnerRequests }),
-
-  setPartnerRequestNote: (id, adminNote) =>
-    set((state) => ({
-      partnerRequests: state.partnerRequests.map((r) =>
-        r.id === id ? { ...r, adminNote } : r
-      ),
-    })),
-
-  setPartnerNote: (id, note) =>
-    set((state) => ({
-      partnerNotes: { ...state.partnerNotes, [id]: note },
-    })),
-
-  setBookingNote: (id, note) =>
-    set((state) => ({
-      bookingNotes: { ...state.bookingNotes, [id]: note },
-    })),
 
   // Listings
   setListings: (listings) => set({ listings }),

@@ -5,14 +5,13 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
-import { AdminApi } from '@/lib/api/admin-api';
+import { AdminApi, InternalNote } from '@/lib/api/admin-api';
 import { formatDate } from '@/lib/utils';
 import { PARTNER_REQUEST_STATUS_MAP } from '@/lib/constants';
 import {
   CheckCircle,
   XCircle,
   Phone,
-  MessageSquare,
   FileText,
 } from 'lucide-react';
 import type { PartnerRequest } from '@/types/admin';
@@ -31,12 +30,44 @@ function isActiveRequest(request: PartnerRequest) {
 
 export default function PartnerRequestsPage() {
   const storeRequests = useAdminStore((s) => s.partnerRequests);
-  const setPartnerRequestNote = useAdminStore((s) => s.setPartnerRequestNote);
   const [selectedRequest, setSelectedRequest] = useState<PartnerRequest | null>(
     null,
   );
   const [decisionId, setDecisionId] = useState<string | null>(null);
-  const [adminNoteDraft, setAdminNoteDraft] = useState("");
+  const [notes, setNotes] = useState<InternalNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesError, setNotesError] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
+
+  const fetchNotes = async (id: string) => {
+    try {
+      setNotesLoading(true);
+      setNotesError(false);
+      setNotes(await AdminApi.getPartnerNotes(id));
+    } catch {
+      setNotesError(true);
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!selectedRequest) return;
+    const text = noteDraft.trim();
+    if (!text) return;
+    setNoteSubmitting(true);
+    try {
+      const created = await AdminApi.addPartnerNote(selectedRequest.id, text);
+      setNotes((prev) => [created, ...prev]);
+      setNoteDraft("");
+      toast.success("Izoh saqlandi");
+    } catch (error: any) {
+      toast.error(error?.message || "Izohni saqlab bo'lmadi");
+    } finally {
+      setNoteSubmitting(false);
+    }
+  };
 
   const setPartnerRequests = useAdminStore((s) => s.setPartnerRequests);
   useEffect(() => {
@@ -151,7 +182,8 @@ export default function PartnerRequestsPage() {
                     size="sm"
                     onClick={() => {
                       setSelectedRequest(req);
-                      setAdminNoteDraft(req.adminNote ?? "");
+                      setNoteDraft("");
+                      fetchNotes(req.id);
                     }}
                   >
                     Ko&apos;rish
@@ -262,29 +294,51 @@ export default function PartnerRequestsPage() {
               </div>
             )}
 
-            {/* Admin izohi */}
+            {/* Admin izohlari */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-[var(--text-muted)] uppercase font-semibold tracking-wider">Admin izohi</p>
-                {adminNoteDraft !== (selectedRequest.adminNote ?? "") && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setPartnerRequestNote(selectedRequest.id, adminNoteDraft);
-                      toast.success("Izoh saqlandi");
-                    }}
+              <p className="text-xs text-[var(--text-muted)] mb-2 uppercase font-semibold tracking-wider">
+                Admin izohlari
+              </p>
+
+              {notesLoading ? (
+                <p className="text-xs text-[var(--text-muted)] py-2">Yuklanmoqda...</p>
+              ) : notesError ? (
+                <div className="flex items-center justify-between py-2">
+                  <p className="text-xs text-red-500">Izohlarni yuklab bo'lmadi</p>
+                  <button
+                    onClick={() => fetchNotes(selectedRequest.id)}
+                    className="text-xs text-[var(--primary)] hover:underline"
                   >
-                    Saqlash
-                  </Button>
-                )}
+                    Qayta urinish
+                  </button>
+                </div>
+              ) : notes.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)] py-2">Hali izoh yo&apos;q</p>
+              ) : (
+                <div className="flex flex-col gap-3 mb-3 max-h-48 overflow-y-auto pr-1">
+                  {notes.map((note) => (
+                    <div key={note.id} className="text-sm border-b border-[var(--border)] pb-2 last:border-0">
+                      <p className="text-[var(--text-primary)] whitespace-pre-wrap">{note.body}</p>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">
+                        {note.authorName} · {formatDate(note.createdAt)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  placeholder="Ariza yuzasidan ichki izoh qoldiring..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none"
+                />
+                <Button size="sm" onClick={handleAddNote} disabled={noteSubmitting || !noteDraft.trim()} className="self-end">
+                  {noteSubmitting ? "Saqlanmoqda..." : "Qo'shish"}
+                </Button>
               </div>
-              <textarea
-                value={adminNoteDraft}
-                onChange={(e) => setAdminNoteDraft(e.target.value)}
-                placeholder="Ariza yuzasidan ichki izoh qoldiring..."
-                rows={3}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none"
-              />
             </div>
 
             {/* Quick actions */}
@@ -298,18 +352,6 @@ export default function PartnerRequestsPage() {
                 }
               >
                 Qo&apos;ng&apos;iroq
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<MessageSquare size={14} />}
-                onClick={() =>
-                  toast.info(
-                    'Izoh qoldirish funksiyasi tez orada ishga tushadi.',
-                  )
-                }
-              >
-                Izoh qoldirish
               </Button>
               {isActiveRequest(selectedRequest) ? (
                 <div className="ml-auto flex items-center gap-2">

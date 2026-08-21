@@ -37,6 +37,7 @@ import {
   useRejectReservation,
   useCheckIn,
   useCheckOut,
+  useAcceptCashPayment,
 } from "../../../_hooks/use-reservations";
 import { useBeds } from "../../../_hooks/use-beds";
 import {
@@ -54,6 +55,7 @@ export function ReservationDetailView({ id }: { id: string }) {
   const rejectReservation = useRejectReservation();
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
+  const acceptCashPayment = useAcceptCashPayment();
   useBeds();
   const beds = useDataStore((s) => s.beds);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
@@ -322,14 +324,25 @@ export function ReservationDetailView({ id }: { id: string }) {
               tone={balance > 0 ? "danger" : "accent"}
               bold
             />
-            {balance > 0 && (
+            {balance > 0 && data.paymentMethod === "cash" && (
               <Button
                 variant="secondary"
                 className="mt-2"
-                onClick={() => toast.info("To'lov modul keyingi sprint'da")}
+                loading={acceptCashPayment.isPending}
+                onClick={() => {
+                  acceptCashPayment.mutate(data.id, {
+                    onSuccess: () => toast.success("Naqd to'lov qabul qilindi"),
+                    onError: () => toast.error("To'lovni belgilashda xatolik yuz berdi"),
+                  });
+                }}
               >
-                To'lov qabul qilish
+                Naqd to'lovni qabul qilish
               </Button>
+            )}
+            {balance > 0 && data.paymentMethod && data.paymentMethod !== "cash" && (
+              <p className="mt-2 text-xs text-[var(--text-muted)]">
+                Bu bron onlayn to'lov ({data.paymentMethod}) orqali amalga oshiriladi — to'lov provayder tomonidan avtomatik tasdiqlanadi.
+              </p>
             )}
           </CardBody>
         </Card>
