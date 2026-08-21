@@ -31,7 +31,7 @@ const adminPermissions: PermissionValue[] = [
   Permission.AuditLogsRead,
 ];
 
-const rolePermissions: Record<Role, PermissionValue[]> = {
+export const rolePermissions: Record<Role, PermissionValue[]> = {
   [Role.USER]: [],
   [Role.PARTNER]: [
     Permission.BookingsRead,

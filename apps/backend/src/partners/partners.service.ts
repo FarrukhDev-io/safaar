@@ -4108,6 +4108,14 @@ export class PartnersService {
           : ['booking.created'],
       );
     }
+    if (body.status !== undefined || body.is_active !== undefined || body.isActive !== undefined) {
+      const enabled =
+        body.status !== undefined
+          ? String(body.status) === 'active'
+          : Boolean(body.is_active ?? body.isActive);
+      sets.push(`status = $${idx++}`);
+      params.push(enabled ? 'active' : 'disabled');
+    }
 
     if (sets.length > 0) {
       sets.push(`updated_at = $${idx++}`);

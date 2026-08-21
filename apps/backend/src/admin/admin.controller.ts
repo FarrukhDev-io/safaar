@@ -219,6 +219,22 @@ export class AdminController {
     return this.adminService.exportJob(actor, 'admin-partners', 'xlsx');
   }
 
+  @Get('partners/:id/notes')
+  @Permissions(Permission.PartnersRead)
+  partnerNotes(@Param('id') id: string) {
+    return this.adminService.partnerNotes(id);
+  }
+
+  @Post('partners/:id/notes')
+  @Permissions(Permission.PartnersWrite)
+  addPartnerNote(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminService.addPartnerNote(actor, id, body);
+  }
+
   @Get('hotels')
   hotels(@Query() query: Record<string, string | undefined>) {
     return this.adminService.hotels(query);
@@ -321,6 +337,22 @@ export class AdminController {
     @Body() body: Record<string, unknown>,
   ) {
     return this.adminService.bookingStatusAction(id, body);
+  }
+
+  @Get('bookings/:id/notes')
+  @Permissions(Permission.BookingsRead)
+  bookingNotes(@Param('id') id: string) {
+    return this.adminService.bookingNotes(id);
+  }
+
+  @Post('bookings/:id/notes')
+  @Permissions(Permission.BookingsWrite)
+  addBookingNote(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminService.addBookingNote(actor, id, body);
   }
 
   @Get('payments')
@@ -722,17 +754,35 @@ export class AdminController {
 
   @Patch('roles/:id/permissions')
   @Permissions(Permission.AdminUsersWrite)
-  rolePermissions(
-    @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
-  ) {
-    return this.adminService.rolePermissions(id, body);
+  rolePermissions() {
+    return this.adminService.rolePermissions();
   }
 
   @Get('audit-logs')
   @Permissions(Permission.AuditLogsRead)
   auditLogs(@Query() query: Record<string, string | undefined>) {
     return this.adminService.auditLogs(query);
+  }
+
+  @Get('developer/api-keys')
+  @Permissions(Permission.PartnersRead)
+  developerApiKeys(@Query() query: Record<string, string | undefined>) {
+    return this.adminService.developerApiKeys(query);
+  }
+
+  @Delete('developer/api-keys/:id')
+  @Permissions(Permission.PartnersWrite)
+  deleteDeveloperApiKey(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.adminService.deleteDeveloperApiKey(actor, id);
+  }
+
+  @Get('developer/webhooks')
+  @Permissions(Permission.PartnersRead)
+  developerWebhooks(@Query() query: Record<string, string | undefined>) {
+    return this.adminService.developerWebhooks(query);
   }
 
   @Get('settings')

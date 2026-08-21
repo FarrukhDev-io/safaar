@@ -23,6 +23,7 @@ import {
   PromosService,
 } from '../promos/promos.service';
 import { EventsService } from '../realtime/events.service';
+import { PaymentsService } from '../payments/payments.service';
 
 /**
  * DB-level booking status constants (lowercase, matching pg enum values).
@@ -94,6 +95,7 @@ export class BookingsService {
     private readonly events: EventsService,
     private readonly emailService: EmailService,
     private readonly promosService: PromosService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   /**
@@ -1381,6 +1383,21 @@ export class BookingsService {
 
     const id = randomUUID();
     const now = new Date().toISOString();
+    // Bron yaratilishining o'zi provayder sozlanmagan bo'lsa ham
+    // muvaffaqiyatsiz bo'lib qolmasligi kerak (mijoz bronni ko'rib,
+    // keyinroq `/payments/:id/create`'ni qayta chaqirib to'lashi mumkin —
+    // o'sha marshrut sozlanmagan holatda aniq xato qaytaradi). Shu sabab
+    // bu yerda checkout URL yaratib bo'lmasa jim `null`ga tushamiz.
+    let paymentUrl: string | null = null;
+    try {
+      paymentUrl = this.paymentsService.buildCheckoutUrl(
+        booking.payment_method,
+        booking.id,
+        Number(booking.total_amount),
+      );
+    } catch {
+      paymentUrl = null;
+    }
     const payment = {
       id,
       booking_id: booking.id,
@@ -1394,7 +1411,7 @@ export class BookingsService {
       status: booking.payment_method === 'cash' ? 'awaiting_cash' : 'pending',
       amount: Number(booking.total_amount),
       currency: booking.currency,
-      payment_url: null,
+      payment_url: paymentUrl,
       created_at: now,
       updated_at: now,
     };

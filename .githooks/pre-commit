@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Oddiy, dependency talab qilmaydigan secret-scanning — 2026-08 hodisasidan
+# keyin qo'shildi (scratch.js'da haqiqiy Neon DB paroli commit qilinib,
+# git tarixida ochiq qolib ketgan edi). Bu to'liq huquqli gitleaks/
+# trufflehog o'rnini bosmaydi (CI'da alohida qo'shilishi tavsiya etiladi —
+# .github/workflows), lekin eng keng tarqalgan xato — haqiqiy connection
+# string/API kalitni tasodifan commit qilib qo'yish — ni local'da
+# ushlab qoladi.
+set -euo pipefail
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+# Har biri "bu qator haqiqiy sirga o'xshaydi" degan taxminiy signal.
+patterns=(
+  'postgres(ql)?://[^ ]*:[^ ]*@'    # DB connection string parol bilan
+  'AKIA[0-9A-Z]{16}'                 # AWS access key
+  '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+  'xox[baprs]-[0-9A-Za-z-]{10,}'    # Slack token
+  'ghp_[0-9A-Za-z]{36}'             # GitHub personal access token
+)
+
+found=0
+for file in $staged_files; do
+  # Faqat matn fayllarni tekshiramiz, binary'larni emas.
+  if ! git diff --cached -- "$file" | grep -qI .; then
+    continue
+  fi
+  for pattern in "${patterns[@]}"; do
+    if git diff --cached -U0 -- "$file" | grep -E '^\+' | grep -Ev '^\+\+\+' | grep -qE -- "$pattern"; then
+      echo "❌ Ehtimoliy sir topildi: $file (naqsh: $pattern)"
+      found=1
+    fi
+  done
+done
+
+if [ "$found" -eq 1 ]; then
+  echo
+  echo "Commit to'xtatildi — yuqoridagi fayl(lar)da haqiqiy secret/credential'ga"
+  echo "o'xshagan qator bor. Agar bu xato signal (false positive) bo'lsa,"
+  echo "'git commit --no-verify' bilan o'tkazib yuborish mumkin — lekin avval"
+  echo "diqqat bilan tekshiring."
+  exit 1
+fi
+
+exit 0

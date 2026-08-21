@@ -146,9 +146,9 @@ set amount = excluded.amount,
 
 insert into admin_users (id, email, password_hash, full_name, role, status, created_at, updated_at)
 values
-  ('00000000-0000-1006-0000-000000000001', 'admin@safaar.uz', '$argon2id$v=19$m=65536,t=3,p=4$AokIMdarb3TjMvuuUgnv/g$E87tg32l3gKGSwB5THe/B9g257xCIKBBKcx0SfzkQqs', 'Demo Super Admin', 'super_admin', 'active', now(), now()),
-  ('00000000-0000-1006-0000-000000000002', 'finance@safaar.uz', '$argon2id$v=19$m=65536,t=3,p=4$kbm7j4EfsP00pB5iE1cnNg$+5/F42A64FJ0hSJTq2Zc8sZPSOAGaSu5x37PMjMAC9g', 'Demo Finance Admin', 'finance_admin', 'active', now(), now()),
-  ('00000000-0000-1006-0000-000000000003', 'content@safaar.uz', '$argon2id$v=19$m=65536,t=3,p=4$kbm7j4EfsP00pB5iE1cnNg$+5/F42A64FJ0hSJTq2Zc8sZPSOAGaSu5x37PMjMAC9g', 'Demo Content Admin', 'content_admin', 'active', now(), now())
+  ('00000000-0000-1006-0000-000000000001', 'admin@safaar.uz', '$argon2id$v=19$m=65536,t=3,p=4$JY830cRTn6tOBJGtMMPuDQ$eFgy85wei//6a/ITO6qS/PCetIyqYaBQLg+q7JTXvKM', 'Demo Super Admin', 'super_admin', 'active', now(), now()),
+  ('00000000-0000-1006-0000-000000000002', 'finance@safaar.uz', '$argon2id$v=19$m=65536,t=3,p=4$JY830cRTn6tOBJGtMMPuDQ$eFgy85wei//6a/ITO6qS/PCetIyqYaBQLg+q7JTXvKM', 'Demo Finance Admin', 'finance_admin', 'active', now(), now()),
+  ('00000000-0000-1006-0000-000000000003', 'content@safaar.uz', '$argon2id$v=19$m=65536,t=3,p=4$JY830cRTn6tOBJGtMMPuDQ$eFgy85wei//6a/ITO6qS/PCetIyqYaBQLg+q7JTXvKM', 'Demo Content Admin', 'content_admin', 'active', now(), now())
 on conflict (email) do update
 set password_hash = excluded.password_hash,
     full_name = excluded.full_name,
@@ -186,9 +186,9 @@ set type = excluded.type,
 
 insert into partner_users (id, organization_id, email, password_hash, full_name, status, created_at, updated_at)
 values
-  ('00000000-0000-3002-0000-000000000001', '00000000-0000-3001-0000-000000000001', 'grand.samarkand@demo.uz', '$argon2id$v=19$m=65536,t=3,p=4$kbm7j4EfsP00pB5iE1cnNg$+5/F42A64FJ0hSJTq2Zc8sZPSOAGaSu5x37PMjMAC9g', 'Grand Samarkand manager', 'active', now() - interval '160 days', now()),
-  ('00000000-0000-3002-0000-000000000002', '00000000-0000-3001-0000-000000000002', 'hilton.tashkent@demo.uz', '$argon2id$v=19$m=65536,t=3,p=4$kbm7j4EfsP00pB5iE1cnNg$+5/F42A64FJ0hSJTq2Zc8sZPSOAGaSu5x37PMjMAC9g', 'Hilton Tashkent manager', 'active', now() - interval '220 days', now()),
-  ('00000000-0000-3002-0000-000000000003', '00000000-0000-3001-0000-000000000004', 'comfort.bus@demo.uz', '$argon2id$v=19$m=65536,t=3,p=4$kbm7j4EfsP00pB5iE1cnNg$+5/F42A64FJ0hSJTq2Zc8sZPSOAGaSu5x37PMjMAC9g', 'Comfort Bus manager', 'active', now() - interval '180 days', now())
+  ('00000000-0000-3002-0000-000000000001', '00000000-0000-3001-0000-000000000001', 'grand.samarkand@demo.uz', '$argon2id$v=19$m=65536,t=3,p=4$JY830cRTn6tOBJGtMMPuDQ$eFgy85wei//6a/ITO6qS/PCetIyqYaBQLg+q7JTXvKM', 'Grand Samarkand manager', 'active', now() - interval '160 days', now()),
+  ('00000000-0000-3002-0000-000000000002', '00000000-0000-3001-0000-000000000002', 'hilton.tashkent@demo.uz', '$argon2id$v=19$m=65536,t=3,p=4$JY830cRTn6tOBJGtMMPuDQ$eFgy85wei//6a/ITO6qS/PCetIyqYaBQLg+q7JTXvKM', 'Hilton Tashkent manager', 'active', now() - interval '220 days', now()),
+  ('00000000-0000-3002-0000-000000000003', '00000000-0000-3001-0000-000000000004', 'comfort.bus@demo.uz', '$argon2id$v=19$m=65536,t=3,p=4$JY830cRTn6tOBJGtMMPuDQ$eFgy85wei//6a/ITO6qS/PCetIyqYaBQLg+q7JTXvKM', 'Comfort Bus manager', 'active', now() - interval '180 days', now())
 on conflict (organization_id, email) do update
 set password_hash = excluded.password_hash,
     full_name = excluded.full_name,

@@ -6,7 +6,8 @@ import {
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import { BookingStatus, Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
 import {
@@ -18,6 +19,13 @@ import {
   paymentWebhookSecret,
   timingSafeEqualString,
 } from '../auth/security';
+import {
+  CLICK_ERROR,
+  ClickProvider,
+  type ClickCompleteBody,
+  type ClickPrepareBody,
+} from './providers/click.provider';
+import { PaymeProvider } from './providers/payme.provider';
 
 type HeaderMap = Record<string, string | string[] | undefined>;
 
@@ -78,7 +86,12 @@ interface PaymentEventRow {
 
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly pg: PostgresService) {}
+  constructor(
+    private readonly pg: PostgresService,
+    private readonly config: ConfigService,
+    private readonly click: ClickProvider,
+    private readonly payme: PaymeProvider,
+  ) {}
 
   async payment(actor: RequestActor | undefined, bookingId: string) {
     await this.assertBookingVisible(actor, bookingId);
@@ -121,9 +134,12 @@ export class PaymentsService {
     const provider = this.provider(body.provider);
     const id = randomUUID();
     const now = new Date().toISOString();
+    const amount = Number(booking.total_amount);
+    const paymentUrl = this.buildCheckoutUrl(provider, booking.id, amount);
+
     await this.pg.query(
-      `INSERT INTO payments (id, booking_id, provider, status, amount, currency, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO payments (id, booking_id, provider, status, amount, currency, payment_url, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         id,
         booking.id,
@@ -131,6 +147,7 @@ export class PaymentsService {
         provider === 'cash' ? 'awaiting_cash' : 'pending',
         booking.total_amount,
         booking.currency,
+        paymentUrl,
         now,
         now,
       ],
@@ -140,11 +157,161 @@ export class PaymentsService {
       booking_id: booking.id,
       provider,
       status: 'pending',
+      payment_url: paymentUrl,
       amount: Number(booking.total_amount),
       currency: booking.currency,
       created_at: now,
       updated_at: now,
     };
+  }
+
+  /**
+   * `cash` uchun URL kerak emas — hamkor to'lovni joyida qabul qiladi.
+   * Boshqa provayderlar uchun sozlanmagan bo'lsa, jim `null` qaytarish
+   * o'rniga aniq xato tashlaymiz — aks holda frontend "to'lov kutilmoqda"
+   * holatida abadiy qolib ketardi (aynan shu audit findingi).
+   */
+  buildCheckoutUrl(
+    provider: string,
+    bookingId: string,
+    amount: number,
+  ): string | null {
+    if (provider === 'cash') {
+      return null;
+    }
+
+    const returnUrl = `${this.webUserUrl()}/booking/${bookingId}`;
+
+    if (provider === 'click') {
+      if (!this.click.isConfigured()) {
+        throw new ServiceUnavailableException({
+          code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+          message:
+            'Click to‘lov provayderi sozlanmagan (CLICK_SERVICE_ID/CLICK_MERCHANT_ID/CLICK_SECRET_KEY)',
+        });
+      }
+      return this.click.buildCheckoutUrl({ bookingId, amount, returnUrl });
+    }
+
+    if (provider === 'payme') {
+      if (!this.payme.isConfigured()) {
+        throw new ServiceUnavailableException({
+          code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+          message: 'Payme to‘lov provayderi sozlanmagan (PAYME_MERCHANT_ID)',
+        });
+      }
+      return this.payme.buildCheckoutUrl({ bookingId, amount, returnUrl });
+    }
+
+    // uzcard/humo — hozircha checkout URL generatsiyasi qo'shilmagan
+    // (real API/spec integratsiyasi kelajakdagi ish sifatida qoladi).
+    throw new ServiceUnavailableException({
+      code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+      message: `${provider} to‘lov provayderi hali ulanmagan`,
+    });
+  }
+
+  private webUserUrl(): string {
+    return (this.config.get<string>('WEB_USER_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
+  }
+
+  /**
+   * Click'ning haqiqiy Prepare/Complete oqimi — https://docs.click.uz
+   * Click bilan MUVOFIQLIK uchun javob HAR DOIM HTTP 200 bo'lishi shart,
+   * xato bo'lsa ham (`error` maydonida manfiy kod bilan bildiriladi) —
+   * aks holda Click cheksiz retry qilib turadi.
+   */
+  async clickPrepare(body: ClickPrepareBody) {
+    if (!this.click.verifyPrepareSignature(body)) {
+      return this.clickError(body, CLICK_ERROR.SIGN_CHECK_FAILED, 'SIGN CHECK FAILED!');
+    }
+
+    const bookingId = String(body.merchant_trans_id ?? '');
+    const eventKey = `click:prepare:${body.click_trans_id}`;
+
+    try {
+      await this.processPaymentEvent('click', 'prepare', eventKey, {
+        booking_id: bookingId,
+        amount: body.amount,
+        transaction_id: body.click_trans_id,
+      });
+      return {
+        success: true as const,
+        click_trans_id: body.click_trans_id,
+        merchant_trans_id: bookingId,
+        merchant_prepare_id: body.click_trans_id,
+        error: CLICK_ERROR.SUCCESS,
+        error_note: 'Success',
+      };
+    } catch (error) {
+      return this.clickErrorFromException(body, error);
+    }
+  }
+
+  async clickComplete(body: ClickCompleteBody) {
+    if (!this.click.verifyCompleteSignature(body)) {
+      return this.clickError(body, CLICK_ERROR.SIGN_CHECK_FAILED, 'SIGN CHECK FAILED!');
+    }
+
+    if (Number(body.error) < 0) {
+      // Click o'zi bekor qilingan/muvaffaqiyatsiz to'lovni bildirmoqda —
+      // bizning tomonimizda hech narsa "to'landi" deb belgilanmaydi.
+      return {
+        success: true as const,
+        click_trans_id: body.click_trans_id,
+        merchant_trans_id: body.merchant_trans_id,
+        merchant_confirm_id: body.merchant_prepare_id,
+        error: CLICK_ERROR.TRANSACTION_CANCELLED,
+        error_note: 'Transaction cancelled',
+      };
+    }
+
+    const bookingId = String(body.merchant_trans_id ?? '');
+    const eventKey = `click:complete:${body.click_trans_id}`;
+
+    try {
+      await this.processPaymentEvent('click', 'complete', eventKey, {
+        booking_id: bookingId,
+        amount: body.amount,
+        transaction_id: body.click_trans_id,
+      });
+      return {
+        success: true as const,
+        click_trans_id: body.click_trans_id,
+        merchant_trans_id: bookingId,
+        merchant_confirm_id: body.merchant_prepare_id,
+        error: CLICK_ERROR.SUCCESS,
+        error_note: 'Success',
+      };
+    } catch (error) {
+      return this.clickErrorFromException(body, error);
+    }
+  }
+
+  private clickError(
+    body: ClickPrepareBody,
+    error: number,
+    errorNote: string,
+  ) {
+    return {
+      success: true as const,
+      click_trans_id: body.click_trans_id,
+      merchant_trans_id: body.merchant_trans_id,
+      error,
+      error_note: errorNote,
+    };
+  }
+
+  private clickErrorFromException(body: ClickPrepareBody, error: unknown) {
+    const code =
+      error instanceof NotFoundException
+        ? CLICK_ERROR.TRANSACTION_NOT_FOUND
+        : error instanceof UnprocessableEntityException
+          ? CLICK_ERROR.INCORRECT_AMOUNT
+          : CLICK_ERROR.ACTION_NOT_FOUND;
+    const message =
+      error instanceof Error ? error.message : 'Payment processing error';
+    return this.clickError(body, code, message);
   }
 
   async providerWebhook(
@@ -157,7 +324,28 @@ export class PaymentsService {
     const eventKey = this.eventKey(provider, event, body);
     this.verifySignature(provider, event, eventKey, body, headers, secret);
 
-    const payloadHash = hmacSha256(this.stableStringify(body), secret);
+    return this.processPaymentEvent(provider, event, eventKey, body);
+  }
+
+  /**
+   * `providerWebhook()`dan chiqarilgan umumiy tranzaksiya logikasi —
+   * imzo allaqachon tekshirilgan bo'lishi shart, chunki bu yerda buni
+   * qayta tekshirmaymiz. Click kabi provayderlar o'zining haqiqiy imzo
+   * sxemasi bilan tekshirib, keyin shu metodni chaqiradi (`clickWebhook`).
+   */
+  private async processPaymentEvent(
+    provider: string,
+    event: string,
+    eventKey: string,
+    body: Record<string, unknown>,
+  ) {
+    // Bu yerdagi hash faqat audit/dedup uchun fingerprint — haqiqiy
+    // xavfsizlik allaqachon (a) chaqiruvchi tomonidan bajarilgan imzo
+    // tekshiruvi va (b) `event_key` ustidagi UNIQUE constraint orqali
+    // ta'minlangan, shuning uchun bu yerga webhook secret kerak emas.
+    const payloadHash = createHash('sha256')
+      .update(this.stableStringify(body))
+      .digest('hex');
 
     return this.pg.transaction(async (tx) => {
       // event_key ustidagi UNIQUE constraint + ON CONFLICT DO NOTHING —

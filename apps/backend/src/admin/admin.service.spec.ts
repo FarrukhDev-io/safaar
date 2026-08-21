@@ -5,6 +5,7 @@ import { AppCacheService } from '../infrastructure/cache.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { EventsService } from '../realtime/events.service';
+import type { SmsService } from '../infrastructure/sms.service';
 import { AdminService } from './admin.service';
 
 describe('AdminService frontend action endpoints', () => {
@@ -15,6 +16,7 @@ describe('AdminService frontend action endpoints', () => {
     hotelListingChanged: jest.Mock;
     partnerDashboardUpdated: jest.Mock;
   };
+  let smsMock: { send: jest.Mock };
   const actor: RequestActor = {
     id: '00000000-0000-0000-0000-000000000001',
     actorType: 'admin',
@@ -35,6 +37,9 @@ describe('AdminService frontend action endpoints', () => {
       notificationCreated: jest.fn(),
       hotelListingChanged: jest.fn(),
       partnerDashboardUpdated: jest.fn(),
+    };
+    smsMock = {
+      send: jest.fn().mockResolvedValue({ accepted: true, providerMessageId: '' }),
     };
     service = new AdminService(
       {
@@ -58,6 +63,7 @@ describe('AdminService frontend action endpoints', () => {
         supportMessageCreated: jest.fn(),
         hotelListingChanged: eventsMock.hotelListingChanged,
       } as unknown as EventsService,
+      smsMock as unknown as SmsService,
     );
   });
 
@@ -68,6 +74,68 @@ describe('AdminService frontend action endpoints', () => {
       '00000000-0000-0000-0000-000000000001',
     );
     expect(result.status).toBe('deleted');
+  });
+
+  describe('userMessage / usersMessage (regression: "Send SMS" button never sent a real SMS)', () => {
+    const userId = '00000000-0000-0000-0000-0000000000aa';
+    const notificationRow = {
+      id: 'notif-1',
+      user_id: userId,
+      owner_type: 'user',
+      owner_id: userId,
+      title: 'Admin xabari',
+      body: 'Salom!',
+      read_at: null,
+      created_at: '2026-08-21T00:00:00.000Z',
+    };
+
+    it('sends a real SMS to the user phone, not just an in-app notification', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([notificationRow]) // INSERT notifications
+        .mockResolvedValueOnce([{ phone: '+998901234567' }]); // SELECT phone
+
+      const result = await service.userMessage(actor, userId, {
+        message: 'Salom!',
+      });
+
+      expect(smsMock.send).toHaveBeenCalledWith({
+        phone: '+998901234567',
+        text: 'Salom!',
+      });
+      expect(result).toMatchObject({ sms_sent: true });
+    });
+
+    it('reports sms_sent:false (not a fake success) when the user has no phone on file', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([notificationRow])
+        .mockResolvedValueOnce([{ phone: null }]);
+
+      const result = await service.userMessage(actor, userId, {
+        message: 'Salom!',
+      });
+
+      expect(smsMock.send).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        sms_sent: false,
+        sms_error: 'USER_HAS_NO_PHONE',
+      });
+    });
+
+    it('reports the real SMS provider failure instead of pretending it worked', async () => {
+      pgMock.query
+        .mockResolvedValueOnce([notificationRow])
+        .mockResolvedValueOnce([{ phone: '+998901234567' }]);
+      smsMock.send.mockRejectedValueOnce(new Error('SMS_PROVIDER_NOT_CONFIGURED'));
+
+      const result = await service.userMessage(actor, userId, {
+        message: 'Salom!',
+      });
+
+      expect(result).toMatchObject({
+        sms_sent: false,
+        sms_error: 'SMS_PROVIDER_NOT_CONFIGURED',
+      });
+    });
   });
 
   it('lists only onboarding partner applications in requests', async () => {

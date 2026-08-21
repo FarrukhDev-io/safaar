@@ -20,15 +20,27 @@ describe('NotificationsService ownership', () => {
     service = new NotificationsService(pgMock as unknown as PostgresService);
   });
 
-  it('lists only notifications owned by the submitting partner user', async () => {
-    pgMock.query.mockResolvedValueOnce([]);
+  it('lists only notifications owned by the submitting partner user, with real unread count and pagination', async () => {
+    pgMock.query
+      .mockResolvedValueOnce([{ id: 'n1' }])
+      .mockResolvedValueOnce([{ count: '3' }]);
 
-    await service.list(actor);
+    const result = await service.list(actor);
 
     expect(pgMock.query).toHaveBeenCalledWith(
       expect.stringContaining('owner_id = $1::uuid AND owner_type = $2'),
       [actor.id, 'partner'],
     );
+    expect(pgMock.query).toHaveBeenCalledWith(
+      expect.stringContaining('read_at IS NULL'),
+      [actor.id, 'partner'],
+    );
+    expect(result).toEqual({
+      items: [{ id: 'n1' }],
+      page: 1,
+      limit: 20,
+      unread_count: 3,
+    });
   });
 
   it('allows a partner to read its own partner notification', async () => {
