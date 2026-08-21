@@ -27,11 +27,11 @@ interface Spark {
  * Works both as a container wrapper and as a full-page global overlay.
  */
 export function ClickSpark({
-  sparkColor = "#FFB600",
+  sparkColor = "#fff",
   sparkSize = 10,
-  sparkRadius = 18,
+  sparkRadius = 15,
   sparkCount = 8,
-  duration = 450,
+  duration = 400,
   easing = "ease-out",
   extraScale = 1.0,
   global = false,
@@ -115,7 +115,7 @@ export function ClickSpark({
         const y2 = spark.y * dpr + (distance + lineLength) * Math.sin(spark.angle);
 
         ctx.strokeStyle = spark.color;
-        ctx.lineWidth = 2.5 * dpr;
+        ctx.lineWidth = 2 * dpr;
         ctx.lineCap = "round";
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -146,15 +146,13 @@ export function ClickSpark({
       const y = clientY - rect.top;
 
       const now = performance.now();
-      // Optional colorful sparks: primary blue and gold accent
-      const colors = [sparkColor, "#0284c7", "#38bdf8", "#FFB600"];
 
       const newSparks: Spark[] = Array.from({ length: sparkCount }, (_, i) => ({
         x,
         y,
-        angle: (2 * Math.PI * i) / sparkCount + (Math.random() * 0.2 - 0.1),
+        angle: (2 * Math.PI * i) / sparkCount,
         startTime: now,
-        color: colors[i % colors.length] || sparkColor,
+        color: sparkColor,
       }));
 
       sparksRef.current.push(...newSparks);
