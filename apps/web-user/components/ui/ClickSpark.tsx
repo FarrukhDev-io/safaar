@@ -27,7 +27,7 @@ interface Spark {
  * Works both as a container wrapper and as a full-page global overlay.
  */
 export function ClickSpark({
-  sparkColor = "#fff",
+  sparkColor = "#000",
   sparkSize = 10,
   sparkRadius = 15,
   sparkCount = 8,
