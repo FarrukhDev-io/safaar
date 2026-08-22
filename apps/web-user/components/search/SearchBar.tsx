@@ -83,8 +83,7 @@ export function SearchBar({
     <div className="mx-auto w-full max-w-6xl">
       <form
         onSubmit={handleSubmit}
-        className="relative flex flex-col gap-3 rounded-3xl bg-white p-3.5 shadow-xl shadow-slate-300/40 transition-all duration-300 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-3xl md:p-2 sm:p-4"
-        style={{ border: '4px solid #FFB600' }}
+        className="relative flex flex-col gap-3 rounded-3xl border border-slate-200/90 bg-white p-3.5 shadow-xl shadow-slate-300/40 transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-3xl md:p-2 sm:p-4"
       >
         {/* 1. Shahar / Destinatsiya */}
         <div className={fieldWrapperClass}>
