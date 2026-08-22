@@ -50,7 +50,7 @@ export function PromoBar({ config, locale = "uz" }: PromoBarProps) {
   return (
     <div
       role="region"
-      className="relative flex min-h-[36px] items-center justify-center bg-primary-700/95 px-8 py-1.5 text-center text-xs font-semibold text-white shadow-md backdrop-blur-md transition-all duration-300 sm:text-sm"
+      className="relative flex min-h-[36px] items-center justify-center bg-primary-950/95 px-8 py-1.5 text-center text-xs font-semibold text-white shadow-md backdrop-blur-md transition-all duration-300 sm:text-sm"
     >
       <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
         {badgeText ? (

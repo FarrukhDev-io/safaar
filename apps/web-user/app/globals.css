@@ -19,6 +19,7 @@
   --brand-700: #1e40af;
   --brand-800: #1e3a8a;
   --brand-900: #172554;
+  --brand-950: #081528;
 
   /* ── Brand Accent ── */
   --brand-accent-50: #fff7ed;
@@ -61,6 +62,7 @@
   --color-primary-700: var(--brand-700);
   --color-primary-800: var(--brand-800);
   --color-primary-900: var(--brand-900);
+  --color-primary-950: var(--brand-950);
 
   --color-accent-50: var(--brand-accent-50);
   --color-accent-100: var(--brand-accent-100);

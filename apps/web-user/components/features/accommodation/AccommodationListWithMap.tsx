@@ -162,7 +162,7 @@ export function AccommodationListWithMap({
       ) : (
         /* Standard Grid View */
         <>
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-6 grid-cols-2 lg:grid-cols-3">
             {items.map((hotel) => (
               <HotelCard
                 key={hotel.id}

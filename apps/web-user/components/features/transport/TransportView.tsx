@@ -28,22 +28,22 @@ function TransportCard({
   const categoryLabel = dict.categories?.[item.categoryKey] ?? item.categoryDefault;
 
   const badge = (
-    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
+    <span className="rounded-full bg-slate-900/60 backdrop-blur-xs px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-white">
       {categoryLabel}
     </span>
   );
 
   const subInfo = (
-    <>
-      <Users className="h-3.5 w-3.5 shrink-0" />
-      {item.seats} {dict.seats}
+    <div className="flex items-center gap-1 text-[11px] sm:text-sm font-medium text-slate-500 dark:text-slate-400 overflow-hidden line-clamp-1 truncate select-none">
+      <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+      <span>{item.seats} {dict.seats}</span>
       <span className="text-slate-300 dark:text-slate-700">·</span>
-      {item.hasDriver ? dict.driverIncluded : dict.withoutDriver}
-    </>
+      <span className="truncate">{item.hasDriver ? dict.driverIncluded : dict.withoutDriver}</span>
+    </div>
   );
 
   const ratingElement = (
-    <span>
+    <span className="line-clamp-1 truncate text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 select-none">
       {[item.transmission, item.fuelType, item.cityName].filter(Boolean).join(" · ")}
     </span>
   );
@@ -58,21 +58,22 @@ function TransportCard({
       rating={ratingElement}
       footerLeft={
         item.pricePerDaySum > 0 ? (
-          <>
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
+          <div className="flex flex-col leading-tight">
+            <span className="text-xs sm:text-base md:text-lg font-black tracking-tight text-slate-900 dark:text-white">
               {formatSum(item.pricePerDaySum)}
             </span>
-            <span className="text-[10px] text-slate-400">/ {dict.perDay}</span>
-          </>
+            <span className="text-[9px] sm:text-[11px] font-medium text-slate-400">/ {dict.perDay}</span>
+          </div>
         ) : undefined
       }
       footerRight={
         item.phone ? (
           <a
             href={`tel:${item.phone.replace(/\s+/g, "")}`}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            aria-label="Qo'ng'iroq qilish"
+            className="inline-flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-all duration-200 hover:bg-emerald-600 hover:text-white hover:scale-105 active:scale-95 dark:bg-emerald-950/40 dark:text-emerald-400"
           >
-            <PhoneCall className="h-3.5 w-3.5" />
+            <PhoneCall className="h-3 w-3 sm:h-4 sm:w-4" />
           </a>
         ) : undefined
       }
@@ -151,7 +152,7 @@ export function TransportView({
   }, [categories, selectedCategory]);
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:py-8 sm:px-6">
       <CatalogHeader
         icon={<Car className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />}
         badge={dict.badge}
@@ -165,39 +166,41 @@ export function TransportView({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={dict.searchPlaceholder}
-              className="pl-10"
+              className="pl-10 w-full"
             />
           </>
         }
         filterControls={
-          <div className="flex flex-wrap items-end gap-2">
-            <Select
-              value={selectedCity}
-              onChange={setSelectedCity}
-              options={[
-                { value: "all", label: "Barcha shaharlar" },
-                ...cities.map((city) => ({ value: city, label: city }))
-              ]}
-              className="w-44"
-            />
-            <Select
-              value={hasDriverFilter}
-              onChange={setHasDriverFilter}
-              options={[
-                { value: "all", label: "Hammasi" },
-                { value: "yes", label: dict.driverIncluded },
-                { value: "no", label: dict.withoutDriver }
-              ]}
-              className="w-44"
-            />
-            <div className="flex items-end gap-2">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-end w-full lg:w-auto">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
+              <Select
+                value={selectedCity}
+                onChange={setSelectedCity}
+                options={[
+                  { value: "all", label: "Barcha shaharlar" },
+                  ...cities.map((city) => ({ value: city, label: city }))
+                ]}
+                className="w-full sm:w-40 md:w-44"
+              />
+              <Select
+                value={hasDriverFilter}
+                onChange={setHasDriverFilter}
+                options={[
+                  { value: "all", label: "Hammasi" },
+                  { value: "yes", label: dict.driverIncluded },
+                  { value: "no", label: dict.withoutDriver }
+                ]}
+                className="w-full sm:w-40 md:w-44"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-end">
               <DatePicker
                 locale={locale}
                 label={dict.checkIn}
                 value={checkIn}
                 onChange={setCheckIn}
                 min={new Date().toISOString().split("T")[0]}
-                className="w-36"
+                className="w-full sm:w-36"
               />
               <DatePicker
                 locale={locale}
@@ -205,16 +208,16 @@ export function TransportView({
                 value={checkOut}
                 onChange={setCheckOut}
                 min={checkIn || new Date().toISOString().split("T")[0]}
-                className="w-36"
+                className="w-full sm:w-36"
               />
-              <Button
-                variant="primary"
-                onClick={handleSearchAvailability}
-                className="font-bold shrink-0 min-h-[44px]"
-              >
-                {dict.checkAvailability}
-              </Button>
             </div>
+            <Button
+              variant="primary"
+              onClick={handleSearchAvailability}
+              className="w-full sm:w-auto font-bold shrink-0 min-h-[44px]"
+            >
+              {dict.checkAvailability}
+            </Button>
           </div>
         }
       />
