@@ -4,6 +4,19 @@
   "subtitle": "Car rental services, VIP taxis, and airport transfers for comfortable travel across Uzbekistan.",
   "searchPlaceholder": "Search by car brand or city...",
   "allTypes": "All Types",
+  "allCities": "All Cities",
+  "allDrivers": "All Drivers",
+  "city": "City",
+  "driver": "Driver",
+  "resultsCount": "{count} vehicles found",
+  "sortBy": "Sort by",
+  "sortDefault": "Recommended",
+  "sortPriceAsc": "Price: Low to High",
+  "sortPriceDesc": "Price: High to Low",
+  "sortSeats": "Seats count",
+  "clearFilters": "Clear filters",
+  "call": "Call now",
+  "book": "Book now",
   "categories": {
     "all": "All Types",
     "rent": "Car Rental (Rent a Car)",
@@ -18,6 +31,6 @@
   "checkIn": "Pick-up date",
   "checkOut": "Return date",
   "noVehiclesAvailable": "No cars available for selected dates",
-  "noVehiclesAvailableDesc": "Please try selecting other dates.",
+  "noVehiclesAvailableDesc": "Please try selecting other dates or clear filters.",
   "noData": "No data found"
 }
