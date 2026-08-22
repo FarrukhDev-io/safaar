@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Building2, UtensilsCrossed, Car, Landmark } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
