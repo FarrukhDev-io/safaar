@@ -56,19 +56,19 @@ export function HotelCard({
       href={`/${locale}/hotels/${hotel.slug}`}
       footerLeft={
         hotel.minPriceSum > 0 ? (
-          <>
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
+          <div className="flex flex-col leading-tight">
+            <span className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white">
               {formatSum(hotel.minPriceSum)}
             </span>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[11px] font-medium text-slate-400">
               / {labels.perNight}
             </span>
-          </>
+          </div>
         ) : undefined
       }
       footerRight={
-        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-          <ArrowRight className="h-3.5 w-3.5" />
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition-all duration-200 group-hover:bg-primary-600 group-hover:text-white group-hover:translate-x-0.5 dark:bg-slate-800 dark:text-slate-200">
+          <ArrowRight className="h-4 w-4" />
         </span>
       }
     />
