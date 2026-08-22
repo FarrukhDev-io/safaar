@@ -54,6 +54,13 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
     setOpen(false);
   }, [searchParams, push]);
 
+  const activeCount = [
+    searchParams.get("search"),
+    searchParams.get("stars"),
+    searchParams.get("min_price"),
+    searchParams.get("max_price"),
+  ].filter(Boolean).length;
+
   return (
     <div className="w-full">
       {/* Mobile Toggle Trigger Button */}
@@ -63,15 +70,18 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
         size="md"
         rounded="full"
         onClick={() => setOpen(true)}
-        className="mb-4 lg:hidden"
+        className="w-full flex items-center justify-between !h-11 min-h-[44px] px-4 text-xs sm:text-sm font-bold mb-4 lg:hidden"
       >
-        <span className="flex items-center justify-between w-full">
-          <span className="inline-flex items-center gap-2">
-            <Filter className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-            <span>{dict.filters.toggle}</span>
-          </span>
-          <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+        <span className="inline-flex items-center gap-2">
+          <Filter className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+          <span>{dict.filters.toggle}</span>
+          {activeCount > 0 && (
+            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary-600 px-1.5 text-[11px] font-black text-white">
+              {activeCount}
+            </span>
+          )}
         </span>
+        <ChevronDown className="h-4 w-4 text-slate-500" />
       </Button>
 
       <FilterSidebar
