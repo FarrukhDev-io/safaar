@@ -11,7 +11,13 @@ import { FilterGroup } from "@/components/ui/FilterGroup";
 import { Button } from "@/components/ui/Button";
 
 
-export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
+export function HotelFilters({
+  dict,
+  sortSelect,
+}: {
+  dict: Pick<HotelsDict, "filters">;
+  sortSelect?: React.ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -63,26 +69,32 @@ export function HotelFilters({ dict }: { dict: Pick<HotelsDict, "filters"> }) {
 
   return (
     <div className="w-full">
-      {/* Mobile Toggle Trigger Button */}
-      <Button
-        type="button"
-        variant="secondary"
-        size="md"
-        rounded="full"
-        onClick={() => setOpen(true)}
-        className="w-full flex items-center justify-between !h-11 min-h-[44px] px-4 text-xs sm:text-sm font-bold mb-4 lg:hidden"
-      >
-        <span className="inline-flex items-center gap-2">
-          <Filter className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-          <span>{dict.filters.toggle}</span>
-          {activeCount > 0 && (
-            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary-600 px-1.5 text-[11px] font-black text-white">
-              {activeCount}
-            </span>
-          )}
-        </span>
-        <ChevronDown className="h-4 w-4 text-slate-500" />
-      </Button>
+      {/* Mobile Actions Toolbar: 1 Row with 2 Columns */}
+      <div className="grid grid-cols-2 gap-2 mb-3 lg:hidden">
+        {/* Mobile Toggle Trigger Button */}
+        <Button
+          type="button"
+          variant="secondary"
+          size="md"
+          rounded="full"
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center justify-between !h-11 min-h-[44px] px-3.5 text-xs sm:text-sm font-bold"
+        >
+          <span className="inline-flex items-center gap-1.5 min-w-0 truncate">
+            <Filter className="h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400" />
+            <span className="truncate">{dict.filters.toggle}</span>
+            {activeCount > 0 && (
+              <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-primary-600 px-1 text-[11px] font-black text-white">
+                {activeCount}
+              </span>
+            )}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+        </Button>
+
+        {/* Mobile Sort Select */}
+        {sortSelect ? <div className="w-full min-w-0">{sortSelect}</div> : null}
+      </div>
 
       <FilterSidebar
         title={dict.filters.title}
