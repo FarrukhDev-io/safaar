@@ -115,7 +115,7 @@ export async function AccommodationPage({
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl dark:text-white">{title}</h1>
             <p aria-live="polite" className="text-xs text-slate-500 sm:text-sm dark:text-slate-400">
@@ -123,9 +123,11 @@ export async function AccommodationPage({
             </p>
           </div>
           {total > 0 && (
-            <Suspense fallback={null}>
-              <HotelSortSelect dict={dict.sort} />
-            </Suspense>
+            <div className="hidden lg:block">
+              <Suspense fallback={null}>
+                <HotelSortSelect dict={dict.sort} />
+              </Suspense>
+            </div>
           )}
         </div>
         <Suspense fallback={null}>
@@ -135,7 +137,16 @@ export async function AccommodationPage({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
         <Suspense fallback={null}>
-          <HotelFilters dict={{ filters: dict.filters }} />
+          <HotelFilters
+            dict={{ filters: dict.filters }}
+            sortSelect={
+              total > 0 ? (
+                <Suspense fallback={null}>
+                  <HotelSortSelect dict={dict.sort} />
+                </Suspense>
+              ) : null
+            }
+          />
         </Suspense>
 
         <section aria-label={dict.title}>

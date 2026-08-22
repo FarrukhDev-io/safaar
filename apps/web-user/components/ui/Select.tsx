@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 export interface SelectOption {
   value: string;
@@ -56,14 +57,17 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
-        className="flex min-h-[44px] h-11 w-full items-center justify-between gap-2 rounded-full border border-slate-300 bg-white pl-5 pr-4 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 focus-visible:border-primary-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500/20 active:bg-slate-50"
+        className={cn(
+          buttonVariants({ variant: "secondary", size: "md", rounded: "full" }),
+          "w-full justify-between !h-11 min-h-[44px] px-4 text-xs sm:text-sm font-bold text-slate-800 dark:text-white",
+        )}
       >
         <span className={cn("truncate", !selected && "text-slate-500 font-medium")}>
           {display}
         </span>
         <ChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-slate-600 transition-transform duration-200",
+            "h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform duration-200",
             open && "rotate-180",
           )}
           aria-hidden
@@ -71,7 +75,7 @@ export function Select({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-44 rounded-xl border border-slate-300 bg-white p-1.5 shadow-xl">
+        <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-44 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-100">
           {options.length === 0 && (
             <span className="block px-3 py-2 text-sm text-slate-500">—</span>
           )}
