@@ -250,15 +250,23 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       {menuOpen && (
         <>
           <div
-            className="fixed inset-0 z-90 bg-black/50 backdrop-blur-xs transition-opacity md:hidden"
+            className="fixed inset-0 z-90 bg-slate-950/60 backdrop-blur-sm transition-opacity md:hidden animate-in fade-in duration-200"
             onClick={() => setMenuOpen(false)}
             aria-hidden
           />
           <nav
             aria-label="Mobil navigatsiya"
-            className="fixed inset-x-3 top-16 z-100 max-h-[calc(100vh-5rem)] overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-200 bg-card p-4 shadow-2xl md:hidden animate-in fade-in slide-in-from-top-2 duration-150 dark:border-slate-800 dark:bg-slate-900"
+            className="fixed inset-x-3.5 top-18 z-100 max-h-[calc(100vh-5.5rem)] overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-4.5 shadow-[0_20px_50px_rgba(0,0,0,0.2)] backdrop-blur-xl md:hidden animate-in fade-in slide-in-from-top-3 duration-200 dark:border-slate-800 dark:bg-slate-900/95"
           >
-            <div className="space-y-1">
+            {/* Header label inside drawer */}
+            <div className="mb-3 flex items-center justify-between px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Menyu
+              </span>
+              <span className="h-2 w-2 rounded-full bg-primary-500 animate-pulse" />
+            </div>
+
+            <div className="space-y-1.5">
               {items.map((item) => {
                 if (item.children && item.children.length > 0) {
                   return (
@@ -277,25 +285,51 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
                     href={item.href}
                     onClick={() => setMenuOpen(false)}
                     aria-current={active ? "page" : undefined}
-                    className={getNavLinkClasses(active, true)}
-                  >
-                    {item.icon && (
-                      <span className="flex h-6 w-6 items-center justify-center">{item.icon}</span>
+                    className={cn(
+                      "group flex h-12.5 items-center justify-between w-full rounded-2xl px-3 text-[15px] font-bold transition-all duration-150 active:scale-[0.98]",
+                      active
+                        ? "bg-primary-50 text-primary-700 shadow-xs dark:bg-primary-950/40 dark:text-primary-400"
+                        : "text-slate-800 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-slate-800/80 dark:hover:text-white"
                     )}
-                    <span className="text-sm font-bold">{item.label}</span>
-
+                  >
+                    <div className="flex items-center gap-3">
+                      {item.icon && (
+                        <span
+                          className={cn(
+                            "flex h-9 w-9 items-center justify-center rounded-xl transition-colors duration-150",
+                            active
+                              ? "bg-primary-600 text-white shadow-xs"
+                              : "bg-slate-100 text-slate-600 group-hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                          )}
+                        >
+                          {item.icon}
+                        </span>
+                      )}
+                      <span className="text-[15px] font-bold tracking-tight">{item.label}</span>
+                    </div>
+                    <ChevronRight
+                      className={cn(
+                        "h-4 w-4 transition-transform duration-150",
+                        active ? "text-primary-600 translate-x-0.5" : "text-slate-300 group-hover:text-slate-500"
+                      )}
+                    />
                   </Link>
                 );
               })}
             </div>
 
             <hr className="my-4 border-slate-100 dark:border-slate-800" />
-            <div className="space-y-3 px-1 py-1">
+            <div className="space-y-3 px-0.5">
               {localeSwitcher && (
-                <div className="flex justify-center">{localeSwitcher}</div>
+                <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-2 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                  <span className="pl-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                    Til / Language
+                  </span>
+                  {localeSwitcher}
+                </div>
               )}
               {authActions && (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 pt-1">
                   {authActions}
                 </div>
               )}
