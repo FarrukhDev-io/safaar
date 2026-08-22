@@ -4,9 +4,12 @@ import { EmailService } from '../infrastructure/email.service';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { PromosService } from '../promos/promos.service';
 import { EventsService } from '../realtime/events.service';
+import type { PaymentsService } from '../payments/payments.service';
 import { BookingsService } from './bookings.service';
 
-function noopPromosService(): jest.Mocked<Pick<PromosService, 'validate' | 'redeem'>> {
+function noopPromosService(): jest.Mocked<
+  Pick<PromosService, 'validate' | 'redeem'>
+> {
   return {
     validate: jest.fn().mockResolvedValue({
       code: '',
@@ -53,7 +56,9 @@ describe('BookingsService.createHotel guest checkout', () => {
       adminDashboardUpdated: jest.fn(),
     };
     email = {
-      send: jest.fn().mockResolvedValue({ providerMessageId: '', accepted: true }),
+      send: jest
+        .fn()
+        .mockResolvedValue({ providerMessageId: '', accepted: true }),
     };
     promos = noopPromosService();
     service = new BookingsService(
@@ -61,6 +66,7 @@ describe('BookingsService.createHotel guest checkout', () => {
       events as unknown as EventsService,
       email as unknown as EmailService,
       promos as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -302,7 +308,7 @@ describe('BookingsService.createHotel guest checkout', () => {
       }),
     ).rejects.toMatchObject({ status: 404 });
 
-    const [sql] = pg.query.mock.calls[0]!;
+    const [sql] = pg.query.mock.calls[0];
     expect(String(sql)).toContain("po.status = 'approved'");
   });
 });
@@ -346,6 +352,7 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -373,7 +380,7 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
     expect(result.booking.check_out).toBe('2026-08-10');
     expect(result.booking.slot_time).toBe('19:00');
 
-    const conflictCall = pg.query.mock.calls[2]!;
+    const conflictCall = pg.query.mock.calls[2];
     expect(String(conflictCall[0])).toContain('90 minutes');
     expect(conflictCall[1]).toEqual([
       'table-1',
@@ -465,6 +472,7 @@ describe('BookingsService.createBus (regression: BUG-04 seat double-selling)', (
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -568,6 +576,7 @@ describe('BookingsService.createVehicleRental (rent-a-car: date-range booking ag
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -583,8 +592,8 @@ describe('BookingsService.createVehicleRental (rent-a-car: date-range booking ag
 
     const result = await service.createVehicleRental(undefined, {
       vehicle_id: 'vehicle-1',
-      check_in: '2026-08-20',
-      check_out: '2026-08-23',
+      check_in: '2027-08-20',
+      check_out: '2027-08-23',
       firstName: 'Laziz',
       lastName: 'Shakarov',
       email: 'laziz@example.com',
@@ -607,8 +616,8 @@ describe('BookingsService.createVehicleRental (rent-a-car: date-range booking ag
     await expect(
       service.createVehicleRental(undefined, {
         vehicle_id: 'vehicle-1',
-        check_in: '2026-08-20',
-        check_out: '2026-08-23',
+        check_in: '2027-08-20',
+        check_out: '2027-08-23',
         guest_name: 'Test',
         guest_email: 'test@example.com',
         guest_phone: '+998901234567',
@@ -690,6 +699,7 @@ describe('BookingsService.cancel (regression: explicit cancellation never releas
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -795,6 +805,7 @@ describe('BookingsService.findOne — authorization (regression: unauthenticated
       } as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -815,9 +826,9 @@ describe('BookingsService.findOne — authorization (regression: unauthenticated
       roles: [Role.USER],
     };
 
-    await expect(
-      service.findOne(otherUser, 'booking-1'),
-    ).rejects.toMatchObject({ status: 403 });
+    await expect(service.findOne(otherUser, 'booking-1')).rejects.toMatchObject(
+      { status: 403 },
+    );
   });
 
   it('bron egasi o‘z bronini ko‘ra oladi', async () => {
@@ -849,6 +860,7 @@ describe('BookingsService.lookupBooking (guest — booking_number + email)', () 
       } as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 
@@ -896,9 +908,9 @@ describe('BookingsService.lookupBooking (guest — booking_number + email)', () 
   });
 
   it("bo'sh bron raqami yoki email uchun 400 qaytaradi", async () => {
-    await expect(service.lookupBooking('', 'guest@example.com')).rejects.toMatchObject(
-      { status: 400 },
-    );
+    await expect(
+      service.lookupBooking('', 'guest@example.com'),
+    ).rejects.toMatchObject({ status: 400 });
   });
 });
 
@@ -930,6 +942,7 @@ describe('BookingsService.expireStaleBookings (regression: BUG-09 hold expiry, a
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
+      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
     );
   });
 

@@ -60,10 +60,21 @@ export function verifyTotpCode(
 
 export function hashRecoveryCode(code: string): string {
   return createHash('sha256')
-    .update(
-      `${process.env.RECOVERY_CODE_PEPPER ?? 'safaar-dev-recovery'}:${code}`,
-    )
+    .update(`${recoveryCodePepper()}:${code}`)
     .digest('hex');
+}
+
+function recoveryCodePepper(): string {
+  const configured = process.env.RECOVERY_CODE_PEPPER;
+  if (configured) {
+    return configured;
+  }
+
+  if (isProduction()) {
+    throw new Error('RECOVERY_CODE_PEPPER production muhitida majburiy');
+  }
+
+  return 'safaar-development-recovery-pepper';
 }
 
 export function encryptSecret(secret: string): string {

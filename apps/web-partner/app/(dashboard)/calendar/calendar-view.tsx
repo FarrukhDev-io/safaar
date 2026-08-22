@@ -138,8 +138,8 @@ export function CalendarView() {
     () =>
       [...filteredRows].sort(
         (a, b) =>
-          Number(a.roomNumber) - Number(b.roomNumber) ||
-          a.primaryLabel.localeCompare(b.primaryLabel),
+          a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true, sensitivity: "base" }) ||
+          a.primaryLabel.localeCompare(b.primaryLabel, undefined, { numeric: true, sensitivity: "base" }),
       ),
     [filteredRows],
   );

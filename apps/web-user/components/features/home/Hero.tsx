@@ -3,7 +3,7 @@ import type { HomeDict } from "@/i18n/dictionaries";
 
 export function Hero({ dict }: { dict: HomeDict["hero"] }) {
   return (
-    <section className="relative flex min-h-[40vh] min-h-[400px] w-full flex-col items-center justify-center overflow-hidden -mt-14 md:-mt-[72px]">
+    <section className="relative flex min-h-[40vh] min-h-[400px] w-full flex-col items-center justify-center overflow-hidden -mt-16 md:-mt-[72px]">
       {/* Orqa fon rasmi */}
       <Image
         src="/samarqans.jpg"

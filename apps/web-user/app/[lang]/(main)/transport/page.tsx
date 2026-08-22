@@ -26,16 +26,21 @@ export async function generateMetadata({
 
 export default async function TransportPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string }>;
+  searchParams: Promise<{ checkIn?: string; checkOut?: string }>;
 }) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
+  const sp = await searchParams;
+  const checkIn = sp.checkIn ?? "";
+  const checkOut = sp.checkOut ?? "";
 
   const [transportDict, transports] = await Promise.all([
     getDictionary(locale, "transport"),
-    api.catalog.getTransports(locale),
+    api.catalog.getTransports(locale, { checkIn, checkOut }),
   ]);
 
   const items: TransportItem[] = transports.map((item) => ({
@@ -45,7 +50,13 @@ export default async function TransportPage({
 
   return (
     <main className="flex flex-1 flex-col">
-      <TransportView dict={transportDict} items={items} />
+      <TransportView
+        dict={transportDict}
+        items={items}
+        locale={locale}
+        initialCheckIn={checkIn}
+        initialCheckOut={checkOut}
+      />
     </main>
   );
 }

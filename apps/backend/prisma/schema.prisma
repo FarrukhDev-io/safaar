@@ -926,6 +926,7 @@ model WithdrawalRequest {
   amount         Decimal  @db.Decimal(18, 2)
   currency       String   @default("UZS") @db.Char(3)
   status         String   @default("requested") @db.VarChar(32)
+  bankAccount    String?  @map("bank_account") @db.VarChar(255)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -971,14 +972,17 @@ model Review {
 }
 
 model Notification {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    String?   @map("user_id") @db.Uuid
-  ownerType String    @map("owner_type") @db.VarChar(32)
-  ownerId   String    @map("owner_id") @db.Uuid
-  title     String
-  body      String?
-  readAt    DateTime? @map("read_at") @db.Timestamptz
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String?   @map("user_id") @db.Uuid
+  ownerType         String    @map("owner_type") @db.VarChar(32)
+  ownerId           String    @map("owner_id") @db.Uuid
+  title             String
+  body              String?
+  type              String?   @db.VarChar(64)
+  relatedEntityType String?   @map("related_entity_type") @db.VarChar(32)
+  relatedEntityId   String?   @map("related_entity_id") @db.Uuid
+  readAt            DateTime? @map("read_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -1157,6 +1161,19 @@ model AuditLog {
   @@index([action, createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+model InternalNote {
+  id         String   @id @default(uuid()) @db.Uuid
+  entityType String   @map("entity_type") @db.VarChar(32)
+  entityId   String   @map("entity_id") @db.Uuid
+  authorId   String?  @map("author_id") @db.Uuid
+  authorName String?  @map("author_name") @db.VarChar(255)
+  body       String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([entityType, entityId, createdAt])
+  @@map("internal_notes")
 }
 
 model ExportJob {

@@ -64,7 +64,9 @@ export class JobsProcessor extends WorkerHost {
   }
 
   private async processExport(job: Job): Promise<void> {
-    const exportId = String((job.data as { export_id?: string }).export_id ?? '');
+    const exportId = String(
+      (job.data as { export_id?: string }).export_id ?? '',
+    );
     if (!exportId) {
       this.logger.warn(`Export job'da export_id yo'q: ${job.name}`);
       return;

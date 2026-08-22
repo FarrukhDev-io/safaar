@@ -142,7 +142,11 @@ export function ReservationsView() {
       [BookingStatus.CANCELLED]: 0,
       [BookingStatus.EXPIRED]: 0,
     };
-    for (const r of data) c[r.status]++;
+    for (const r of data) {
+      if (r.status in c) {
+        c[r.status as FilterKey]++;
+      }
+    }
     return c;
   }, [data]);
 

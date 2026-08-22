@@ -70,11 +70,15 @@ describe('Security regression tests', () => {
 
   it('requires signed, idempotent payment webhooks', async () => {
     const pg = postgresMock();
-    pg.transaction.mockImplementation(
-      (operation: (tx: unknown) => unknown) =>
-        operation({ query: pg.query }),
+    pg.transaction.mockImplementation((operation: (tx: unknown) => unknown) =>
+      operation({ query: pg.query }),
     );
-    const payments = new PaymentsService(pg as unknown as PostgresService);
+    const payments = new PaymentsService(
+      pg as unknown as PostgresService,
+      { get: jest.fn() } as never,
+      { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
+    );
     const body = {
       booking_id: 'booking-1',
       transaction_id: 'audit-test-transaction',
@@ -99,6 +103,15 @@ describe('Security regression tests', () => {
       currency: 'UZS',
       status: 'pending',
     };
+    const bookingRow = {
+      id: 'booking-1',
+      status: 'pending',
+      user_id: 'user-1',
+      partner_organization_id: 'partner-1',
+      confirmation_mode: 'instant_confirmation',
+      partner_payable: '572000',
+      currency: 'UZS',
+    };
     pg.query
       // 1) first call: INSERT ... ON CONFLICT DO NOTHING claims the event_key
       .mockResolvedValueOnce([
@@ -108,24 +121,30 @@ describe('Security regression tests', () => {
           processed_at: '2026-07-25T00:00:00.000Z',
         },
       ])
-      // 2) SELECT payments ... FOR UPDATE
+      // 2) SELECT bookings ... FOR UPDATE
+      .mockResolvedValueOnce([bookingRow])
+      // 3) SELECT payments ... FOR UPDATE
       .mockResolvedValueOnce([payment])
-      // 3) UPDATE payments SET status
+      // 4) UPDATE payments SET status
       .mockResolvedValueOnce([])
-      // 4) UPDATE payment_events SET payment_id
+      // 5) UPDATE payment_events SET payment_id
       .mockResolvedValueOnce([])
-      // 5) UPDATE bookings SET expires_at = NULL (newStatus === 'paid')
+      // 6) UPDATE bookings SET status/confirmed_at/expires_at
       .mockResolvedValueOnce([])
-      // 6) second call: INSERT ... ON CONFLICT DO NOTHING finds the row already claimed
+      // 7) INSERT booking_status_history (recordStatusHistory)
       .mockResolvedValueOnce([])
-      // 7) SELECT * FROM payment_events WHERE event_key
+      // 8) INSERT partner_ledger_entries (creditPartnerLedger)
+      .mockResolvedValueOnce([])
+      // 9) second call: INSERT ... ON CONFLICT DO NOTHING finds the row already claimed
+      .mockResolvedValueOnce([])
+      // 10) SELECT * FROM payment_events WHERE event_key
       .mockResolvedValueOnce([
         {
           payment_id: 'payment-1',
           processed_at: '2026-07-25T00:00:00.000Z',
         },
       ])
-      // 8) SELECT * FROM payments WHERE id
+      // 11) SELECT * FROM payments WHERE id
       .mockResolvedValueOnce([{ ...payment, status: 'paid' }]);
 
     const first = await payments.providerWebhook('click', 'complete', body, {

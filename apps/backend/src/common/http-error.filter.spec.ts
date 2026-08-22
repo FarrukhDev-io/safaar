@@ -69,7 +69,10 @@ describe('HttpErrorFilter (regression: H-5 malformed input -> 500 instead of 400
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: expect.objectContaining({ code: 'MY_CODE', message: 'aniq xato' }),
+        error: expect.objectContaining({
+          code: 'MY_CODE',
+          message: 'aniq xato',
+        }),
       }),
     );
   });

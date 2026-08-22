@@ -18,8 +18,12 @@ import {
   PostgresService,
   type PostgresTransaction,
 } from '../infrastructure/postgres.service';
-import { calculatePromoDiscount, PromosService } from '../promos/promos.service';
+import {
+  calculatePromoDiscount,
+  PromosService,
+} from '../promos/promos.service';
 import { EventsService } from '../realtime/events.service';
+import { PaymentsService } from '../payments/payments.service';
 
 /**
  * DB-level booking status constants (lowercase, matching pg enum values).
@@ -91,6 +95,7 @@ export class BookingsService {
     private readonly events: EventsService,
     private readonly emailService: EmailService,
     private readonly promosService: PromosService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   /**
@@ -150,7 +155,7 @@ export class BookingsService {
           [
             BS.CANCELLED,
             now,
-            "Hamkor tasdiqlash muddatida javob bermadi — tizim tomonidan avtomatik bekor qilindi",
+            'Hamkor tasdiqlash muddatida javob bermadi — tizim tomonidan avtomatik bekor qilindi',
             BS.AWAITING_PARTNER_CONFIRMATION,
           ],
         );
@@ -376,7 +381,11 @@ export class BookingsService {
 
       const subtotal = Number(room.base_price) * nights * rooms;
       const discountAmount = promo
-        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        ? calculatePromoDiscount(
+            subtotal,
+            promo.discount_type,
+            promo.discount_value,
+          )
         : 0;
 
       if (promo) {
@@ -549,7 +558,11 @@ export class BookingsService {
 
       const subtotal = Number(locked.price_per_day) * days;
       const discountAmount = promo
-        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        ? calculatePromoDiscount(
+            subtotal,
+            promo.discount_type,
+            promo.discount_value,
+          )
         : 0;
 
       if (promo) {
@@ -717,7 +730,11 @@ export class BookingsService {
 
       const subtotal = seats.reduce((sum, seat) => sum + Number(seat.price), 0);
       const discountAmount = promo
-        ? calculatePromoDiscount(subtotal, promo.discount_type, promo.discount_value)
+        ? calculatePromoDiscount(
+            subtotal,
+            promo.discount_type,
+            promo.discount_value,
+          )
         : 0;
 
       if (promo) {
@@ -815,7 +832,7 @@ export class BookingsService {
     }
 
     const [payment] = await this.pg.query(
-      "SELECT status, provider, amount, currency FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1",
+      'SELECT status, provider, amount, currency FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1',
       [booking.id],
     );
 
@@ -906,7 +923,10 @@ export class BookingsService {
       // Guest (login qilmagan) mijoz uchun ham ishlaydi — avval faqat
       // `POST /refunds` orqali (login talab qiladigan) qo'lda so'rash
       // mumkin edi.
-      const [payment] = await tx.query<{ amount: number | string; currency: string }>(
+      const [payment] = await tx.query<{
+        amount: number | string;
+        currency: string;
+      }>(
         `SELECT amount, currency FROM payments
          WHERE booking_id = $1 AND status = 'paid'
          ORDER BY created_at DESC LIMIT 1`,
@@ -934,12 +954,7 @@ export class BookingsService {
         }
       }
 
-      await this.addStatusHistory(
-        tx,
-        row as Parameters<typeof this.addStatusHistory>[1],
-        'cancelled',
-        actor,
-      );
+      await this.addStatusHistory(tx, row, 'cancelled', actor);
 
       return row;
     });
@@ -1368,6 +1383,21 @@ export class BookingsService {
 
     const id = randomUUID();
     const now = new Date().toISOString();
+    // Bron yaratilishining o'zi provayder sozlanmagan bo'lsa ham
+    // muvaffaqiyatsiz bo'lib qolmasligi kerak (mijoz bronni ko'rib,
+    // keyinroq `/payments/:id/create`'ni qayta chaqirib to'lashi mumkin —
+    // o'sha marshrut sozlanmagan holatda aniq xato qaytaradi). Shu sabab
+    // bu yerda checkout URL yaratib bo'lmasa jim `null`ga tushamiz.
+    let paymentUrl: string | null = null;
+    try {
+      paymentUrl = this.paymentsService.buildCheckoutUrl(
+        booking.payment_method,
+        booking.id,
+        Number(booking.total_amount),
+      );
+    } catch {
+      paymentUrl = null;
+    }
     const payment = {
       id,
       booking_id: booking.id,
@@ -1381,7 +1411,7 @@ export class BookingsService {
       status: booking.payment_method === 'cash' ? 'awaiting_cash' : 'pending',
       amount: Number(booking.total_amount),
       currency: booking.currency,
-      payment_url: null,
+      payment_url: paymentUrl,
       created_at: now,
       updated_at: now,
     };

@@ -6,6 +6,14 @@ import { PostgresService } from '../infrastructure/postgres.service';
 import { EventsService } from '../realtime/events.service';
 import { PartnersService } from './partners.service';
 
+jest.mock('../common/ssrf-guard', () => ({
+  assertPublicHttpUrl: jest.fn((rawUrl: string) =>
+    Promise.resolve(new URL(rawUrl)),
+  ),
+}));
+
+import { assertPublicHttpUrl } from '../common/ssrf-guard';
+
 describe('PartnersService frontend action endpoints', () => {
   let service: PartnersService;
   let pgMock: jest.Mocked<Pick<PostgresService, 'query'>> & {
@@ -203,13 +211,16 @@ describe('PartnersService frontend action endpoints', () => {
       ]); // INSERT ... ON CONFLICT DO UPDATE RETURNING
 
     const result = await service.updateInventory(actor, hotelId, {
-      items: [{ room_id: 'room-1', date: '2026-08-20', total_count: 3, closed: true }],
+      items: [
+        { room_id: 'room-1', date: '2026-08-20', total_count: 3, closed: true },
+      ],
     });
 
     expect(result.updated).toBe(true);
     expect(result.items).toHaveLength(1);
-    const upsertCall = pgMock.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO room_inventory'),
+    const upsertCall = pgMock.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string' && sql.includes('INSERT INTO room_inventory'),
     );
     expect(upsertCall).toBeDefined();
     expect(upsertCall?.[1]).toEqual([
@@ -221,7 +232,7 @@ describe('PartnersService frontend action endpoints', () => {
     ]);
   });
 
-  it('updateInventory rejects a room_id that does not belong to the caller\'s hotel', async () => {
+  it("updateInventory rejects a room_id that does not belong to the caller's hotel", async () => {
     pgMock.query
       .mockResolvedValueOnce([hotelRow]) // assertHotel
       .mockResolvedValueOnce([]); // room ownership check — not found for this hotel
@@ -248,8 +259,9 @@ describe('PartnersService frontend action endpoints', () => {
     });
 
     expect(result).toMatchObject({ closed: true, dates: ['2026-08-25'] });
-    const upsertCalls = pgMock.query.mock.calls.filter(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO room_inventory'),
+    const upsertCalls = pgMock.query.mock.calls.filter(
+      ([sql]) =>
+        typeof sql === 'string' && sql.includes('INSERT INTO room_inventory'),
     );
     expect(upsertCalls).toHaveLength(2);
   });
@@ -589,9 +601,8 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
 
   beforeEach(() => {
     pg = { query: jest.fn(), transaction: jest.fn() };
-    pg.transaction.mockImplementation(
-      (operation: (tx: unknown) => unknown) =>
-        operation({ query: pg.query }),
+    pg.transaction.mockImplementation((operation: (tx: unknown) => unknown) =>
+      operation({ query: pg.query }),
     );
     service = new PartnersService(
       pg as unknown as PostgresService,
@@ -615,7 +626,10 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
     mockBalanceQueries(700_000, 0);
 
     await expect(
-      service.withdrawal(actor, { amount: 700_001 }),
+      service.withdrawal(actor, {
+        amount: 700_001,
+        bankAccount: '8600 1111 2222 3333',
+      }),
     ).rejects.toMatchObject({
       response: { code: 'WITHDRAWAL_EXCEEDS_BALANCE' },
     });
@@ -626,7 +640,10 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
     mockBalanceQueries(700_000, 700_000);
 
     await expect(
-      service.withdrawal(actor, { amount: 1 }),
+      service.withdrawal(actor, {
+        amount: 1,
+        bankAccount: '8600 1111 2222 3333',
+      }),
     ).rejects.toMatchObject({
       response: { code: 'WITHDRAWAL_EXCEEDS_BALANCE' },
     });
@@ -638,7 +655,10 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
       { id: 'wr-1', amount: 700_000, status: 'requested' },
     ]);
 
-    const result = await service.withdrawal(actor, { amount: 700_000 });
+    const result = await service.withdrawal(actor, {
+      amount: 700_000,
+      bankAccount: '8600 1111 2222 3333',
+    });
     expect(result).toMatchObject({ id: 'wr-1', status: 'requested' });
   });
 
@@ -646,7 +666,10 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
     mockBalanceQueries(700_000, 0);
     pg.query.mockResolvedValueOnce([{ id: 'wr-1' }]);
 
-    await service.withdrawal(actor, { amount: 100 });
+    await service.withdrawal(actor, {
+      amount: 100,
+      bankAccount: '8600 1111 2222 3333',
+    });
 
     expect(pg.query.mock.calls[0]?.[0]).toContain('FOR UPDATE');
   });
@@ -657,9 +680,30 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
     mockBalanceQueries(0, 0);
 
     await expect(
-      service.withdrawal(actor, { amount: 1 }),
+      service.withdrawal(actor, {
+        amount: 1,
+        bankAccount: '8600 1111 2222 3333',
+      }),
     ).rejects.toMatchObject({
       response: { code: 'WITHDRAWAL_EXCEEDS_BALANCE' },
+    });
+  });
+
+  it('rejects a withdrawal with no bank account, before ever touching the balance query', async () => {
+    await expect(
+      service.withdrawal(actor, { amount: 100 }),
+    ).rejects.toMatchObject({
+      response: { code: 'WITHDRAWAL_BANK_ACCOUNT_REQUIRED' },
+    });
+    // Fails fast on input validation — never even queries the ledger.
+    expect(pg.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects a withdrawal with a blank/whitespace-only bank account', async () => {
+    await expect(
+      service.withdrawal(actor, { amount: 100, bankAccount: '   ' }),
+    ).rejects.toMatchObject({
+      response: { code: 'WITHDRAWAL_BANK_ACCOUNT_REQUIRED' },
     });
   });
 });
@@ -799,18 +843,28 @@ describe('PartnersService.createBusCompany (regression: no live code path ever c
   it('creates a bus company for an approved bus-type organization', async () => {
     pg.query
       .mockResolvedValueOnce([
-        { type: 'bus', brand_name: 'Comfort Bus', legal_name: 'Comfort Bus LLC' },
+        {
+          type: 'bus',
+          brand_name: 'Comfort Bus',
+          legal_name: 'Comfort Bus LLC',
+        },
       ]) // organization lookup
       .mockResolvedValueOnce([]) // no existing company
       .mockResolvedValueOnce([
-        { id: 'company-1', partner_organization_id: 'org-1', name: 'Comfort Bus', status: 'active' },
+        {
+          id: 'company-1',
+          partner_organization_id: 'org-1',
+          name: 'Comfort Bus',
+          status: 'active',
+        },
       ]); // INSERT
 
     const result = await service.createBusCompany(actor, {});
 
     expect(result).toMatchObject({ id: 'company-1', status: 'active' });
-    const insertCall = pg.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO bus_companies'),
+    const insertCall = pg.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string' && sql.includes('INSERT INTO bus_companies'),
     );
     expect(insertCall?.[1]).toEqual([
       expect.any(String),
@@ -822,15 +876,18 @@ describe('PartnersService.createBusCompany (regression: no live code path ever c
 
   it('is idempotent — returns the existing company instead of creating a duplicate', async () => {
     pg.query
-      .mockResolvedValueOnce([{ type: 'bus', brand_name: 'Comfort Bus', legal_name: null }])
+      .mockResolvedValueOnce([
+        { type: 'bus', brand_name: 'Comfort Bus', legal_name: null },
+      ])
       .mockResolvedValueOnce([{ id: 'company-existing' }])
       .mockResolvedValueOnce([{ id: 'company-existing', status: 'active' }]);
 
     const result = await service.createBusCompany(actor, {});
 
     expect(result).toMatchObject({ id: 'company-existing' });
-    const insertCall = pg.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO bus_companies'),
+    const insertCall = pg.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string' && sql.includes('INSERT INTO bus_companies'),
     );
     expect(insertCall).toBeUndefined();
   });
@@ -847,14 +904,17 @@ describe('PartnersService.createBusCompany (regression: no live code path ever c
 
   it('allows a mixed-type organization to create a bus company', async () => {
     pg.query
-      .mockResolvedValueOnce([{ type: 'mixed', brand_name: 'Multi Biz', legal_name: null }])
+      .mockResolvedValueOnce([
+        { type: 'mixed', brand_name: 'Multi Biz', legal_name: null },
+      ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'company-2', status: 'active' }]);
 
     const result = await service.createBusCompany(actor, { name: 'My Fleet' });
     expect(result).toMatchObject({ id: 'company-2' });
-    const insertCall = pg.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO bus_companies'),
+    const insertCall = pg.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string' && sql.includes('INSERT INTO bus_companies'),
     );
     expect(insertCall?.[1]?.[2]).toBe('My Fleet');
   });
@@ -890,7 +950,12 @@ describe('PartnersService.busCompany / updateBusCompany (read + rename for the t
 
   it('returns the existing bus company scoped to the actor organization', async () => {
     pg.query.mockResolvedValueOnce([
-      { id: 'company-1', partner_organization_id: 'org-1', name: 'Comfort Bus', status: 'active' },
+      {
+        id: 'company-1',
+        partner_organization_id: 'org-1',
+        name: 'Comfort Bus',
+        status: 'active',
+      },
     ]);
 
     const result = await service.busCompany(actor);
@@ -903,16 +968,28 @@ describe('PartnersService.busCompany / updateBusCompany (read + rename for the t
     pg.query
       .mockResolvedValueOnce([{ id: 'company-1' }]) // busCompanyId lookup
       .mockResolvedValueOnce([
-        { id: 'company-1', partner_organization_id: 'org-1', name: 'Renamed Fleet', status: 'active' },
+        {
+          id: 'company-1',
+          partner_organization_id: 'org-1',
+          name: 'Renamed Fleet',
+          status: 'active',
+        },
       ]); // UPDATE ... RETURNING
 
-    const result = await service.updateBusCompany(actor, { name: 'Renamed Fleet' });
+    const result = await service.updateBusCompany(actor, {
+      name: 'Renamed Fleet',
+    });
 
     expect(result).toMatchObject({ id: 'company-1', name: 'Renamed Fleet' });
-    const updateCall = pg.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('UPDATE bus_companies'),
+    const updateCall = pg.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string' && sql.includes('UPDATE bus_companies'),
     );
-    expect(updateCall?.[1]).toEqual(['Renamed Fleet', expect.any(String), 'company-1']);
+    expect(updateCall?.[1]).toEqual([
+      'Renamed Fleet',
+      expect.any(String),
+      'company-1',
+    ]);
   });
 
   it('rejects an empty name with a 400', async () => {
@@ -958,7 +1035,9 @@ describe('PartnersService vehicle/company mutations invalidate the public transp
 
   it('invalidates catalog:transports when a new bus company is created', async () => {
     pg.query
-      .mockResolvedValueOnce([{ type: 'bus', brand_name: 'Comfort Bus', legal_name: null }])
+      .mockResolvedValueOnce([
+        { type: 'bus', brand_name: 'Comfort Bus', legal_name: null },
+      ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'company-1', status: 'active' }]);
 
@@ -982,7 +1061,10 @@ describe('PartnersService vehicle/company mutations invalidate the public transp
       .mockResolvedValueOnce([{ id: 'company-1' }]) // busCompanyId lookup
       .mockResolvedValueOnce([{ id: 'vehicle-1' }]); // INSERT ... RETURNING
 
-    await service.createVehicle(actor, { name: 'Mercedes Sprinter', seats_count: 18 });
+    await service.createVehicle(actor, {
+      name: 'Mercedes Sprinter',
+      seats_count: 18,
+    });
 
     expect(cache.del).toHaveBeenCalledWith('catalog:transports');
   });
@@ -998,8 +1080,9 @@ describe('PartnersService vehicle/company mutations invalidate the public transp
       price_per_day: 250000,
     });
 
-    const insertCall = pg.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO vehicles'),
+    const insertCall = pg.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string' && sql.includes('INSERT INTO vehicles'),
     );
     expect(insertCall?.[1]).toEqual([
       expect.any(String),
@@ -1085,7 +1168,9 @@ describe('PartnersService vehicle/company mutations invalidate the public transp
     pg.query.mockResolvedValueOnce([{ id: 'vehicle-1' }]); // assertVehicle
 
     await expect(
-      service.updateVehicle(actor, 'vehicle-1', { status: 'totally_bogus_status_xyz' }),
+      service.updateVehicle(actor, 'vehicle-1', {
+        status: 'totally_bogus_status_xyz',
+      }),
     ).rejects.toMatchObject({ status: 400 });
   });
 
@@ -1119,7 +1204,10 @@ describe('PartnersService vehicle/company mutations invalidate the public transp
       .mockResolvedValueOnce([{ id: 'vehicle-1' }]);
 
     await expect(
-      serviceWithoutCache.createVehicle(actor, { name: 'Bus', seats_count: 20 }),
+      serviceWithoutCache.createVehicle(actor, {
+        name: 'Bus',
+        seats_count: 20,
+      }),
     ).resolves.toBeDefined();
   });
 });
@@ -1155,9 +1243,7 @@ describe('PartnersService.updateRoute (regression: routes had zero ownership che
   it('allows updating a route with no foreign trips on it', async () => {
     pg.query
       .mockResolvedValueOnce([]) // no foreign usage
-      .mockResolvedValueOnce([
-        { id: 'route-1', duration_minutes: 180 },
-      ]);
+      .mockResolvedValueOnce([{ id: 'route-1', duration_minutes: 180 }]);
 
     const result = await service.updateRoute(actor, 'route-1', {
       duration_minutes: 180,
@@ -1180,9 +1266,8 @@ describe('PartnersService.rejectBooking / cancelTrip (regression: explicit cance
 
   beforeEach(() => {
     pg = { query: jest.fn(), transaction: jest.fn() };
-    pg.transaction.mockImplementation(
-      (operation: (tx: unknown) => unknown) =>
-        operation({ query: pg.query }),
+    pg.transaction.mockImplementation((operation: (tx: unknown) => unknown) =>
+      operation({ query: pg.query }),
     );
     service = new PartnersService(
       pg as unknown as PostgresService,
@@ -1192,14 +1277,16 @@ describe('PartnersService.rejectBooking / cancelTrip (regression: explicit cance
 
   it('rejectBooking releases the seat tied to the rejected booking', async () => {
     pg.query
-      .mockResolvedValueOnce([{ id: 'booking-1', partner_organization_id: 'org-1' }]) // this.booking() ownership check
+      .mockResolvedValueOnce([
+        { id: 'booking-1', partner_organization_id: 'org-1' },
+      ]) // this.booking() ownership check
       .mockResolvedValueOnce([{ id: 'booking-1', status: 'cancelled' }]) // UPDATE bookings
       .mockResolvedValueOnce([]); // UPDATE trip_seats
 
     await service.rejectBooking(actor, 'booking-1', { reason: 'No-show' });
 
-    const seatRelease = pg.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('trip_seats'),
+    const seatRelease = pg.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('trip_seats'),
     );
     expect(seatRelease).toBeDefined();
     expect(seatRelease?.[1]).toEqual(['booking-1']);
@@ -1220,16 +1307,17 @@ describe('PartnersService.rejectBooking / cancelTrip (regression: explicit cance
 
     expect(result).toMatchObject({ id: 'trip-1', status: 'cancelled' });
 
-    const seatRelease = pg.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' &&
-      sql.includes('trip_seats') &&
-      sql.includes('WHERE trip_id'),
+    const seatRelease = pg.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string' &&
+        sql.includes('trip_seats') &&
+        sql.includes('WHERE trip_id'),
     );
     expect(seatRelease).toBeDefined();
     expect(seatRelease?.[1]).toEqual(['trip-1']);
 
-    const refundInsert = pg.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO refunds'),
+    const refundInsert = pg.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO refunds'),
     );
     expect(refundInsert).toBeDefined();
     expect(refundInsert?.[1]).toEqual([
@@ -1255,8 +1343,8 @@ describe('PartnersService.rejectBooking / cancelTrip (regression: explicit cance
 
     await service.cancelTrip(actor, 'trip-1');
 
-    const refundInsert = pg.query.mock.calls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO refunds'),
+    const refundInsert = pg.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO refunds'),
     );
     expect(refundInsert).toBeUndefined();
   });
@@ -1446,5 +1534,79 @@ describe('PartnersService.deleteTeamMember (regression: L-1 false success on cro
     const result = await service.deleteTeamMember(actor, 'member-1');
 
     expect(result).toEqual({ id: 'member-1', deleted: true });
+  });
+});
+
+describe('PartnersService webhooks (SSRF guard)', () => {
+  let service: PartnersService;
+  let pg: jest.Mocked<Pick<PostgresService, 'query'>>;
+  const actor: RequestActor = {
+    id: '00000000-0000-0000-0000-000000000001',
+    actorType: 'partner',
+    role: Role.PARTNER,
+    roles: [Role.PARTNER],
+    organizationId: '00000000-0000-0000-0000-000000000002',
+    sessionId: 'test-session-id',
+  };
+
+  beforeEach(() => {
+    (assertPublicHttpUrl as jest.Mock).mockClear();
+    (assertPublicHttpUrl as jest.Mock).mockImplementation((rawUrl: string) =>
+      Promise.resolve(new URL(rawUrl)),
+    );
+    pg = { query: jest.fn().mockResolvedValue([{ id: 'webhook-1' }]) };
+    service = new PartnersService(
+      pg as unknown as PostgresService,
+      { add: jest.fn() } as unknown as JobQueueService,
+    );
+  });
+
+  it('createWebhook validates the URL through the SSRF guard before inserting it', async () => {
+    await service.createWebhook(actor, {
+      url: 'https://partner.example.com/hook',
+    });
+
+    expect(assertPublicHttpUrl).toHaveBeenCalledWith(
+      'https://partner.example.com/hook',
+    );
+  });
+
+  it('createWebhook rejects (and never inserts) a URL the SSRF guard blocks', async () => {
+    (assertPublicHttpUrl as jest.Mock).mockRejectedValueOnce(
+      new Error('WEBHOOK_URL_NOT_ALLOWED'),
+    );
+
+    await expect(
+      service.createWebhook(actor, {
+        url: 'http://169.254.169.254/latest/meta-data',
+      }),
+    ).rejects.toThrow('WEBHOOK_URL_NOT_ALLOWED');
+
+    expect(pg.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO partner_webhook_endpoints'),
+      expect.anything(),
+    );
+  });
+
+  it('updateWebhook validates a new URL through the SSRF guard before persisting it', async () => {
+    await service.updateWebhook(actor, 'webhook-1', {
+      url: 'https://partner.example.com/new-hook',
+    });
+
+    expect(assertPublicHttpUrl).toHaveBeenCalledWith(
+      'https://partner.example.com/new-hook',
+    );
+  });
+
+  it('updateWebhook rejects a URL the SSRF guard blocks', async () => {
+    (assertPublicHttpUrl as jest.Mock).mockRejectedValueOnce(
+      new Error('WEBHOOK_URL_NOT_ALLOWED'),
+    );
+
+    await expect(
+      service.updateWebhook(actor, 'webhook-1', {
+        url: 'http://10.0.0.5/hook',
+      }),
+    ).rejects.toThrow('WEBHOOK_URL_NOT_ALLOWED');
   });
 });

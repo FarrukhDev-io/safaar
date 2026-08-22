@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { Button } from "../../../_components/ui/button";
 import { Dialog } from "../../../_components/ui/dialog";
+import { EmptyState } from "../../../_components/ui/empty-state";
+import { RoomStatusBadge } from "../../../_components/domain/room-status-badge";
+import { Plus } from "lucide-react";
 import { useRooms, useUpdateRoom } from "../../../_hooks/use-rooms";
 import { toast } from "sonner";
 import { getPartnerLabels } from "../../../_lib/utils/partner-labels";
@@ -18,7 +21,7 @@ export function PublishRoomsDialog({
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   
-  const { data: rooms } = useRooms();
+  const { allRooms: rooms } = useRooms();
   const updateRoom = useUpdateRoom();
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -27,7 +30,9 @@ export function PublishRoomsDialog({
   useEffect(() => {
     if (open && rooms) {
       const initial = new Set<string>();
-      rooms.forEach(r => {
+      rooms
+        .filter((r) => !r.number.startsWith("DELETED_"))
+        .forEach(r => {
         if (r.isListed) initial.add(r.id);
       });
       setSelectedIds(initial);
@@ -84,12 +89,15 @@ export function PublishRoomsDialog({
       }
     >
       <div className="flex flex-col gap-2">
-        {!rooms || rooms.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Hali hech qanday {labels.unitSingular.toLowerCase()} yaratilmagan. Avval chap paneldagi "Xonalar" bo'limidan qo'shing.
-          </p>
+        {!rooms || rooms.filter(r => !r.number.startsWith("DELETED_")).length === 0 ? (
+          <EmptyState
+            title="Xonalar topilmadi"
+            description={`Hali hech qanday ${labels.unitSingular.toLowerCase()} yaratilmagan. Avval "Xonalar" bo'limidan qo'shing.`}
+          />
         ) : (
-          rooms.map((room) => (
+          rooms
+            .filter((room) => !room.number.startsWith("DELETED_"))
+            .map((room) => (
             <label
               key={room.id}
               className="flex cursor-pointer items-center justify-between rounded-lg border border-[var(--border)] p-4 transition-colors hover:bg-[var(--surface-hover)]"
@@ -103,6 +111,7 @@ export function PublishRoomsDialog({
                 className="h-4 w-4"
                 checked={selectedIds.has(room.id)}
                 onChange={() => toggle(room.id)}
+                aria-label={`${room.number} xonani e'longa chiqarish`}
               />
             </label>
           ))

@@ -260,7 +260,23 @@ export function ListingOverview() {
     }
 
     if (dacha) {
-      return base;
+      return [
+        ...base,
+        {
+          id: 'rooms',
+          title: 'Dacha narxlari',
+          subtitle: `Mijozlar band qilishi uchun narx va sig'imni kiriting`,
+          action: `Narx kiritish`,
+          complete: roomAds.length > 0 && listedRooms.length > 0,
+          summary: roomAds.length > 0 && listedRooms.length > 0
+            ? `Narxlar va sig'im e'lon qilingan`
+            : `Hali narx belgilanmagan`,
+          icon: <BedDouble className="h-4 w-4" aria-hidden />,
+          missing: roomAds.length === 0 || listedRooms.length === 0
+            ? `Dachangizning xona turini qo'shing va e'longa chiqaring.`
+            : undefined,
+        },
+      ];
     }
 
     if (restaurant) {
@@ -569,7 +585,7 @@ export function ListingOverview() {
               }}
             />
           </div>
-        ) : !dacha ? (
+        ) : (
           <div id="room-listings-panel">
             <RoomListingsPanel
               roomAds={roomAds}
@@ -579,9 +595,20 @@ export function ListingOverview() {
               isBus={isBus}
               amenityLabels={dynamicAmenityLabels}
               onPublishRooms={() => setPublishRoomsOpen(true)}
+              onAddRoomType={() => {
+                setEditingRoomType(null);
+                setRoomTypeDialogOpen(true);
+              }}
+              onEditRoomType={(rt) => {
+                setEditingRoomType(rt);
+                setRoomTypeDialogOpen(true);
+              }}
+              onAddRoom={() => {
+                setRoomDialogOpen(true);
+              }}
             />
           </div>
-        ) : null}
+        )}
       </section>
 
       <aside className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-20 xl:self-start">
@@ -647,12 +674,10 @@ export function ListingOverview() {
                 label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
               />
             )}
-            {!dacha && (
-              <ChecklistItem
-                done={restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
-                label={restaurant ? 'Stollar' : labels.unitTypesTitle}
-              />
-            )}
+            <ChecklistItem
+              done={restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
+              label={restaurant ? 'Stollar' : labels.unitTypesTitle}
+            />
           </CardBody>
         </Card>
 
@@ -744,6 +769,9 @@ function RoomListingsPanel({
   isBus,
   amenityLabels,
   onPublishRooms,
+  onAddRoomType,
+  onEditRoomType,
+  onAddRoom,
 }: {
   roomAds: Array<{
     roomType: import('../../_lib/domain/types').RoomType;
@@ -759,6 +787,9 @@ function RoomListingsPanel({
   isBus?: boolean;
   amenityLabels: Map<string, string>;
   onPublishRooms: () => void;
+  onAddRoomType?: () => void;
+  onEditRoomType?: (roomType: import('../../_lib/domain/types').RoomType) => void;
+  onAddRoom?: () => void;
 }) {
   return (
     <Card>
@@ -777,8 +808,20 @@ function RoomListingsPanel({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {onAddRoomType && (
+              <Button size="sm" variant="outline" onClick={onAddRoomType}>
+                <Plus className="h-4 w-4 mr-1.5" aria-hidden />
+                {labels.unitTypeLabel} yaratish
+              </Button>
+            )}
+            {onAddRoom && (
+              <Button size="sm" variant="outline" onClick={onAddRoom}>
+                <Plus className="h-4 w-4 mr-1.5" aria-hidden />
+                {labels.addUnitLabel}
+              </Button>
+            )}
             <Button size="sm" onClick={onPublishRooms}>
-              <CheckSquare className="h-4 w-4 mr-2" aria-hidden />
+              <CheckSquare className="h-4 w-4 mr-1.5" aria-hidden />
               {labels.unitSingular}larni e'longa chiqarish
             </Button>
           </div>
@@ -810,10 +853,18 @@ function RoomListingsPanel({
               {labels.unitTypeLabel.toLowerCase()}ni yarating. Keyin real{' '}
               {labels.unitSingular} raqamlarini shu e'longa bog'laysiz.
             </p>
-            <Button className="mt-4" onClick={onPublishRooms}>
-              <CheckSquare className="h-4 w-4 mr-2" aria-hidden />
-              {labels.unitSingular}larni e'longa chiqarish
-            </Button>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {onAddRoomType && (
+                <Button onClick={onAddRoomType}>
+                  <Plus className="h-4 w-4 mr-1.5" aria-hidden />
+                  {labels.unitTypeLabel} yaratish
+                </Button>
+              )}
+              <Button variant="outline" onClick={onPublishRooms}>
+                <CheckSquare className="h-4 w-4 mr-1.5" aria-hidden />
+                {labels.unitSingular}larni e'longa chiqarish
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
@@ -842,6 +893,7 @@ function RoomListingsPanel({
                   restaurant={restaurant}
                   isBus={isBus}
                   amenityLabels={amenityLabels}
+                  onEdit={onEditRoomType ? () => onEditRoomType(roomType) : undefined}
                 />
               ),
             )}
@@ -867,6 +919,7 @@ function RoomAdCard({
   restaurant,
   isBus,
   amenityLabels,
+  onEdit,
 }: {
   name: string;
   capacity: number;
@@ -882,6 +935,7 @@ function RoomAdCard({
   restaurant: boolean;
   isBus?: boolean;
   amenityLabels?: Map<string, string>;
+  onEdit?: () => void;
 }) {
   return (
     <div className="overflow-hidden rounded-card border border-[var(--border)] bg-[var(--surface)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
@@ -931,13 +985,21 @@ function RoomAdCard({
                 </p>
               )}
             </div>
-            <div className="shrink-0 text-right">
-              <p className="text-[11px] text-[var(--muted-foreground)]">
-                {restaurant ? 'narxi' : isBus ? '1 kunlik' : '1 kecha'}
-              </p>
-              <p className="text-base font-semibold text-brand-700 dark:text-brand-300">
-                {formatMoney(minPrice)}
-              </p>
+            <div className="shrink-0 text-right flex flex-col items-end gap-2">
+              <div>
+                <p className="text-[11px] text-[var(--muted-foreground)]">
+                  {restaurant ? 'narxi' : isBus ? '1 kunlik' : '1 kecha'}
+                </p>
+                <p className="text-base font-semibold text-brand-700 dark:text-brand-300">
+                  {formatMoney(minPrice)}
+                </p>
+              </div>
+              {onEdit && (
+                <Button size="sm" variant="outline" onClick={onEdit} className="h-7 text-xs px-2">
+                  <Pencil className="h-3 w-3 mr-1" aria-hidden />
+                  Tahrirlash
+                </Button>
+              )}
             </div>
           </div>
 

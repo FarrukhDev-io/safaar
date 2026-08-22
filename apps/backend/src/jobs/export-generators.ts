@@ -69,7 +69,11 @@ export async function renderXlsx(data: TabularExportData): Promise<Buffer> {
 
 export async function renderPdf(data: TabularExportData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 36, size: 'A4', layout: 'landscape' });
+    const doc = new PDFDocument({
+      margin: 36,
+      size: 'A4',
+      layout: 'landscape',
+    });
     const chunks: Buffer[] = [];
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -77,13 +81,17 @@ export async function renderPdf(data: TabularExportData): Promise<Buffer> {
 
     doc.fontSize(16).text(data.title, { align: 'left' });
     doc.moveDown(0.5);
-    doc.fontSize(9).fillColor('#555').text(
-      `Generated: ${new Date().toISOString()} — ${data.rows.length} rows`,
-    );
+    doc
+      .fontSize(9)
+      .fillColor('#555')
+      .text(
+        `Generated: ${new Date().toISOString()} — ${data.rows.length} rows`,
+      );
     doc.moveDown(1);
     doc.fillColor('#000');
 
-    const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const usableWidth =
+      doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const colWidth = usableWidth / Math.max(1, data.columns.length);
 
     const drawRow = (values: string[], bold: boolean) => {
@@ -98,7 +106,10 @@ export async function renderPdf(data: TabularExportData): Promise<Buffer> {
       doc.moveDown(0.9);
     };
 
-    drawRow(data.columns.map((c) => c.header), true);
+    drawRow(
+      data.columns.map((c) => c.header),
+      true,
+    );
     doc
       .moveTo(doc.page.margins.left, doc.y)
       .lineTo(doc.page.width - doc.page.margins.right, doc.y)

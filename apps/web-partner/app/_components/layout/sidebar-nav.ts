@@ -86,6 +86,7 @@ export function getNavGroups(partnerType: string): NavGroup[] {
       {
         title: "Operatsion",
         items: [
+          { label: labels.unitsPageTitle, href: "/rooms", icon: BedDouble },
           { label: labels.calendarTitle, href: "/calendar", icon: CalendarDays },
           { label: labels.reservationsTitle, href: "/reservations", icon: CalendarRange },
         ],

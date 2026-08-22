@@ -9,6 +9,7 @@ import { BookingStatus } from '@safaar/types';
 import { randomUUID } from 'node:crypto';
 import * as argon2 from 'argon2';
 import type { RequestActor } from '../common/actor';
+import { rolePermissions } from '../common/permissions';
 import {
   limitOffsetSql,
   paginateArray,
@@ -18,6 +19,7 @@ import {
 import { randomToken } from '../auth/security';
 import { authSessionStore } from '../auth/session-store';
 import { AppCacheService } from '../infrastructure/cache.service';
+import { SmsService } from '../infrastructure/sms.service';
 import { JobQueueService } from '../infrastructure/job-queue.service';
 import {
   PostgresService,
@@ -492,6 +494,7 @@ export class AdminService {
     private readonly jobs: JobQueueService,
     private readonly postgres: PostgresService,
     private readonly events: EventsService,
+    private readonly sms: SmsService,
   ) {}
 
   private async rows(sql: string, params: readonly unknown[] = []) {
@@ -1365,8 +1368,8 @@ export class AdminService {
 
     const rows = await this.rows(
       `
-        insert into notifications (user_id, owner_type, owner_id, title, body)
-        values ($1::uuid, 'user', $1::uuid, $2, $3)
+        insert into notifications (id, user_id, owner_type, owner_id, title, body)
+        values ($1::uuid, $2::uuid, 'user', $2::uuid, $3, $4)
         returning
           id::text,
           user_id::text,
@@ -1377,12 +1380,48 @@ export class AdminService {
           read_at,
           created_at
       `,
-      [id, title, message],
+      [randomUUID(), id, title, message],
     );
 
-    await this.audit('user.admin_message', actor, { user_id: id });
+    const smsResult = await this.sendSmsToUser(id, message);
+
+    await this.audit('user.admin_message', actor, {
+      user_id: id,
+      sms_sent: smsResult.sent,
+    });
     this.events.notificationCreated(id, rows[0]);
-    return rows[0];
+    return { ...rows[0], sms_sent: smsResult.sent, sms_error: smsResult.error };
+  }
+
+  /**
+   * Admin panelidagi "SMS yuborish" tugmasi avval faqat ilova ichidagi
+   * notification yaratardi (SMS deb nomlangan bo'lsa ham hech qachon
+   * telefon raqamiga haqiqiy matn yubormas edi). Endi shu yerda haqiqiy
+   * SMS jo'natiladi; muvaffaqiyatsizlik butun amalni bekor qilmaydi —
+   * chaqiruvchi `sms_sent`/`sms_error` orqali haqiqiy natijani ko'radi.
+   */
+  private async sendSmsToUser(
+    userId: string,
+    message: string,
+  ): Promise<{ sent: boolean; error?: string }> {
+    const [user] = await this.rows(
+      `select phone from users where id = $1::uuid and deleted_at is null limit 1`,
+      [userId],
+    );
+    const phone = user?.['phone'] ? String(user['phone']) : '';
+    if (!phone) {
+      return { sent: false, error: 'USER_HAS_NO_PHONE' };
+    }
+
+    try {
+      const result = await this.sms.send({ phone, text: message });
+      return { sent: result.accepted };
+    } catch (error) {
+      return {
+        sent: false,
+        error: error instanceof Error ? error.message : 'SMS_SEND_FAILED',
+      };
+    }
   }
 
   async usersMessage(
@@ -1944,6 +1983,68 @@ export class AdminService {
     };
   }
 
+  /**
+   * Booking/partner tafsilot sahifalaridagi "Ichki izoh" — avval faqat
+   * frontend Zustand state'ida (sahifa yangilanganda yo'qolib qolardi,
+   * boshqa adminlarga ko'rinmasdi). Endi haqiqiy DB'da saqlanadi.
+   */
+  private async internalNotes(entityType: 'booking' | 'partner_organization', entityId: string) {
+    return this.rows(
+      `select id::text, entity_type, entity_id::text, author_id::text, author_name, body, created_at
+       from internal_notes
+       where entity_type = $1 and entity_id = $2::uuid
+       order by created_at desc`,
+      [entityType, entityId],
+    );
+  }
+
+  private async addInternalNote(
+    actor: RequestActor | undefined,
+    entityType: 'booking' | 'partner_organization',
+    entityId: string,
+    body: Record<string, unknown>,
+  ) {
+    const text = String(body.body ?? '').trim();
+    if (!text) {
+      throw new BadRequestException({
+        code: 'NOTE_BODY_REQUIRED',
+        message: 'Izoh matni bo\'sh bo\'lishi mumkin emas',
+      });
+    }
+
+    const authorRows = actor?.id
+      ? await this.rows(`select full_name, email from admin_users where id = $1::uuid`, [actor.id])
+      : [];
+    const authorName = authorRows[0]
+      ? String(authorRows[0]['full_name'] ?? authorRows[0]['email'] ?? '')
+      : null;
+
+    const rows = await this.rows(
+      `insert into internal_notes (id, entity_type, entity_id, author_id, author_name, body)
+       values ($1, $2, $3::uuid, $4::uuid, $5, $6)
+       returning id::text, entity_type, entity_id::text, author_id::text, author_name, body, created_at`,
+      [randomUUID(), entityType, entityId, actor?.id ?? null, authorName, text],
+    );
+
+    return rows[0];
+  }
+
+  async bookingNotes(id: string) {
+    return this.internalNotes('booking', id);
+  }
+
+  async addBookingNote(actor: RequestActor | undefined, id: string, body: Record<string, unknown>) {
+    return this.addInternalNote(actor, 'booking', id, body);
+  }
+
+  async partnerNotes(id: string) {
+    return this.internalNotes('partner_organization', id);
+  }
+
+  async addPartnerNote(actor: RequestActor | undefined, id: string, body: Record<string, unknown>) {
+    return this.addInternalNote(actor, 'partner_organization', id, body);
+  }
+
   async hotels(query: QueryLike = {}) {
     const rows = await this.hotelBaseRows(query);
     return this.hydrateAdminHotels(rows, false);
@@ -2400,11 +2501,14 @@ export class AdminService {
             : `"${hotelName}" e'loni rad etildi. Sabab: ${normalizedReason}`;
         const notifications = await transaction.query<DbRow>(
           `insert into notifications
-             (id, user_id, owner_type, owner_id, title, body, created_at)
-           values ($1::uuid, null, 'partner', $2::uuid, $3, $4, $5)
+             (id, user_id, owner_type, owner_id, title, body, type,
+              related_entity_type, related_entity_id, created_at)
+           values ($1::uuid, null, 'partner', $2::uuid, $3, $4,
+                   'listing_moderation', 'hotel', $6::uuid, $5)
            returning id::text, user_id::text, owner_type, owner_id::text,
-                     title, body, read_at, created_at`,
-          [randomUUID(), notificationRecipientId, title, body, now],
+                     title, body, type, related_entity_type,
+                     related_entity_id::text, read_at, created_at`,
+          [randomUUID(), notificationRecipientId, title, body, now, id],
         );
         notification = notifications[0] ?? null;
       }
@@ -2846,9 +2950,10 @@ export class AdminService {
       }
 
       const requestedAmount = Number(refund.requested_amount);
-      const approvedAmount = body.approved_amount != null
-        ? Number(body.approved_amount)
-        : requestedAmount;
+      const approvedAmount =
+        body.approved_amount != null
+          ? Number(body.approved_amount)
+          : requestedAmount;
       if (!Number.isFinite(approvedAmount) || approvedAmount <= 0) {
         throw new BadRequestException({
           code: 'REFUND_AMOUNT_INVALID',
@@ -2919,7 +3024,9 @@ export class AdminService {
     });
     this.invalidateAdminCache();
     this.events.adminDashboardUpdated();
-    return result ?? { id, status: 'approved', updated_at: new Date().toISOString() };
+    return (
+      result ?? { id, status: 'approved', updated_at: new Date().toISOString() }
+    );
   }
 
   async refundReject(actor: RequestActor | undefined, id: string) {
@@ -3141,6 +3248,81 @@ export class AdminService {
     }
     this.invalidateAdminCache();
     return rows[0];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Developer (cross-partner API keys / webhooks oversight)
+  // ---------------------------------------------------------------------------
+
+  async developerApiKeys(query: QueryLike = {}) {
+    return this.rows(`
+      select
+        k.id::text,
+        k.organization_id::text as partner_id,
+        po.brand_name as partner_name,
+        k.name,
+        k.key_prefix,
+        k.last_used_at,
+        k.created_at
+      from partner_api_keys k
+      left join partner_organizations po on po.id = k.organization_id
+      where k.revoked_at is null
+      order by k.created_at desc
+      ${this.limitClause(query)}
+    `);
+  }
+
+  async deleteDeveloperApiKey(
+    actor: RequestActor | undefined,
+    id: string,
+  ): Promise<{ id: string; revoked: boolean }> {
+    const rows = await this.rows(
+      `
+        update partner_api_keys
+        set revoked_at = now(), status = 'revoked', updated_at = now()
+        where id = $1::uuid and revoked_at is null
+        returning id::text, organization_id::text as partner_id
+      `,
+      [id],
+    );
+
+    if (!rows[0]) {
+      throw new NotFoundException({
+        code: 'API_KEY_NOT_FOUND',
+        message: 'API kalit topilmadi yoki allaqachon bekor qilingan',
+      });
+    }
+
+    await this.audit('developer.api_key_revoke', actor, {
+      api_key_id: id,
+      partner_id: rows[0]['partner_id'],
+    });
+
+    return { id, revoked: true };
+  }
+
+  async developerWebhooks(query: QueryLike = {}) {
+    return this.rows(`
+      select
+        w.id::text,
+        w.organization_id::text as partner_id,
+        po.brand_name as partner_name,
+        w.url,
+        w.events,
+        (w.status = 'active') as is_active,
+        coalesce(fd.failed_count, 0)::int as failed_deliveries,
+        w.created_at
+      from partner_webhook_endpoints w
+      left join partner_organizations po on po.id = w.organization_id
+      left join (
+        select endpoint_id, count(*) as failed_count
+        from partner_webhook_deliveries
+        where status = 'failed'
+        group by endpoint_id
+      ) fd on fd.endpoint_id = w.id
+      order by w.created_at desc
+      ${this.limitClause(query)}
+    `);
   }
 
   async cmsList(resource: string, query: QueryLike = {}) {
@@ -4013,6 +4195,21 @@ export class AdminService {
     return row ?? { open: 0, closed: 0 };
   }
 
+  /**
+   * Frontend sarlavha/matnni oddiy string sifatida yuboradi, `cms_entries`
+   * esa CMS'ning umumiy naqshiga mos `{uz, ru, en}` lokalizatsiya obyektini
+   * kutadi (`title ->> 'uz'` orqali o'qiladi) — oddiy string kelsa, uni
+   * shu shaklga o'raymiz, aks holda `->> 'uz'` NULL qaytarib, matn
+   * ro'yxat/detail sahifalarida jim yo'qolib qolardi.
+   */
+  private toLocalizedJsonb(value: unknown, fallbackUz: string): string {
+    if (value && typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    const text = value != null ? String(value) : fallbackUz;
+    return JSON.stringify({ uz: text });
+  }
+
   async notificationBroadcastCreate(body: Record<string, unknown>) {
     const rows = await this.rows(
       `insert into cms_entries (id, type, slug, title, body, status, metadata, updated_at)
@@ -4020,9 +4217,11 @@ export class AdminService {
        returning id::text, type, slug, title, body, status, metadata, created_at, updated_at`,
       [
         `broadcast-${randomUUID().slice(0, 8)}`,
-        JSON.stringify(body.title ?? { uz: 'Broadcast' }),
-        JSON.stringify(body.body ?? {}),
-        JSON.stringify(body.metadata ?? {}),
+        this.toLocalizedJsonb(body.title, 'Broadcast'),
+        this.toLocalizedJsonb(body.body, ''),
+        JSON.stringify(
+          body.metadata ?? { target_type: body.target_type ?? 'all' },
+        ),
       ],
     );
     return rows[0];
@@ -4033,6 +4232,7 @@ export class AdminService {
       select id::text, type, slug,
              coalesce(title ->> 'uz', slug) as title,
              coalesce(body ->> 'uz', '') as body,
+             coalesce(metadata ->> 'target_type', 'all') as target_type,
              status, metadata, created_at, updated_at
       from cms_entries
       where type = 'broadcast'
@@ -4046,6 +4246,7 @@ export class AdminService {
       `select id::text, type, slug,
               coalesce(title ->> 'uz', slug) as title,
               coalesce(body ->> 'uz', '') as body,
+              coalesce(metadata ->> 'target_type', 'all') as target_type,
               status, metadata, created_at, updated_at
        from cms_entries
        where id = $1::uuid and type = 'broadcast'`,
@@ -4180,23 +4381,33 @@ export class AdminService {
     return { id, two_factor_reset: true, sessions_revoked: true };
   }
 
+  /**
+   * Har bir rolga biriktirilgan haqiqiy ruxsatlar — `common/permissions.ts`
+   * dagi kompilyatsiya vaqtidagi `rolePermissions` xaritasidan o'qiladi
+   * (avval bu yerda soxta, RolesGuard bilan bog'liq bo'lmagan hardcoded
+   * ro'yxat qaytardi). SUPER_ADMIN uchun cheksiz ruxsat shu xarita orqali
+   * ifodalanadi (barcha Permission qiymatlari).
+   */
   roles() {
-    return [
-      { id: 'super_admin', permissions: ['*'] },
-      { id: 'moderator', permissions: ['partner.approve', 'hotel.publish'] },
-      {
-        id: 'finance_admin',
-        permissions: ['finance.refund', 'withdrawal.approve'],
-      },
-    ];
+    return Object.entries(rolePermissions).map(([role, permissions]) => ({
+      id: role,
+      permissions,
+    }));
   }
 
-  rolePermissions(id: string, body: Record<string, unknown>) {
-    return {
-      id,
-      permissions: body.permissions ?? [],
-      updated_at: new Date().toISOString(),
-    };
+  /**
+   * Rol ruxsatlarini DB'da saqlash hali qo'llab-quvvatlanmaydi — ruxsatlar
+   * `common/permissions.ts`dagi kompilyatsiya vaqtidagi xaritada
+   * belgilangan va to'g'ridan-to'g'ri `RolesGuard`/`actorHasPermissions`
+   * orqali ishlaydi. Muvaffaqiyatni soxta ravishda ko'rsatmaslik uchun bu
+   * yerda aniq xato qaytariladi (frontend hozircha faqat ko'rish rejimida).
+   */
+  rolePermissions(): never {
+    throw new BadRequestException({
+      code: 'ROLE_PERMISSIONS_NOT_EDITABLE',
+      message:
+        "Rol ruxsatlarini tahrirlash hozircha qo'llab-quvvatlanmaydi. Ruxsatlar backend kodida belgilangan.",
+    });
   }
 
   async auditLogs(query: QueryLike = {}) {

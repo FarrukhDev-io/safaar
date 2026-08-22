@@ -271,6 +271,14 @@ export function RoomDialog({ open, onClose, editing }: Props) {
     if (!editing) return;
     if (!confirm(`Rostdan ham ${labels.unitSingular} ${editing.number} ni o'chirmoqchimisiz?`)) return;
     try {
+      // BIZNES MANTIQ UCHUN FRONTEND-HACK: Xonani rostdan o'chirilganini bilish uchun nomini o'zgartiramiz
+      // Chunki backendda "o'chirilgan" va "yashirilgan" bir xil (inactive/is_listed=false)
+      await updateRoom.mutateAsync({
+        id: editing.id,
+        values: { 
+          number: `DELETED_${Date.now()}_${editing.number}`
+        }
+      });
       await deleteRoom.mutateAsync(editing.id);
       toast.success(`${unitCap} ${editing.number} o'chirildi.`);
       onClose();

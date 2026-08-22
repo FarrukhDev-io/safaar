@@ -5,6 +5,7 @@ import {
   type BinaryLike,
 } from 'node:crypto';
 import { Role, type ActorType } from '@safaar/types';
+import { assertStrongSecret } from '../config/secret-strength';
 
 export type TokenType = 'access' | 'refresh';
 
@@ -33,7 +34,6 @@ export interface JwtSecurityConfig {
   refreshTtlSeconds: number;
 }
 
-const minProductionSecretLength = 32;
 const defaultIssuer = 'safaar-api';
 const defaultAudience = 'safaar-clients';
 
@@ -45,13 +45,63 @@ export function isProduction(): boolean {
   return nodeEnv() === 'production';
 }
 
+// Faqat development/test uchun: agar JWT secret .env'da berilmagan bo'lsa,
+// har kim o'qiy oladigan hardcoded satr o'rniga jarayon boshlanganda BIR
+// marta tasodifiy secret generatsiya qilamiz (keyingi chaqiruvlarda xotirada
+// keshlanadi). Bu uchta narsani ta'minlaydi: (1) manba kodda "haqiqiy
+// ko'ringan" secret umuman yo'q — leak qiladigan narsa yo'q; (2) har process
+// qayta ishga tushganda oldingi token'lar avtomatik yaroqsiz bo'ladi — dev
+// uchun mutlaqo qabul qilinadigan narsa; (3) bu qiymat productionga
+// "tasodifan to'g'ri kelib qolish" imkoniyati yo'q, chunki u haqiqatan ham
+// har safar boshqacha.
+let ephemeralAccessSecret: string | undefined;
+let ephemeralRefreshSecret: string | undefined;
+
+function resolveJwtSecret(
+  envVar: 'JWT_ACCESS_SECRET' | 'JWT_REFRESH_SECRET',
+): string {
+  const value = process.env[envVar];
+
+  if (isProduction()) {
+    // `env.validation.ts` (ConfigModule) bu qiymatni ilova ishga
+    // tushishidan OLDIN, kuchliligi bilan birga tekshiradi va zaif/yo'q
+    // bo'lsa boot'ni butunlay to'xtatadi — shu sabab bu yerda qayta
+    // "kuchlimi" deb tekshirish shart emas (bu takroriy mantiq bo'lardi).
+    // Quyidagi chaqiruv faqat ikkinchi mudofaa chizig'i: agar u boot-time
+    // tekshiruv negadir chetlab o'tilgan bo'lsa (masalan test muhitida
+    // NODE_ENV noto'g'ri sozlangan holda), bu yerda ham qat'iyan rad
+    // etiladi — bo'sh/zaif qiymat bilan token imzolashga yo'l qo'yilmaydi.
+    assertStrongSecret(envVar, value);
+    return value;
+  }
+
+  if (value) {
+    return value;
+  }
+
+  if (envVar === 'JWT_ACCESS_SECRET') {
+    ephemeralAccessSecret ??= randomBytes(48).toString('base64url');
+    return ephemeralAccessSecret;
+  }
+  ephemeralRefreshSecret ??= randomBytes(48).toString('base64url');
+  return ephemeralRefreshSecret;
+}
+
+/**
+ * Faqat testlar uchun: process-darajasidagi ephemeral dev-secret keshini
+ * tozalaydi, shunda keyingi `jwtSecurityConfig()` chaqiruvi "yangi process"
+ * holatini simulyatsiya qilib, qaytadan tasodifiy qiymat generatsiya
+ * qiladi. Production kodda hech qachon chaqirilmaydi.
+ */
+export function resetEphemeralJwtSecretsForTests(): void {
+  ephemeralAccessSecret = undefined;
+  ephemeralRefreshSecret = undefined;
+}
+
 export function jwtSecurityConfig(): JwtSecurityConfig {
-  const config: JwtSecurityConfig = {
-    accessSecret:
-      process.env.JWT_ACCESS_SECRET ?? 'development-access-secret-change-me-32',
-    refreshSecret:
-      process.env.JWT_REFRESH_SECRET ??
-      'development-refresh-secret-change-me-32',
+  return {
+    accessSecret: resolveJwtSecret('JWT_ACCESS_SECRET'),
+    refreshSecret: resolveJwtSecret('JWT_REFRESH_SECRET'),
     issuer: process.env.JWT_ISSUER ?? defaultIssuer,
     audience: process.env.JWT_AUDIENCE ?? defaultAudience,
     accessTtlSeconds: parseDurationSeconds(
@@ -63,13 +113,6 @@ export function jwtSecurityConfig(): JwtSecurityConfig {
         '30d',
     ),
   };
-
-  if (isProduction()) {
-    assertStrongSecret('JWT_ACCESS_SECRET', config.accessSecret);
-    assertStrongSecret('JWT_REFRESH_SECRET', config.refreshSecret);
-  }
-
-  return config;
 }
 
 export function parseDurationSeconds(value: string): number {
@@ -226,16 +269,5 @@ function parseJson<T>(value: string): T | undefined {
     return JSON.parse(value) as T;
   } catch {
     return undefined;
-  }
-}
-
-function assertStrongSecret(name: string, value: string) {
-  if (
-    value.length < minProductionSecretLength ||
-    value.toLowerCase().includes('change_me')
-  ) {
-    throw new Error(
-      `${name} production uchun kamida 32 belgili bo'lishi kerak`,
-    );
   }
 }

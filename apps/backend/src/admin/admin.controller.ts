@@ -114,6 +114,7 @@ export class AdminController {
   }
 
   @Post('users/export')
+  @Permissions(Permission.UsersRead)
   usersExport(@CurrentActor() actor: RequestActor | undefined) {
     return this.adminService.exportJob(actor, 'admin-users', 'xlsx');
   }
@@ -197,6 +198,7 @@ export class AdminController {
   }
 
   @Get('partners/:id/ledger')
+  @Permissions(Permission.FinanceRead)
   partnerLedger(@Param('id') id: string) {
     return this.adminService.partnerLedger(id);
   }
@@ -212,8 +214,25 @@ export class AdminController {
   }
 
   @Post('partners/export')
+  @Permissions(Permission.PartnersRead)
   partnersExport(@CurrentActor() actor: RequestActor | undefined) {
     return this.adminService.exportJob(actor, 'admin-partners', 'xlsx');
+  }
+
+  @Get('partners/:id/notes')
+  @Permissions(Permission.PartnersRead)
+  partnerNotes(@Param('id') id: string) {
+    return this.adminService.partnerNotes(id);
+  }
+
+  @Post('partners/:id/notes')
+  @Permissions(Permission.PartnersWrite)
+  addPartnerNote(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminService.addPartnerNote(actor, id, body);
   }
 
   @Get('hotels')
@@ -320,6 +339,22 @@ export class AdminController {
     return this.adminService.bookingStatusAction(id, body);
   }
 
+  @Get('bookings/:id/notes')
+  @Permissions(Permission.BookingsRead)
+  bookingNotes(@Param('id') id: string) {
+    return this.adminService.bookingNotes(id);
+  }
+
+  @Post('bookings/:id/notes')
+  @Permissions(Permission.BookingsWrite)
+  addBookingNote(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.adminService.addBookingNote(actor, id, body);
+  }
+
   @Get('payments')
   payments(@Query() query: Record<string, string | undefined>) {
     return this.adminService.payments(query);
@@ -375,21 +410,25 @@ export class AdminController {
   }
 
   @Get('finance/overview')
+  @Permissions(Permission.FinanceRead)
   financeOverview() {
     return this.adminService.financeOverview();
   }
 
   @Get('finance/revenue-chart')
+  @Permissions(Permission.FinanceRead)
   financeRevenueChart() {
     return this.adminService.chart('finance-revenue');
   }
 
   @Get('finance/partners-report')
+  @Permissions(Permission.FinanceRead)
   partnersReport() {
     return this.adminService.partnersReport();
   }
 
   @Get('finance/provider-reconciliation')
+  @Permissions(Permission.FinanceRead)
   providerReconciliation() {
     return this.adminService.providerReconciliation();
   }
@@ -401,26 +440,31 @@ export class AdminController {
   }
 
   @Post('finance/tax-report-export')
+  @Permissions(Permission.FinanceRead)
   taxReportExport(@CurrentActor() actor: RequestActor | undefined) {
     return this.adminService.exportJob(actor, 'tax-report', 'pdf');
   }
 
   @Get('finance/documents')
+  @Permissions(Permission.FinanceRead)
   financeDocuments() {
     return this.adminService.financeDocuments();
   }
 
   @Post('finance/documents/:id/regenerate')
+  @Permissions(Permission.FinanceWrite)
   financeDocumentRegenerate(@Param('id') id: string) {
     return this.adminService.financeDocumentRegenerate(id);
   }
 
   @Get('withdrawals')
+  @Permissions(Permission.FinanceRead)
   withdrawals(@Query() query: Record<string, string | undefined>) {
     return this.adminService.withdrawals(query);
   }
 
   @Get('withdrawals/:id')
+  @Permissions(Permission.FinanceRead)
   withdrawal(@Param('id') id: string) {
     return this.adminService.withdrawal(id);
   }
@@ -488,6 +532,7 @@ export class AdminController {
   }
 
   @Post('cms/:resource/:id/unpublish')
+  @Permissions(Permission.CmsWrite)
   cmsUnpublish(@Param('resource') resource: string, @Param('id') id: string) {
     return this.adminService.cmsAction(resource, id, 'unpublish');
   }
@@ -499,6 +544,7 @@ export class AdminController {
   }
 
   @Post('cms/:resource/:id/reorder')
+  @Permissions(Permission.CmsWrite)
   cmsReorder(@Param('resource') resource: string, @Param('id') id: string) {
     return this.adminService.cmsAction(resource, id, 'reorder');
   }
@@ -514,11 +560,13 @@ export class AdminController {
   }
 
   @Post('cms/:resource/:id/schedule-publish')
+  @Permissions(Permission.CmsWrite)
   cmsSchedule(@Param('resource') resource: string, @Param('id') id: string) {
     return this.adminService.cmsAction(resource, id, 'schedule_publish');
   }
 
   @Post('cms/:resource/:id/translations')
+  @Permissions(Permission.CmsWrite)
   cmsTranslation(
     @Param('resource') resource: string,
     @Param('id') id: string,
@@ -656,6 +704,7 @@ export class AdminController {
   }
 
   @Post('notifications/broadcasts/:id/:action')
+  @Permissions(Permission.SupportWrite)
   notificationBroadcastAction(
     @Param('id') id: string,
     @Param('action') action: string,
@@ -705,16 +754,35 @@ export class AdminController {
 
   @Patch('roles/:id/permissions')
   @Permissions(Permission.AdminUsersWrite)
-  rolePermissions(
-    @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
-  ) {
-    return this.adminService.rolePermissions(id, body);
+  rolePermissions() {
+    return this.adminService.rolePermissions();
   }
 
   @Get('audit-logs')
+  @Permissions(Permission.AuditLogsRead)
   auditLogs(@Query() query: Record<string, string | undefined>) {
     return this.adminService.auditLogs(query);
+  }
+
+  @Get('developer/api-keys')
+  @Permissions(Permission.PartnersRead)
+  developerApiKeys(@Query() query: Record<string, string | undefined>) {
+    return this.adminService.developerApiKeys(query);
+  }
+
+  @Delete('developer/api-keys/:id')
+  @Permissions(Permission.PartnersWrite)
+  deleteDeveloperApiKey(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.adminService.deleteDeveloperApiKey(actor, id);
+  }
+
+  @Get('developer/webhooks')
+  @Permissions(Permission.PartnersRead)
+  developerWebhooks(@Query() query: Record<string, string | undefined>) {
+    return this.adminService.developerWebhooks(query);
   }
 
   @Get('settings')

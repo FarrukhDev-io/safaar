@@ -75,3 +75,12 @@ graphify-out/
 
 .vercel
 .env*
+
+# Vaqtinchalik/debug skriptlar — repo root'ga tasodifan commit qilinib,
+# haqiqiy credential/connection string sizib chiqishiga sabab bo'lgan
+# hodisadan keyin qo'shildi (scratch.js — Neon DB paroli git tarixida
+# ochiq qolib ketgan edi). Bunday fayllar hech qachon commit qilinmasin.
+scratch.js
+scratch.ts
+scratch.*.js
+scratch.*.ts

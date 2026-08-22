@@ -125,19 +125,21 @@ export function LoginForm() {
       noValidate
     >
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="phone">Telefon raqam</Label>
+        <label htmlFor="phone" className="text-xs font-bold text-slate-700">
+          Telefon raqam
+        </label>
         <div className="relative">
           <Phone
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
             aria-hidden
           />
-          <Input
+          <input
             id="phone"
             type="tel"
             autoComplete="tel"
             inputMode="tel"
             placeholder="+998 90 123 45 67"
-            className="pl-9"
+            className="w-full pl-10 pr-4 py-3 text-sm rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 focus:bg-white transition-all disabled:opacity-50"
             disabled={Boolean(challenge)}
             aria-invalid={Boolean(form.formState.errors.phone)}
             aria-describedby="phone-help phone-error"
@@ -146,11 +148,11 @@ export function LoginForm() {
             })}
           />
         </div>
-        <p id="phone-help" className="text-xs text-[var(--muted-foreground)]">
+        <p id="phone-help" className="text-[11px] text-slate-500 font-medium">
           Admin tasdiqlagan telefon raqam bilan kabinetga kirasiz.
         </p>
         {form.formState.errors.phone && (
-          <p id="phone-error" role="alert" className="text-xs text-red-600">
+          <p id="phone-error" role="alert" className="text-xs text-rose-600 font-semibold">
             {form.formState.errors.phone.message}
           </p>
         )}
@@ -158,10 +160,10 @@ export function LoginForm() {
 
       {/* ── Demo rejim: tur tanlash paneli ──────────────────────────────── */}
       {isDemo && !challenge && (
-        <div className="rounded-lg border border-dashed border-amber-400/60 bg-amber-50/40 dark:bg-amber-900/10 p-3 flex flex-col gap-2">
-          <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-            <FlaskConical className="h-3.5 w-3.5" />
-            Demo rejim — hamkor turini tanlang:
+        <div className="rounded-2xl border border-orange-200 bg-orange-50/80 p-3.5 flex flex-col gap-2.5">
+          <p className="text-xs font-bold text-orange-800 flex items-center gap-1.5">
+            <FlaskConical className="h-4 w-4 text-orange-600 animate-bounce" />
+            Demo rejim — Sinov uchun hamkor turini tanlang:
           </p>
           <div className="grid grid-cols-4 gap-1.5">
             {DEMO_TYPES.map((t) => (
@@ -170,14 +172,14 @@ export function LoginForm() {
                 type="button"
                 onClick={() => setDemoType(t.value)}
                 className={[
-                  'flex flex-col items-center gap-0.5 rounded-md border px-1 py-1.5 text-center text-xs transition-all',
+                  'flex flex-col items-center gap-1 rounded-xl border px-1 py-2 text-center text-xs transition-all cursor-pointer',
                   demoType === t.value
-                    ? 'border-amber-500 bg-amber-100 dark:bg-amber-800/30 font-semibold text-amber-800 dark:text-amber-300'
-                    : 'border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 text-zinc-600 dark:text-zinc-400',
+                    ? 'border-orange-500 bg-white font-bold text-orange-900 shadow-md shadow-orange-500/10 ring-2 ring-orange-500/20'
+                    : 'border-transparent bg-orange-100/60 hover:bg-white text-slate-600 hover:text-slate-900',
                 ].join(' ')}
               >
-                <span className="text-base leading-none">{t.emoji}</span>
-                <span className="leading-tight">{t.label}</span>
+                <span className="text-lg leading-none">{t.emoji}</span>
+                <span className="leading-tight text-[11px]">{t.label}</span>
               </button>
             ))}
           </div>
@@ -186,20 +188,22 @@ export function LoginForm() {
       {/* ─────────────────────────────────────────────────────────────────── */}
 
       {challenge ? (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="code">Tasdiqlash kodi</Label>
+        <div className="flex flex-col gap-1.5 animate-fade-in">
+          <label htmlFor="code" className="text-xs font-bold text-slate-700">
+            Tasdiqlash kodi
+          </label>
           <div className="relative">
             <KeyRound
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
               aria-hidden
             />
-            <Input
+            <input
               id="code"
               type="text"
               autoComplete="one-time-code"
               inputMode="numeric"
               placeholder={challenge.phone === DEMO_PHONE || challenge.phone.replace(/\D/g, '') === '998901234567' ? '000000' : '6 xonali kod'}
-              className="pl-9 tracking-[0.25em]"
+              className="w-full pl-10 pr-4 py-3 tracking-[0.3em] font-mono text-center text-lg rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 focus:bg-white transition-all"
               aria-invalid={Boolean(form.formState.errors.code)}
               aria-describedby="code-help code-error"
               {...form.register('code', {
@@ -211,41 +215,50 @@ export function LoginForm() {
               })}
             />
           </div>
-          <p id="code-help" className="text-xs text-[var(--muted-foreground)]">
+          <p id="code-help" className="text-[11px] text-slate-500 font-medium">
             {challenge.phone === DEMO_PHONE || challenge.phone.replace(/\D/g, '') === '998901234567'
               ? '🎮 Demo rejim: kodni kiriting → 000000'
               : `Kod ${challenge.phone} raqamiga yuborildi.`}
           </p>
           
           {challenge.devCode && (
-            <div className="mt-1 rounded-md bg-green-50 dark:bg-green-900/20 p-2 border border-green-200 dark:border-green-900/50">
-              <p className="text-xs font-medium text-green-800 dark:text-green-300">
-                🛠️ Dasturlash rejimi: Kod <strong className="text-base tracking-widest bg-white dark:bg-black px-1.5 py-0.5 rounded ml-1">{challenge.devCode}</strong>
+            <div className="mt-1 rounded-xl bg-emerald-50 p-2.5 border border-emerald-200">
+              <p className="text-xs font-medium text-emerald-800 flex items-center justify-between">
+                <span>🛠️ Dasturlash rejimi kodi:</span>
+                <strong className="text-sm tracking-widest bg-emerald-600 text-white px-2 py-0.5 rounded-lg shadow-sm">{challenge.devCode}</strong>
               </p>
             </div>
           )}
 
           {form.formState.errors.code && (
-            <p id="code-error" role="alert" className="text-xs text-red-600">
+            <p id="code-error" role="alert" className="text-xs text-rose-600 font-semibold">
               {form.formState.errors.code.message}
             </p>
           )}
         </div>
       ) : null}
 
-      <Button type="submit" size="lg" loading={loading} className="mt-2">
-        {challenge ? 'Kirish' : 'Kod yuborish'}
-      </Button>
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full py-3 px-4 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 active:bg-blue-800 transition-all shadow-lg shadow-blue-600/25 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-2"
+      >
+        {loading ? (
+          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        ) : (
+          challenge ? 'Kabinetga kirish' : 'SMS Kodini yuborish'
+        )}
+      </button>
 
       {challenge ? (
-        <Button
+        <button
           type="button"
-          variant="outline"
           disabled={loading}
           onClick={resetChallenge}
+          className="w-full py-2.5 px-4 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-200 transition-colors cursor-pointer"
         >
-          Telefonni o'zgartirish
-        </Button>
+          Telefon raqamini o'zgartirish
+        </button>
       ) : null}
     </form>
   );

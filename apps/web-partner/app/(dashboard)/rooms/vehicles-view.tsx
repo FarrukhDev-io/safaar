@@ -28,6 +28,7 @@ type Values = z.infer<typeof schema>;
 
 export function VehiclesView() {
   const { data: vehicles } = useVehicles();
+  const updateVehicle = useUpdateVehicle();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
 
@@ -69,7 +70,7 @@ export function VehiclesView() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {vehicles.map((vehicle) => (
-              <div key={vehicle.id} className="relative flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50 group">
+              <div key={vehicle.id} className={`relative flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50 group transition-all duration-200 ${vehicle.status === 'inactive' ? 'opacity-50 bg-zinc-50 dark:bg-zinc-900/50 grayscale-[50%]' : ''}`}>
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
@@ -106,8 +107,15 @@ export function VehiclesView() {
                     className="w-full"
                     onClick={async () => {
                       const newStatus = vehicle.status === 'active' ? 'inactive' : 'active';
-                      // Use a direct API call or assume useUpdateVehicle is available in the component context
-                      // We will need to add useUpdateVehicle to VehiclesView component
+                      try {
+                        await updateVehicle.mutateAsync({
+                          id: vehicle.id,
+                          values: { status: newStatus },
+                        });
+                        toast.success("Holati o'zgartirildi");
+                      } catch (error) {
+                        toast.error("Xatolik yuz berdi");
+                      }
                     }}
                   >
                     {vehicle.status === 'active' ? "E'londan olish" : "E'longa chiqarish"}

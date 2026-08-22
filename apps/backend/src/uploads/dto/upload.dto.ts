@@ -21,11 +21,20 @@ export class CreateMediaDto {
   size?: number | string;
 
   @ApiPropertyOptional({
-    description: 'Fayl o‘rniga tayyor URL (masalan tashqi CMS orqali yuklangan)',
+    description:
+      'Fayl o‘rniga tayyor URL (masalan tashqi CMS orqali yuklangan)',
   })
   @IsOptional()
   @IsString()
   url?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Asl fayl nomi yoki tavsif (masalan hujjat ro‘yxatida ko‘rsatish uchun)',
+  })
+  @IsOptional()
+  @IsString()
+  caption?: string;
 }
 
 export class PresignUploadDto {

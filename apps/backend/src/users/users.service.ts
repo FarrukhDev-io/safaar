@@ -57,10 +57,7 @@ export class UsersService {
     return this.publicUser(await this.assertUser(currentActor.id));
   }
 
-  async updateProfile(
-    actor: RequestActor | undefined,
-    body: UpdateProfileDto,
-  ) {
+  async updateProfile(actor: RequestActor | undefined, body: UpdateProfileDto) {
     const currentActor = this.requireActor(actor);
     const sets: string[] = [];
     const params: unknown[] = [];

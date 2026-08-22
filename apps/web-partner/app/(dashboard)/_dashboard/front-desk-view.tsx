@@ -27,6 +27,7 @@ import { Tooltip } from "../../_components/ui/tooltip";
 import { CheckInDialog } from "../../_components/domain/check-in-dialog";
 import { SourceBadge } from "../../_components/domain/source-badge";
 import { WalkInDialog } from "../../_components/domain/walk-in-dialog";
+import { OnboardingWizard } from "../../_components/domain/onboarding-wizard";
 import { PageHeader } from "../../_components/layout/page-header";
 import { useBeds } from "../../_hooks/use-beds";
 import {
@@ -331,6 +332,7 @@ export function FrontDeskView() {
       </div>
 
       <WalkInDialog open={walkInOpen} onClose={() => setWalkInOpen(false)} />
+      <OnboardingWizard />
 
       <CheckInDialog
         open={Boolean(assignReservation)}

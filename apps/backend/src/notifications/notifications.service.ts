@@ -7,24 +7,46 @@ import {
 import { Role } from '@safaar/types';
 import { randomUUID } from 'node:crypto';
 import type { RequestActor } from '../common/actor';
+import {
+  limitOffsetSql,
+  parsePagination,
+  type QueryLike,
+} from '../common/pagination';
 import { PostgresService } from '../infrastructure/postgres.service';
 
 @Injectable()
 export class NotificationsService {
   constructor(private readonly pg: PostgresService) {}
 
-  async list(actor: RequestActor | undefined) {
+  async list(actor: RequestActor | undefined, query: QueryLike = {}) {
     const currentActor = this.requireActor(actor);
     const ownerType = this.ownerType(currentActor);
+    const pagination = parsePagination(query, 'public', {
+      defaultLimit: 20,
+      allowedSortBy: ['created_at'],
+    });
 
-    const notifications = await this.pg.query(
-      `SELECT * FROM notifications
-       WHERE owner_id = $1::uuid AND owner_type = $2
-       ORDER BY created_at DESC`,
-      [currentActor.id, ownerType],
-    );
+    const [items, unreadRows] = await Promise.all([
+      this.pg.query(
+        `SELECT * FROM notifications
+         WHERE owner_id = $1::uuid AND owner_type = $2
+         ORDER BY created_at DESC
+         ${limitOffsetSql(pagination)}`,
+        [currentActor.id, ownerType],
+      ),
+      this.pg.query<{ count: string }>(
+        `SELECT count(*)::text as count FROM notifications
+         WHERE owner_id = $1::uuid AND owner_type = $2 AND read_at IS NULL`,
+        [currentActor.id, ownerType],
+      ),
+    ]);
 
-    return notifications;
+    return {
+      items,
+      page: pagination.page,
+      limit: pagination.limit,
+      unread_count: Number(unreadRows[0]?.count ?? 0),
+    };
   }
 
   async read(actor: RequestActor | undefined, id: string) {
