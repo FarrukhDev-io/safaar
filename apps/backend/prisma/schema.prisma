@@ -27,6 +27,8 @@ enum PartnerOrganizationType {
   guesthouse
   motel
   dacha
+  sanatorium
+  resort
   restaurant
   mixed
 }
@@ -123,6 +125,15 @@ enum ReviewStatus {
 enum ChatRoomStatus {
   OPEN
   RESOLVED
+}
+
+enum AttractionCategory {
+  historical
+  nature
+  museum
+  architectural
+  religious
+  culinary
 }
 
 model User {
@@ -398,9 +409,58 @@ model City {
   routesTo     Route[]               @relation("RouteToCity")
   tripsFrom    Trip[]                @relation("TripFromCity")
   tripsTo      Trip[]                @relation("TripToCity")
+  attractions  Attraction[]
+  tripStops    TripStop[]
 
   @@index([regionId])
   @@map("cities")
+}
+
+model Attraction {
+  id                       String             @id @default(uuid()) @db.Uuid
+  cityId                   String             @map("city_id") @db.Uuid
+  slug                     String             @unique @db.VarChar(255)
+  title                    Json
+  description              Json
+  category                 AttractionCategory @default(historical)
+  coverImageUrl            String?            @map("cover_image_url")
+  galleryImages            Json               @default("[]") @map("gallery_images")
+  latitude                 Decimal?           @db.Decimal(10, 7)
+  longitude                Decimal?           @db.Decimal(10, 7)
+  ticketPrice              Decimal?           @map("ticket_price") @db.Decimal(18, 2)
+  openingHours             String?            @map("opening_hours") @db.VarChar(100)
+  recommendedVisitDuration Int?               @map("recommended_visit_duration_minutes")
+  ratingAverage            Decimal            @default(0) @map("rating_average") @db.Decimal(3, 2)
+  reviewsCount             Int                @default(0) @map("reviews_count")
+  isActive                 Boolean            @default(true) @map("is_active")
+  createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  city City @relation(fields: [cityId], references: [id])
+
+  @@index([cityId])
+  @@index([category])
+  @@index([isActive, ratingAverage])
+  @@map("attractions")
+}
+
+model PromotionBanner {
+  id                 String   @id @default(uuid()) @db.Uuid
+  title              Json
+  subtitle           Json?
+  badgeText          String?  @map("badge_text") @db.VarChar(50)
+  imageUrl           String   @map("image_url")
+  targetUrl          String?  @map("target_url")
+  discountPercentage Int?     @map("discount_percentage")
+  startDate          DateTime @map("start_date") @db.Timestamptz
+  endDate            DateTime @map("end_date") @db.Timestamptz
+  isActive           Boolean  @default(true) @map("is_active")
+  sortOrder          Int      @default(0) @map("sort_order")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([isActive, sortOrder])
+  @@map("promotion_banners")
 }
 
 model Amenity {
@@ -498,6 +558,18 @@ model Hotel {
   reviewedBy            String?    @map("reviewed_by") @db.Uuid
   rejectionReason       String?    @map("rejection_reason")
   nextDraftPreparedAt   DateTime?  @map("next_draft_prepared_at") @db.Timestamptz
+  // Dacha uchun
+  landAreaSotix         Int?       @map("land_area_sotix")
+  hasOutdoorPool        Boolean    @default(false) @map("has_outdoor_pool")
+  hasIndoorPool         Boolean    @default(false) @map("has_indoor_pool")
+  hasSauna              Boolean    @default(false) @map("has_sauna")
+  hasPlaystation        Boolean    @default(false) @map("has_playstation")
+  hasBilliards          Boolean    @default(false) @map("has_billiards")
+  capacityPeople        Int?       @map("capacity_people")
+  // Sanatoriy uchun
+  medicalProfiles       Json       @default("[]") @map("medical_profiles")
+  includedTreatments    Json       @default("[]") @map("included_treatments")
+  mealPlanType          String?    @map("meal_plan_type") @db.VarChar(64)
   createdAt             DateTime    @default(now()) @map("created_at") @db.Timestamptz
   updatedAt             DateTime    @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt             DateTime?   @map("deleted_at") @db.Timestamptz
@@ -664,6 +736,10 @@ model Vehicle {
   seatLayout   Json?    @map("seat_layout")
   pricePerDay  Decimal  @default(0) @map("price_per_day") @db.Decimal(18, 2)
   status       String   @default("active") @db.VarChar(32)
+  fuelType     String?  @map("fuel_type") @db.VarChar(32)
+  hasAc        Boolean  @default(false) @map("has_ac")
+  luggageCapacityBags Int? @map("luggage_capacity_bags")
+  photos       Json     @default("[]")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -713,12 +789,30 @@ model Trip {
   toCity   City       @relation("TripToCity", fields: [toCityId], references: [id])
   seats    TripSeat[]
   bookings Booking[]
+  stops    TripStop[]
 
   @@index([fromCityId, toCityId, departureAt])
   @@index([status, departureAt])
   @@index([routeId, departureAt, status])
   @@index([companyId, status, departureAt])
   @@map("trips")
+}
+
+model TripStop {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tripId             String   @map("trip_id") @db.Uuid
+  cityId             String   @map("city_id") @db.Uuid
+  stopOrder          Int      @map("stop_order")
+  arrivalOffsetMinutes   Int? @map("arrival_offset_minutes")
+  departureOffsetMinutes Int? @map("departure_offset_minutes")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  city City @relation(fields: [cityId], references: [id])
+
+  @@unique([tripId, stopOrder])
+  @@index([tripId])
+  @@map("trip_stops")
 }
 
 model TripSeat {
