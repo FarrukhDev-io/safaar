@@ -27,6 +27,20 @@ type HttpRequestWithActor = RequestWithActor & {
 const LIMITED_PARTNER_STATUSES = new Set(['blocked', 'suspended']);
 
 /**
+ * Ixtisoslashgan admin sub-rollari — har biri `rolePermissions`da faqat
+ * o'z tor doirasiga mos ruxsatlarga ega (masalan CONTENT_ADMIN faqat
+ * CMS'ga). `Role.ADMIN` va `Role.SUPER_ADMIN` bunga kirmaydi — ular
+ * tizimda "keng/to'liq" tasdiqlangan darajalar (`Role.ADMIN`ning o'zi
+ * `rolePermissions`da ko'plab keng o'qish huquqiga ega).
+ */
+const NARROW_ADMIN_ROLES: readonly Role[] = [
+  Role.FINANCE_ADMIN,
+  Role.CONTENT_ADMIN,
+  Role.SUPPORT_ADMIN,
+  Role.MODERATOR,
+];
+
+/**
  * Rol asosidagi himoya (RBAC).
  *
  * Rol va permission asosidagi himoya (RBAC).
@@ -92,6 +106,31 @@ export class RolesGuard implements CanActivate {
 
     if (requiredRoles?.length && !hasRole(resolved, requiredRoles)) {
       throw new ForbiddenException('Bu amal uchun ruxsatingiz yoq.');
+    }
+
+    // DENY-BY-DEFAULT (root cause fix): `hasRole()` yuqorida `Role.ADMIN`
+    // talab qilingan marshrutlarga har qanday admin-sub-rolini ("admin-
+    // like role collapse") o'tkazib yuboradi — bu ataylab keng, chunki
+    // ko'p marshrut shundan keyin `@Permissions()` orqali torayadi. Lekin
+    // agar marshrutda `@Permissions()` UMUMAN bo'lmasa (`undefined` —
+    // bo'sh massiv `[]`dan farqli, developer ataylab "hech qanday maxsus
+    // ruxsat kerak emas" deb belgilashi mumkin), bu ilgari "hamma admin-
+    // sub-role kira oladi" degani edi — xuddi shu bug tufayli CONTENT_ADMIN
+    // moliya ma'lumotini ko'ra olardi. Endi bunday holatda ixtisoslashgan
+    // sub-rollar avtomatik rad etiladi; faqat `Role.ADMIN`/`SUPER_ADMIN`
+    // (tizimning "keng" darajalari) o'tadi. Marshrut biror sub-rolga
+    // ataylab ochiq bo'lishi kerak bo'lsa — buni ANIQ `@Permissions()`
+    // orqali belgilash kerak, sukut bo'yicha emas.
+    if (
+      requiredRoles?.length &&
+      requiredRoles.includes(Role.ADMIN) &&
+      requiredPermissions === undefined &&
+      NARROW_ADMIN_ROLES.includes(resolved.role)
+    ) {
+      throw new ForbiddenException({
+        code: 'AUTH_PERMISSION_DENIED',
+        message: 'Bu amal uchun permission yetarli emas.',
+      });
     }
 
     if (

@@ -4108,7 +4108,11 @@ export class PartnersService {
           : ['booking.created'],
       );
     }
-    if (body.status !== undefined || body.is_active !== undefined || body.isActive !== undefined) {
+    if (
+      body.status !== undefined ||
+      body.is_active !== undefined ||
+      body.isActive !== undefined
+    ) {
       const enabled =
         body.status !== undefined
           ? String(body.status) === 'active'
