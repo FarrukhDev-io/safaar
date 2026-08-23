@@ -71,63 +71,6 @@ describe('AuthService email and OAuth', () => {
     global.fetch = originalFetch;
   });
 
-  it('turns an SMTP send failure into EMAIL_DELIVERY_FAILED for the partner OTP path too', async () => {
-    pg.query.mockResolvedValueOnce([
-      {
-        id: '00000000-0000-4000-8000-000000000010',
-        organization_status: 'approved',
-      },
-    ]);
-    email.send.mockRejectedValueOnce(new Error('ETIMEDOUT'));
-
-    await expect(
-      service.sendPartnerEmailOtp('partner-smtp-down@example.com'),
-    ).rejects.toMatchObject({
-      status: 503,
-      response: expect.objectContaining({ code: 'EMAIL_DELIVERY_FAILED' }),
-    });
-  });
-
-  it('does not report a partner OTP as sent when the provider rejects it', async () => {
-    pg.query.mockResolvedValueOnce([
-      {
-        id: '00000000-0000-4000-8000-000000000010',
-        organization_status: 'approved',
-      },
-    ]);
-    email.send.mockResolvedValueOnce({ accepted: false });
-
-    await expect(
-      service.sendPartnerEmailOtp('partner@example.com'),
-    ).rejects.toBeInstanceOf(ServiceUnavailableException);
-
-    expect(jobs.add).not.toHaveBeenCalled();
-  });
-
-  it('rejects a partner email login when the OTP code is invalid', async () => {
-    pg.query.mockResolvedValueOnce([
-      {
-        id: '00000000-0000-4000-8000-000000000010',
-        organization_status: 'approved',
-      },
-    ]);
-    const challenge = await service.sendPartnerEmailOtp('partner@example.com');
-    const createSession = jest
-      .spyOn(authSessionStore, 'create')
-      .mockResolvedValue({} as never);
-
-    await expect(
-      service.verifyPartnerEmailOtp({
-        email: 'partner@example.com',
-        code: '000000',
-        challenge_id: challenge.challenge_id,
-      }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-
-    expect(pg.query).toHaveBeenCalledTimes(1);
-    expect(createSession).not.toHaveBeenCalled();
-  });
-
   it('does not issue partner tokens through phone login without OTP', async () => {
     const createSession = jest
       .spyOn(authSessionStore, 'create')
@@ -676,28 +619,210 @@ describe('AuthService demo-mode OTP (ENABLE_DEMO_AUTH — SMS/email provider unc
     expect(result.dev_code).toMatch(/^\d{6}$/);
   });
 
-  it('demo mode is force-disabled in production even if ENABLE_DEMO_AUTH=true (defense in depth)', async () => {
+  it('demo mode also works in production when ENABLE_DEMO_AUTH=true (temporary, conscious tradeoff while no SMS provider is configured yet)', async () => {
     process.env.NODE_ENV = 'production';
     process.env.ENABLE_DEMO_AUTH = 'true';
 
-    await expect(service.sendUserOtp('+998901234567')).rejects.toMatchObject({
-      response: { code: 'SMS_PROVIDER_NOT_CONFIGURED' },
+    const result = (await service.sendUserOtp('+998901234567')) as {
+      dev_code?: string;
+    };
+    expect(result.dev_code).toMatch(/^\d{6}$/);
+    expect(sms.send).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService password reset via SMS (regression: user/reset-password wrote to a non-existent users.password_hash-by-email query; partner reset was a fake no-op stub)', () => {
+  const pg = { query: jest.fn(), transaction: jest.fn() };
+  const jobs = { add: jest.fn() };
+  const email = { send: jest.fn() };
+  const sms = { send: jest.fn() };
+  const cache = {
+    get: jest.fn(),
+    set: jest.fn(),
+    take: jest.fn(),
+    del: jest.fn(),
+  };
+  let service: AuthService;
+
+  beforeEach(() => {
+    otpStore.resetForTests();
+    // resetAllMocks (not clearAllMocks): these tests chain multiple
+    // sequential pg.query mocks across request/verify/reset steps, and a
+    // test that throws partway through can leave a mockResolvedValueOnce
+    // unconsumed — clearAllMocks would let it leak into the next test.
+    jest.resetAllMocks();
+    delete process.env.ENABLE_DEMO_AUTH;
+    jobs.add.mockResolvedValue(undefined);
+    sms.send.mockResolvedValue({ accepted: true, providerMessageId: 'sms-1' });
+    cache.set.mockResolvedValue(undefined);
+    service = new AuthService(
+      pg as unknown as PostgresService,
+      jobs as unknown as JobQueueService,
+      email as unknown as EmailService,
+      sms as unknown as SmsService,
+      cache as unknown as AppCacheService,
+    );
+  });
+
+  it('userForgotPassword sends a real SMS when the phone belongs to an active user', async () => {
+    pg.query.mockResolvedValueOnce([
+      { id: '00000000-0000-4000-8000-000000000001' },
+    ]);
+
+    const result = await service.userForgotPassword('+998901234567');
+
+    expect(sms.send).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: '+998901234567' }),
+    );
+    expect(result.sent).toBe(true);
+  });
+
+  it('userForgotPassword does not reveal whether the phone is registered', async () => {
+    pg.query.mockResolvedValueOnce([]);
+
+    const result = await service.userForgotPassword('+998901234567');
+
+    expect(sms.send).not.toHaveBeenCalled();
+    expect(result.sent).toBe(true);
+  });
+
+  it('completes the full user reset flow: request -> verify -> reset_token -> new password_hash written by phone', async () => {
+    pg.query.mockResolvedValueOnce([
+      { id: '00000000-0000-4000-8000-000000000001' },
+    ]);
+    process.env.ENABLE_DEMO_AUTH = 'true';
+    const requested = (await service.userForgotPassword('+998901234567')) as {
+      challenge_id: string;
+      dev_code?: string;
+    };
+
+    const verified = await service.userVerifyPasswordResetCode({
+      phone: '+998901234567',
+      code: requested.dev_code!,
+      challenge_id: requested.challenge_id,
+    });
+
+    // `cache` is a plain mock, not a real store — feed back exactly what
+    // userVerifyPasswordResetCode's cache.set() call stored, so the
+    // subsequent cache.take() inside userResetPassword sees it.
+    const setCalls = cache.set.mock.calls as unknown as unknown[][];
+    const storedContext = setCalls[setCalls.length - 1][1] as {
+      phone: string;
+      actorType: 'user' | 'partner';
+    };
+    cache.take.mockResolvedValueOnce(storedContext);
+
+    pg.query.mockResolvedValueOnce([]);
+    await service.userResetPassword({
+      phone: '+998901234567',
+      reset_token: verified.reset_token,
+      password: 'N3wP@ssw0rd!',
+    });
+
+    expect(pg.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE users'),
+      expect.arrayContaining(['+998901234567']),
+    );
+  });
+
+  it('rejects userResetPassword when the reset_token was issued for a different actor type', async () => {
+    cache.take.mockResolvedValueOnce({
+      phone: '+998901234567',
+      actorType: 'partner',
+    });
+
+    await expect(
+      service.userResetPassword({
+        phone: '+998901234567',
+        reset_token: 'some-token',
+        password: 'N3wP@ssw0rd!',
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'PASSWORD_RESET_TOKEN_INVALID' },
     });
   });
 
-  it('sendPartnerEmailOtp skips real email delivery and returns dev_code in demo mode', async () => {
-    process.env.ENABLE_DEMO_AUTH = 'true';
+  it('passwordResetRequest (partner) sends a real SMS when the phone belongs to an org with a partner user', async () => {
     pg.query.mockResolvedValueOnce([
-      {
-        id: '00000000-0000-4000-8000-000000000010',
-        organization_status: 'approved',
-      },
+      { user_id: '00000000-0000-4000-8000-000000000010' },
     ]);
 
-    const result = await service.sendPartnerEmailOtp('demo-partner@safaar.uz');
+    const result = (await service.passwordResetRequest('partner', {
+      phone: '+998901112201',
+    })) as { sent?: boolean; challenge_id?: string };
 
-    expect(email.send).not.toHaveBeenCalled();
-    expect(jobs.add).not.toHaveBeenCalled();
-    expect((result as { dev_code?: string }).dev_code).toMatch(/^\d{6}$/);
+    expect(sms.send).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: '+998901112201' }),
+    );
+    expect(result.challenge_id).toBeDefined();
+  });
+
+  it('passwordResetRequest (partner) does not reveal whether the org/user exists', async () => {
+    pg.query.mockResolvedValueOnce([{ user_id: null }]);
+
+    const result = (await service.passwordResetRequest('partner', {
+      phone: '+998901112201',
+    })) as { sent?: boolean };
+
+    expect(sms.send).not.toHaveBeenCalled();
+    expect(result.sent).toBe(true);
+  });
+
+  it('passwordResetConfirm (partner) rejects an invalid code without touching the database', async () => {
+    await expect(
+      service.passwordResetConfirm('partner', {
+        phone: '+998901112201',
+        code: '000000',
+        challenge_id: 'nonexistent',
+        password: 'N3wP@ssw0rd!',
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(pg.query).not.toHaveBeenCalled();
+  });
+
+  it('completes the full partner reset flow: request -> confirm -> new password_hash written on partner_users', async () => {
+    process.env.ENABLE_DEMO_AUTH = 'true';
+    pg.query.mockResolvedValueOnce([
+      { user_id: '00000000-0000-4000-8000-000000000010' },
+    ]);
+    const requested = (await service.passwordResetRequest('partner', {
+      phone: '+998901112201',
+    })) as { challenge_id: string; dev_code?: string };
+
+    pg.query.mockResolvedValueOnce([
+      { user_id: '00000000-0000-4000-8000-000000000010' },
+    ]);
+    pg.query.mockResolvedValueOnce([]);
+    await service.passwordResetConfirm('partner', {
+      phone: '+998901112201',
+      code: requested.dev_code,
+      challenge_id: requested.challenge_id,
+      password: 'N3wP@ssw0rd!',
+    });
+
+    expect(pg.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('update partner_users'),
+      expect.arrayContaining(['00000000-0000-4000-8000-000000000010']),
+    );
+  });
+
+  it('passwordResetConfirm (partner) throws PARTNER_NOT_ACTIVE if the org disappeared between request and confirm', async () => {
+    process.env.ENABLE_DEMO_AUTH = 'true';
+    pg.query.mockResolvedValueOnce([
+      { user_id: '00000000-0000-4000-8000-000000000010' },
+    ]);
+    const requested = (await service.passwordResetRequest('partner', {
+      phone: '+998901112201',
+    })) as { challenge_id: string; dev_code?: string };
+
+    pg.query.mockResolvedValueOnce([{ user_id: null }]);
+    await expect(
+      service.passwordResetConfirm('partner', {
+        phone: '+998901112201',
+        code: requested.dev_code,
+        challenge_id: requested.challenge_id,
+        password: 'N3wP@ssw0rd!',
+      }),
+    ).rejects.toMatchObject({ response: { code: 'PARTNER_NOT_ACTIVE' } });
   });
 });

@@ -112,3 +112,172 @@ describe('RolesGuard — optional-auth actor resolution (regression: guest-check
     });
   });
 });
+
+describe('RolesGuard — admin RBAC deny-by-default (regression: CRITICAL — CONTENT_ADMIN/MODERATOR could read finance data on any @Roles(ADMIN) route missing @Permissions())', () => {
+  let guard: RolesGuard;
+  let pg: jest.Mocked<Pick<PostgresService, 'query'>>;
+  let reflector: { getAllAndOverride: jest.Mock };
+
+  function adminToken(role: Role) {
+    return signJwt(
+      {
+        sub: '00000000-0000-0000-0000-0000000000aa',
+        role,
+        roles: [role],
+        actor_type: 'admin',
+        session_id: 'session-admin',
+        jti: 'jti-admin',
+      },
+      'access',
+    );
+  }
+
+  beforeEach(() => {
+    process.env.JWT_ACCESS_SECRET = 'test-access-secret-with-32-characters';
+    process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-with-32-characters';
+    pg = { query: jest.fn() };
+    reflector = { getAllAndOverride: jest.fn() };
+    guard = new RolesGuard(
+      reflector as unknown as Reflector,
+      pg as unknown as PostgresService,
+    );
+  });
+
+  // requiredRoles then requiredPermissions — matches the two
+  // getAllAndOverride calls in canActivate().
+  function mockRoute(requiredPermissions: string[] | undefined) {
+    reflector.getAllAndOverride
+      .mockReturnValueOnce([Role.ADMIN, Role.SUPER_ADMIN])
+      .mockReturnValueOnce(requiredPermissions);
+  }
+
+  const NARROW_ROLES = [
+    Role.FINANCE_ADMIN,
+    Role.CONTENT_ADMIN,
+    Role.SUPPORT_ADMIN,
+    Role.MODERATOR,
+  ];
+
+  for (const role of NARROW_ROLES) {
+    it(`denies ${role} on a @Roles(ADMIN) route with NO @Permissions() at all (the exact bug: previously any admin-shaped role passed through)`, async () => {
+      mockRoute(undefined);
+      const { context } = contextFor({
+        authorization: `Bearer ${adminToken(role)}`,
+      });
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        response: { code: 'AUTH_PERMISSION_DENIED' },
+      });
+    });
+  }
+
+  it('allows plain Role.ADMIN through a @Roles(ADMIN) route with no @Permissions() (the broad/general admin tier is unaffected)', async () => {
+    mockRoute(undefined);
+    const { context } = contextFor({
+      authorization: `Bearer ${adminToken(Role.ADMIN)}`,
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  it('allows SUPER_ADMIN through a @Roles(ADMIN) route with no @Permissions()', async () => {
+    mockRoute(undefined);
+    const { context } = contextFor({
+      authorization: `Bearer ${adminToken(Role.SUPER_ADMIN)}`,
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  it('an explicit empty @Permissions() ([]) is treated as a deliberate opt-out, not "missing" — narrow roles are allowed through (developer explicitly said no specific permission is needed)', async () => {
+    mockRoute([]);
+    const { context } = contextFor({
+      authorization: `Bearer ${adminToken(Role.CONTENT_ADMIN)}`,
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  it('CONTENT_ADMIN is denied a route requiring Permission.FinanceRead', async () => {
+    mockRoute(['finance:read']);
+    const { context } = contextFor({
+      authorization: `Bearer ${adminToken(Role.CONTENT_ADMIN)}`,
+    });
+    await expect(guard.canActivate(context)).rejects.toMatchObject({
+      response: { code: 'AUTH_PERMISSION_DENIED' },
+    });
+  });
+
+  it('CONTENT_ADMIN is allowed a route requiring Permission.CmsWrite (their own domain)', async () => {
+    mockRoute(['cms:write']);
+    const { context } = contextFor({
+      authorization: `Bearer ${adminToken(Role.CONTENT_ADMIN)}`,
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  it('FINANCE_ADMIN is allowed a route requiring Permission.FinanceRead', async () => {
+    mockRoute(['finance:read']);
+    const { context } = contextFor({
+      authorization: `Bearer ${adminToken(Role.FINANCE_ADMIN)}`,
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  it('FINANCE_ADMIN is denied a CMS-only route', async () => {
+    mockRoute(['cms:write']);
+    const { context } = contextFor({
+      authorization: `Bearer ${adminToken(Role.FINANCE_ADMIN)}`,
+    });
+    await expect(guard.canActivate(context)).rejects.toMatchObject({
+      response: { code: 'AUTH_PERMISSION_DENIED' },
+    });
+  });
+
+  it('MODERATOR is denied finance access', async () => {
+    mockRoute(['finance:read']);
+    const { context } = contextFor({
+      authorization: `Bearer ${adminToken(Role.MODERATOR)}`,
+    });
+    await expect(guard.canActivate(context)).rejects.toMatchObject({
+      response: { code: 'AUTH_PERMISSION_DENIED' },
+    });
+  });
+
+  it('an unrecognized/typo permission string denies every non-SUPER_ADMIN role', async () => {
+    for (const role of [Role.ADMIN, ...NARROW_ROLES]) {
+      mockRoute(['totally:not-a-real-permission']);
+      const { context } = contextFor({
+        authorization: `Bearer ${adminToken(role)}`,
+      });
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        response: { code: 'AUTH_PERMISSION_DENIED' },
+      });
+    }
+  });
+
+  it('SUPER_ADMIN is allowed regardless of which permission is required', async () => {
+    mockRoute(['finance:write']);
+    const { context } = contextFor({
+      authorization: `Bearer ${adminToken(Role.SUPER_ADMIN)}`,
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  it('a route requiring a non-ADMIN role (e.g. PARTNER-only) is completely unaffected by the admin deny-by-default rule', async () => {
+    reflector.getAllAndOverride
+      .mockReturnValueOnce([Role.PARTNER])
+      .mockReturnValueOnce(undefined);
+    const token = signJwt(
+      {
+        sub: '00000000-0000-0000-0000-0000000000bb',
+        role: Role.PARTNER,
+        roles: [Role.PARTNER],
+        actor_type: 'partner',
+        organization_id: '00000000-0000-0000-0000-0000000000cc',
+        session_id: 'session-partner',
+        jti: 'jti-partner',
+      },
+      'access',
+    );
+    pg.query.mockResolvedValueOnce([{ status: 'approved' }]);
+    const { context } = contextFor({ authorization: `Bearer ${token}` });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+});

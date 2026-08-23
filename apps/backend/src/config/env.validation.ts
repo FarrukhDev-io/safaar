@@ -127,8 +127,15 @@ export function validateEnv(
     }
 
     if (String(config.ENABLE_DEMO_AUTH ?? 'false').toLowerCase() === 'true') {
-      throw new Error(
-        'ENABLE_DEMO_AUTH production muhitida true bo‘lishi mumkin emas — bu OTP kodlarini API javobida ochiq qoldiradi',
+      // ATAYLAB throw emas — SMS provayder hali ulanmagan davrda vaqtincha
+      // ruxsat berilgan (foydalanuvchining ongli qarori). Lekin bu OTP
+      // kodlarini API javobida HAR QANDAY telefon raqami uchun ochiq
+      // qoldiradi — SMS provayder ulangach DARHOL ENABLE_DEMO_AUTH=false
+      // qilinishi shart.
+      console.warn(
+        '⚠️  XAVFSIZLIK OGOHLANTIRISHI: ENABLE_DEMO_AUTH=true production muhitida yoqilgan — ' +
+          'OTP kodlari API javobida HAR QANDAY telefon raqami uchun ochiq. ' +
+          'SMS provayder ulangach darhol o‘chiring.',
       );
     }
 

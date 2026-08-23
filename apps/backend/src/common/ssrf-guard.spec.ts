@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 
-const lookupMock = jest.fn();
+const lookupMock = jest.fn<
+  Promise<Array<{ address: string; family: number }>>,
+  unknown[]
+>();
 jest.mock('node:dns/promises', () => ({
   lookup: (...args: unknown[]) => lookupMock(...args),
 }));
@@ -70,13 +73,21 @@ describe('assertPublicHttpUrl', () => {
     }
   });
 
-  it('rejects an IPv6 loopback and link-local literal', async () => {
+  it('rejects an IPv6 loopback and link-local literal (via the IP-block check, not by accident through DNS failure)', async () => {
     await expect(
       assertPublicHttpUrl('http://[::1]/webhook'),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toMatchObject({ response: { code: 'WEBHOOK_URL_NOT_ALLOWED' } });
     await expect(
       assertPublicHttpUrl('http://[fe80::1]/webhook'),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toMatchObject({ response: { code: 'WEBHOOK_URL_NOT_ALLOWED' } });
+    expect(lookupMock).not.toHaveBeenCalled();
+  });
+
+  it('allows a public bracketed IPv6 literal URL (regression: brackets must not make net.isIP() miss a real IPv6 literal)', async () => {
+    await expect(
+      assertPublicHttpUrl('https://[2606:4700:4700::1111]/webhook'),
+    ).resolves.toBeInstanceOf(URL);
+    expect(lookupMock).not.toHaveBeenCalled();
   });
 
   it('rejects a public-looking hostname that resolves to a private IP (DNS-rebinding-style attack)', async () => {
@@ -107,6 +118,32 @@ describe('assertPublicHttpUrl', () => {
       assertPublicHttpUrl('https://does-not-exist.invalid/webhook'),
     ).rejects.toMatchObject({
       response: { code: 'WEBHOOK_URL_UNRESOLVABLE' },
+    });
+  });
+
+  it('allows a plain (non-TLS) public http:// URL that resolves to a public IP', async () => {
+    lookupMock.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+
+    await expect(
+      assertPublicHttpUrl('http://example.com/webhook'),
+    ).resolves.toBeInstanceOf(URL);
+  });
+
+  it('rejects an IPv6 unique-local literal (fc00::/7, e.g. fd00::1)', async () => {
+    await expect(
+      assertPublicHttpUrl('http://[fd00::1]/webhook'),
+    ).rejects.toMatchObject({
+      response: { code: 'WEBHOOK_URL_NOT_ALLOWED' },
+    });
+  });
+
+  it('rejects a hostname whose ONLY resolved address is an IPv6 private/local address (DNS-rebinding-style, IPv6)', async () => {
+    lookupMock.mockResolvedValue([{ address: 'fe80::1', family: 6 }]);
+
+    await expect(
+      assertPublicHttpUrl('https://internal-v6.attacker.example/webhook'),
+    ).rejects.toMatchObject({
+      response: { code: 'WEBHOOK_URL_NOT_ALLOWED' },
     });
   });
 });

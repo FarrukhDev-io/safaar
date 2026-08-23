@@ -58,8 +58,19 @@ export async function assertPublicHttpUrl(rawUrl: string): Promise<URL> {
 }
 
 async function resolveAllAddresses(hostname: string): Promise<string[]> {
-  if (isIP(hostname)) {
-    return [hostname];
+  // WHATWG URL keeps brackets in `.hostname` for IPv6 literals (e.g.
+  // `[::1]`), but `net.isIP()` and `dns.lookup()` both expect the bare
+  // address — passing the bracketed form to either makes them fail to
+  // recognize it as an IP at all, so it silently falls through to a DNS
+  // lookup that always errors (ENOTFOUND). That accidentally still
+  // blocks malicious literals like `[fe80::1]` (via WEBHOOK_URL_UNRESOLVABLE
+  // instead of the intended WEBHOOK_URL_NOT_ALLOWED), but it also
+  // incorrectly rejects legitimate public IPv6 literal URLs. Stripping
+  // the brackets first routes every literal through the real
+  // isBlockedIpv4/isBlockedIpv6 check, as intended.
+  const literal = unwrapIpv6Brackets(hostname);
+  if (isIP(literal)) {
+    return [literal];
   }
 
   try {
@@ -68,6 +79,13 @@ async function resolveAllAddresses(hostname: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+function unwrapIpv6Brackets(hostname: string): string {
+  if (hostname.startsWith('[') && hostname.endsWith(']')) {
+    return hostname.slice(1, -1);
+  }
+  return hostname;
 }
 
 function blockedError(): BadRequestException {

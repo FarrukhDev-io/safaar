@@ -17,7 +17,6 @@ import {
   type OAuthProviderAvailability,
 } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
-import { JOBS } from '../jobs/job-names';
 import {
   PostgresService,
   type PostgresTransaction,
@@ -28,7 +27,7 @@ import { SmsService } from '../infrastructure/sms.service';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { otpStore, type OtpPurpose } from './otp-store';
 import { authSessionStore } from './session-store';
-import { isProduction, signJwt, verifyJwt } from './security';
+import { signJwt, verifyJwt } from './security';
 import { createTotpSetup, verifyTotpCode, type TotpSetup } from './totp';
 
 type DbRow = Record<string, unknown>;
@@ -84,7 +83,8 @@ interface OAuthExchangeContext {
 }
 
 interface PasswordResetContext {
-  email: string;
+  phone: string;
+  actorType: 'user' | 'partner';
 }
 
 interface OAuthProfile {
@@ -117,47 +117,6 @@ export class AuthService {
 
   sendPartnerOtp(phone: string) {
     return this.sendOtpDemoOrFail(this.normalizePhone(phone), 'partner_login');
-  }
-
-  async sendPartnerEmailOtp(email: string) {
-    const normalizedEmail = this.normalizeEmail(email);
-    if (!this.isValidEmail(normalizedEmail)) {
-      throw this.invalidCredentials();
-    }
-
-    await this.assertApprovedPartnerEmail(normalizedEmail);
-    const response = this.createOtpChallenge(normalizedEmail, 'partner_login');
-    const code = otpStore.getDeliveryCode(response.challenge_id);
-
-    if (this.isDemoAuthEnabled()) {
-      return { ...response, dev_code: code };
-    }
-
-    const message = {
-      to: normalizedEmail,
-      subject: 'Safaar hamkor kabineti uchun kirish kodi',
-      text: `Safaar hamkor kabinetiga kirish kodingiz: ${code ?? '******'}`,
-      html: `<p>Safaar hamkor kabinetiga kirish kodingiz:</p><h2>${code ?? '******'}</h2>`,
-    };
-
-    const delivery = await this.sendEmailOrFail(message);
-    if (!delivery.accepted) {
-      throw new ServiceUnavailableException({
-        code: 'EMAIL_DELIVERY_FAILED',
-        message: 'Tasdiqlash kodini emailga yuborib bo‘lmadi',
-      });
-    }
-
-    await this.jobs.add(JOBS.SEND_EMAIL, message, {
-      idempotencyKey: `partner-login-email:${response.challenge_id}`,
-    });
-
-    return {
-      sent: response.sent,
-      challenge_id: response.challenge_id,
-      expires_in_seconds: response.expires_in_seconds,
-      resend_after_seconds: response.resend_after_seconds,
-    };
   }
 
   async verifyUserOtp(
@@ -228,33 +187,6 @@ export class AuthService {
     });
 
     return this.issuePartnerTokensByPhone(phone);
-  }
-
-  async verifyPartnerEmailOtp(body: Record<string, unknown>): Promise<
-    AuthTokens & {
-      organization_id: string;
-      organizationId: string;
-      partner_role: string;
-    }
-  > {
-    const email = this.normalizeEmail(body.email);
-    const code = String(body.code ?? '');
-    const challengeId = String(
-      body.challenge_id ?? body.chalenge_id ?? '',
-    ).trim();
-
-    if (!this.isValidEmail(email)) {
-      throw this.invalidCredentials();
-    }
-
-    this.consumeOtp({
-      challengeId,
-      phone: email,
-      purpose: 'partner_login',
-      code,
-    });
-
-    return this.issuePartnerTokensByEmail(email);
   }
 
   async completeProfile(
@@ -630,70 +562,38 @@ export class AuthService {
     };
   }
 
-  async userForgotPassword(email: string) {
-    const normalizedEmail = this.normalizeEmail(email);
-    if (!this.isValidEmail(normalizedEmail)) {
-      throw new BadRequestException({
-        code: 'EMAIL_INVALID',
-        message: "To'g'ri email manzil kiriting",
-      });
-    }
+  async userForgotPassword(phone: string) {
+    const normalizedPhone = this.normalizePhone(phone);
 
     const rows = await this.pg.query<DbRow>(
       `SELECT id::text FROM users
-       WHERE lower(email) = lower($1) AND deleted_at IS NULL AND status = 'active'
+       WHERE phone = $1 AND deleted_at IS NULL AND status = 'active'
        LIMIT 1`,
-      [normalizedEmail],
+      [normalizedPhone],
     );
     if (!rows[0]) {
+      // Hisob mavjud emasligini oshkor qilmaymiz — baribir "sent" qaytaramiz.
       return { sent: true };
     }
 
-    const response = this.createOtpChallenge(normalizedEmail, 'password_reset');
-
-    const code = otpStore.getDeliveryCode(response.challenge_id);
-    const message = {
-      to: normalizedEmail,
-      subject: 'Safaar parolni tiklash kodi',
-      text: `Safaar parolni tiklash kodingiz: ${code ?? '******'}`,
-      html: `<p>Safaar parolni tiklash kodingiz:</p><h2>${code ?? '******'}</h2>`,
-    };
-
-    try {
-      await this.emailService.send(message);
-    } catch {
-      // Email yuborilmasa ham xatolik bermaymiz (security)
-    }
-
-    return {
-      sent: true,
-      challenge_id: response.challenge_id,
-      expires_in_seconds: response.expires_in_seconds,
-      resend_after_seconds: response.resend_after_seconds,
-    };
+    return this.sendOtpDemoOrFail(normalizedPhone, 'password_reset');
   }
 
   async userResetPassword(body: {
-    email: string;
+    phone: string;
     code?: string;
     challenge_id?: string;
     reset_token?: string;
     password: string;
   }) {
-    const email = body.reset_token
-      ? await this.consumePasswordResetToken(body.reset_token)
-      : this.normalizeEmail(body.email);
-    if (!this.isValidEmail(email)) {
-      throw new BadRequestException({
-        code: 'EMAIL_INVALID',
-        message: "To'g'ri email manzil kiriting",
-      });
-    }
+    const phone = body.reset_token
+      ? (await this.consumePasswordResetToken(body.reset_token, 'user')).phone
+      : this.normalizePhone(body.phone);
 
     if (!body.reset_token) {
       this.consumeOtp({
         challengeId: body.challenge_id,
-        phone: email,
+        phone,
         purpose: 'password_reset',
         code: String(body.code ?? ''),
       });
@@ -705,29 +605,23 @@ export class AuthService {
     await this.pg.query(
       `UPDATE users
        SET password_hash = $2, updated_at = $3
-       WHERE lower(email) = lower($1) AND deleted_at IS NULL`,
-      [email, hash, now],
+       WHERE phone = $1 AND deleted_at IS NULL`,
+      [phone, hash, now],
     );
 
     return { reset: true };
   }
 
   async userVerifyPasswordResetCode(body: {
-    email: string;
+    phone: string;
     code: string;
     challenge_id?: string;
   }) {
-    const email = this.normalizeEmail(body.email);
-    if (!this.isValidEmail(email)) {
-      throw new BadRequestException({
-        code: 'EMAIL_INVALID',
-        message: "To'g'ri email manzil kiriting",
-      });
-    }
+    const phone = this.normalizePhone(body.phone);
 
     this.consumeOtp({
       challengeId: body.challenge_id,
-      phone: email,
+      phone,
       purpose: 'password_reset',
       code: body.code,
     });
@@ -735,7 +629,7 @@ export class AuthService {
     const resetToken = randomBytes(32).toString('base64url');
     await this.cache.set<PasswordResetContext>(
       this.passwordResetKey(resetToken),
-      { email },
+      { phone, actorType: 'user' },
       10 * 60,
     );
 
@@ -765,15 +659,6 @@ export class AuthService {
     });
 
     return this.issuePartnerTokensByPhone(phone);
-  }
-
-  async partnerEmailLogin(body: Record<string, unknown>) {
-    const email = this.normalizeEmail(body.email);
-    if (!this.isValidEmail(email)) {
-      throw this.invalidCredentials();
-    }
-
-    return this.sendPartnerEmailOtp(email);
   }
 
   async adminLogin(body: Record<string, unknown>) {
@@ -1006,20 +891,74 @@ export class AuthService {
     return { disabled: true, sessions_revoked: true };
   }
 
-  passwordResetRequest(actorType: 'partner', body: Record<string, unknown>) {
-    return {
-      actor_type: actorType,
-      email: String(body.email ?? '').toLowerCase(),
-      reset_sent: true,
-      expires_in_seconds: 1800,
-    };
+  async passwordResetRequest(
+    actorType: 'partner',
+    body: Record<string, unknown>,
+  ) {
+    const phone = this.normalizePhone(String(body.phone ?? ''));
+
+    const rows = await this.pg.query<DbRow>(
+      `select pu.id::text as user_id
+       from partner_organizations po
+       left join partner_users pu
+         on pu.organization_id = po.id
+        and pu.deleted_at is null
+       where regexp_replace(po.phone, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+       order by pu.created_at asc nulls last
+       limit 1`,
+      [phone],
+    );
+
+    if (!rows[0]?.['user_id']) {
+      // Hisob mavjud emasligini oshkor qilmaymiz — baribir "sent" qaytaramiz.
+      return { actor_type: actorType, sent: true };
+    }
+
+    const response = await this.sendOtpDemoOrFail(phone, 'password_reset');
+    return { actor_type: actorType, ...response };
   }
 
-  passwordResetConfirm(actorType: 'partner', body: Record<string, unknown>) {
-    return {
-      actor_type: actorType,
-      reset: Boolean(body.token && body.password),
-    };
+  async passwordResetConfirm(
+    actorType: 'partner',
+    body: Record<string, unknown>,
+  ) {
+    const phone = this.normalizePhone(String(body.phone ?? ''));
+    const code = String(body.code ?? '');
+    const challengeId = String(body.challenge_id ?? '').trim();
+
+    this.consumeOtp({
+      challengeId,
+      phone,
+      purpose: 'password_reset',
+      code,
+    });
+
+    const rows = await this.pg.query<DbRow>(
+      `select pu.id::text as user_id
+       from partner_organizations po
+       left join partner_users pu
+         on pu.organization_id = po.id
+        and pu.deleted_at is null
+       where regexp_replace(po.phone, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+       order by pu.created_at asc nulls last
+       limit 1`,
+      [phone],
+    );
+    const userId = rows[0]?.['user_id'];
+    if (!userId) {
+      throw new UnauthorizedException({
+        code: 'PARTNER_NOT_ACTIVE',
+        message: 'Hamkor tashkilot faol emas',
+      });
+    }
+
+    const hash = await argon2.hash(String(body.password ?? ''));
+    await this.pg.query(
+      `update partner_users set password_hash = $2, updated_at = $3 where id = $1`,
+      [userId, hash, new Date().toISOString()],
+    );
+
+    return { actor_type: actorType, reset: true };
   }
 
   async refresh(body: Record<string, unknown>) {
@@ -1331,91 +1270,6 @@ export class AuthService {
       organizationStatus,
       partner_role: String(row['partner_role'] ?? 'owner'),
     };
-  }
-
-  private async issuePartnerTokensByEmail(email: string): Promise<
-    AuthTokens & {
-      organization_id: string;
-      organizationId: string;
-      organization_status: string;
-      organizationStatus: string;
-      partner_role: string;
-    }
-  > {
-    const rows = await this.pg.query<DbRow>(
-      `
-        select
-          po.id::text as organization_id,
-          po.status::text as organization_status,
-          pu.id::text as user_id,
-          pu.status::text as user_status,
-          COALESCE(pu.role, 'owner')::text as partner_role
-        from partner_organizations po
-        left join partner_users pu
-          on pu.organization_id = po.id
-         and pu.deleted_at is null
-        where lower(po.email) = lower($1)
-           or lower(pu.email) = lower($1)
-        order by pu.created_at asc nulls last, po.created_at desc
-        limit 1
-      `,
-      [email],
-    );
-    const row = rows[0];
-
-    if (!row || !this.isPartnerLoginStatusAllowed(row['organization_status'])) {
-      throw new UnauthorizedException({
-        code: 'PARTNER_NOT_ACTIVE',
-        message: 'Hamkor tashkilot faol emas',
-      });
-    }
-    const organizationStatus = String(row['organization_status'] ?? '');
-
-    if (row['user_status'] && row['user_status'] !== 'active') {
-      throw this.invalidCredentials();
-    }
-
-    const organizationId = String(row['organization_id']);
-    const actorId = row['user_id'] ? String(row['user_id']) : organizationId;
-
-    return {
-      ...(await this.issueTokens({
-        actorId,
-        actorType: 'partner',
-        role: Role.PARTNER,
-        organizationId,
-      })),
-      organization_id: organizationId,
-      organizationId,
-      organization_status: organizationStatus,
-      organizationStatus,
-      partner_role: String(row['partner_role'] ?? 'owner'),
-    };
-  }
-
-  private async assertApprovedPartnerEmail(email: string) {
-    const rows = await this.pg.query<DbRow>(
-      `
-        select po.id::text, po.status::text as organization_status
-        from partner_organizations po
-        left join partner_users pu
-          on pu.organization_id = po.id
-         and pu.deleted_at is null
-        where lower(po.email) = lower($1) or lower(pu.email) = lower($1)
-        limit 1
-      `,
-      [email],
-    );
-
-    if (
-      !rows[0] ||
-      !this.isPartnerLoginStatusAllowed(rows[0]['organization_status'])
-    ) {
-      throw new UnauthorizedException({
-        code: 'PARTNER_NOT_ACTIVE',
-        message: 'Hamkor tashkilot faol emas',
-      });
-    }
   }
 
   private isPartnerLoginStatusAllowed(status: unknown): boolean {
@@ -1840,45 +1694,26 @@ export class AuthService {
     return `auth:password-reset:${this.opaqueCodeHash(token)}`;
   }
 
-  private async consumePasswordResetToken(token: string): Promise<string> {
+  private async consumePasswordResetToken(
+    token: string,
+    expectedActorType: PasswordResetContext['actorType'],
+  ): Promise<PasswordResetContext> {
     const context = token
       ? await this.cache.take<PasswordResetContext>(
           this.passwordResetKey(token),
         )
       : undefined;
-    if (!context?.email) {
+    if (!context?.phone || context.actorType !== expectedActorType) {
       throw new UnauthorizedException({
         code: 'PASSWORD_RESET_TOKEN_INVALID',
         message: 'Parol tiklash sessiyasi yaroqsiz yoki muddati tugagan',
       });
     }
-    return context.email;
+    return context;
   }
 
   private opaqueCodeHash(value: string): string {
     return createHash('sha256').update(value).digest('hex');
-  }
-
-  /**
-   * `emailService.send()` xato tashlasa (masalan SMTP host o'chgan/vaqt
-   * tugagan), buni ushlab, controller darajasida kutilgan
-   * `EMAIL_DELIVERY_FAILED` (503) xatosiga aylantiradi — aks holda
-   * bu tipsiz xato umumiy 500 sifatida chiqib ketardi.
-   */
-  private async sendEmailOrFail(
-    message: Parameters<EmailService['send']>[0],
-  ): ReturnType<EmailService['send']> {
-    try {
-      return await this.emailService.send(message);
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new ServiceUnavailableException({
-        code: 'EMAIL_DELIVERY_FAILED',
-        message: 'Tasdiqlash kodini emailga yuborib bo‘lmadi',
-      });
-    }
   }
 
   /**
@@ -1905,24 +1740,18 @@ export class AuthService {
 
   /**
    * `ENABLE_DEMO_AUTH=true` bo'lsa, OTP kodi haqiqiy SMS/email o'rniga
-   * to'g'ridan-to'g'ri javobda (`dev_code`) qaytariladi — faqat local
-   * development/staging'da provider credentials sozlanmagan paytda oqimni
-   * sinash uchun.
+   * to'g'ridan-to'g'ri javobda (`dev_code`) qaytariladi.
    *
-   * MUHIM (xavfsizlik): bu ikkita mustaqil himoya qatlami bilan
-   * ta'minlangan. (1) `env.validation.ts` — `NODE_ENV=production` va
-   * `ENABLE_DEMO_AUTH=true` birga bo'lsa, ilova butunlay ishga
-   * tushishidan bosh tortadi (boot-time fail-fast). (2) shu yerdagi
-   * `!isProduction()` tekshiruvi — ikkinchi, mustaqil chiziq: hatto
-   * birinchi tekshiruv negadir chetlab o'tilgan taqdirda ham (masalan
-   * `NODE_ENV` runtime'da almashtirilgan holat), production muhitida bu
-   * funksiya HECH QACHON `true` qaytarmaydi, demak real OTP kodi hech
-   * qachon API javobida chiqmaydi.
+   * MUHIM (xavfsizlik): bu ATAYLAB production'da ham ishlaydi hozircha —
+   * SMS provayder (Eskiz) hali ulanmagan, foydalanuvchining ongli va
+   * vaqtinchalik qarori bilan yoqilgan (2026-08-23). Bu HAR QANDAY
+   * telefon raqami uchun OTP kodini API javobida ochiq qoldiradi — SMS
+   * provayder ulangach `ENABLE_DEMO_AUTH` env o'zgaruvchisi DARHOL
+   * `false`ga o'zgartirilishi shart. `env.validation.ts` bu holatda
+   * boot vaqtida ogohlantirish log yozadi (lekin ishga tushishni
+   * to'xtatmaydi).
    */
   private isDemoAuthEnabled(): boolean {
-    if (isProduction()) {
-      return false;
-    }
     return String(process.env.ENABLE_DEMO_AUTH ?? '').toLowerCase() === 'true';
   }
 

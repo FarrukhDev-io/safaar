@@ -781,6 +781,54 @@ export class PartnersService {
       sets.push(`check_out_time = $${paramIndex++}`);
       params.push(String(body.check_out_time));
     }
+    // Dacha uchun
+    if (body.land_area_sotix !== undefined) {
+      sets.push(`land_area_sotix = $${paramIndex++}`);
+      params.push(
+        body.land_area_sotix === null ? null : Number(body.land_area_sotix),
+      );
+    }
+    if (body.has_outdoor_pool !== undefined) {
+      sets.push(`has_outdoor_pool = $${paramIndex++}`);
+      params.push(Boolean(body.has_outdoor_pool));
+    }
+    if (body.has_indoor_pool !== undefined) {
+      sets.push(`has_indoor_pool = $${paramIndex++}`);
+      params.push(Boolean(body.has_indoor_pool));
+    }
+    if (body.has_sauna !== undefined) {
+      sets.push(`has_sauna = $${paramIndex++}`);
+      params.push(Boolean(body.has_sauna));
+    }
+    if (body.has_playstation !== undefined) {
+      sets.push(`has_playstation = $${paramIndex++}`);
+      params.push(Boolean(body.has_playstation));
+    }
+    if (body.has_billiards !== undefined) {
+      sets.push(`has_billiards = $${paramIndex++}`);
+      params.push(Boolean(body.has_billiards));
+    }
+    if (body.capacity_people !== undefined) {
+      sets.push(`capacity_people = $${paramIndex++}`);
+      params.push(
+        body.capacity_people === null ? null : Number(body.capacity_people),
+      );
+    }
+    // Sanatoriy uchun
+    if (body.medical_profiles !== undefined) {
+      sets.push(`medical_profiles = $${paramIndex++}::jsonb`);
+      params.push(JSON.stringify(body.medical_profiles));
+    }
+    if (body.included_treatments !== undefined) {
+      sets.push(`included_treatments = $${paramIndex++}::jsonb`);
+      params.push(JSON.stringify(body.included_treatments));
+    }
+    if (body.meal_plan_type !== undefined) {
+      sets.push(`meal_plan_type = $${paramIndex++}`);
+      params.push(
+        body.meal_plan_type === null ? null : String(body.meal_plan_type),
+      );
+    }
 
     if (sets.length === 0) {
       return this.assertHotel(id, actor);
@@ -4108,7 +4156,11 @@ export class PartnersService {
           : ['booking.created'],
       );
     }
-    if (body.status !== undefined || body.is_active !== undefined || body.isActive !== undefined) {
+    if (
+      body.status !== undefined ||
+      body.is_active !== undefined ||
+      body.isActive !== undefined
+    ) {
       const enabled =
         body.status !== undefined
           ? String(body.status) === 'active'
