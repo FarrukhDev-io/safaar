@@ -91,14 +91,14 @@ export class AuthController {
   @Post('user/forgot-password')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   userForgotPassword(@Body() body: UserForgotPasswordDto) {
-    return this.authService.userForgotPassword(body.email);
+    return this.authService.userForgotPassword(body.phone);
   }
 
   @Post('user/verify-reset-code')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   userVerifyResetCode(@Body() body: UserVerifyResetCodeDto) {
     return this.authService.userVerifyPasswordResetCode({
-      email: body.email,
+      phone: body.phone,
       code: body.code,
       challenge_id: body.challenge_id,
     });
@@ -108,7 +108,7 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   userResetPassword(@Body() body: UserResetPasswordDto) {
     return this.authService.userResetPassword({
-      email: body.email,
+      phone: body.phone,
       code: body.code,
       challenge_id: body.challenge_id,
       reset_token: body.reset_token,

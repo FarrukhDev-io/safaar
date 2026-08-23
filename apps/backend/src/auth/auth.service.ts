@@ -83,7 +83,8 @@ interface OAuthExchangeContext {
 }
 
 interface PasswordResetContext {
-  email: string;
+  phone: string;
+  actorType: 'user' | 'partner';
 }
 
 interface OAuthProfile {
@@ -561,70 +562,38 @@ export class AuthService {
     };
   }
 
-  async userForgotPassword(email: string) {
-    const normalizedEmail = this.normalizeEmail(email);
-    if (!this.isValidEmail(normalizedEmail)) {
-      throw new BadRequestException({
-        code: 'EMAIL_INVALID',
-        message: "To'g'ri email manzil kiriting",
-      });
-    }
+  async userForgotPassword(phone: string) {
+    const normalizedPhone = this.normalizePhone(phone);
 
     const rows = await this.pg.query<DbRow>(
       `SELECT id::text FROM users
-       WHERE lower(email) = lower($1) AND deleted_at IS NULL AND status = 'active'
+       WHERE phone = $1 AND deleted_at IS NULL AND status = 'active'
        LIMIT 1`,
-      [normalizedEmail],
+      [normalizedPhone],
     );
     if (!rows[0]) {
+      // Hisob mavjud emasligini oshkor qilmaymiz — baribir "sent" qaytaramiz.
       return { sent: true };
     }
 
-    const response = this.createOtpChallenge(normalizedEmail, 'password_reset');
-
-    const code = otpStore.getDeliveryCode(response.challenge_id);
-    const message = {
-      to: normalizedEmail,
-      subject: 'Safaar parolni tiklash kodi',
-      text: `Safaar parolni tiklash kodingiz: ${code ?? '******'}`,
-      html: `<p>Safaar parolni tiklash kodingiz:</p><h2>${code ?? '******'}</h2>`,
-    };
-
-    try {
-      await this.emailService.send(message);
-    } catch {
-      // Email yuborilmasa ham xatolik bermaymiz (security)
-    }
-
-    return {
-      sent: true,
-      challenge_id: response.challenge_id,
-      expires_in_seconds: response.expires_in_seconds,
-      resend_after_seconds: response.resend_after_seconds,
-    };
+    return this.sendOtpDemoOrFail(normalizedPhone, 'password_reset');
   }
 
   async userResetPassword(body: {
-    email: string;
+    phone: string;
     code?: string;
     challenge_id?: string;
     reset_token?: string;
     password: string;
   }) {
-    const email = body.reset_token
-      ? await this.consumePasswordResetToken(body.reset_token)
-      : this.normalizeEmail(body.email);
-    if (!this.isValidEmail(email)) {
-      throw new BadRequestException({
-        code: 'EMAIL_INVALID',
-        message: "To'g'ri email manzil kiriting",
-      });
-    }
+    const phone = body.reset_token
+      ? (await this.consumePasswordResetToken(body.reset_token, 'user')).phone
+      : this.normalizePhone(body.phone);
 
     if (!body.reset_token) {
       this.consumeOtp({
         challengeId: body.challenge_id,
-        phone: email,
+        phone,
         purpose: 'password_reset',
         code: String(body.code ?? ''),
       });
@@ -636,29 +605,23 @@ export class AuthService {
     await this.pg.query(
       `UPDATE users
        SET password_hash = $2, updated_at = $3
-       WHERE lower(email) = lower($1) AND deleted_at IS NULL`,
-      [email, hash, now],
+       WHERE phone = $1 AND deleted_at IS NULL`,
+      [phone, hash, now],
     );
 
     return { reset: true };
   }
 
   async userVerifyPasswordResetCode(body: {
-    email: string;
+    phone: string;
     code: string;
     challenge_id?: string;
   }) {
-    const email = this.normalizeEmail(body.email);
-    if (!this.isValidEmail(email)) {
-      throw new BadRequestException({
-        code: 'EMAIL_INVALID',
-        message: "To'g'ri email manzil kiriting",
-      });
-    }
+    const phone = this.normalizePhone(body.phone);
 
     this.consumeOtp({
       challengeId: body.challenge_id,
-      phone: email,
+      phone,
       purpose: 'password_reset',
       code: body.code,
     });
@@ -666,7 +629,7 @@ export class AuthService {
     const resetToken = randomBytes(32).toString('base64url');
     await this.cache.set<PasswordResetContext>(
       this.passwordResetKey(resetToken),
-      { email },
+      { phone, actorType: 'user' },
       10 * 60,
     );
 
@@ -928,20 +891,74 @@ export class AuthService {
     return { disabled: true, sessions_revoked: true };
   }
 
-  passwordResetRequest(actorType: 'partner', body: Record<string, unknown>) {
-    return {
-      actor_type: actorType,
-      email: String(body.email ?? '').toLowerCase(),
-      reset_sent: true,
-      expires_in_seconds: 1800,
-    };
+  async passwordResetRequest(
+    actorType: 'partner',
+    body: Record<string, unknown>,
+  ) {
+    const phone = this.normalizePhone(String(body.phone ?? ''));
+
+    const rows = await this.pg.query<DbRow>(
+      `select pu.id::text as user_id
+       from partner_organizations po
+       left join partner_users pu
+         on pu.organization_id = po.id
+        and pu.deleted_at is null
+       where regexp_replace(po.phone, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+       order by pu.created_at asc nulls last
+       limit 1`,
+      [phone],
+    );
+
+    if (!rows[0]?.['user_id']) {
+      // Hisob mavjud emasligini oshkor qilmaymiz — baribir "sent" qaytaramiz.
+      return { actor_type: actorType, sent: true };
+    }
+
+    const response = await this.sendOtpDemoOrFail(phone, 'password_reset');
+    return { actor_type: actorType, ...response };
   }
 
-  passwordResetConfirm(actorType: 'partner', body: Record<string, unknown>) {
-    return {
-      actor_type: actorType,
-      reset: Boolean(body.token && body.password),
-    };
+  async passwordResetConfirm(
+    actorType: 'partner',
+    body: Record<string, unknown>,
+  ) {
+    const phone = this.normalizePhone(String(body.phone ?? ''));
+    const code = String(body.code ?? '');
+    const challengeId = String(body.challenge_id ?? '').trim();
+
+    this.consumeOtp({
+      challengeId,
+      phone,
+      purpose: 'password_reset',
+      code,
+    });
+
+    const rows = await this.pg.query<DbRow>(
+      `select pu.id::text as user_id
+       from partner_organizations po
+       left join partner_users pu
+         on pu.organization_id = po.id
+        and pu.deleted_at is null
+       where regexp_replace(po.phone, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+       order by pu.created_at asc nulls last
+       limit 1`,
+      [phone],
+    );
+    const userId = rows[0]?.['user_id'];
+    if (!userId) {
+      throw new UnauthorizedException({
+        code: 'PARTNER_NOT_ACTIVE',
+        message: 'Hamkor tashkilot faol emas',
+      });
+    }
+
+    const hash = await argon2.hash(String(body.password ?? ''));
+    await this.pg.query(
+      `update partner_users set password_hash = $2, updated_at = $3 where id = $1`,
+      [userId, hash, new Date().toISOString()],
+    );
+
+    return { actor_type: actorType, reset: true };
   }
 
   async refresh(body: Record<string, unknown>) {
@@ -1677,19 +1694,22 @@ export class AuthService {
     return `auth:password-reset:${this.opaqueCodeHash(token)}`;
   }
 
-  private async consumePasswordResetToken(token: string): Promise<string> {
+  private async consumePasswordResetToken(
+    token: string,
+    expectedActorType: PasswordResetContext['actorType'],
+  ): Promise<PasswordResetContext> {
     const context = token
       ? await this.cache.take<PasswordResetContext>(
           this.passwordResetKey(token),
         )
       : undefined;
-    if (!context?.email) {
+    if (!context?.phone || context.actorType !== expectedActorType) {
       throw new UnauthorizedException({
         code: 'PASSWORD_RESET_TOKEN_INVALID',
         message: 'Parol tiklash sessiyasi yaroqsiz yoki muddati tugagan',
       });
     }
-    return context.email;
+    return context;
   }
 
   private opaqueCodeHash(value: string): string {

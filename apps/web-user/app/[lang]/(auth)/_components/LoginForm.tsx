@@ -21,7 +21,7 @@ import { config } from "@/lib/config";
 
 const API_URL = config.apiUrl;
 
-type LoginMode = "login" | "forgot-email" | "forgot-code" | "reset-password";
+type LoginMode = "login" | "forgot-phone" | "forgot-code" | "reset-password";
 
 function GoogleIcon() {
   return (
@@ -70,7 +70,7 @@ export function LoginForm({
 }) {
   const [mode, setMode] = useState<LoginMode>("login");
   const [email, setEmail] = useState("");
-  const [resetEmail, setResetEmail] = useState("");
+  const [resetPhone, setResetPhone] = useState("");
   const [resetChallengeId, setResetChallengeId] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [resetDone, setResetDone] = useState(false);
@@ -95,9 +95,9 @@ export function LoginForm({
     });
 
   useEffect(() => {
-    if (resetRequestState.ok && resetRequestState.email) {
+    if (resetRequestState.ok && resetRequestState.phone) {
       queueMicrotask(() => {
-        setResetEmail(resetRequestState.email ?? "");
+        setResetPhone(resetRequestState.phone ?? "");
         setResetChallengeId(resetRequestState.challengeId ?? "");
         setMode("forgot-code");
       });
@@ -107,12 +107,12 @@ export function LoginForm({
   useEffect(() => {
     if (resetCodeState.verified && resetCodeState.resetToken) {
       queueMicrotask(() => {
-        setResetEmail(resetCodeState.email ?? resetEmail);
+        setResetPhone(resetCodeState.phone ?? resetPhone);
         setResetToken(resetCodeState.resetToken ?? "");
         setMode("reset-password");
       });
     }
-  }, [resetCodeState, resetEmail]);
+  }, [resetCodeState, resetPhone]);
 
   useEffect(() => {
     if (resetPasswordState.ok) {
@@ -190,7 +190,7 @@ export function LoginForm({
               className="text-sm font-extrabold text-primary-700 hover:text-primary-800"
               onClick={() => {
                 setResetDone(false);
-                setMode("forgot-email");
+                setMode("forgot-phone");
               }}
             >
               {dict.forgotPassword}
@@ -215,21 +215,21 @@ export function LoginForm({
         </form>
       )}
 
-      {mode === "forgot-email" && (
+      {mode === "forgot-phone" && (
         <form action={requestResetFormAction} className="flex flex-col gap-4">
           <AuthHeader
             title={dict.forgotPasswordTitle}
             subtitle={dict.forgotPasswordSubtitle}
           />
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.phone}</span>
             <Input
-              name="email"
-              type="email"
-              autoComplete="email"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
               required
-              defaultValue={email}
-              placeholder={dict.emailPlaceholder}
+              defaultValue={resetPhone}
+              placeholder={dict.phonePlaceholder}
             />
           </label>
           {resetRequestState.error && (
@@ -250,7 +250,7 @@ export function LoginForm({
             title={dict.resetCodeTitle}
             subtitle={dict.resetCodeSubtitle}
           />
-          <input type="hidden" name="email" value={resetEmail} />
+          <input type="hidden" name="phone" value={resetPhone} />
           <input type="hidden" name="challengeId" value={resetChallengeId} />
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.code}</span>
@@ -281,7 +281,7 @@ export function LoginForm({
             title={dict.newPasswordTitle}
             subtitle={dict.newPasswordSubtitle}
           />
-          <input type="hidden" name="email" value={resetEmail} />
+          <input type="hidden" name="phone" value={resetPhone} />
           <input type="hidden" name="resetToken" value={resetToken} />
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.newPassword}</span>
@@ -401,6 +401,7 @@ function authErrorMessageFor(error: string, dict: AuthDict): string {
     AUTH_INVALID_CREDENTIALS: dict.invalidCredentials,
     USER_NO_PASSWORD: dict.userNoPassword,
     EMAIL_REQUIRED: dict.emailRequired,
+    PHONE_REQUIRED: dict.phoneRequired,
     PASSWORD_REQUIRED: dict.passwordRequired,
     CODE_REQUIRED: dict.codeRequired,
     OTP_INVALID: dict.codeInvalid,

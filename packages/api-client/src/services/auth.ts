@@ -80,22 +80,22 @@ export const authService = {
     return camelizeKeys<OAuthExchangeResult>(raw);
   },
 
-  /** `POST /auth/user/forgot-password` — emailga parol tiklash kodi yuborish. */
-  async forgotPassword(email: string): Promise<PasswordResetCodeResult> {
+  /** `POST /auth/user/forgot-password` — telefon raqamiga SMS orqali parol tiklash kodi yuborish. */
+  async forgotPassword(phone: string): Promise<PasswordResetCodeResult> {
     const raw = await rawApi.post<unknown>("/auth/user/forgot-password", {
-      email,
+      phone,
     });
     return camelizeKeys<PasswordResetCodeResult>(raw);
   },
 
   /** `POST /auth/user/verify-reset-code` — parol tiklash kodini tekshirish. */
   async verifyResetCode(
-    email: string,
+    phone: string,
     code: string,
     challengeId?: string,
   ): Promise<VerifyResetCodeResult> {
     const raw = await rawApi.post<unknown>("/auth/user/verify-reset-code", {
-      email,
+      phone,
       code,
       challenge_id: challengeId,
     });
@@ -104,12 +104,12 @@ export const authService = {
 
   /** `POST /auth/user/reset-password` — yangi parolni saqlash. */
   async resetPassword(
-    email: string,
+    phone: string,
     password: string,
     resetToken: string,
   ): Promise<{ reset: boolean }> {
     const raw = await rawApi.post<unknown>("/auth/user/reset-password", {
-      email,
+      phone,
       password,
       reset_token: resetToken,
     });

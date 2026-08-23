@@ -142,6 +142,7 @@ model User {
   lastName          String?       @map("last_name") @db.VarChar(100)
   phone             String?       @unique @db.VarChar(20)
   email             String?       @unique @db.VarChar(255)
+  passwordHash      String?       @map("password_hash") @db.VarChar(255)
   status            UserStatus    @default(unverified)
   preferredLanguage Language      @default(uz) @map("preferred_language")
   blockedReason     String?       @map("blocked_reason")
