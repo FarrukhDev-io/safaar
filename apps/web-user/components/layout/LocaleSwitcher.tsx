@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Globe } from "lucide-react";
 import { locales, localeNames, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 export function LocaleSwitcher({
   current,
@@ -61,13 +62,11 @@ export function LocaleSwitcher({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Tilni tanlash"
-        className={cn(
-          "inline-flex items-center justify-center gap-2",
-          "h-10 px-4 rounded-full text-[15px] font-bold transition-all duration-200 active:scale-[0.98]",
-          light 
-            ? "border border-slate-300 shadow hover:border-slate-400 hover:shadow-md text-slate-900 bg-white hover:bg-slate-50" 
-            : "text-white bg-slate-900/10 hover:bg-slate-900/20 ring-1 ring-white/20"
-        )}
+        className={buttonVariants({
+          variant: "secondary",
+          rounded: "full",
+          className: "!h-10 min-h-[40px] px-3.5 text-[15px] font-bold gap-1.5 cursor-pointer",
+        })}
       >
         <Globe className="h-[18px] w-[18px] opacity-80" aria-hidden />
         <span className="font-bold uppercase tracking-wide">

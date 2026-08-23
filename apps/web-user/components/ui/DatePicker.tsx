@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, X } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 
 function toISO(d: Date): string {
@@ -21,6 +21,19 @@ function parseISO(s: string): Date | null {
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
+
+/** O'zbek tilida oy nomlari (Intl "uz" locale'ni to'g'ri ko'rsatmaganligi sababli). */
+const UZ_MONTHS = [
+  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+  "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr",
+];
+
+/** Locale → BCP-47 xarita (Intl uchun). */
+const INTL_LOCALE: Record<string, string> = {
+  uz: "ru-RU",
+  ru: "ru-RU",
+  en: "en-US",
+};
 
 /**
  * Global Custom DatePicker Component for Safaar Design System.
@@ -75,22 +88,25 @@ export function DatePicker({
     };
   }, [open]);
 
-  const monthLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        month: "long",
-        year: "numeric",
-      }).format(view),
-    [locale, view],
-  );
+  const intlLocale = INTL_LOCALE[locale] ?? "en-US";
+
+  const monthLabel = useMemo(() => {
+    if (locale === "uz") {
+      return `${UZ_MONTHS[view.getMonth()]} ${view.getFullYear()}`;
+    }
+    return new Intl.DateTimeFormat(intlLocale, {
+      month: "long",
+      year: "numeric",
+    }).format(view);
+  }, [locale, intlLocale, view]);
 
   const weekdays = useMemo(() => {
-    const fmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
+    const fmt = new Intl.DateTimeFormat(intlLocale, { weekday: "short" });
     const base = new Date(2024, 0, 1);
     return Array.from({ length: 7 }, (_, i) =>
       fmt.format(new Date(base.getFullYear(), base.getMonth(), base.getDate() + i)),
     );
-  }, [locale]);
+  }, [intlLocale]);
 
   const days = useMemo(() => {
     const year = view.getFullYear();
@@ -106,7 +122,7 @@ export function DatePicker({
   }, [view]);
 
   const displayValue = selected
-    ? new Intl.DateTimeFormat(locale, {
+    ? new Intl.DateTimeFormat(intlLocale, {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -156,6 +172,19 @@ export function DatePicker({
         <>
           <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs md:hidden" aria-hidden />
           <div className="fixed inset-x-4 top-1/2 z-100 -translate-y-1/2 rounded-3xl border border-slate-200 bg-card p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 md:absolute md:inset-auto md:left-0 md:top-full md:z-100 md:mt-2 md:w-72 md:translate-y-0 animate-in fade-in zoom-in-95 duration-100">
+            {/* Mobile Header with Close Button */}
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800 md:hidden">
+              <span className="text-xs font-bold text-slate-800 dark:text-white">Sanani tanlang</span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
             {/* Oy navigatsiyasi */}
             <div className="mb-3 flex items-center justify-between">
               <button

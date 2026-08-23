@@ -22,11 +22,15 @@
   "bookings": {
     "title": "My bookings",
     "empty": "You have no bookings yet.",
+    "emptyDescription": "You don't have any confirmed bookings yet. Book great hotels, restaurants, or rental cars!",
+    "emptyAction": "Start booking",
     "number": "Booking number",
     "status": "Status",
     "total": "Total",
     "type": "Type",
     "hotel": "Hotel",
+    "bus": "Car Rental",
+    "restaurant": "Restaurant",
     "view": "View",
     "statuses": {
       "PENDING": "Pending",

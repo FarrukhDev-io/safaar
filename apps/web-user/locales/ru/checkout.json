@@ -3,14 +3,6 @@
   "guestDetails": "Данные гостя",
   "fullName": "Полное имя",
   "fullNamePlaceholder": "Имя Фамилия",
-  "firstName": "Имя",
-  "firstNamePlaceholder": "Ваше имя",
-  "lastName": "Фамилия",
-  "lastNamePlaceholder": "Ваша фамилия",
-  "email": "Email",
-  "emailPlaceholder": "email@example.com",
-  "phone": "Телефон",
-  "phonePlaceholder": "+998 90 123 45 67",
   "checkIn": "Дата заезда",
   "checkOut": "Дата выезда",
   "guests": "Гости",
@@ -28,6 +20,13 @@
   "total": "Итого",
   "confirm": "Подтвердить бронь",
   "needDates": "Выберите даты заезда и выезда, чтобы продолжить.",
-  "guestDetailsRequired": "Введите имя, фамилию, email и телефон для бронирования.",
-  "error": "Ошибка при бронировании. Попробуйте снова."
+  "error": "Ошибка при бронировании. Попробуйте снова.",
+  "errors": {
+    "ROOM_ALREADY_BOOKED": "Выбранный номер уже забронирован на эти даты.",
+    "VEHICLE_ALREADY_BOOKED": "Выбранный автомобиль уже забронирован на эти даты.",
+    "BOOKING_DATES_INVALID": "Недопустимые даты бронирования.",
+    "GUEST_DETAILS_REQUIRED": "Необходимо указать данные гостя.",
+    "PROMO_INVALID": "Промокод недействителен или истек.",
+    "PROMO_LIMIT_REACHED": "Лимит использования промокода исчерпан."
+  }
 }

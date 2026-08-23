@@ -25,7 +25,7 @@ export function HotelCard({
 
   const badge =
     hotel.stars > 0 ? (
-      <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
+      <span className="rounded-full bg-slate-900/60 backdrop-blur-xs px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-white">
         {"★".repeat(hotel.stars)} {hotel.stars}★
       </span>
     ) : undefined;
@@ -33,12 +33,12 @@ export function HotelCard({
   const ratingElement =
     hotel.rating > 0 ? (
       <>
-        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-        <span className="font-semibold text-slate-700 dark:text-slate-300">
+        <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-amber-400 text-amber-400 shrink-0" />
+        <span className="font-bold text-slate-800 dark:text-slate-200">
           {hotel.rating.toFixed(1)}
         </span>
         {hotel.reviewsCount > 0 && (
-          <span>
+          <span className="hidden sm:inline text-slate-400">
             · {hotel.reviewsCount} {labels.reviews}
           </span>
         )}
@@ -56,19 +56,19 @@ export function HotelCard({
       href={`/${locale}/hotels/${hotel.slug}`}
       footerLeft={
         hotel.minPriceSum > 0 ? (
-          <>
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
+          <div className="flex flex-col leading-tight">
+            <span className="text-xs sm:text-base md:text-lg font-black tracking-tight text-slate-900 dark:text-white">
               {formatSum(hotel.minPriceSum)}
             </span>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[9px] sm:text-[11px] font-medium text-slate-400">
               / {labels.perNight}
             </span>
-          </>
+          </div>
         ) : undefined
       }
       footerRight={
-        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-          <ArrowRight className="h-3.5 w-3.5" />
+        <span className="inline-flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition-all duration-200 group-hover:bg-primary-600 group-hover:text-white group-hover:translate-x-0.5 dark:bg-slate-800 dark:text-slate-200">
+          <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
         </span>
       }
     />

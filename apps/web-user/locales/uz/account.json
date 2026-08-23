@@ -22,11 +22,15 @@
   "bookings": {
     "title": "Mening bronlarim",
     "empty": "Hozircha bronlaringiz yo'q.",
+    "emptyDescription": "Sizda hali tasdiqlangan bronlar mavjud emas. Ajoyib mehmonxonalarni, restoranlarni yoki avtomobillarni band qiling!",
+    "emptyAction": "Bron qilishni boshlash",
     "number": "Bron raqami",
     "status": "Holat",
     "total": "Summa",
     "type": "Tur",
     "hotel": "Mehmonxona",
+    "bus": "Mashina ijarasi",
+    "restaurant": "Restoran",
     "view": "Ko'rish",
     "statuses": {
       "PENDING": "Kutilmoqda",

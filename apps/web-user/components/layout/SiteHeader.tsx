@@ -1,5 +1,5 @@
-import Link from 'next/link';
-// No icons needed for clean desktop layout
+import Link from "next/link";
+import { Building2, UtensilsCrossed, Car, Landmark } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import { logoutAction } from "@/lib/auth/actions";
@@ -8,7 +8,6 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/cn";
 import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
 import { LocaleSwitcher } from "./LocaleSwitcher";
-import { NotificationsBell } from "./NotificationsBell";
 
 function AuthButtons({
   authed,
@@ -27,10 +26,10 @@ function AuthButtons({
 
   if (authed) {
     return (
-      <div className={`flex gap-1.5 ${isCol ? "flex-col" : "items-center"}`}>
+      <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
         <Link
           href={`${base}/account`}
-          className={buttonVariants({ variant: "ghost", rounded: "full", className: sizeClass })}
+          className={buttonVariants({ variant: "ghost", rounded: "full", className: cn(sizeClass, "font-bold text-slate-800 dark:text-white") })}
         >
           {dict.actions.account}
         </Link>
@@ -46,17 +45,17 @@ function AuthButtons({
   const loginClasses = buttonVariants({ 
     variant: "secondary", 
     rounded: "full", 
-    className: cn(sizeClass, "!h-10 min-h-[40px] px-4 text-[15px] font-bold") 
+    className: cn(sizeClass, "!h-11 min-h-[44px] px-4 text-[15px] font-bold") 
   });
   
   const registerClasses = buttonVariants({ 
     variant: "primary", 
     rounded: "full", 
-    className: cn(sizeClass, "!h-10 min-h-[40px] px-4 text-[15px] font-bold") 
+    className: cn(sizeClass, "!h-11 min-h-[44px] px-4 text-[15px] font-bold") 
   });
 
   return (
-    <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
+    <div className={`flex gap-2.5 ${isCol ? "flex-col" : "items-center"}`}>
       <Link href={`${base}/login`} className={loginClasses}>
         {dict.actions.login}
       </Link>
@@ -71,12 +70,10 @@ export function SiteHeader({
   locale,
   dict,
   authed,
-  accessToken,
 }: {
   locale: Locale;
   dict: CommonDict;
   authed: boolean;
-  accessToken?: string;
 }) {
   const base = `/${locale}`;
   const navDict = dict.nav as typeof dict.nav & {
@@ -87,10 +84,26 @@ export function SiteHeader({
   };
 
   const desktopItems: ScrollNavItem[] = [
-    { href: `${base}/hotels`, label: dict.nav.hotels },
-    { href: `${base}/restaurants`, label: navDict.restaurants ?? "Restaurants" },
-    { href: `${base}/transport`, label: navDict.transport ?? "Transport" },
-    { href: `${base}/attractions`, label: dict.nav.attractions },
+    {
+      href: `${base}/hotels`,
+      label: dict.nav.hotels,
+      icon: <Building2 className="h-4.5 w-4.5" />,
+    },
+    {
+      href: `${base}/restaurants`,
+      label: navDict.restaurants ?? "Restaurants",
+      icon: <UtensilsCrossed className="h-4.5 w-4.5" />,
+    },
+    {
+      href: `${base}/transport`,
+      label: navDict.transport ?? "Transport",
+      icon: <Car className="h-4.5 w-4.5" />,
+    },
+    {
+      href: `${base}/attractions`,
+      label: dict.nav.attractions,
+      icon: <Landmark className="h-4.5 w-4.5" />,
+    },
   ];
 
   const localeSwitcherLight = <LocaleSwitcher current={locale} light />;
@@ -99,7 +112,6 @@ export function SiteHeader({
 
   const actions = (
     <div className="flex items-center gap-2">
-      {authed && <NotificationsBell locale={locale} token={accessToken} />}
       {localeSwitcherLight}
       {authActions}
     </div>

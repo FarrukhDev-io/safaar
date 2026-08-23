@@ -23,17 +23,17 @@ export function CatalogHeader({
         {icon}
         <span>{badge}</span>
       </div>
-      <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
+      <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl lg:text-4xl">
         {title}
       </h1>
-      <p className="mt-2 text-base text-slate-600 dark:text-slate-400">
+      <p className="mt-1.5 text-sm sm:text-base text-slate-600 dark:text-slate-400">
         {subtitle}
       </p>
 
       {/* Filter Controls Bar */}
       {(searchControls || filterControls) && (
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-          {searchControls && <div className="relative flex-1">{searchControls}</div>}
+        <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center">
+          {searchControls && <div className="relative w-full lg:flex-1">{searchControls}</div>}
           {filterControls}
         </div>
       )}

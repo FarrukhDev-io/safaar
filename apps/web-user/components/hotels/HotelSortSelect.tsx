@@ -20,11 +20,11 @@ export function HotelSortSelect({ dict }: { dict: HotelsDict["sort"] }) {
   }
 
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <span className="whitespace-nowrap text-xs font-extrabold uppercase tracking-wider text-slate-700">
+    <div className="flex items-center gap-2 w-full sm:w-auto">
+      <span className="hidden sm:inline whitespace-nowrap text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
         {dict.label}:
       </span>
-      <div className="w-48 sm:w-56">
+      <div className="w-full sm:w-52 md:w-56">
         <Select
           value={current}
           onChange={onChange}
@@ -37,6 +37,6 @@ export function HotelSortSelect({ dict }: { dict: HotelsDict["sort"] }) {
           ]}
         />
       </div>
-    </label>
+    </div>
   );
 }

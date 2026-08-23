@@ -80,7 +80,6 @@ export function RegisterForm({
   const formErrorMap: Record<string, string> = {
     FIRST_NAME_REQUIRED: dict.firstNameRequired,
     EMAIL_REQUIRED: dict.emailRequired,
-    PHONE_REQUIRED: dict.phoneRequired,
     OTP_INVALID: dict.codeInvalid,
     OTP_EXPIRED: dict.codeExpired,
   };
@@ -108,7 +107,7 @@ export function RegisterForm({
               required
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder={dict.phonePlaceholder}
+              placeholder={dict.phonePlaceholder || "+998901234567"}
             />
           </label>
           <Button
@@ -126,7 +125,7 @@ export function RegisterForm({
         </div>
 
         {otpState.error && (
-          <p className="-mt-2 text-sm font-bold text-red-600">{otpState.error === "PHONE_REQUIRED" ? dict.phoneRequired : dict.error}</p>
+          <p className="-mt-2 text-sm font-bold text-red-600">{otpState.error === "PHONE_REQUIRED" ? (dict.phoneRequired ?? "Telefon raqamini kiriting.") : dict.error}</p>
         )}
 
         {otpState.devCode && (
@@ -171,11 +170,14 @@ export function RegisterForm({
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.emailOptional}</span>
+          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+            {dict.email} <span className="text-red-500">*</span>
+          </span>
           <Input
             name="email"
             type="email"
             autoComplete="email"
+            required
             placeholder={dict.emailPlaceholder}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -237,6 +239,7 @@ export function RegisterForm({
 
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="next" value={next} />
+        <input type="hidden" name="phone" value={phone} />
 
         {errorMsg && (
           <p className="text-sm font-bold text-red-600">

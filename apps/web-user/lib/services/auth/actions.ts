@@ -80,7 +80,6 @@ export async function verifyOtpAction(
   _prev: VerifyState,
   formData: FormData,
 ): Promise<VerifyState> {
-  const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const code = String(formData.get("code") ?? "").trim();
   const rawLocale = String(formData.get("locale") ?? defaultLocale);
@@ -88,7 +87,10 @@ export async function verifyOtpAction(
   const next = String(formData.get("next") ?? "");
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+
+  if (!phone) return { error: "PHONE_REQUIRED" };
 
   try {
     const result = await api.auth.verifyPhoneOtp(phone, code);

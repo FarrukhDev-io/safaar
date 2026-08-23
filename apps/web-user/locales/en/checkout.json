@@ -3,14 +3,6 @@
   "guestDetails": "Guest details",
   "fullName": "Full name",
   "fullNamePlaceholder": "First Last",
-  "firstName": "First name",
-  "firstNamePlaceholder": "Your first name",
-  "lastName": "Last name",
-  "lastNamePlaceholder": "Your last name",
-  "email": "Email",
-  "emailPlaceholder": "email@example.com",
-  "phone": "Phone",
-  "phonePlaceholder": "+998 90 123 45 67",
   "checkIn": "Check-in date",
   "checkOut": "Check-out date",
   "guests": "Guests",
@@ -28,6 +20,13 @@
   "total": "Total",
   "confirm": "Confirm booking",
   "needDates": "Select check-in and check-out dates to continue.",
-  "guestDetailsRequired": "Enter first name, last name, email, and phone to book.",
-  "error": "Booking failed. Please try again."
+  "error": "Booking failed. Please try again.",
+  "errors": {
+    "ROOM_ALREADY_BOOKED": "The selected room is already booked for these dates.",
+    "VEHICLE_ALREADY_BOOKED": "The selected vehicle is already booked for these dates.",
+    "BOOKING_DATES_INVALID": "Invalid booking dates.",
+    "GUEST_DETAILS_REQUIRED": "Guest details are required.",
+    "PROMO_INVALID": "Promo code is invalid or expired.",
+    "PROMO_LIMIT_REACHED": "Promo code usage limit reached."
+  }
 }

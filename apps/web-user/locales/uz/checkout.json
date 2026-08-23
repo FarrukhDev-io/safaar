@@ -4,13 +4,9 @@
   "fullName": "To'liq ism",
   "fullNamePlaceholder": "Ism Familiya",
   "firstName": "Ism",
-  "firstNamePlaceholder": "Ismingiz",
   "lastName": "Familiya",
-  "lastNamePlaceholder": "Familiyangiz",
   "email": "Elektron pochta",
-  "emailPlaceholder": "email@example.com",
   "phone": "Telefon raqami",
-  "phonePlaceholder": "+998 90 123 45 67",
   "checkIn": "Kirish sanasi",
   "checkOut": "Chiqish sanasi",
   "guests": "Mehmonlar",
@@ -28,6 +24,13 @@
   "total": "Jami",
   "confirm": "Bronni tasdiqlash",
   "needDates": "Davom etish uchun kirish va chiqish sanasini tanlang.",
-  "guestDetailsRequired": "Bron qilish uchun ism, familiya, email va telefonni kiriting.",
-  "error": "Bron qilishda xatolik yuz berdi. Qayta urinib ko'ring."
+  "error": "Bron qilishda xatolik yuz berdi. Qayta urinib ko'ring.",
+  "errors": {
+    "ROOM_ALREADY_BOOKED": "Tanlangan xona ushbu sanalarda allaqachon band qilingan.",
+    "VEHICLE_ALREADY_BOOKED": "Tanlangan avtomobil ushbu sanalarda allaqachon band qilingan.",
+    "BOOKING_DATES_INVALID": "Bron qilish sanalari noto'g'ri tanlangan.",
+    "GUEST_DETAILS_REQUIRED": "Mehmon ma'lumotlari kiritilishi shart.",
+    "PROMO_INVALID": "Promokod noto'g'ri yoki muddati o'tgan.",
+    "PROMO_LIMIT_REACHED": "Promokoddan foydalanish limiti tugagan."
+  }
 }

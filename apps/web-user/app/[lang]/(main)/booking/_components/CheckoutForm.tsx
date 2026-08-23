@@ -1,15 +1,16 @@
-'use client';
+"use client";
 
-import { useActionState, useState } from 'react';
-import type { Locale } from '@/i18n/config';
-import type { CheckoutDict } from '@/i18n/dictionaries';
-import { createBookingAction, type CheckoutState } from '@/lib/booking/actions';
-import { formatSum } from '@/lib/money';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { DatePicker } from '@/components/ui/DatePicker';
-import { PaymentSelector } from '@/components/features/checkout/PaymentSelector';
-import { trackBookingStarted } from '@/lib/services/analytics/tracker';
+import { useActionState, useState } from "react";
+import type { Locale } from "@/i18n/config";
+import type { CheckoutDict } from "@/i18n/dictionaries";
+import { createBookingAction, type CheckoutState } from "@/lib/booking/actions";
+import { formatSum } from "@/lib/money";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { PaymentSelector } from "@/components/features/checkout/PaymentSelector";
+import { trackBookingStarted } from "@/lib/services/analytics/tracker";
+
 
 function nightsBetween(checkIn: string, checkOut: string): number {
   const start = Date.parse(checkIn);
@@ -47,12 +48,12 @@ export function CheckoutForm({
 
   const nights = nightsBetween(checkIn, checkOut);
   const total = room.priceSum * Math.max(nights, 0);
-  const errorMessage =
-    state.error === 'GUEST_DETAILS_REQUIRED'
-      ? dict.guestDetailsRequired
-      : state.error === 'ERROR'
-        ? dict.error
-        : state.error;
+
+  const getErrorMessage = (error: string) => {
+    if (error === "ERROR") return dict.error;
+    const errorsDict = (dict as any).errors as Record<string, string> | undefined;
+    return errorsDict?.[error] ?? error;
+  };
 
   const handleSubmitForm = (formData: FormData) => {
     trackBookingStarted({
@@ -75,29 +76,29 @@ export function CheckoutForm({
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm">
           <h2 className="text-lg font-semibold">{dict.guestDetails}</h2>
-
+          
           {isGuest ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1">
-                <span className="text-sm font-medium">{dict.firstName || 'Ism'}</span>
+                <span className="text-sm font-medium">{dict.firstName || "Ism"}</span>
                 <Input
                   name="firstName"
                   autoComplete="given-name"
                   required
-                  placeholder={dict.firstName || 'Ism'}
+                  placeholder={dict.firstName || "Ism"}
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-sm font-medium">{dict.lastName || 'Familiya'}</span>
+                <span className="text-sm font-medium">{dict.lastName || "Familiya"}</span>
                 <Input
                   name="lastName"
                   autoComplete="family-name"
                   required
-                  placeholder={dict.lastName || 'Familiya'}
+                  placeholder={dict.lastName || "Familiya"}
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-sm font-medium">{dict.email || 'Elektron pochta'}</span>
+                <span className="text-sm font-medium">{dict.email || "Elektron pochta"}</span>
                 <Input
                   type="email"
                   name="email"
@@ -107,7 +108,7 @@ export function CheckoutForm({
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-sm font-medium">{dict.phone || 'Telefon raqami'}</span>
+                <span className="text-sm font-medium">{dict.phone || "Telefon raqami"}</span>
                 <Input
                   type="tel"
                   name="phone"
@@ -135,7 +136,7 @@ export function CheckoutForm({
                 label={dict.checkIn}
                 value={checkIn}
                 onChange={setCheckIn}
-                min={new Date().toISOString().split('T')[0]}
+                min={new Date().toISOString().split("T")[0]}
               />
               <input type="hidden" name="checkIn" value={checkIn} />
             </div>
@@ -145,7 +146,7 @@ export function CheckoutForm({
                 label={dict.checkOut}
                 value={checkOut}
                 onChange={setCheckOut}
-                min={checkIn || new Date().toISOString().split('T')[0]}
+                min={checkIn || new Date().toISOString().split("T")[0]}
               />
               <input type="hidden" name="checkOut" value={checkOut} />
             </div>
@@ -164,9 +165,7 @@ export function CheckoutForm({
         </section>
 
         <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-card p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            {dict.paymentMethod}
-          </h2>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">{dict.paymentMethod}</h2>
           <PaymentSelector defaultValue="click" name="paymentMethod" />
         </section>
       </div>
@@ -191,7 +190,11 @@ export function CheckoutForm({
         {nights < 1 && (
           <p className="text-sm text-amber-600">{dict.needDates}</p>
         )}
-        {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+        {state.error && (
+          <p className="text-sm text-red-600">
+            {getErrorMessage(state.error)}
+          </p>
+        )}
 
         <Button
           type="submit"
