@@ -71,63 +71,6 @@ describe('AuthService email and OAuth', () => {
     global.fetch = originalFetch;
   });
 
-  it('turns an SMTP send failure into EMAIL_DELIVERY_FAILED for the partner OTP path too', async () => {
-    pg.query.mockResolvedValueOnce([
-      {
-        id: '00000000-0000-4000-8000-000000000010',
-        organization_status: 'approved',
-      },
-    ]);
-    email.send.mockRejectedValueOnce(new Error('ETIMEDOUT'));
-
-    await expect(
-      service.sendPartnerEmailOtp('partner-smtp-down@example.com'),
-    ).rejects.toMatchObject({
-      status: 503,
-      response: expect.objectContaining({ code: 'EMAIL_DELIVERY_FAILED' }),
-    });
-  });
-
-  it('does not report a partner OTP as sent when the provider rejects it', async () => {
-    pg.query.mockResolvedValueOnce([
-      {
-        id: '00000000-0000-4000-8000-000000000010',
-        organization_status: 'approved',
-      },
-    ]);
-    email.send.mockResolvedValueOnce({ accepted: false });
-
-    await expect(
-      service.sendPartnerEmailOtp('partner@example.com'),
-    ).rejects.toBeInstanceOf(ServiceUnavailableException);
-
-    expect(jobs.add).not.toHaveBeenCalled();
-  });
-
-  it('rejects a partner email login when the OTP code is invalid', async () => {
-    pg.query.mockResolvedValueOnce([
-      {
-        id: '00000000-0000-4000-8000-000000000010',
-        organization_status: 'approved',
-      },
-    ]);
-    const challenge = await service.sendPartnerEmailOtp('partner@example.com');
-    const createSession = jest
-      .spyOn(authSessionStore, 'create')
-      .mockResolvedValue({} as never);
-
-    await expect(
-      service.verifyPartnerEmailOtp({
-        email: 'partner@example.com',
-        code: '000000',
-        challenge_id: challenge.challenge_id,
-      }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-
-    expect(pg.query).toHaveBeenCalledTimes(1);
-    expect(createSession).not.toHaveBeenCalled();
-  });
-
   it('does not issue partner tokens through phone login without OTP', async () => {
     const createSession = jest
       .spyOn(authSessionStore, 'create')
@@ -683,21 +626,5 @@ describe('AuthService demo-mode OTP (ENABLE_DEMO_AUTH — SMS/email provider unc
     await expect(service.sendUserOtp('+998901234567')).rejects.toMatchObject({
       response: { code: 'SMS_PROVIDER_NOT_CONFIGURED' },
     });
-  });
-
-  it('sendPartnerEmailOtp skips real email delivery and returns dev_code in demo mode', async () => {
-    process.env.ENABLE_DEMO_AUTH = 'true';
-    pg.query.mockResolvedValueOnce([
-      {
-        id: '00000000-0000-4000-8000-000000000010',
-        organization_status: 'approved',
-      },
-    ]);
-
-    const result = await service.sendPartnerEmailOtp('demo-partner@safaar.uz');
-
-    expect(email.send).not.toHaveBeenCalled();
-    expect(jobs.add).not.toHaveBeenCalled();
-    expect((result as { dev_code?: string }).dev_code).toMatch(/^\d{6}$/);
   });
 });

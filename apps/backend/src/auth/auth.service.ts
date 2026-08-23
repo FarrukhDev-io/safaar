@@ -17,7 +17,6 @@ import {
   type OAuthProviderAvailability,
 } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
-import { JOBS } from '../jobs/job-names';
 import {
   PostgresService,
   type PostgresTransaction,
@@ -119,47 +118,6 @@ export class AuthService {
     return this.sendOtpDemoOrFail(this.normalizePhone(phone), 'partner_login');
   }
 
-  async sendPartnerEmailOtp(email: string) {
-    const normalizedEmail = this.normalizeEmail(email);
-    if (!this.isValidEmail(normalizedEmail)) {
-      throw this.invalidCredentials();
-    }
-
-    await this.assertApprovedPartnerEmail(normalizedEmail);
-    const response = this.createOtpChallenge(normalizedEmail, 'partner_login');
-    const code = otpStore.getDeliveryCode(response.challenge_id);
-
-    if (this.isDemoAuthEnabled()) {
-      return { ...response, dev_code: code };
-    }
-
-    const message = {
-      to: normalizedEmail,
-      subject: 'Safaar hamkor kabineti uchun kirish kodi',
-      text: `Safaar hamkor kabinetiga kirish kodingiz: ${code ?? '******'}`,
-      html: `<p>Safaar hamkor kabinetiga kirish kodingiz:</p><h2>${code ?? '******'}</h2>`,
-    };
-
-    const delivery = await this.sendEmailOrFail(message);
-    if (!delivery.accepted) {
-      throw new ServiceUnavailableException({
-        code: 'EMAIL_DELIVERY_FAILED',
-        message: 'Tasdiqlash kodini emailga yuborib bo‘lmadi',
-      });
-    }
-
-    await this.jobs.add(JOBS.SEND_EMAIL, message, {
-      idempotencyKey: `partner-login-email:${response.challenge_id}`,
-    });
-
-    return {
-      sent: response.sent,
-      challenge_id: response.challenge_id,
-      expires_in_seconds: response.expires_in_seconds,
-      resend_after_seconds: response.resend_after_seconds,
-    };
-  }
-
   async verifyUserOtp(
     dto: VerifyOtpDto,
   ): Promise<AuthTokens & { user: unknown }> {
@@ -228,33 +186,6 @@ export class AuthService {
     });
 
     return this.issuePartnerTokensByPhone(phone);
-  }
-
-  async verifyPartnerEmailOtp(body: Record<string, unknown>): Promise<
-    AuthTokens & {
-      organization_id: string;
-      organizationId: string;
-      partner_role: string;
-    }
-  > {
-    const email = this.normalizeEmail(body.email);
-    const code = String(body.code ?? '');
-    const challengeId = String(
-      body.challenge_id ?? body.chalenge_id ?? '',
-    ).trim();
-
-    if (!this.isValidEmail(email)) {
-      throw this.invalidCredentials();
-    }
-
-    this.consumeOtp({
-      challengeId,
-      phone: email,
-      purpose: 'partner_login',
-      code,
-    });
-
-    return this.issuePartnerTokensByEmail(email);
   }
 
   async completeProfile(
@@ -765,15 +696,6 @@ export class AuthService {
     });
 
     return this.issuePartnerTokensByPhone(phone);
-  }
-
-  async partnerEmailLogin(body: Record<string, unknown>) {
-    const email = this.normalizeEmail(body.email);
-    if (!this.isValidEmail(email)) {
-      throw this.invalidCredentials();
-    }
-
-    return this.sendPartnerEmailOtp(email);
   }
 
   async adminLogin(body: Record<string, unknown>) {
@@ -1333,91 +1255,6 @@ export class AuthService {
     };
   }
 
-  private async issuePartnerTokensByEmail(email: string): Promise<
-    AuthTokens & {
-      organization_id: string;
-      organizationId: string;
-      organization_status: string;
-      organizationStatus: string;
-      partner_role: string;
-    }
-  > {
-    const rows = await this.pg.query<DbRow>(
-      `
-        select
-          po.id::text as organization_id,
-          po.status::text as organization_status,
-          pu.id::text as user_id,
-          pu.status::text as user_status,
-          COALESCE(pu.role, 'owner')::text as partner_role
-        from partner_organizations po
-        left join partner_users pu
-          on pu.organization_id = po.id
-         and pu.deleted_at is null
-        where lower(po.email) = lower($1)
-           or lower(pu.email) = lower($1)
-        order by pu.created_at asc nulls last, po.created_at desc
-        limit 1
-      `,
-      [email],
-    );
-    const row = rows[0];
-
-    if (!row || !this.isPartnerLoginStatusAllowed(row['organization_status'])) {
-      throw new UnauthorizedException({
-        code: 'PARTNER_NOT_ACTIVE',
-        message: 'Hamkor tashkilot faol emas',
-      });
-    }
-    const organizationStatus = String(row['organization_status'] ?? '');
-
-    if (row['user_status'] && row['user_status'] !== 'active') {
-      throw this.invalidCredentials();
-    }
-
-    const organizationId = String(row['organization_id']);
-    const actorId = row['user_id'] ? String(row['user_id']) : organizationId;
-
-    return {
-      ...(await this.issueTokens({
-        actorId,
-        actorType: 'partner',
-        role: Role.PARTNER,
-        organizationId,
-      })),
-      organization_id: organizationId,
-      organizationId,
-      organization_status: organizationStatus,
-      organizationStatus,
-      partner_role: String(row['partner_role'] ?? 'owner'),
-    };
-  }
-
-  private async assertApprovedPartnerEmail(email: string) {
-    const rows = await this.pg.query<DbRow>(
-      `
-        select po.id::text, po.status::text as organization_status
-        from partner_organizations po
-        left join partner_users pu
-          on pu.organization_id = po.id
-         and pu.deleted_at is null
-        where lower(po.email) = lower($1) or lower(pu.email) = lower($1)
-        limit 1
-      `,
-      [email],
-    );
-
-    if (
-      !rows[0] ||
-      !this.isPartnerLoginStatusAllowed(rows[0]['organization_status'])
-    ) {
-      throw new UnauthorizedException({
-        code: 'PARTNER_NOT_ACTIVE',
-        message: 'Hamkor tashkilot faol emas',
-      });
-    }
-  }
-
   private isPartnerLoginStatusAllowed(status: unknown): boolean {
     return ['approved', 'blocked', 'suspended'].includes(
       String(status ?? '').toLowerCase(),
@@ -1857,28 +1694,6 @@ export class AuthService {
 
   private opaqueCodeHash(value: string): string {
     return createHash('sha256').update(value).digest('hex');
-  }
-
-  /**
-   * `emailService.send()` xato tashlasa (masalan SMTP host o'chgan/vaqt
-   * tugagan), buni ushlab, controller darajasida kutilgan
-   * `EMAIL_DELIVERY_FAILED` (503) xatosiga aylantiradi — aks holda
-   * bu tipsiz xato umumiy 500 sifatida chiqib ketardi.
-   */
-  private async sendEmailOrFail(
-    message: Parameters<EmailService['send']>[0],
-  ): ReturnType<EmailService['send']> {
-    try {
-      return await this.emailService.send(message);
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new ServiceUnavailableException({
-        code: 'EMAIL_DELIVERY_FAILED',
-        message: 'Tasdiqlash kodini emailga yuborib bo‘lmadi',
-      });
-    }
   }
 
   /**

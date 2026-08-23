@@ -61,22 +61,10 @@ export class AuthController {
     return this.authService.sendPartnerOtp(dto.phone);
   }
 
-  @Post('partner/email-otp/request')
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  requestPartnerEmailOtp(@Body() body: Record<string, unknown>) {
-    return this.authService.sendPartnerEmailOtp(String(body.email ?? ''));
-  }
-
   @Post('otp/verify')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   verifyOtpAlias(@Body() dto: VerifyOtpRequestDto) {
     return this.authService.verifyPartnerOtp(dto);
-  }
-
-  @Post('partner/email-otp/verify')
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  verifyPartnerEmailOtp(@Body() body: Record<string, unknown>) {
-    return this.authService.verifyPartnerEmailOtp(body);
   }
 
   @Post('user/complete-profile')
@@ -217,12 +205,6 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   partnerPhoneLogin(@Body() body: Record<string, unknown>) {
     return this.authService.partnerPhoneLogin(body);
-  }
-
-  @Post('partner/email-login')
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  partnerEmailLogin(@Body() body: Record<string, unknown>) {
-    return this.authService.partnerEmailLogin(body);
   }
 
   @Post('partner/forgot-password')
