@@ -56,6 +56,13 @@ export interface BackendHotel {
   pets_allowed?: boolean;
   children_allowed?: boolean;
   extra_fees?: unknown;
+  land_area_sotix?: number | null;
+  has_outdoor_pool?: boolean;
+  has_indoor_pool?: boolean;
+  has_sauna?: boolean;
+  has_playstation?: boolean;
+  has_billiards?: boolean;
+  capacity_people?: number | null;
 }
 
 export interface BackendRoom {

@@ -1,7 +1,7 @@
 "use client";
 
 import { BedDouble, BedSingle, UtensilsCrossed, Users, CarFront, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "../../_components/layout/page-header";
@@ -16,6 +16,7 @@ import { formatMoney } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
 import { useDataStore } from "../../_stores/data-store";
 import { getPartnerLabels, hasBeds, hasBuses, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
+import { DachaDetailsView } from "./dacha-details-view";
 
 export function RoomsView() {
   const router = useRouter();
@@ -33,10 +34,6 @@ export function RoomsView() {
   const [addingRoom, setAddingRoom] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [managingBedsFor, setManagingBedsFor] = useState<Room | null>(null);
-
-  useEffect(() => {
-    if (isDachaType) router.replace("/listing");
-  }, [isDachaType, router]);
 
   // Qavatlar bo'yicha guruhlash
   const floors = useMemo(() => {
@@ -63,7 +60,9 @@ export function RoomsView() {
     return sortedFloors;
   }, [rooms]);
 
-  if (isDachaType) return null;
+  // Dachada "xonalar" tushunchasi yo'q — o'zining sotix/basseyn/sauna kabi
+  // xususiyatlarini tahrirlaydigan alohida forma ko'rsatiladi.
+  if (isDachaType) return <DachaDetailsView />;
 
   return (
     <div className="flex flex-col gap-8 max-w-7xl mx-auto pb-10">
