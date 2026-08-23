@@ -47,9 +47,9 @@ export function VehicleCheckoutForm({
   const total = pricePerDaySum * Math.max(days, 0);
   const errorMessage =
     state.error === 'GUEST_DETAILS_REQUIRED'
-      ? dict.guestDetailsRequired
+      ? dict.errors.GUEST_DETAILS_REQUIRED
       : state.error === 'VEHICLE_ALREADY_BOOKED'
-        ? "Tanlangan sanalar uchun mashina allaqachon band qilingan"
+        ? dict.errors.VEHICLE_ALREADY_BOOKED
         : state.error === 'ERROR'
           ? dict.error
           : state.error;
