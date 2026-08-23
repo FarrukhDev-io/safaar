@@ -26,7 +26,7 @@ describe('validateEnv (regression: H-3 HOST var was silently dropped)', () => {
     expect(result.HOST).toBe('0.0.0.0');
   });
 
-  it('passes through an explicitly-set ENABLE_DEMO_AUTH value (regression: dev_code silently never worked because this var was dropped) — checked outside production, since production now rejects true outright (see the dedicated secret-strength describe block below)', () => {
+  it('passes through an explicitly-set ENABLE_DEMO_AUTH value (regression: dev_code silently never worked because this var was dropped)', () => {
     const result = validateEnv({
       NODE_ENV: 'development',
       ENABLE_DEMO_AUTH: 'true',
@@ -104,10 +104,15 @@ describe('validateEnv — production secret strength (regression: CRITICAL findi
     ).toThrow(/OTP_PEPPER/);
   });
 
-  it('rejects production with ENABLE_DEMO_AUTH=true (CRITICAL: leaks real OTP codes in the API response)', () => {
+  it('allows production with ENABLE_DEMO_AUTH=true but warns loudly (leaks real OTP codes in the API response — temporary, conscious tradeoff while no SMS provider is configured yet)', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     expect(() =>
       validateEnv({ ...minimalProdConfig, ENABLE_DEMO_AUTH: 'true' }),
-    ).toThrow(/ENABLE_DEMO_AUTH/);
+    ).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('ENABLE_DEMO_AUTH'),
+    );
+    warnSpy.mockRestore();
   });
 
   it('rejects production with SWAGGER_ENABLED=true (exposes the full API schema unauthenticated)', () => {

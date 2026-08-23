@@ -27,7 +27,7 @@ import { SmsService } from '../infrastructure/sms.service';
 import { AppCacheService } from '../infrastructure/cache.service';
 import { otpStore, type OtpPurpose } from './otp-store';
 import { authSessionStore } from './session-store';
-import { isProduction, signJwt, verifyJwt } from './security';
+import { signJwt, verifyJwt } from './security';
 import { createTotpSetup, verifyTotpCode, type TotpSetup } from './totp';
 
 type DbRow = Record<string, unknown>;
@@ -1740,24 +1740,18 @@ export class AuthService {
 
   /**
    * `ENABLE_DEMO_AUTH=true` bo'lsa, OTP kodi haqiqiy SMS/email o'rniga
-   * to'g'ridan-to'g'ri javobda (`dev_code`) qaytariladi — faqat local
-   * development/staging'da provider credentials sozlanmagan paytda oqimni
-   * sinash uchun.
+   * to'g'ridan-to'g'ri javobda (`dev_code`) qaytariladi.
    *
-   * MUHIM (xavfsizlik): bu ikkita mustaqil himoya qatlami bilan
-   * ta'minlangan. (1) `env.validation.ts` — `NODE_ENV=production` va
-   * `ENABLE_DEMO_AUTH=true` birga bo'lsa, ilova butunlay ishga
-   * tushishidan bosh tortadi (boot-time fail-fast). (2) shu yerdagi
-   * `!isProduction()` tekshiruvi — ikkinchi, mustaqil chiziq: hatto
-   * birinchi tekshiruv negadir chetlab o'tilgan taqdirda ham (masalan
-   * `NODE_ENV` runtime'da almashtirilgan holat), production muhitida bu
-   * funksiya HECH QACHON `true` qaytarmaydi, demak real OTP kodi hech
-   * qachon API javobida chiqmaydi.
+   * MUHIM (xavfsizlik): bu ATAYLAB production'da ham ishlaydi hozircha —
+   * SMS provayder (Eskiz) hali ulanmagan, foydalanuvchining ongli va
+   * vaqtinchalik qarori bilan yoqilgan (2026-08-23). Bu HAR QANDAY
+   * telefon raqami uchun OTP kodini API javobida ochiq qoldiradi — SMS
+   * provayder ulangach `ENABLE_DEMO_AUTH` env o'zgaruvchisi DARHOL
+   * `false`ga o'zgartirilishi shart. `env.validation.ts` bu holatda
+   * boot vaqtida ogohlantirish log yozadi (lekin ishga tushishni
+   * to'xtatmaydi).
    */
   private isDemoAuthEnabled(): boolean {
-    if (isProduction()) {
-      return false;
-    }
     return String(process.env.ENABLE_DEMO_AUTH ?? '').toLowerCase() === 'true';
   }
 
