@@ -20,6 +20,10 @@ export interface AccommodationListWithMapProps {
   safePage: number;
   totalPages: number;
   currentParams: Record<string, string>;
+  headerTitle?: React.ReactNode;
+  headerSort?: React.ReactNode;
+  filters?: React.ReactNode;
+  activeFilters?: React.ReactNode;
 }
 
 export function AccommodationListWithMap({
@@ -30,6 +34,10 @@ export function AccommodationListWithMap({
   safePage,
   totalPages,
   currentParams,
+  headerTitle,
+  headerSort,
+  filters,
+  activeFilters,
 }: AccommodationListWithMapProps) {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [hoveredHotelId, setHoveredHotelId] = useState<string | null>(null);
@@ -72,42 +80,52 @@ export function AccommodationListWithMap({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* View Toggle Bar */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800">
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">
-          Ko'rinish Rejimi (View Mode)
-        </span>
+      {/* View Toggle Bar & Header (Spans full width) */}
+      {headerTitle || headerSort ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
+            <div>{headerTitle}</div>
+            <div className="flex items-center gap-3">
+              {headerSort}
+              <div className="inline-flex rounded-xl border border-slate-200/80 bg-white p-1 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
+                    viewMode === "grid"
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  }`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Grid</span>
+                </button>
 
-        <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-900">
-          <button
-            type="button"
-            onClick={() => setViewMode("grid")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-              viewMode === "grid"
-                ? "bg-card text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-            }`}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            <span>Grid</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setViewMode("map")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-              viewMode === "map"
-                ? "bg-card text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-            }`}
-          >
-            <Map className="h-3.5 w-3.5" />
-            <span>Xarita</span>
-          </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("map")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer ${
+                    viewMode === "map"
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  }`}
+                >
+                  <Map className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Xarita</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          {activeFilters}
         </div>
-      </div>
+      ) : null}
 
-      {/* Main Content Layout */}
+      {/* Main Content Layout with Sidebar */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
+        <aside>
+          {filters}
+        </aside>
+        <section>
       {items.length === 0 ? (
         <EmptyState
           title="Ob'ektlar topilmadi"
@@ -181,6 +199,8 @@ export function AccommodationListWithMap({
           />
         </>
       )}
+        </section>
+      </div>
     </div>
   );
 }

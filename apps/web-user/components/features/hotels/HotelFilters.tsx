@@ -3,13 +3,10 @@
 import { useState, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { HotelsDict } from "@/i18n/dictionaries";
-import { Select } from "@/components/ui/Select";
-import { Input } from "@/components/ui/Input";
-import { Filter, ChevronDown } from "lucide-react";
+import { Filter, ChevronDown, Star } from "lucide-react";
 import { FilterSidebar } from "@/components/ui/FilterSidebar";
 import { FilterGroup } from "@/components/ui/FilterGroup";
 import { Button } from "@/components/ui/Button";
-
 
 export function HotelFilters({
   dict,
@@ -24,9 +21,19 @@ export function HotelFilters({
 
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") ?? "");
-  const [stars, setStars] = useState(searchParams.get("stars") ?? "");
-  const [minPrice, setMinPrice] = useState(searchParams.get("min_price") ?? "");
-  const [maxPrice, setMaxPrice] = useState(searchParams.get("max_price") ?? "");
+  const [stars, setStars] = useState(searchParams.get("stars") ?? "5");
+  const [priceRange, setPriceRange] = useState<number>(
+    Number(searchParams.get("max_price")) || 2000000
+  );
+  const [selectedType, setSelectedType] = useState<string>(
+    pathname.includes("dachas")
+      ? "dachas"
+      : pathname.includes("sanatoriums")
+      ? "sanatoriums"
+      : pathname.includes("resorts")
+      ? "resorts"
+      : "hotels"
+  );
 
   const push = useCallback(
     (params: URLSearchParams) => {
@@ -41,11 +48,10 @@ export function HotelFilters({
     const params = new URLSearchParams(searchParams.toString());
     if (searchQuery) params.set("search", searchQuery); else params.delete("search");
     if (stars) params.set("stars", stars); else params.delete("stars");
-    if (minPrice) params.set("min_price", minPrice); else params.delete("min_price");
-    if (maxPrice) params.set("max_price", maxPrice); else params.delete("max_price");
+    if (priceRange < 2000000) params.set("max_price", String(priceRange)); else params.delete("max_price");
     push(params);
     setOpen(false);
-  }, [searchParams, searchQuery, stars, minPrice, maxPrice, push]);
+  }, [searchParams, searchQuery, stars, priceRange, push]);
 
   const reset = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -53,9 +59,8 @@ export function HotelFilters({
       params.delete(key);
     }
     setSearchQuery("");
-    setStars("");
-    setMinPrice("");
-    setMaxPrice("");
+    setStars("5");
+    setPriceRange(2000000);
     push(params);
     setOpen(false);
   }, [searchParams, push]);
@@ -69,9 +74,8 @@ export function HotelFilters({
 
   return (
     <div className="w-full">
-      {/* Mobile Actions Toolbar: 1 Row with 2 Columns */}
+      {/* Mobile Actions Toolbar */}
       <div className="grid grid-cols-2 gap-2 mb-3 lg:hidden">
-        {/* Mobile Toggle Trigger Button */}
         <Button
           type="button"
           variant="secondary"
@@ -81,10 +85,10 @@ export function HotelFilters({
           className="w-full flex items-center justify-between !h-11 min-h-[44px] px-3.5 text-xs sm:text-sm font-bold"
         >
           <span className="inline-flex items-center gap-1.5 min-w-0 truncate">
-            <Filter className="h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400" />
+            <Filter className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
             <span className="truncate">{dict.filters.toggle}</span>
             {activeCount > 0 && (
-              <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-primary-600 px-1 text-[11px] font-black text-white">
+              <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-black text-white">
                 {activeCount}
               </span>
             )}
@@ -92,67 +96,106 @@ export function HotelFilters({
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
         </Button>
 
-        {/* Mobile Sort Select */}
         {sortSelect ? <div className="w-full min-w-0">{sortSelect}</div> : null}
       </div>
 
       <FilterSidebar
-        title={dict.filters.title}
+        title="FILTRLAR"
         isOpen={open}
         onClose={() => setOpen(false)}
         onApply={apply}
         onReset={reset}
-        applyLabel={dict.filters.apply}
-        resetLabel={dict.filters.reset}
+        applyLabel="Natijalarni ko'rsatish"
+        resetLabel="Tozalash"
       >
-        {/* Name Search */}
-        <FilterGroup title={dict.filters.searchName || "Nomi bo'yicha qidiruv"}>
-          <Input
-            type="text"
-            placeholder={dict.filters.searchPlaceholder || "Masalan: Hilton"}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
-          />
+        {/* NARX (1 KECHA) */}
+        <FilterGroup title="NARX (1 KECHA)">
+          <div className="flex flex-col gap-2 pt-1">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+              <span>0 so'm</span>
+              <span className="text-blue-600 dark:text-blue-400 font-extrabold">
+                {priceRange.toLocaleString("fr-FR").replace(/\s/g, " ")} so'm
+              </span>
+            </div>
+            <input
+              type="range"
+              min={100000}
+              max={2000000}
+              step={50000}
+              value={priceRange}
+              onChange={(e) => setPriceRange(Number(e.target.value))}
+              className="h-2 w-full accent-blue-600 bg-slate-200 rounded-lg cursor-pointer dark:bg-slate-700"
+            />
+          </div>
         </FilterGroup>
 
-        {/* Star Rating Group */}
-        <FilterGroup title={dict.filters.stars}>
-          <Select
-            value={stars}
-            onChange={setStars}
-            options={[
-              { value: "", label: dict.filters.anyStars },
-              ...[5, 4, 3, 2, 1].map((s) => ({
-                value: String(s),
-                label: dict.filters.starsValue.replace("{n}", String(s)),
-              })),
-            ]}
-          />
+        {/* YULDUZLAR */}
+        <FilterGroup title="YULDUZLAR">
+          <div className="flex flex-col gap-2 pt-1">
+            {[
+              { val: "5", label: "5 yulduz", starsCount: 5, count: 2 },
+              { val: "4", label: "4 va yuqori", starsCount: 4, count: 3 },
+              { val: "3", label: "3 va yuqori", starsCount: 3, count: 5 },
+            ].map((item) => (
+              <label
+                key={item.val}
+                className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer group hover:text-blue-600"
+              >
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={stars === item.val}
+                    onChange={() => setStars(stars === item.val ? "" : item.val)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span className="flex items-center gap-1">
+                    <span className="flex text-amber-400">
+                      {"★".repeat(item.starsCount)}
+                    </span>
+                    <span className="ml-1 text-slate-600 dark:text-slate-400 font-medium">
+                      {item.label}
+                    </span>
+                  </span>
+                </span>
+                <span className="text-slate-400 text-[11px] font-semibold">
+                  ({item.count})
+                </span>
+              </label>
+            ))}
+          </div>
         </FilterGroup>
 
-        {/* Price limits group */}
-        <FilterGroup title={`Narx (${dict.filters.currency})`}>
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="number"
-              min={0}
-              inputMode="numeric"
-              placeholder="Min"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-            />
-            <Input
-              type="number"
-              min={0}
-              inputMode="numeric"
-              placeholder="Max"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-            />
+        {/* MAHSULOT TURI */}
+        <FilterGroup title="MAHSULOT TURI">
+          <div className="flex flex-col gap-2 pt-1">
+            {[
+              { id: "hotels", name: "Mehmonxonalar", count: 4 },
+              { id: "dachas", name: "Dachalar", count: 1 },
+              { id: "sanatoriums", name: "Sanatoriylar", count: 1 },
+              { id: "resorts", name: "Oromgohlar", count: 0 },
+            ].map((cat) => (
+              <label
+                key={cat.id}
+                className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:text-blue-600"
+              >
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedType === cat.id}
+                    onChange={() => setSelectedType(cat.id)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>{cat.name}</span>
+                </span>
+                <span className="text-slate-400 text-[11px] font-semibold">
+                  ({cat.count})
+                </span>
+              </label>
+            ))}
           </div>
         </FilterGroup>
       </FilterSidebar>
     </div>
   );
 }
+

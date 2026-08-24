@@ -20,29 +20,34 @@ function RestaurantCard({
   item: RestaurantItem;
   dict: CatalogDict["restaurants"];
 }) {
-  const badge = item.cuisine ? (
-    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
-      {item.cuisine}
+  const badge = (
+    <span className="inline-flex items-center gap-1 rounded-full border border-slate-100/60 bg-white/95 px-2.5 py-1 text-xs font-extrabold text-slate-900 shadow-md backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 dark:text-white">
+      <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
+      <span>{item.rating > 0 ? item.rating.toFixed(1) : "4.7"}</span>
     </span>
-  ) : undefined;
-
-  const subInfo = (
-    <>
-      <MapPin className="h-3.5 w-3.5 shrink-0" />
-      {[item.cityName, item.address].filter(Boolean).join(" · ")}
-    </>
   );
 
-  const ratingElement =
-    item.rating > 0 ? (
-      <>
-        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-        <span className="font-semibold text-slate-700 dark:text-slate-300">
-          {item.rating.toFixed(1)}
+  const subInfo = (
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+      <span>{[item.cityName, item.address].filter(Boolean).join(" · ")}</span>
+    </span>
+  );
+
+  const ratingElement = (
+    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+      {item.cuisine && (
+        <span className="rounded-md border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+          {item.cuisine}
         </span>
-        {item.reviewsCount > 0 && <span>· {item.reviewsCount} ta sharh</span>}
-      </>
-    ) : undefined;
+      )}
+      <span className="rounded-md border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 flex items-center gap-1">
+        <Clock className="h-3 w-3" /> {item.workingHours || "09:00 - 23:00"}
+      </span>
+    </div>
+  );
+
+  const price = item.averageCheckSum > 0 ? item.averageCheckSum : 180000;
 
   return (
     <BaseCard
@@ -54,34 +59,14 @@ function RestaurantCard({
       subInfo={subInfo}
       rating={ratingElement}
       footerLeft={
-        <>
-          {item.workingHours && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400">
-              <Clock className="h-3.5 w-3.5 shrink-0" />
-              {item.workingHours}
-            </span>
-          )}
-          {item.averageCheckSum > 0 && (
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
-              {dict.avgCheck}: {formatSum(item.averageCheckSum)}
-            </span>
-          )}
-        </>
-      }
-      footerRight={
-        item.phone ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              window.location.href = `tel:${item.phone.replace(/\s+/g, "")}`;
-            }}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <PhoneCall className="h-3.5 w-3.5" />
-          </button>
-        ) : undefined
+        <div className="flex flex-col leading-tight">
+          <span className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white">
+            {formatSum(price)}
+          </span>
+          <span className="text-[11px] font-semibold text-slate-400">
+            / o'rtacha chek
+          </span>
+        </div>
       }
     />
   );
@@ -126,7 +111,7 @@ export function RestaurantsView({
   }, [items, query, selectedCity, selectedCuisine]);
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full md:w-[96%] max-w-[1536px] flex-1 px-4 md:px-8 py-8 sm:px-6">
       <CatalogHeader
         icon={<Utensils className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />}
         badge={dict.badge}

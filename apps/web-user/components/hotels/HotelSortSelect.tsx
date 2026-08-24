@@ -21,7 +21,7 @@ export function HotelSortSelect({ dict }: { dict: HotelsDict["sort"] }) {
 
   return (
     <div className="flex items-center gap-2 w-full sm:w-auto">
-      <span className="hidden sm:inline whitespace-nowrap text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+      <span className="hidden sm:inline whitespace-nowrap text-xs font-bold uppercase tracking-wider text-slate-400">
         {dict.label}:
       </span>
       <div className="w-full sm:w-52 md:w-56">
