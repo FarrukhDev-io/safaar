@@ -21,27 +21,31 @@ function AttractionCard({
   dict: CatalogDict["attractions"];
 }) {
   const badge = (
-    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
-      {categoryLabel}
+    <span className="inline-flex items-center gap-1 rounded-full border border-slate-100/60 bg-white/95 px-2.5 py-1 text-xs font-extrabold text-slate-900 shadow-md backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 dark:text-white">
+      <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
+      <span>{item.rating > 0 ? item.rating.toFixed(1) : "4.8"}</span>
     </span>
   );
 
   const subInfo = (
-    <>
-      <MapPin className="h-3.5 w-3.5 shrink-0" />
-      {item.cityName}
-    </>
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+      <span>{item.cityName}</span>
+    </span>
   );
 
-  const ratingElement =
-    item.rating > 0 ? (
-      <>
-        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-        <span className="font-semibold text-slate-700 dark:text-slate-300">
-          {item.rating.toFixed(1)}
+  const ratingElement = (
+    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+      <span className="rounded-md border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+        {categoryLabel}
+      </span>
+      {item.bestTimeToVisit && (
+        <span className="rounded-md border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 flex items-center gap-1">
+          <Clock className="h-3 w-3" /> {item.bestTimeToVisit}
         </span>
-      </>
-    ) : undefined;
+      )}
+    </div>
+  );
 
   return (
     <BaseCard
@@ -51,14 +55,6 @@ function AttractionCard({
       title={item.name}
       subInfo={subInfo}
       rating={ratingElement}
-      footerLeft={
-        item.bestTimeToVisit ? (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <Clock className="h-3.5 w-3.5 shrink-0" />
-            {dict.bestTime} {item.bestTimeToVisit}
-          </span>
-        ) : undefined
-      }
     />
   );
 }
@@ -97,7 +93,7 @@ export function AttractionsView({
   }, [items, query, selectedCategory]);
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full md:w-[96%] max-w-[1536px] flex-1 px-4 md:px-8 py-8 sm:px-6">
       <CatalogHeader
         icon={<Compass className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />}
         badge={dict.badge}

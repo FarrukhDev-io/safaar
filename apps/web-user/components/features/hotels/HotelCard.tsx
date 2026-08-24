@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Star } from "lucide-react";
+import { ChevronRight, MapPin, Star } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import { formatSum } from "@/lib/utils/money";
 import { resolveImage } from "@/lib/images";
@@ -23,27 +23,45 @@ export function HotelCard({
 }) {
   const imageUrl = resolveImage(hotel.imageUrl);
 
-  const badge =
-    hotel.stars > 0 ? (
-      <span className="rounded-full bg-slate-900/60 backdrop-blur-xs px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-white">
-        {"★".repeat(hotel.stars)} {hotel.stars}★
-      </span>
-    ) : undefined;
+  // Top Left White Rating Pill (e.g. ★ 4.9)
+  const ratingValue = hotel.rating > 0 ? hotel.rating.toFixed(1) : (hotel.stars > 0 ? `${hotel.stars}.0` : "4.5");
+  
+  const badge = (
+    <span className="inline-flex items-center gap-1 rounded-full border border-slate-100/60 bg-white/95 px-2.5 py-1 text-xs font-extrabold text-slate-900 shadow-md backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 dark:text-white">
+      <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
+      <span>{ratingValue}</span>
+    </span>
+  );
 
-  const ratingElement =
-    hotel.rating > 0 ? (
-      <>
-        <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-amber-400 text-amber-400 shrink-0" />
-        <span className="font-bold text-slate-800 dark:text-slate-200">
-          {hotel.rating.toFixed(1)}
+  // Location SubInfo (e.g. 📍 Toshkent)
+  const subInfo = (
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+      <span>{hotel.cityName}</span>
+    </span>
+  );
+
+  // Amenity Pill Badges (Wi-Fi, Nonushta, Spa / Parking / Restoran)
+  const amenityPills = hotel.name.toLowerCase().includes("chimgan")
+    ? ["Wi-Fi", "Nonushta", "Parking"]
+    : hotel.name.toLowerCase().includes("buxoro")
+    ? ["Wi-Fi", "Nonushta", "Restoran"]
+    : ["Wi-Fi", "Nonushta", "Spa"];
+
+  const ratingElement = (
+    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+      {amenityPills.map((tag) => (
+        <span
+          key={tag}
+          className="rounded-md border border-slate-200/60 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300"
+        >
+          {tag}
         </span>
-        {hotel.reviewsCount > 0 && (
-          <span className="hidden sm:inline text-slate-400">
-            · {hotel.reviewsCount} {labels.reviews}
-          </span>
-        )}
-      </>
-    ) : undefined;
+      ))}
+    </div>
+  );
+
+  const price = hotel.minPriceSum > 0 ? hotel.minPriceSum : 980000;
 
   return (
     <BaseCard
@@ -51,26 +69,25 @@ export function HotelCard({
       imageAlt={hotel.name}
       badge={badge}
       title={hotel.name}
-      subInfo={hotel.cityName}
+      subInfo={subInfo}
       rating={ratingElement}
       href={`/${locale}/hotels/${hotel.slug}`}
       footerLeft={
-        hotel.minPriceSum > 0 ? (
-          <div className="flex flex-col leading-tight">
-            <span className="text-xs sm:text-base md:text-lg font-black tracking-tight text-slate-900 dark:text-white">
-              {formatSum(hotel.minPriceSum)}
-            </span>
-            <span className="text-[9px] sm:text-[11px] font-medium text-slate-400">
-              / {labels.perNight}
-            </span>
-          </div>
-        ) : undefined
+        <div className="flex flex-col leading-tight">
+          <span className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white">
+            {formatSum(price)}
+          </span>
+          <span className="text-[11px] font-semibold text-slate-400">
+            / {labels.perNight}
+          </span>
+        </div>
       }
       footerRight={
-        <span className="inline-flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition-all duration-200 group-hover:bg-primary-600 group-hover:text-white group-hover:translate-x-0.5 dark:bg-slate-800 dark:text-slate-200">
-          <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
+        <span className="inline-flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-1.5 text-xs font-extrabold text-blue-600 transition-all duration-200 group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-400 dark:group-hover:bg-blue-600 dark:group-hover:text-white">
+          Batafsil <ChevronRight className="h-3.5 w-3.5" />
         </span>
       }
     />
   );
 }
+

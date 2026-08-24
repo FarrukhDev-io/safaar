@@ -80,7 +80,7 @@ export function SearchBar({
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <div className="mx-auto w-full">
       <form
         onSubmit={handleSubmit}
         className="relative flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-[inset_0_1.5px_0_0_rgba(255,255,255,1),0_4px_0_0_#cbd5e1,0_12px_28px_-4px_rgba(0,0,0,0.1),0_6px_10px_-2px_rgba(0,0,0,0.05)] transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-[inset_0_1.5px_0_0_rgba(255,255,255,0.1),0_4px_0_0_#1e293b,0_12px_28px_-4px_rgba(0,0,0,0.5)] md:flex-row md:items-center md:gap-0 md:rounded-3xl md:p-2.5 sm:p-4"
