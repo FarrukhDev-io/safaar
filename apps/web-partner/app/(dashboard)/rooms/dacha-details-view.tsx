@@ -115,6 +115,24 @@ export function DachaDetailsView() {
               disabled={isLoading}
             />
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="price">Narxi (1 kechaga)</Label>
+            <Input
+              id="price"
+              type="number"
+              min={0}
+              placeholder="Masalan: 300000"
+              value={draft.price ?? ""}
+              onChange={(e) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  price: e.target.value === "" ? null : Number(e.target.value),
+                }))
+              }
+              disabled={isLoading}
+            />
+          </div>
         </div>
       </section>
 

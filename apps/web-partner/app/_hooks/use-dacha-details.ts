@@ -1,9 +1,12 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { partners } from "../_lib/api";
 import { useAuthStore } from "../_stores/auth-store";
 import { getPrimaryHotel, primaryHotelQueryKey, usePrimaryHotel } from "./use-primary-hotel";
+import { roomsQueryKey } from "./use-rooms";
+import { roomTypesQueryKey } from "./use-room-types";
+import { pageItems } from "../_lib/api/client";
 
 export interface DachaDetails {
   landAreaSotix: number | null;
@@ -13,6 +16,7 @@ export interface DachaDetails {
   hasPlaystation: boolean;
   hasBilliards: boolean;
   capacityPeople: number | null;
+  price: number | null;
 }
 
 const EMPTY_DETAILS: DachaDetails = {
@@ -23,11 +27,23 @@ const EMPTY_DETAILS: DachaDetails = {
   hasPlaystation: false,
   hasBilliards: false,
   capacityPeople: null,
+  price: null,
 };
 
-/** Dachaning basseyn/sauna/sotix kabi maxsus xususiyatlari — `hotels` jadvalidagi qo'shimcha ustunlar. */
 export function useDachaDetails() {
-  const { data: hotel, isLoading } = usePrimaryHotel();
+  const { data: hotel, isLoading: isHotelLoading } = usePrimaryHotel();
+  const accessToken = useAuthStore((s) => s.tokens?.accessToken);
+
+  const { data: rooms, isLoading: isRoomsLoading } = useQuery({
+    queryKey: roomsQueryKey,
+    queryFn: async () => {
+      if (!hotel) return [];
+      return pageItems(await partners.listHotelRooms(hotel.id, accessToken));
+    },
+    enabled: Boolean(accessToken && hotel),
+  });
+
+  const activeRoom = rooms?.find((r) => r.status === 'active');
 
   const data: DachaDetails = hotel
     ? {
@@ -38,10 +54,11 @@ export function useDachaDetails() {
         hasPlaystation: hotel.has_playstation ?? false,
         hasBilliards: hotel.has_billiards ?? false,
         capacityPeople: hotel.capacity_people ?? null,
+        price: activeRoom?.base_price ?? null,
       }
     : EMPTY_DETAILS;
 
-  return { data, isLoading: isLoading && !hotel };
+  return { data, isLoading: (isHotelLoading && !hotel) || isRoomsLoading };
 }
 
 export function useUpdateDachaDetails() {
@@ -50,7 +67,8 @@ export function useUpdateDachaDetails() {
   return useMutation({
     mutationFn: async (values: DachaDetails) => {
       const hotel = await getPrimaryHotel(queryClient, accessToken);
-      return partners.updateHotel(
+      
+      await partners.updateHotel(
         hotel.id,
         {
           land_area_sotix: values.landAreaSotix,
@@ -63,9 +81,58 @@ export function useUpdateDachaDetails() {
         },
         accessToken,
       );
+
+      // Manage the single room_type / room for Dacha pricing
+      const existingRooms = pageItems(await partners.listHotelRooms(hotel.id, accessToken));
+      const existingRoomTypes = await partners.listRoomTypes(hotel.id, accessToken);
+      
+      let roomTypeId = existingRoomTypes[0]?.id;
+      
+      if (values.price !== null) {
+        if (!roomTypeId) {
+          const typeRes = await partners.createRoomType(hotel.id, {
+            name: { uz: "Butun dacha" },
+            code: "dacha-" + hotel.id.slice(0, 8),
+            base_occupancy: values.capacityPeople ?? 6,
+            max_adults: values.capacityPeople ?? 6,
+            base_price: values.price,
+            amenities: [],
+          }, accessToken);
+          roomTypeId = typeRes.id;
+        } else {
+          await partners.updateRoomType(hotel.id, roomTypeId, {
+            name: { uz: "Butun dacha" },
+            base_occupancy: values.capacityPeople ?? 6,
+            max_adults: values.capacityPeople ?? 6,
+            base_price: values.price,
+          }, accessToken);
+        }
+
+        if (existingRooms.length === 0) {
+          await partners.createHotelRoom(hotel.id, {
+            room_type_id: roomTypeId,
+            code: "Dacha",
+            base_price: values.price,
+            status: 'active',
+          }, accessToken);
+        } else {
+          await partners.updateHotelRoom(hotel.id, existingRooms[0].id, {
+            base_price: values.price,
+            status: 'active',
+          }, accessToken);
+        }
+      } else {
+        if (existingRooms.length > 0) {
+          await partners.updateHotelRoom(hotel.id, existingRooms[0].id, {
+            status: 'out_of_service',
+          }, accessToken);
+        }
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: primaryHotelQueryKey });
+      void queryClient.invalidateQueries({ queryKey: roomsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: roomTypesQueryKey });
     },
   });
 }
