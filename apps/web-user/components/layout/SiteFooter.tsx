@@ -36,7 +36,7 @@ export function SiteFooter({
 
   return (
     <footer className="mt-auto bg-black text-slate-300">
-      <div className="mx-auto w-full max-w-[1400px] px-6 py-12 sm:px-8 lg:py-16">
+      <div className="mx-auto w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8 py-12 lg:py-16">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-4 lg:gap-12">
           {/* Col 1: Brand & Intro */}
           <div className="flex flex-col gap-5">

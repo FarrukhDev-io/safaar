@@ -56,7 +56,7 @@ export default async function RestaurantDetailPage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
+    <main className="mx-auto flex w-full md:w-[96%] max-w-[1536px] flex-1 flex-col gap-6 px-3 sm:px-4 md:px-8 py-4 sm:py-6">
       <div className="flex items-center justify-between">
         <BackButton />
       </div>

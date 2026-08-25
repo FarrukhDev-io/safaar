@@ -23,16 +23,6 @@ export function HotelCard({
 }) {
   const imageUrl = resolveImage(hotel.imageUrl);
 
-  // Top Left White Rating Pill (e.g. ★ 4.9)
-  const ratingValue = hotel.rating > 0 ? hotel.rating.toFixed(1) : (hotel.stars > 0 ? `${hotel.stars}.0` : "4.5");
-  
-  const badge = (
-    <span className="inline-flex items-center gap-1 rounded-full border border-slate-100/60 bg-white/95 px-2.5 py-1 text-xs font-extrabold text-slate-900 shadow-md backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 dark:text-white">
-      <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
-      <span>{ratingValue}</span>
-    </span>
-  );
-
   // Location SubInfo (e.g. 📍 Toshkent)
   const subInfo = (
     <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -62,12 +52,12 @@ export function HotelCard({
   );
 
   const price = hotel.minPriceSum > 0 ? hotel.minPriceSum : 980000;
+  const viewDetailsLabel = locale === "ru" ? "Подробнее" : locale === "en" ? "Details" : "Batafsil";
 
   return (
     <BaseCard
       imageSrc={imageUrl}
       imageAlt={hotel.name}
-      badge={badge}
       title={hotel.name}
       subInfo={subInfo}
       rating={ratingElement}
@@ -78,13 +68,13 @@ export function HotelCard({
             {formatSum(price)}
           </span>
           <span className="text-[11px] font-semibold text-slate-400">
-            / {labels.perNight}
+            / 1 {labels.perNight}
           </span>
         </div>
       }
       footerRight={
         <span className="inline-flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-1.5 text-xs font-extrabold text-blue-600 transition-all duration-200 group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-400 dark:group-hover:bg-blue-600 dark:group-hover:text-white">
-          Batafsil <ChevronRight className="h-3.5 w-3.5" />
+          {viewDetailsLabel} <ChevronRight className="h-3.5 w-3.5" />
         </span>
       }
     />
