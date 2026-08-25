@@ -1190,7 +1190,7 @@ function LivePreview({
       {cover ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
-          src={cover}
+          src={resolveMediaUrl(cover)}
           alt=""
           className="absolute inset-0 h-full w-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-[1.03]"
         />

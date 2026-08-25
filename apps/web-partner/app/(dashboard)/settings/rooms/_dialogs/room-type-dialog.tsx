@@ -14,6 +14,7 @@ import { useAuthStore } from "../../../../_stores/auth-store";
 import { useCreateRoomType, useUpdateRoomType } from "../../../../_hooks/use-room-types";
 import { partners } from "../../../../_lib/api";
 import { getPartnerLabels, hasBuses, isRestaurant } from "../../../../_lib/utils/partner-labels";
+import { resolveMediaUrl } from "../../../../_lib/utils/media";
 import type { RoomType } from "../../../../_lib/domain/types";
 
 const ROOM_AMENITY_OPTIONS = [
@@ -291,7 +292,7 @@ export function RoomTypeDialog({ open, onClose, editing }: Props) {
               {imageUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={imageUrl}
+                  src={resolveMediaUrl(imageUrl)}
                   alt=""
                   className="h-full w-full object-cover transition-opacity group-hover:opacity-80"
                 />
