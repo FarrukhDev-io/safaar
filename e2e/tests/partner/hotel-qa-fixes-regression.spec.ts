@@ -51,6 +51,12 @@ test.describe('Hotel QA fixes — regression', () => {
     });
     if (await changeBtn.isVisible().catch(() => false)) {
       await changeBtn.click();
+      // Wait for the actual phone-step marker (the send button, which
+      // only exists in the phone-only step — #phone is ambiguous, it's
+      // present as a disabled recap field in the code step too).
+      await page
+        .getByRole('button', { name: 'SMS Kodini yuborish' })
+        .waitFor({ state: 'visible', timeout: 5_000 });
     }
     await page.locator('#phone').fill(APPROVED_PARTNER_PHONE);
 
@@ -73,7 +79,9 @@ test.describe('Hotel QA fixes — regression', () => {
       body?.error?.code === 'OTP_RATE_LIMITED'
         ? /OTP so.rovlar limiti oshdi/
         : /Kodni qayta so.rashdan oldin biroz kuting/;
-    await expect(page.getByText(expectedMessage)).toBeVisible({ timeout: 5_000 });
+    // Shown twice by design (inline field alert + toast) — assert at
+    // least one is visible rather than requiring exactly one match.
+    await expect(page.getByText(expectedMessage).first()).toBeVisible({ timeout: 5_000 });
 
     // ...and the UI must NOT silently fall into the fake "code sent" step:
     // no code input, no false "Kod ... raqamiga yuborildi" success text.
