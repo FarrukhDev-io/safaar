@@ -8,7 +8,7 @@ import { uniqueUzPhone } from '../helpers/phone';
  * (playwright.config.ts default baseURL'lari).
  */
 
-const APPROVED_PARTNER_PHONE = '+998901112201'; // Grand Samarkand Hotel (approved)
+const APPROVED_PARTNER_PHONE = '+998901112202'; // Grand Samarkand Hotel (approved)
 const ADMIN_BASE_URL =
   process.env.E2E_ADMIN_URL || 'https://web-admin-phi-beige.vercel.app';
 const ADMIN_EMAIL = 'admin@safaar.uz';
