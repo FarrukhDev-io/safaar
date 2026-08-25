@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AdminApi } from "@/lib/api/admin-api";
 import { extractApiErrorMessage } from "@/lib/utils";
+import { resolveMediaUrl } from "@/lib/media";
 import type { AdminListing } from "@/types/admin";
 
 const MISSING_FIELD_LABELS: Record<string, string> = {
@@ -172,8 +173,8 @@ export default function ListingDetailsPage() {
             <div className="flex flex-col gap-2">
               <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-[var(--bg-tertiary)]">
                 <Image
-                  src={listing.photos[activePhoto]} 
-                  alt={listing.hotelName} 
+                  src={resolveMediaUrl(listing.photos[activePhoto]) ?? listing.photos[activePhoto]}
+                  alt={listing.hotelName}
                   fill
                   unoptimized
                   sizes="(min-width: 1024px) 660px, 100vw"
@@ -187,7 +188,7 @@ export default function ListingDetailsPage() {
                     onClick={() => setActivePhoto(idx)}
                     className={`relative shrink-0 w-24 h-16 rounded-lg overflow-hidden border-2 transition-all ${activePhoto === idx ? "border-[var(--primary)]" : "border-transparent hover:border-[var(--border)]"}`}
                   >
-                    <Image src={photo} alt="" fill unoptimized sizes="96px" className="object-cover" />
+                    <Image src={resolveMediaUrl(photo) ?? photo} alt="" fill unoptimized sizes="96px" className="object-cover" />
                   </button>
                 ))}
               </div>
