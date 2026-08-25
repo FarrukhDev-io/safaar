@@ -91,7 +91,7 @@ export function DealsSection({
   const now = Date.now();
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+    <section className="mx-auto w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8">
       <div className="mb-4 sm:mb-5">
         <h2 className="text-xl font-black tracking-tight sm:text-2xl">
           <ShinyText>{dict.title}</ShinyText>

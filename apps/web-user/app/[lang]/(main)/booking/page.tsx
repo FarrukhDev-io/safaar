@@ -67,7 +67,7 @@ export default async function CheckoutPage({
   }
 
   return (
-    <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
+    <main className="relative mx-auto flex w-full md:w-[96%] max-w-[1536px] flex-1 flex-col gap-6 px-3 sm:px-4 md:px-8 py-6 sm:py-8">
       {/* Desktop Side Button */}
       <div className="absolute -left-12 top-8 hidden xl:block">
         <BackButton />
