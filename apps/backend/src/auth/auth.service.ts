@@ -1765,7 +1765,10 @@ export class AuthService {
 
     const delivery = await this.sendSmsOrFail({
       phone,
-      text: `Safaar kirish kodingiz: ${code ?? '******'}`,
+      // TextUp'da tasdiqlangan "Safaar" shabloni aynan shu matn shakliga
+      // (%w+ wildcard orqali) moslanadi — matnni o'zgartirsangiz, shablonni
+      // TextUp'da qayta tasdiqlatish kerak bo'ladi.
+      text: `Safaar ilovasiga uchun tasdiqlash kodi: ${code ?? '******'}`,
     });
     if (!delivery.accepted) {
       throw new ServiceUnavailableException({
