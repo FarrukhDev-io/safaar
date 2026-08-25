@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { isLoggingOut, setAccessTokenUpdater, setLoggingOut, setUnauthorizedHandler } from '../_lib/api/client';
+import {
+  isLoggingOut,
+  setAccessTokenUpdater,
+  setLoggingOut,
+  setUnauthorizedHandler,
+  waitForPendingRefresh,
+} from '../_lib/api/client';
 import { AUTH_STORAGE_KEY, useAuthStore } from '../_stores/auth-store';
 
 function currentPath() {
@@ -20,6 +26,28 @@ export function SessionExpiryHandler() {
   const pathname = usePathname();
   const router = useRouter();
   const redirecting = useRef(false);
+  // Zustand `persist` middleware localStorage'dan HOLATNI ASINXRON tiklaydi
+  // — har to'liq sahifa yuklanishida (masalan brauzer navigatsiyasi) BIRINCHI
+  // render'da `tokens` hali `null` bo'ladi, garchi foydalanuvchi haqiqatan
+  // ham tizimga kirgan bo'lsa ham. Shu qisqa oynada quyidagi "jim-refresh"
+  // effekti `hasTokens===false` deb xato tushunib, HAR sahifa
+  // yuklanishida keraksiz `/api/auth/refresh` so'rovini (va shu bilan
+  // refresh-token ROTATSIYASINI) yuborardi — bu esa "Chiqish" tugmasi
+  // bosilganda hali yaqinda yozilgan cookie'ni tozalashni qiyinlashtirgan
+  // holat edi (real E2E orqali topilgan). Shuning uchun bu effektni
+  // localStorage'dan tiklash TUGAGUNCHA kechiktiramiz.
+  // `useAuthStore.persist` faqat brauzerda mavjud — server-side prerender
+  // paytida (`window` yo'q muhitda) bu maydon `undefined` bo'lib qoladi.
+  const [hydrated, setHydrated] = useState(() =>
+    typeof window === 'undefined' ? false : useAuthStore.persist.hasHydrated(),
+  );
+
+  useEffect(() => {
+    // `hydrated`ning boshlang'ich qiymati `useState` initializer'ida
+    // `hasHydrated()` orqali ALLAQACHON hisobga olingan — bu yerda faqat
+    // hali TUGAMAGAN holat uchun obuna bo'lamiz (sinxron setState yo'q).
+    return useAuthStore.persist.onFinishHydration(() => setHydrated(true));
+  }, []);
 
   useEffect(() => {
     redirecting.current = false;
@@ -35,7 +63,7 @@ export function SessionExpiryHandler() {
   // ochilganda jimgina tiklab ko'ramiz, aks holda foydalanuvchi haqiqiy
   // sessiyasi bo'la turib chiqib ketilgan bo'lib ko'rinardi.
   useEffect(() => {
-    if (hasTokens || isLoggingOut()) return;
+    if (!hydrated || hasTokens || isLoggingOut()) return;
     let cancelled = false;
     fetch('/api/auth/refresh', { method: 'POST' })
       .then(async (res) => {
@@ -53,9 +81,10 @@ export function SessionExpiryHandler() {
     return () => {
       cancelled = true;
     };
-    // Faqat mount'da (yoki tokens yo'qolganda) bir marta urinamiz.
+    // Faqat mount'da (yoki tokens yo'qolganda/hydrate tugaganda) bir marta
+    // urinamiz.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasTokens]);
+  }, [hasTokens, hydrated]);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -83,10 +112,20 @@ export function SessionExpiryHandler() {
       // Cookie tozalanishini navigatsiyadan oldin kutamiz (real E2E orqali
       // topilgan poyga holati — fire-and-forget bo'lsa, so'rov hali
       // yuborilmagan holatda sahifa allaqachon o'zgarib ketishi mumkin edi).
-      fetch('/api/auth/logout', { method: 'POST' })
+      fetch('/api/auth/logout', { method: 'POST', keepalive: true })
         .catch(() => {
           // cookie tozalanmasa ham redirect davom etadi.
         })
+        // Logout so'rovidan OLDIN allaqachon boshlangan "in-flight"
+        // /api/auth/refresh so'rovi bo'lishi mumkin — u shundan KEYIN
+        // javob qaytarib, YANGI refresh-token cookie yozib qo'yishi
+        // mumkin edi. Shuni kutib, cookie'ni yana bir bor tozalaymiz.
+        .then(() => waitForPendingRefresh())
+        .then(() =>
+          fetch('/api/auth/logout', { method: 'POST', keepalive: true }).catch(
+            () => {},
+          ),
+        )
         .finally(() => {
           router.replace(target);
         });

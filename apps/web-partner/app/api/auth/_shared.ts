@@ -33,7 +33,20 @@ export function setRefreshCookie(res: NextResponse, refreshToken: string): void 
 }
 
 export function clearRefreshCookie(res: NextResponse): void {
-  res.cookies.delete(PARTNER_REFRESH_COOKIE);
+  // `res.cookies.delete(name)` faqat nom bo'yicha o'chiradi — `path`ni
+  // ko'rsatmaydi. Asl cookie `path: '/'` bilan o'rnatilgani uchun bu
+  // ikkisi Set-Cookie semantikasida BOSHQA-BOSHQA cookie hisoblanadi va
+  // brauzer asl (path=/) cookie'ni o'chirmay qoldirardi — logout'dan
+  // keyin ham eski refresh token brauzerda saqlanib qolar edi. Shuning
+  // uchun bu yerda AYNAN o'sha atributlar bilan, bo'sh qiymat va
+  // muddati o'tgan holda qayta yozamiz.
+  res.cookies.set(PARTNER_REFRESH_COOKIE, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  });
 }
 
 /** Backend javobi `{success, data, meta}` bilan o'ralgan bo'lishi mumkin. */

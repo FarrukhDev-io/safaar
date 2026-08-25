@@ -14,6 +14,8 @@ import type {
 } from '../_stores/data-store';
 import { ListingStatus, type Listing } from '../_lib/domain/listing';
 import { getPrimaryHotel, primaryHotelQueryKey } from './use-primary-hotel';
+import { roomsQueryKey } from './use-rooms';
+import { roomTypesQueryKey } from './use-room-types';
 
 export const listingQueryKey = ['partner', 'listing'] as const;
 
@@ -85,6 +87,12 @@ function useListingMutation<TVariables>(
       setListing(listing);
       queryClient.setQueryData(listingQueryKey, listing);
       void queryClient.invalidateQueries({ queryKey: primaryHotelQueryKey });
+      // `resetHotel` xonalar/xona turlarini ham o'chiradi — shu cache'lar
+      // yangilanmasa, reset qilingandan keyin eski (allaqachon o'chirilgan)
+      // xona/narx ma'lumotlari UI'da bir muddat "arvoh" bo'lib ko'rinib
+      // qolishi mumkin edi.
+      void queryClient.invalidateQueries({ queryKey: roomsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: roomTypesQueryKey });
     },
   });
 }

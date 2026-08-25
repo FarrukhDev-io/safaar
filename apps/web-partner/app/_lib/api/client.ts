@@ -76,10 +76,11 @@ export function isLoggingOut(): boolean {
 let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
+  if (isLoggingOut()) return null;
   if (!refreshPromise) {
     refreshPromise = fetch('/api/auth/refresh', { method: 'POST' })
       .then(async (res) => {
-        if (!res.ok) return null;
+        if (!res.ok || isLoggingOut()) return null;
         const data = (await res.json().catch(() => null)) as
           | { accessToken?: string }
           | null;
@@ -91,6 +92,21 @@ async function refreshAccessToken(): Promise<string | null> {
       });
   }
   return refreshPromise;
+}
+
+/**
+ * Chiqish paytida logout so'rovidan OLDIN allaqachon boshlangan (masalan
+ * bildirishnomalar panelidan kelgan 401 sabab ishga tushgan) "single-flight"
+ * refresh so'rovi bo'lishi mumkin — u logout so'rovidan KEYIN javob qaytarib,
+ * `/api/auth/refresh` orqali YANGI refresh-token cookie'ni yozib qo'yishi
+ * (va shu bilan chiqishni bekor qilib qo'yishi) mumkin edi (real E2E orqali
+ * topilgan holat). `useLogout()` shu funksiya orqali bunday "in-flight"
+ * refresh'ni kutib, keyin cookie'ni yana bir bor tozalaydi.
+ */
+export async function waitForPendingRefresh(): Promise<void> {
+  if (refreshPromise) {
+    await refreshPromise.catch(() => {});
+  }
 }
 
 function isAuthEndpoint(path: string): boolean {
