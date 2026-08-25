@@ -746,6 +746,8 @@ export function ReportsView() {
                     <input
                       type="number"
                       required
+                      min={0}
+                      step="any"
                       value={withdrawAmount}
                       onChange={(e) => setWithdrawAmount(e.target.value)}
                       placeholder="Masalan: 5000000"
@@ -765,7 +767,7 @@ export function ReportsView() {
                   </div>
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !(parseFloat(withdrawAmount) > 0) || !withdrawBank}
                     className="mt-2 w-full flex items-center justify-center gap-2 rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
                   >
                     {isSubmitting ? "Yuborilmoqda..." : "So'rov yuborish"}

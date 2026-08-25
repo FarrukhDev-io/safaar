@@ -272,6 +272,7 @@ model PartnerOrganization {
   type                  PartnerOrganizationType
   legalName             String                  @map("legal_name") @db.VarChar(255)
   brandName             String                  @map("brand_name") @db.VarChar(255)
+  contactPerson         String?                 @map("contact_person") @db.VarChar(255)
   taxId                 String?                 @unique @map("tax_id") @db.VarChar(32)
   phone                 String                  @db.VarChar(20)
   email                 String                  @db.VarChar(255)

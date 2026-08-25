@@ -187,7 +187,10 @@ function toPartner(row: ApiRecord): Partner {
     id: asString(row.id),
     companyName: asString(row.brand_name ?? row.legal_name, 'Hamkor'),
     type: partnerType(row.type),
-    contactPerson: asString(row.legal_name ?? row.brand_name, "Mas'ul shaxs"),
+    contactPerson: asString(
+      row.contact_person ?? row.legal_name ?? row.brand_name,
+      "Mas'ul shaxs",
+    ),
     phone: asString(row.phone),
     email: asString(row.email),
     city: asString(row.city),
@@ -217,7 +220,10 @@ function toPartnerRequest(row: ApiRecord): PartnerRequest {
     id: asString(row.id),
     companyName: asString(row.brand_name ?? row.legal_name, 'Hamkor arizasi'),
     type: partnerType(row.type),
-    contactPerson: asString(row.legal_name ?? row.brand_name, "Mas'ul shaxs"),
+    contactPerson: asString(
+      row.contact_person ?? row.legal_name ?? row.brand_name,
+      "Mas'ul shaxs",
+    ),
     phone: asString(row.phone),
     email: asString(row.email),
     city: asString(row.city),

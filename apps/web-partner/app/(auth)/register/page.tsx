@@ -136,8 +136,9 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      <Field label="Obyekt turi" error={form.formState.errors.type?.message}>
+      <Field id="type" label="Obyekt turi" error={form.formState.errors.type?.message}>
         <select
+          id="type"
           {...form.register('type')}
           className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm shadow-sm transition-all focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200"
         >
@@ -151,22 +152,30 @@ export default function RegisterPage() {
         </select>
       </Field>
       <Field
+        id="companyName"
         label="Obyekt yoki Kompaniya nomi"
         error={form.formState.errors.companyName?.message}
       >
         <Input
+          id="companyName"
           {...form.register('companyName')}
           placeholder="Grand Samarkand Hotel"
         />
       </Field>
       <Field
+        id="contactPerson"
         label="Mas'ul shaxs"
         error={form.formState.errors.contactPerson?.message}
       >
-        <Input {...form.register('contactPerson')} placeholder="Ali Valiyev" />
-      </Field>
-      <Field label="Telefon" error={form.formState.errors.phone?.message}>
         <Input
+          id="contactPerson"
+          {...form.register('contactPerson')}
+          placeholder="Ali Valiyev"
+        />
+      </Field>
+      <Field id="phone" label="Telefon" error={form.formState.errors.phone?.message}>
+        <Input
+          id="phone"
           type="tel"
           {...form.register('phone', {
             onChange: (e) => {
@@ -175,19 +184,21 @@ export default function RegisterPage() {
           })}
         />
       </Field>
-      <Field label="Email" error={form.formState.errors.email?.message}>
+      <Field id="email" label="Email" error={form.formState.errors.email?.message}>
         <Input
+          id="email"
           type="email"
           {...form.register('email')}
           placeholder="hotel@example.com"
         />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Shahar" error={form.formState.errors.city?.message}>
-          <Input {...form.register('city')} placeholder="Samarqand" />
+        <Field id="city" label="Shahar" error={form.formState.errors.city?.message}>
+          <Input id="city" {...form.register('city')} placeholder="Samarqand" />
         </Field>
-        <Field label="STIR" error={form.formState.errors.taxId?.message}>
+        <Field id="taxId" label="STIR" error={form.formState.errors.taxId?.message}>
           <Input
+            id="taxId"
             inputMode="numeric"
             maxLength={9}
             {...form.register('taxId', {
@@ -199,14 +210,15 @@ export default function RegisterPage() {
           />
         </Field>
       </div>
-      <Field label="Manzil" error={form.formState.errors.address?.message}>
+      <Field id="address" label="Manzil" error={form.formState.errors.address?.message}>
         <Input
+          id="address"
           {...form.register('address')}
           placeholder="Registon ko'chasi 10"
         />
       </Field>
-      <Field label="Izoh" error={form.formState.errors.note?.message}>
-        <Input {...form.register('note')} placeholder="Qo'shimcha ma'lumot" />
+      <Field id="note" label="Izoh" error={form.formState.errors.note?.message}>
+        <Input id="note" {...form.register('note')} placeholder="Qo'shimcha ma'lumot" />
       </Field>
 
       {error ? (
@@ -223,17 +235,19 @@ export default function RegisterPage() {
 }
 
 function Field({
+  id,
   label,
   error,
   children,
 }: {
+  id: string;
   label: string;
   error?: string;
   children: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label>{label}</Label>
+      <Label htmlFor={id}>{label}</Label>
       {children}
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
     </div>

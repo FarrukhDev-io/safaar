@@ -9,6 +9,7 @@ import {
   ListingStatus,
 } from "../../../_lib/domain/listing";
 import { cn } from "../../../_lib/utils/cn";
+import { resolveMediaUrl } from "../../../_lib/utils/media";
 import {
   useListing,
   useListingCompleteness,
@@ -95,7 +96,7 @@ export function Hero({ onPreview }: HeroProps) {
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={cover.url}
+              src={resolveMediaUrl(cover.url)}
               alt=""
               className="h-full w-full object-cover"
             />

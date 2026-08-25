@@ -6,7 +6,14 @@ import { useAuthStore } from "../_stores/auth-store";
 import { getPrimaryHotel, primaryHotelQueryKey, usePrimaryHotel } from "./use-primary-hotel";
 import { roomsQueryKey } from "./use-rooms";
 import { roomTypesQueryKey } from "./use-room-types";
-import { pageItems } from "../_lib/api/client";
+
+// `roomsQueryKey` ("partner","rooms") allaqachon `use-rooms.ts`'da BOSHQA
+// shakl (`{allRooms, activeRooms}`, `listRooms()` orqali "birinchi" hotelga
+// bog'liq) bilan band — shu kalitni shu yerda ham ishlatish keshni
+// to'qnashtirib qo'yardi (masalan Dacha calendar/availability view ham
+// `useRooms()` chaqiradi). Shu sabab Dacha narxi uchun alohida, mustaqil
+// query key ishlatamiz.
+const dachaRoomsQueryKey = ['partner', 'dacha-rooms'] as const;
 
 export interface DachaDetails {
   landAreaSotix: number | null;
@@ -35,10 +42,10 @@ export function useDachaDetails() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
 
   const { data: rooms, isLoading: isRoomsLoading } = useQuery({
-    queryKey: roomsQueryKey,
+    queryKey: dachaRoomsQueryKey,
     queryFn: async () => {
       if (!hotel) return [];
-      return pageItems(await partners.listHotelRooms(hotel.id, accessToken));
+      return partners.listRooms(hotel.id, accessToken);
     },
     enabled: Boolean(accessToken && hotel),
   });
@@ -83,7 +90,7 @@ export function useUpdateDachaDetails() {
       );
 
       // Manage the single room_type / room for Dacha pricing
-      const existingRooms = pageItems(await partners.listHotelRooms(hotel.id, accessToken));
+      const existingRooms = await partners.listRooms(hotel.id, accessToken);
       const existingRoomTypes = await partners.listRoomTypes(hotel.id, accessToken);
       
       let roomTypeId = existingRoomTypes[0]?.id;
@@ -109,21 +116,21 @@ export function useUpdateDachaDetails() {
         }
 
         if (existingRooms.length === 0) {
-          await partners.createHotelRoom(hotel.id, {
+          await partners.createRoom(hotel.id, {
             room_type_id: roomTypeId,
             code: "Dacha",
             base_price: values.price,
             status: 'active',
           }, accessToken);
         } else {
-          await partners.updateHotelRoom(hotel.id, existingRooms[0].id, {
+          await partners.updateRoom(hotel.id, existingRooms[0].id, {
             base_price: values.price,
             status: 'active',
           }, accessToken);
         }
       } else {
         if (existingRooms.length > 0) {
-          await partners.updateHotelRoom(hotel.id, existingRooms[0].id, {
+          await partners.updateRoom(hotel.id, existingRooms[0].id, {
             status: 'out_of_service',
           }, accessToken);
         }
@@ -131,6 +138,7 @@ export function useUpdateDachaDetails() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: primaryHotelQueryKey });
+      void queryClient.invalidateQueries({ queryKey: dachaRoomsQueryKey });
       void queryClient.invalidateQueries({ queryKey: roomsQueryKey });
       void queryClient.invalidateQueries({ queryKey: roomTypesQueryKey });
     },

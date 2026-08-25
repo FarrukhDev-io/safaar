@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { access, auth } from '../_lib/api';
-import { setLoggingOut } from '../_lib/api/client';
+import { HttpError, setLoggingOut, waitForPendingRefresh } from '../_lib/api/client';
 import type { PartnerAccessStatus } from '../_lib/api/endpoints/access';
 import type { PartnerLoginResponse } from '../_lib/api/endpoints/auth';
 import { isLimitedPartnerAccessStatus } from '../_lib/auth/access-status';
@@ -154,14 +154,27 @@ export function usePartnerPhoneOtpRequest() {
       let challenge;
       try {
         challenge = await auth.requestOtp(phone);
-      } catch {
-        // Backend o'chiq — demo rejimga o'tamiz
-        challenge = {
-          sent: true,
-          challenge_id: 'demo-challenge-id',
-          expires_in_seconds: 300,
-          resend_after_seconds: 60,
-        };
+      } catch (error) {
+        // Demo rejimga FAQAT backend umuman ulanib bo'lmaganda o'tamiz —
+        // `client.ts` bunday holatda `HttpError(status: 0)` tashlaydi
+        // (fetch'ning o'zi otgan xato: tarmoq yo'q, CORS, backend offline).
+        // Real backend javoblari (400/401/403/409/422/429/500 va h.k. —
+        // masalan OTP_RESEND_TOO_SOON) HECH QACHON fake successga
+        // aylantirilmasin — булар chaqiruvchiga qayta uzatiladi va
+        // login-form.tsx haqiqiy backend xabarini foydalanuvchiga
+        // ko'rsatadi (avval bu yerda barcha xatolar yutilib, foydalanuvchi
+        // "kod yuborildi" deb ishonib qolar edi — real E2E orqali topilgan
+        // holat).
+        if (error instanceof HttpError && error.status === 0) {
+          challenge = {
+            sent: true,
+            challenge_id: 'demo-challenge-id',
+            expires_in_seconds: 300,
+            resend_after_seconds: 60,
+          };
+        } else {
+          throw error;
+        }
       }
 
       return {
@@ -289,10 +302,27 @@ export function useLogout() {
     // Cookie tozalanishini navigatsiyadan OLDIN kutamiz — fire-and-forget
     // bo'lsa, brauzer tez orient qilib ketganda so'rov hali yuborilmagan
     // holatda qolib, httpOnly refresh-token cookie'si tozalanmay qolishi
-    // mumkin edi (real E2E orqali topilgan holat).
-    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {
-      // cookie tozalanmasa ham chiqish davom etadi.
-    });
+    // mumkin edi (real E2E orqali topilgan holat). `keepalive: true` shu
+    // so'rovni navigatsiya/sahifa unmount bo'lishidan keyin ham tugatib
+    // yuborishni kafolatlaydi (beacon-uslubidagi standart yechim).
+    await fetch('/api/auth/logout', { method: 'POST', keepalive: true }).catch(
+      () => {
+        // cookie tozalanmasa ham chiqish davom etadi.
+      },
+    );
+    // Bu logout so'rovidan OLDIN allaqachon boshlangan (masalan
+    // bildirishnomalar panelidan kelgan 401 sabab ishga tushgan)
+    // "in-flight" /api/auth/refresh so'rovi bo'lishi mumkin — u shu
+    // logout so'rovidan KEYIN javob qaytarib, YANGI refresh-token
+    // cookie'ni yozib, chiqishni bekor qilib qo'yishi mumkin edi (real
+    // E2E orqali topilgan holat). Shu so'rovni kutib, keyin cookie'ni
+    // yana bir bor tozalaymiz.
+    await waitForPendingRefresh();
+    await fetch('/api/auth/logout', { method: 'POST', keepalive: true }).catch(
+      () => {
+        // cookie tozalanmasa ham chiqish davom etadi.
+      },
+    );
     // Boshqa hamkor tashkilotga (masalan boshqa biznes turi bilan) qayta
     // kirilganda oldingi tashkilotning keshlangan e'lon/xona/bron
     // ma'lumotlari ko'rinib qolmasligi uchun — session-expiry-handler.tsx

@@ -64,6 +64,7 @@ import {
 } from '../../_lib/utils/partner-labels';
 import { cn } from '../../_lib/utils/cn';
 import { formatMoney } from '../../_lib/utils/format';
+import { resolveMediaUrl } from '../../_lib/utils/media';
 import { useAmenities } from '../../_hooks/use-catalog';
 import { useVehicles, useUpdateVehicle } from '../../_hooks/use-vehicles';
 import { VehicleDialog } from '../rooms/vehicles-view';
@@ -943,7 +944,7 @@ function RoomAdCard({
         <div className="aspect-[4/3] bg-[var(--surface-muted)] sm:h-full sm:min-h-[180px] sm:aspect-auto">
           {imageUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+            <img src={resolveMediaUrl(imageUrl)} alt="" className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">
               <ImageIcon className="h-8 w-8" aria-hidden />
