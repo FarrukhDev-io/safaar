@@ -144,6 +144,164 @@ describe('SmsService', () => {
       response: { code: 'SMS_SEND_FAILED', message: 'Balance yetarli emas' },
     });
   });
+
+  it('refuses to send when textup credentials are missing', async () => {
+    global.fetch = jest.fn();
+    const service = new SmsService(config({ SMS_PROVIDER: 'textup' }));
+
+    await expect(
+      service.send({ phone: '+998901234567', text: '123456' }),
+    ).rejects.toMatchObject({
+      response: { code: 'SMS_PROVIDER_NOT_CONFIGURED' },
+    });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('logs in then sends the SMS via the textup API', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(200, { accessToken: 'textup-token' }),
+      )
+      .mockResolvedValueOnce(jsonResponse(200, { smsId: 'sms-1' }));
+    global.fetch = fetchMock;
+
+    const service = new SmsService(
+      config({
+        SMS_PROVIDER: 'textup',
+        TEXTUP_EMAIL: 'ops@safaar.uz',
+        TEXTUP_PASSWORD: 'secret',
+        TEXTUP_USER_ID: 'user-1',
+      }),
+    );
+
+    const result = await service.send({
+      phone: '+998901234567',
+      text: 'Safaar kirish kodingiz: 123456',
+    });
+
+    expect(result).toEqual({ providerMessageId: 'sms-1', accepted: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api-auth.textup.uz/v1/login',
+    );
+    const sendCall = fetchMock.mock.calls[1];
+    expect(sendCall?.[0]).toBe('https://sms-api.textup.uz/v1/send');
+    const sendInit = sendCall?.[1] as RequestInit;
+    expect(sendInit.headers).toMatchObject({
+      Authorization: 'Bearer textup-token',
+    });
+    expect(JSON.parse(String(sendInit.body))).toEqual({
+      userId: 'user-1',
+      recipients: ['+998901234567'],
+      message: 'Safaar kirish kodingiz: 123456',
+      name: 'Safaar OTP',
+    });
+  });
+
+  it('includes templateId and nicknameId in the textup send body when configured', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(200, { accessToken: 'textup-token' }),
+      )
+      .mockResolvedValueOnce(jsonResponse(200, { smsId: 'sms-1' }));
+    global.fetch = fetchMock;
+
+    const service = new SmsService(
+      config({
+        SMS_PROVIDER: 'textup',
+        TEXTUP_EMAIL: 'ops@safaar.uz',
+        TEXTUP_PASSWORD: 'secret',
+        TEXTUP_USER_ID: 'user-1',
+        TEXTUP_TEMPLATE_ID: 'template-1',
+        TEXTUP_NICKNAME_ID: 'nickname-1',
+      }),
+    );
+
+    await service.send({ phone: '+998901234567', text: '123456' });
+
+    const sendInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(JSON.parse(String(sendInit.body))).toMatchObject({
+      templateId: 'template-1',
+      nicknameId: 'nickname-1',
+    });
+  });
+
+  it('re-authenticates once and retries when the cached textup token has expired (401)', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(200, { accessToken: 'stale-token' }),
+      )
+      .mockResolvedValueOnce(jsonResponse(401, {}))
+      .mockResolvedValueOnce(
+        jsonResponse(200, { accessToken: 'fresh-token' }),
+      )
+      .mockResolvedValueOnce(jsonResponse(200, { smsId: 'sms-2' }));
+    global.fetch = fetchMock;
+
+    const service = new SmsService(
+      config({
+        SMS_PROVIDER: 'textup',
+        TEXTUP_EMAIL: 'ops@safaar.uz',
+        TEXTUP_PASSWORD: 'secret',
+        TEXTUP_USER_ID: 'user-1',
+      }),
+    );
+
+    const result = await service.send({
+      phone: '+998901234567',
+      text: '123456',
+    });
+
+    expect(result).toEqual({ providerMessageId: 'sms-2', accepted: true });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it('throws SMS_PROVIDER_UNAVAILABLE when the textup login request fails', async () => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse(500, {}));
+    const service = new SmsService(
+      config({
+        SMS_PROVIDER: 'textup',
+        TEXTUP_EMAIL: 'ops@safaar.uz',
+        TEXTUP_PASSWORD: 'secret',
+        TEXTUP_USER_ID: 'user-1',
+      }),
+    );
+
+    await expect(
+      service.send({ phone: '+998901234567', text: '123456' }),
+    ).rejects.toMatchObject({
+      response: { code: 'SMS_PROVIDER_UNAVAILABLE' },
+    });
+  });
+
+  it('throws SMS_SEND_FAILED when the textup send request is rejected', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(200, { accessToken: 'textup-token' }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(400, { message: "Shablon tasdiqlanmagan" }),
+      );
+
+    const service = new SmsService(
+      config({
+        SMS_PROVIDER: 'textup',
+        TEXTUP_EMAIL: 'ops@safaar.uz',
+        TEXTUP_PASSWORD: 'secret',
+        TEXTUP_USER_ID: 'user-1',
+      }),
+    );
+
+    await expect(
+      service.send({ phone: '+998901234567', text: '123456' }),
+    ).rejects.toMatchObject({
+      response: { code: 'SMS_SEND_FAILED', message: 'Shablon tasdiqlanmagan' },
+    });
+  });
 });
 
 function config(values: Record<string, string | undefined>): ConfigService {
