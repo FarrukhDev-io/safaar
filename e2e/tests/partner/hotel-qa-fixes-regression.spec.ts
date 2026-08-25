@@ -8,7 +8,7 @@ import { uniqueUzPhone } from '../helpers/phone';
  * (playwright.config.ts default baseURL'lari).
  */
 
-const APPROVED_PARTNER_PHONE = '+998901112203'; // Grand Samarkand Hotel (approved)
+const APPROVED_PARTNER_PHONE = '+998901112201'; // Grand Samarkand Hotel (approved)
 const ADMIN_BASE_URL =
   process.env.E2E_ADMIN_URL || 'https://web-admin-phi-beige.vercel.app';
 const ADMIN_EMAIL = 'admin@safaar.uz';
@@ -60,12 +60,20 @@ test.describe('Hotel QA fixes — regression', () => {
     ]);
     expect(resp.status()).toBe(400);
     const body = await resp.json().catch(() => null);
-    expect(body?.error?.code).toBe('OTP_RESEND_TOO_SOON');
+    // Backend enforces two independent guards here — a 60s per-resend
+    // cooldown and a broader request-rate window — either is a valid real
+    // error for this test's purpose (it must NOT be swallowed into a fake
+    // demo-challenge success).
+    expect(['OTP_RESEND_TOO_SOON', 'OTP_RATE_LIMITED']).toContain(body?.error?.code);
 
-    // The real backend message must reach the user...
-    await expect(
-      page.getByText(/qayta so'rashdan oldin biroz kuting/i),
-    ).toBeVisible({ timeout: 5_000 });
+    // The real backend message must reach the user (regex avoids the
+    // curly-vs-straight-apostrophe mismatch between the backend string
+    // and plain ASCII source here).
+    const expectedMessage =
+      body?.error?.code === 'OTP_RATE_LIMITED'
+        ? /OTP so.rovlar limiti oshdi/
+        : /Kodni qayta so.rashdan oldin biroz kuting/;
+    await expect(page.getByText(expectedMessage)).toBeVisible({ timeout: 5_000 });
 
     // ...and the UI must NOT silently fall into the fake "code sent" step:
     // no code input, no false "Kod ... raqamiga yuborildi" success text.
