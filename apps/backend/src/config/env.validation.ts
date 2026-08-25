@@ -7,6 +7,15 @@ interface EnvironmentConfig {
   PORT: number;
   HOST: string;
   ENABLE_DEMO_AUTH: string;
+  SMS_PROVIDER?: string;
+  ESKIZ_EMAIL?: string;
+  ESKIZ_PASSWORD?: string;
+  ESKIZ_FROM?: string;
+  TEXTUP_EMAIL?: string;
+  TEXTUP_PASSWORD?: string;
+  TEXTUP_USER_ID?: string;
+  TEXTUP_TEMPLATE_ID?: string;
+  TEXTUP_NICKNAME_ID?: string;
   API_PREFIX: string;
   BUSINESS_TIMEZONE: string;
   DATABASE_URL?: string;
@@ -153,6 +162,25 @@ export function validateEnv(
     PORT: toNumber(config.PORT, 4000),
     HOST: String(config.HOST ?? '0.0.0.0'),
     ENABLE_DEMO_AUTH: String(config.ENABLE_DEMO_AUTH ?? 'false'),
+    SMS_PROVIDER: config.SMS_PROVIDER ? String(config.SMS_PROVIDER) : undefined,
+    ESKIZ_EMAIL: config.ESKIZ_EMAIL ? String(config.ESKIZ_EMAIL) : undefined,
+    ESKIZ_PASSWORD: config.ESKIZ_PASSWORD
+      ? String(config.ESKIZ_PASSWORD)
+      : undefined,
+    ESKIZ_FROM: config.ESKIZ_FROM ? String(config.ESKIZ_FROM) : undefined,
+    TEXTUP_EMAIL: config.TEXTUP_EMAIL ? String(config.TEXTUP_EMAIL) : undefined,
+    TEXTUP_PASSWORD: config.TEXTUP_PASSWORD
+      ? String(config.TEXTUP_PASSWORD)
+      : undefined,
+    TEXTUP_USER_ID: config.TEXTUP_USER_ID
+      ? String(config.TEXTUP_USER_ID)
+      : undefined,
+    TEXTUP_TEMPLATE_ID: config.TEXTUP_TEMPLATE_ID
+      ? String(config.TEXTUP_TEMPLATE_ID)
+      : undefined,
+    TEXTUP_NICKNAME_ID: config.TEXTUP_NICKNAME_ID
+      ? String(config.TEXTUP_NICKNAME_ID)
+      : undefined,
     API_PREFIX: String(config.API_PREFIX ?? 'v1'),
     BUSINESS_TIMEZONE: String(config.BUSINESS_TIMEZONE ?? 'Asia/Tashkent'),
     DATABASE_URL: config.DATABASE_URL ? String(config.DATABASE_URL) : undefined,
