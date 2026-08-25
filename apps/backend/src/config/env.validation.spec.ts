@@ -140,4 +140,28 @@ describe('validateEnv — production secret strength (regression: CRITICAL findi
       minimalProdConfig.PARTNER_WEBHOOK_SIGNING_SECRET,
     );
   });
+
+  it('forwards SMS_PROVIDER, ESKIZ_*, and TEXTUP_* through to the returned config (regression: same silent-drop bug as HOST/ENABLE_DEMO_AUTH — SmsService read these via ConfigService.get() but they were never part of this function\'s return value, so the "textup" branch always fell through to SMS_PROVIDER_NOT_CONFIGURED even with a fully correct .env file)', () => {
+    const result = validateEnv({
+      ...minimalProdConfig,
+      SMS_PROVIDER: 'textup',
+      ESKIZ_EMAIL: 'eskiz@safaar.uz',
+      ESKIZ_PASSWORD: 'eskiz-secret',
+      ESKIZ_FROM: 'safaar',
+      TEXTUP_EMAIL: 'ops@safaar.uz',
+      TEXTUP_PASSWORD: 'textup-secret',
+      TEXTUP_USER_ID: 'user-1',
+      TEXTUP_TEMPLATE_ID: 'template-1',
+      TEXTUP_NICKNAME_ID: 'nickname-1',
+    });
+    expect(result.SMS_PROVIDER).toBe('textup');
+    expect(result.ESKIZ_EMAIL).toBe('eskiz@safaar.uz');
+    expect(result.ESKIZ_PASSWORD).toBe('eskiz-secret');
+    expect(result.ESKIZ_FROM).toBe('safaar');
+    expect(result.TEXTUP_EMAIL).toBe('ops@safaar.uz');
+    expect(result.TEXTUP_PASSWORD).toBe('textup-secret');
+    expect(result.TEXTUP_USER_ID).toBe('user-1');
+    expect(result.TEXTUP_TEMPLATE_ID).toBe('template-1');
+    expect(result.TEXTUP_NICKNAME_ID).toBe('nickname-1');
+  });
 });
