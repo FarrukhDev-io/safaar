@@ -21,7 +21,16 @@ export interface VerifyOtpResult {
   };
 }
 
-export type OAuthExchangeResult = VerifyOtpResult;
+export interface OAuthRegistrationRequiredResult {
+  requiresRegistration: true;
+  registrationToken: string;
+  provider: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export type OAuthExchangeResult = VerifyOtpResult | OAuthRegistrationRequiredResult;
 
 export interface PasswordResetCodeResult {
   sent: boolean;
@@ -74,10 +83,32 @@ export const authService = {
     return camelizeKeys<VerifyOtpResult>(raw);
   },
 
-  /** `POST /auth/oauth/exchange` — OAuth callbackdagi bir martalik kodni sessiya tokenlariga almashtiradi. */
+  /** `POST /auth/oauth/exchange` — OAuth callbackdagi bir martalik kodni sessiya tokenlariga (yoki ro'yxatdan o'tish talab qilinsa, registration token'ga) almashtiradi. */
   async exchangeOAuthCode(code: string): Promise<OAuthExchangeResult> {
     const raw = await rawApi.post<unknown>("/auth/oauth/exchange", { code });
     return camelizeKeys<OAuthExchangeResult>(raw);
+  },
+
+  /** `POST /auth/oauth/register` — Google/Facebook orqali yangi foydalanuvchini telefon+OTP bilan ro'yxatdan o'tkazadi (parolsiz). */
+  async completeOAuthRegistration(data: {
+    provider: string;
+    registrationToken: string;
+    phone: string;
+    code: string;
+    challengeId?: string;
+    firstName?: string;
+    lastName?: string;
+  }): Promise<VerifyOtpResult> {
+    const raw = await rawApi.post<unknown>("/auth/oauth/register", {
+      provider: data.provider,
+      registration_token: data.registrationToken,
+      phone: data.phone,
+      code: data.code,
+      challenge_id: data.challengeId,
+      first_name: data.firstName,
+      last_name: data.lastName,
+    });
+    return camelizeKeys<VerifyOtpResult>(raw);
   },
 
   /** `POST /auth/user/forgot-password` — telefon raqamiga SMS orqali parol tiklash kodi yuborish. */

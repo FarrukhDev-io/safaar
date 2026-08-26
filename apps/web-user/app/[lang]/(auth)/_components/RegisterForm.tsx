@@ -36,13 +36,26 @@ export function RegisterForm({
   locale,
   next,
   dict,
+  socialProvider,
+  registrationToken,
+  socialEmail,
+  socialFirstName,
+  socialLastName,
 }: {
   locale: Locale;
   next: string;
   dict: AuthDict;
+  socialProvider?: string;
+  registrationToken?: string;
+  socialEmail?: string;
+  socialFirstName?: string;
+  socialLastName?: string;
 }) {
+  const isSocial = Boolean(socialProvider && registrationToken);
   const searchParams = useSearchParams();
-  const emailFromQuery = searchParams.get("email") || "";
+  const emailFromQuery = isSocial
+    ? socialEmail || ""
+    : searchParams.get("email") || "";
   const phoneFromQuery = searchParams.get("phone") || "";
   const [email, setEmail] = useState(emailFromQuery);
   const [phone, setPhone] = useState(phoneFromQuery);
@@ -82,6 +95,9 @@ export function RegisterForm({
     EMAIL_REQUIRED: dict.emailRequired,
     OTP_INVALID: dict.codeInvalid,
     OTP_EXPIRED: dict.codeExpired,
+    OAUTH_REGISTRATION_EXPIRED: dict.socialRegistrationExpired,
+    OAUTH_ACCOUNT_ALREADY_LINKED: dict.socialAccountAlreadyLinked,
+    EMAIL_ALREADY_EXISTS: dict.emailAlreadyExists,
   };
 
   return (
@@ -91,7 +107,11 @@ export function RegisterForm({
           {isStep2 ? dict.completeProfileTitle : dict.registerTitle}
         </h1>
         <p className="text-sm font-bold text-slate-700">
-          {isStep2 ? dict.completeProfileSubtitle : dict.registerSubtitle}
+          {isSocial
+            ? dict.socialRegisterSubtitle
+            : isStep2
+              ? dict.completeProfileSubtitle
+              : dict.registerSubtitle}
         </p>
       </header>
 
@@ -157,6 +177,7 @@ export function RegisterForm({
           <Input
             name="firstName"
             required
+            defaultValue={socialFirstName}
             placeholder={dict.firstNamePlaceholder}
           />
         </label>
@@ -165,6 +186,7 @@ export function RegisterForm({
           <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.lastName}</span>
           <Input
             name="lastName"
+            defaultValue={socialLastName}
             placeholder={dict.lastNamePlaceholder}
           />
         </label>
@@ -178,68 +200,83 @@ export function RegisterForm({
             type="email"
             autoComplete="email"
             required
+            readOnly={isSocial}
             placeholder={dict.emailPlaceholder}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            className={isSocial ? "cursor-not-allowed bg-slate-100 text-slate-500" : undefined}
           />
         </label>
 
-        {/* Password */}
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.password}</span>
-          <div className="relative">
-            <Input
-              name="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="new-password"
-              required
-              placeholder={dict.passwordPlaceholder}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500 hover:text-slate-700 font-bold"
-              aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"}
-            >
-              {showPassword ? "🙈" : "👁"}
-            </button>
-          </div>
-        </label>
-
-        {password && (
-          <div className="flex flex-col gap-1">
-            <div className="flex gap-1">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className={`h-1.5 flex-1 rounded-full transition-colors ${
-                    i <= strength.level ? strength.color : "bg-slate-200"
-                  }`}
+        {/* Google/Facebook orqali ro'yxatdan o'tishda parol talab qilinmaydi —
+            hisob egaligi OAuth provayder tomonidan allaqachon tasdiqlangan,
+            faqat telefon raqami SMS OTP orqali qo'shimcha tasdiqlanadi. */}
+        {!isSocial && (
+          <>
+            {/* Password */}
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.password}</span>
+              <div className="relative">
+                <Input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  placeholder={dict.passwordPlaceholder}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
                 />
-              ))}
-            </div>
-            <p className="text-xs font-bold text-slate-700">{strength.label}</p>
-          </div>
-        )}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500 hover:text-slate-700 font-bold"
+                  aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"}
+                >
+                  {showPassword ? "🙈" : "👁"}
+                </button>
+              </div>
+            </label>
 
-        {/* Password requirements checklist */}
-        <div className="rounded-xl border border-slate-300 bg-slate-50 p-3.5 text-xs text-slate-700">
-          <p className="mb-1 font-extrabold uppercase tracking-wider text-slate-800">{dict.passwordRequirements}</p>
-          <ul className="list-inside list-disc space-y-0.5 font-bold">
-            <li className={password.length >= 8 ? "text-green-700 font-extrabold" : ""}>{dict.passwordMinChars}</li>
-            <li className={/[A-Z]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordUppercase}</li>
-            <li className={/[a-z]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordLowercase}</li>
-            <li className={/[0-9]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordNumber}</li>
-            <li className={/[^A-Za-z0-9]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordSpecial}</li>
-          </ul>
-        </div>
+            {password && (
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-1">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className={`h-1.5 flex-1 rounded-full transition-colors ${
+                        i <= strength.level ? strength.color : "bg-slate-200"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs font-bold text-slate-700">{strength.label}</p>
+              </div>
+            )}
+
+            {/* Password requirements checklist */}
+            <div className="rounded-xl border border-slate-300 bg-slate-50 p-3.5 text-xs text-slate-700">
+              <p className="mb-1 font-extrabold uppercase tracking-wider text-slate-800">{dict.passwordRequirements}</p>
+              <ul className="list-inside list-disc space-y-0.5 font-bold">
+                <li className={password.length >= 8 ? "text-green-700 font-extrabold" : ""}>{dict.passwordMinChars}</li>
+                <li className={/[A-Z]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordUppercase}</li>
+                <li className={/[a-z]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordLowercase}</li>
+                <li className={/[0-9]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordNumber}</li>
+                <li className={/[^A-Za-z0-9]/.test(password) ? "text-green-700 font-extrabold" : ""}>{dict.passwordSpecial}</li>
+              </ul>
+            </div>
+          </>
+        )}
 
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="next" value={next} />
         <input type="hidden" name="phone" value={phone} />
+        {isSocial && (
+          <>
+            <input type="hidden" name="oauthProvider" value={socialProvider} />
+            <input type="hidden" name="registrationToken" value={registrationToken} />
+          </>
+        )}
 
         {errorMsg && (
           <p className="text-sm font-bold text-red-600">

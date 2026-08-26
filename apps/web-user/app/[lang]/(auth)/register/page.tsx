@@ -26,6 +26,13 @@ export default async function RegisterPage({
     ? nextRaw
     : "";
 
+  const social = typeof sp.social === "string" ? sp.social : "";
+  const registrationToken =
+    typeof sp.registrationToken === "string" ? sp.registrationToken : "";
+  const socialEmail = typeof sp.email === "string" ? sp.email : "";
+  const socialFirstName = typeof sp.firstName === "string" ? sp.firstName : "";
+  const socialLastName = typeof sp.lastName === "string" ? sp.lastName : "";
+
   // SENIOR OPTIMIZATION: Parallelize session check and dictionary loading
   const [session, dict] = await Promise.all([
     getSession(),
@@ -36,5 +43,16 @@ export default async function RegisterPage({
     redirect(next || `/${locale}`);
   }
 
-  return <RegisterForm locale={locale} next={next} dict={dict} />;
+  return (
+    <RegisterForm
+      locale={locale}
+      next={next}
+      dict={dict}
+      socialProvider={social && registrationToken ? social : undefined}
+      registrationToken={registrationToken || undefined}
+      socialEmail={socialEmail || undefined}
+      socialFirstName={socialFirstName || undefined}
+      socialLastName={socialLastName || undefined}
+    />
+  );
 }

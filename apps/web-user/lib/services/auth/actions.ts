@@ -89,8 +89,40 @@ export async function verifyOtpAction(
   const lastName = String(formData.get("lastName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const registrationToken = String(formData.get("registrationToken") ?? "").trim();
+  const oauthProvider = String(formData.get("oauthProvider") ?? "").trim();
 
   if (!phone) return { error: "PHONE_REQUIRED" };
+
+  if (registrationToken && oauthProvider) {
+    try {
+      const result = await api.auth.completeOAuthRegistration({
+        provider: oauthProvider,
+        registrationToken,
+        phone,
+        code,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+      });
+      await setSession({
+        userId: result.user.id,
+        role: Role.USER,
+        email: result.user.email ?? undefined,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    } catch (error) {
+      return {
+        error:
+          error instanceof ApiRequestError
+            ? error.code || error.message
+            : "ERROR",
+      };
+    }
+
+    const target = next.startsWith("/") ? next : `/${locale}`;
+    redirect(target);
+  }
 
   try {
     const result = await api.auth.verifyPhoneOtp(phone, code);
