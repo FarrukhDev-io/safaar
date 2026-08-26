@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { 
   Car, PhoneCall, ShieldCheck, Users, Search, RotateCcw, 
-  MapPin, UserCheck, Calendar, Minus, Plus, CreditCard, Clock, CheckCircle2 
+  MapPin, UserCheck, Calendar, Minus, Plus, CreditCard, Clock, CheckCircle2, Star 
 } from "lucide-react";
 import { formatSum } from "@/lib/money";
 import type { TransportDict } from "@/i18n/dictionaries";
@@ -97,7 +97,7 @@ export function TransportView({
       { id: "all", label: "Barcha turlar", icon: null },
       { id: "rent", label: "Avto ijarasi (Rent a Car)", icon: <Car className="h-4 w-4" /> },
       { id: "transfer", label: "Aeroport transfer", icon: <MapPin className="h-4 w-4" /> },
-      { id: "vip", label: "VIP & Biznes taksi", icon: <StarIcon className="h-4 w-4" /> },
+      { id: "vip", label: "VIP & Biznes taksi", icon: <Star className="h-4 w-4" /> },
       { id: "bus", label: "Shaharlararo avtobus", icon: <Users className="h-4 w-4" /> },
       { id: "auto_transfer", label: "Avtotransport & Transfer", icon: <MapPin className="h-4 w-4" /> },
     ],

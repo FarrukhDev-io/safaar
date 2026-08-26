@@ -4,6 +4,7 @@ node_modules
 build
 .next
 out
+.turbo
 apps/backend/prisma/generated/
 
 # old standalone frontend repository kept for history/reference

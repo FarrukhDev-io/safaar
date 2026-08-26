@@ -33,7 +33,7 @@ function AttractionCard({
       title={item.name}
       location={item.cityName}
       tags={tags}
-      actionLabel={dict.viewDetails ?? "Batafsil"}
+      actionLabel="Batafsil"
     />
   );
 }

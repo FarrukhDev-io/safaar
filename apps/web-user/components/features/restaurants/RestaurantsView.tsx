@@ -39,7 +39,7 @@ function RestaurantCard({
         amount: price,
         period: "o'rtacha chek",
       }}
-      actionLabel={dict.viewDetails ?? "Batafsil"}
+      actionLabel="Batafsil"
     />
   );
 }

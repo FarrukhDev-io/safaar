@@ -2,26 +2,31 @@
   "name": "safaar-monorepo",
   "version": "0.0.1",
   "private": true,
+  "packageManager": "npm@11.17.0",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "scripts": {
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
-    "build:types": "npm run build -w @safaar/types",
-    "dev:types": "npm run dev -w @safaar/types",
+    "build": "turbo build",
+    "build:types": "turbo build --filter=@safaar/types",
+    "build:backend": "turbo build --filter=@safaar/backend",
+    "build:user": "turbo build --filter=@safaar/web-user",
+    "build:partner": "turbo build --filter=@safaar/web-partner",
+    "build:admin": "turbo build --filter=@safaar/web-admin",
+    "dev": "turbo dev",
+    "dev:types": "turbo dev --filter=@safaar/types",
     "dev:backend": "npm run start:dev -w @safaar/backend",
-    "dev:user": "npm run dev -w @safaar/web-user",
-    "dev:partner": "npm run dev -w @safaar/web-partner",
-    "dev:admin": "npm run dev -w @safaar/web-admin",
-    "build": "npm run build:types && npm run build --workspaces --if-present",
-    "build:backend": "npm run build -w @safaar/backend",
-    "build:user": "npm run build -w @safaar/web-user",
-    "build:partner": "npm run build -w @safaar/web-partner",
-    "build:admin": "npm run build -w @safaar/web-admin",
-    "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "test:backend": "npm run test -w @safaar/backend",
+    "dev:user": "turbo dev --filter=@safaar/web-user",
+    "dev:partner": "turbo dev --filter=@safaar/web-partner",
+    "dev:admin": "turbo dev --filter=@safaar/web-admin",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "test:backend": "turbo test --filter=@safaar/backend",
     "format": "npm run format --workspaces --if-present"
+  },
+  "devDependencies": {
+    "turbo": "^2.10.12"
   }
 }
