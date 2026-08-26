@@ -28,6 +28,7 @@ describe('EmailService', () => {
         to: 'partner@example.com',
         subject: 'Safaar kodi',
         text: '123456',
+        html: '123456',
       }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
 
@@ -53,6 +54,7 @@ describe('EmailService', () => {
       to: 'partner@example.com',
       subject: 'Safaar kodi',
       text: '123456',
+      html: '123456',
     });
 
     expect(result).toEqual({ providerMessageId: 'email-id', accepted: true });

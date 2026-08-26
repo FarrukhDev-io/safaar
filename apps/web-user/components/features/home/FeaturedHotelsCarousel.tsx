@@ -19,7 +19,7 @@ export function FeaturedHotelsCarousel({
   if (cards.length === 0) return null;
 
   return (
-    <section className="mx-auto mt-6 w-full max-w-7xl px-4 sm:mt-8 sm:px-6 relative">
+    <section className="mx-auto mt-6 w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8 relative sm:mt-8">
       <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="text-base font-bold tracking-tight sm:text-lg">
           {dict.title}

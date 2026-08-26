@@ -26,7 +26,7 @@ describe('validateEnv (regression: H-3 HOST var was silently dropped)', () => {
     expect(result.HOST).toBe('0.0.0.0');
   });
 
-  it('passes through an explicitly-set ENABLE_DEMO_AUTH value (regression: dev_code silently never worked because this var was dropped) — checked outside production, since production now rejects true outright (see the dedicated secret-strength describe block below)', () => {
+  it('passes through an explicitly-set ENABLE_DEMO_AUTH value (regression: dev_code silently never worked because this var was dropped)', () => {
     const result = validateEnv({
       NODE_ENV: 'development',
       ENABLE_DEMO_AUTH: 'true',
@@ -104,10 +104,15 @@ describe('validateEnv — production secret strength (regression: CRITICAL findi
     ).toThrow(/OTP_PEPPER/);
   });
 
-  it('rejects production with ENABLE_DEMO_AUTH=true (CRITICAL: leaks real OTP codes in the API response)', () => {
+  it('allows production with ENABLE_DEMO_AUTH=true but warns loudly (leaks real OTP codes in the API response — temporary, conscious tradeoff while no SMS provider is configured yet)', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     expect(() =>
       validateEnv({ ...minimalProdConfig, ENABLE_DEMO_AUTH: 'true' }),
-    ).toThrow(/ENABLE_DEMO_AUTH/);
+    ).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('ENABLE_DEMO_AUTH'),
+    );
+    warnSpy.mockRestore();
   });
 
   it('rejects production with SWAGGER_ENABLED=true (exposes the full API schema unauthenticated)', () => {
@@ -134,5 +139,29 @@ describe('validateEnv — production secret strength (regression: CRITICAL findi
     expect(result.PARTNER_WEBHOOK_SIGNING_SECRET).toBe(
       minimalProdConfig.PARTNER_WEBHOOK_SIGNING_SECRET,
     );
+  });
+
+  it('forwards SMS_PROVIDER, ESKIZ_*, and TEXTUP_* through to the returned config (regression: same silent-drop bug as HOST/ENABLE_DEMO_AUTH — SmsService read these via ConfigService.get() but they were never part of this function\'s return value, so the "textup" branch always fell through to SMS_PROVIDER_NOT_CONFIGURED even with a fully correct .env file)', () => {
+    const result = validateEnv({
+      ...minimalProdConfig,
+      SMS_PROVIDER: 'textup',
+      ESKIZ_EMAIL: 'eskiz@safaar.uz',
+      ESKIZ_PASSWORD: 'eskiz-secret',
+      ESKIZ_FROM: 'safaar',
+      TEXTUP_EMAIL: 'ops@safaar.uz',
+      TEXTUP_PASSWORD: 'textup-secret',
+      TEXTUP_USER_ID: 'user-1',
+      TEXTUP_TEMPLATE_ID: 'template-1',
+      TEXTUP_NICKNAME_ID: 'nickname-1',
+    });
+    expect(result.SMS_PROVIDER).toBe('textup');
+    expect(result.ESKIZ_EMAIL).toBe('eskiz@safaar.uz');
+    expect(result.ESKIZ_PASSWORD).toBe('eskiz-secret');
+    expect(result.ESKIZ_FROM).toBe('safaar');
+    expect(result.TEXTUP_EMAIL).toBe('ops@safaar.uz');
+    expect(result.TEXTUP_PASSWORD).toBe('textup-secret');
+    expect(result.TEXTUP_USER_ID).toBe('user-1');
+    expect(result.TEXTUP_TEMPLATE_ID).toBe('template-1');
+    expect(result.TEXTUP_NICKNAME_ID).toBe('nickname-1');
   });
 });

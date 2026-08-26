@@ -5,7 +5,7 @@ export function PromoCodesSection({ promos }: { promos: PromoView[] }) {
   if (promos.length === 0) return null;
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+    <section className="mx-auto w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8 py-10 sm:py-14">
       <div className="mb-4 sm:mb-5">
         <h2 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
           Promo-kodlar

@@ -16,7 +16,7 @@ export async function PartnersShowcase({
       aria-labelledby="partners-showcase-heading"
       className="relative overflow-hidden border-t border-slate-200/80 bg-slate-50/60 py-12 sm:py-16 dark:border-slate-800/80 dark:bg-slate-950/40"
     >
-      <div className="mx-auto max-w-7xl px-4 text-center sm:px-6">
+      <div className="mx-auto w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8 text-center">
         <div className="mx-auto max-w-2xl">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-primary-500/20 bg-primary-500/10 px-3 py-1 text-xs font-semibold text-primary-600 dark:text-primary-400">
             ★ {dict.title}

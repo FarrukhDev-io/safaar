@@ -4,6 +4,19 @@
   "subtitle": "O'zbekiston bo'ylab qulay sayohat qilish uchun avtomobil ijarasi, VIP taksi va aeroport transferlari.",
   "searchPlaceholder": "Avto rusumi yoki shahar bo'yicha qidiruv...",
   "allTypes": "Barcha turlar",
+  "allCities": "Barcha shaharlar",
+  "allDrivers": "Barcha haydovchilar",
+  "city": "Shahar",
+  "driver": "Haydovchi",
+  "resultsCount": "{count} ta transport topildi",
+  "sortBy": "Saralash",
+  "sortDefault": "Tavsiya etilgan",
+  "sortPriceAsc": "Narx: Arzondan qimmatga",
+  "sortPriceDesc": "Narx: Qimmatdan arzonga",
+  "sortSeats": "O'rindiqlar soni",
+  "clearFilters": "Filtrlarni tozalash",
+  "call": "Qo'ng'iroq qilish",
+  "book": "Band qilish",
   "categories": {
     "all": "Barcha turlar",
     "rent": "Avto Ijarasi (Rent a Car)",
@@ -18,6 +31,6 @@
   "checkIn": "Olib ketish sanasi",
   "checkOut": "Qaytarish sanasi",
   "noVehiclesAvailable": "Tanlangan sanalarda bo'sh mashina yo'q",
-  "noVehiclesAvailableDesc": "Boshqa sanalarni tanlab ko'ring.",
+  "noVehiclesAvailableDesc": "Boshqa sanalarni tanlab ko'ring yoki filtrlarni tozalang.",
   "noData": "Ma'lumot topilmadi"
 }

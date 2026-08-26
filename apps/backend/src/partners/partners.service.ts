@@ -54,9 +54,14 @@ const LODGING_LIKE_TYPES = new Set([
 ]);
 
 function localizedText(body: Record<string, unknown>, key: string) {
-  const value = String(
-    body[key] ?? body.name ?? body[`${key}_uz`] ?? '',
-  ).trim();
+  const rawValue = body[key] ?? body.name ?? body[`${key}_uz`] ?? '';
+  if (rawValue !== null && typeof rawValue === 'object') {
+    throw new BadRequestException({
+      code: 'ROOM_TYPE_NAME_INVALID',
+      message: `"${key}" maydoni matn (string) bo'lishi kerak, obyekt emas`,
+    });
+  }
+  const value = String(rawValue).trim();
   if (!value) {
     throw new BadRequestException({
       code: 'ROOM_TYPE_NAME_REQUIRED',
@@ -408,6 +413,9 @@ export class PartnersService {
     const legalName = String(
       body.legalName ?? body.legal_name ?? brandName,
     ).trim();
+    const contactPerson = this.optionalString(
+      body.contactPerson ?? body.contact_person,
+    );
     const taxId = this.normalizeTaxId(body.taxId ?? body.tax_id);
     const fieldErrors: Record<string, string> = {};
 
@@ -495,19 +503,21 @@ export class PartnersService {
     const inserted = await this.pg.query(
       `
         insert into partner_organizations (
-          id, type, legal_name, brand_name, tax_id, phone, email, city_id,
-          address, status, default_commission_rate, created_at, updated_at
+          id, type, legal_name, brand_name, contact_person, tax_id, phone,
+          email, city_id, address, status, default_commission_rate,
+          created_at, updated_at
         )
-        values ($1, $2, $3, $4, $5, $6, $7, $8::uuid, $9, 'submitted', 12.00, $10, $10)
-        returning id::text, type::text, legal_name, brand_name, tax_id, phone,
-                  email, city_id::text, address, status::text, rejection_reason,
-                  created_at, updated_at
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid, $10, 'submitted', 12.00, $11, $11)
+        returning id::text, type::text, legal_name, brand_name, contact_person,
+                  tax_id, phone, email, city_id::text, address, status::text,
+                  rejection_reason, created_at, updated_at
       `,
       [
         id,
         partnerType,
         legalName,
         brandName,
+        contactPerson,
         taxId,
         phone,
         email,
@@ -536,9 +546,9 @@ export class PartnersService {
 
     const rows = await this.pg.query(
       `
-        select id::text, type::text, legal_name, brand_name, tax_id, phone,
-               email, city_id::text, address, status::text, rejection_reason,
-               created_at, updated_at
+        select id::text, type::text, legal_name, brand_name, contact_person,
+               tax_id, phone, email, city_id::text, address, status::text,
+               rejection_reason, created_at, updated_at
         from partner_organizations
         where ($1::text <> '' and regexp_replace(phone, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g'))
            or ($2::text <> '' and lower(email) = lower($2))
@@ -781,6 +791,54 @@ export class PartnersService {
       sets.push(`check_out_time = $${paramIndex++}`);
       params.push(String(body.check_out_time));
     }
+    // Dacha uchun
+    if (body.land_area_sotix !== undefined) {
+      sets.push(`land_area_sotix = $${paramIndex++}`);
+      params.push(
+        body.land_area_sotix === null ? null : Number(body.land_area_sotix),
+      );
+    }
+    if (body.has_outdoor_pool !== undefined) {
+      sets.push(`has_outdoor_pool = $${paramIndex++}`);
+      params.push(Boolean(body.has_outdoor_pool));
+    }
+    if (body.has_indoor_pool !== undefined) {
+      sets.push(`has_indoor_pool = $${paramIndex++}`);
+      params.push(Boolean(body.has_indoor_pool));
+    }
+    if (body.has_sauna !== undefined) {
+      sets.push(`has_sauna = $${paramIndex++}`);
+      params.push(Boolean(body.has_sauna));
+    }
+    if (body.has_playstation !== undefined) {
+      sets.push(`has_playstation = $${paramIndex++}`);
+      params.push(Boolean(body.has_playstation));
+    }
+    if (body.has_billiards !== undefined) {
+      sets.push(`has_billiards = $${paramIndex++}`);
+      params.push(Boolean(body.has_billiards));
+    }
+    if (body.capacity_people !== undefined) {
+      sets.push(`capacity_people = $${paramIndex++}`);
+      params.push(
+        body.capacity_people === null ? null : Number(body.capacity_people),
+      );
+    }
+    // Sanatoriy uchun
+    if (body.medical_profiles !== undefined) {
+      sets.push(`medical_profiles = $${paramIndex++}::jsonb`);
+      params.push(JSON.stringify(body.medical_profiles));
+    }
+    if (body.included_treatments !== undefined) {
+      sets.push(`included_treatments = $${paramIndex++}::jsonb`);
+      params.push(JSON.stringify(body.included_treatments));
+    }
+    if (body.meal_plan_type !== undefined) {
+      sets.push(`meal_plan_type = $${paramIndex++}`);
+      params.push(
+        body.meal_plan_type === null ? null : String(body.meal_plan_type),
+      );
+    }
 
     if (sets.length === 0) {
       return this.assertHotel(id, actor);
@@ -822,6 +880,24 @@ export class PartnersService {
     await this.pg.query(`delete from hotel_rooms where hotel_id = $1::uuid`, [
       id,
     ]);
+    // `room_types` mehmonxona ustuniga ega emas — bu hotelga tegishli
+    // yozuvlar faqat `code` ichida hotelId borligi orqali aniqlanadi (qarang
+    // `roomTypes()` va `assertRoomTypeOwnedByHotel`). Yuqoridagi
+    // `hotel_rooms` o'chirilgandan keyin bu turlarni tozalamasak, ular
+    // "hech kimga bog'lanmagan" holatda saqlanib qolib, keyingi
+    // `roomTypes()` chaqiruvida `code LIKE '%hotelId%'` orqali qayta
+    // qaytariladi — reset qilingan e'londa eski narx/sig'im "arvoh" bo'lib
+    // yana ko'rinib qoladi (customer preview'da ham).
+    await this.pg.query(
+      `delete from room_types
+       where code like '%' || $1::text || '%'
+         and not exists (
+           select 1 from hotel_rooms
+           where hotel_rooms.room_type_id = room_types.id
+             and hotel_rooms.hotel_id <> $1::uuid
+         )`,
+      [id],
+    );
     await this.pg.query(
       `update hotel_translations
        set name = '', short_description = '', description = '', updated_at = $2
@@ -4108,7 +4184,11 @@ export class PartnersService {
           : ['booking.created'],
       );
     }
-    if (body.status !== undefined || body.is_active !== undefined || body.isActive !== undefined) {
+    if (
+      body.status !== undefined ||
+      body.is_active !== undefined ||
+      body.isActive !== undefined
+    ) {
       const enabled =
         body.status !== undefined
           ? String(body.status) === 'active'
@@ -4587,7 +4667,7 @@ export class PartnersService {
       organizationId: String(row['id']),
       companyName: String(row['brand_name'] ?? row['legal_name'] ?? 'Hamkor'),
       contactPerson: String(
-        row['legal_name'] ?? row['brand_name'] ?? 'Masul shaxs',
+        row['contact_person'] ?? row['legal_name'] ?? row['brand_name'] ?? 'Masul shaxs',
       ),
       phone: String(row['phone'] ?? ''),
       email: String(row['email'] ?? ''),

@@ -6,7 +6,7 @@ import { formatSum } from "@/lib/money";
 import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import type { RestaurantItem } from "@/components/catalog/types";
-import { BaseCard } from "@/components/ui/BaseCard";
+import { UniversalCard } from "@/components/ui/UniversalCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
@@ -20,69 +20,26 @@ function RestaurantCard({
   item: RestaurantItem;
   dict: CatalogDict["restaurants"];
 }) {
-  const badge = item.cuisine ? (
-    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
-      {item.cuisine}
-    </span>
-  ) : undefined;
-
-  const subInfo = (
-    <>
-      <MapPin className="h-3.5 w-3.5 shrink-0" />
-      {[item.cityName, item.address].filter(Boolean).join(" · ")}
-    </>
-  );
-
-  const ratingElement =
-    item.rating > 0 ? (
-      <>
-        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-        <span className="font-semibold text-slate-700 dark:text-slate-300">
-          {item.rating.toFixed(1)}
-        </span>
-        {item.reviewsCount > 0 && <span>· {item.reviewsCount} ta sharh</span>}
-      </>
-    ) : undefined;
+  const price = item.averageCheckSum > 0 ? item.averageCheckSum : 180000;
+  const tags = [
+    item.cuisine,
+    item.workingHours ? `🕒 ${item.workingHours}` : "🕒 09:00 - 23:00",
+  ].filter(Boolean) as string[];
 
   return (
-    <BaseCard
+    <UniversalCard
       href={`/restaurants/${item.id}`}
       imageSrc={item.imageUrl}
       imageAlt={item.name}
-      badge={badge}
+      showFavorite
       title={item.name}
-      subInfo={subInfo}
-      rating={ratingElement}
-      footerLeft={
-        <>
-          {item.workingHours && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400">
-              <Clock className="h-3.5 w-3.5 shrink-0" />
-              {item.workingHours}
-            </span>
-          )}
-          {item.averageCheckSum > 0 && (
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
-              {dict.avgCheck}: {formatSum(item.averageCheckSum)}
-            </span>
-          )}
-        </>
-      }
-      footerRight={
-        item.phone ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              window.location.href = `tel:${item.phone.replace(/\s+/g, "")}`;
-            }}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <PhoneCall className="h-3.5 w-3.5" />
-          </button>
-        ) : undefined
-      }
+      location={[item.cityName, item.address].filter(Boolean).join(" · ")}
+      tags={tags}
+      price={{
+        amount: price,
+        period: "o'rtacha chek",
+      }}
+      actionLabel="Batafsil"
     />
   );
 }
@@ -126,7 +83,7 @@ export function RestaurantsView({
   }, [items, query, selectedCity, selectedCuisine]);
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full md:w-[96%] max-w-[1536px] flex-1 px-4 md:px-8 py-8 sm:px-6">
       <CatalogHeader
         icon={<Utensils className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />}
         badge={dict.badge}

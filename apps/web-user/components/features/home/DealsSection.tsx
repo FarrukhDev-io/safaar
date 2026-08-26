@@ -1,8 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
-import { formatSum } from "@/lib/utils/money";
-import { BaseCard } from "@/components/ui/BaseCard";
+import { UniversalCard } from "@/components/ui/UniversalCard";
 import { ShinyText } from "@/components/ui/ShinyText";
 import { DealsMobileCarousel } from "./DealsMobileCarousel";
 
@@ -20,58 +19,44 @@ export interface DealItem {
 
 function DealCard({
   deal,
-  locale,
   dict,
+  locale,
   now,
 }: {
   deal: DealItem;
-  locale: Locale;
   dict: HomeDict["deals"];
+  locale: Locale;
   now: number;
 }) {
   const endsInDays = deal.endsAt && now > 0
     ? Math.max(0, Math.ceil((Date.parse(deal.endsAt) - now) / 86_400_000))
     : 0;
 
-  const badge = (
-    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
+  const discountBadge = (
+    <span className="rounded-full bg-rose-600 px-2.5 py-1 text-xs font-black text-white shadow-md">
       -{deal.discountPercent}%
     </span>
   );
 
-  const subInfo = (
-    <>
-      {deal.cityName}
-      {endsInDays > 0 && (
-        <span className="text-slate-400"> · {endsInDays} {dict.days}</span>
-      )}
-    </>
-  );
+  const tags = endsInDays > 0 ? [`⏳ ${endsInDays} ${dict.days}`] : undefined;
+  const viewDetailsLabel = locale === "ru" ? "Подробнее" : locale === "en" ? "Details" : "Batafsil";
 
   return (
-    <BaseCard
+    <UniversalCard
       imageSrc={deal.imageUrl}
       imageAlt={deal.name}
-      badge={badge}
+      topLeft={discountBadge}
+      showFavorite
       title={deal.name}
-      subInfo={subInfo}
+      location={deal.cityName}
+      tags={tags}
       href={`/${locale}/hotels/${deal.slug}`}
-      footerLeft={
-        <>
-          <span className="text-xs text-slate-400 line-through">
-            {formatSum(deal.oldPriceSum)}
-          </span>
-          <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-            {formatSum(deal.newPriceSum)}
-          </span>
-          <span className="text-[10px] text-slate-400">/ {dict.perNight}</span>
-        </>
-      }
-      footerRight={
-        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-all group-hover:border-primary-600 group-hover:bg-primary-600 group-hover:text-white dark:border-slate-700 dark:text-slate-300">
-          <ArrowRight className="h-3.5 w-3.5" />
-        </span>
-      }
+      price={{
+        amount: deal.newPriceSum,
+        oldAmount: deal.oldPriceSum,
+        period: `1 ${dict.perNight}`,
+      }}
+      actionLabel={viewDetailsLabel}
     />
   );
 }
@@ -91,7 +76,7 @@ export function DealsSection({
   const now = Date.now();
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+    <section className="mx-auto w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8">
       <div className="mb-4 sm:mb-5">
         <h2 className="text-xl font-black tracking-tight sm:text-2xl">
           <ShinyText>{dict.title}</ShinyText>

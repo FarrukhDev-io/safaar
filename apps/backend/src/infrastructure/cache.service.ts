@@ -262,6 +262,18 @@ export class AppCacheService implements OnModuleDestroy {
     } while (cursor !== '0');
   }
 
+  /**
+   * `GETDEL` Redis 6.2.0+da qo'shilgan — production Redis (6.0.16) buni
+   * qo'llab-quvvatlamaydi va xato tashlaydi, bu esa jimgina yutilib
+   * (`catch`), `take()`ni HAR DOIM "topilmadi" deb noto'g'ri xulosa
+   * qilishiga olib kelardi (masalan parol tiklash reset_token'i — Redis'da
+   * to'g'ri saqlanardi, lekin hech qachon qayta o'qib bo'lmasdi — real
+   * production'da topilgan xato). Shu sabab GET+DEL'ga eski, kengroq
+   * qo'llab-quvvatlanadigan usulga o'tamiz. Bu ikkita alohida buyruq —
+   * mutlaqo atomik emas, lekin bu yerdagi qiymatlar (bir martalik,
+   * kriptografik tasodifiy token/kod, qisqa TTL) uchun mos: race oynasi
+   * mikrosekundlarda va moliyaviy/hisoblagich ma'lumot emas.
+   */
   private async redisGetDel(key: string): Promise<string | undefined> {
     if (!this.redis) {
       return undefined;
@@ -269,8 +281,12 @@ export class AppCacheService implements OnModuleDestroy {
 
     try {
       await this.ensureRedisConnected();
-      const value = await this.redis.getdel(key);
-      return value ?? undefined;
+      const value = await this.redis.get(key);
+      if (value === null) {
+        return undefined;
+      }
+      await this.redis.del(key);
+      return value;
     } catch {
       return undefined;
     }

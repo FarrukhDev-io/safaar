@@ -5,7 +5,7 @@ import { Clock, Compass, MapPin, Star, Search } from "lucide-react";
 import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import type { AttractionItem } from "@/components/catalog/types";
-import { BaseCard } from "@/components/ui/BaseCard";
+import { UniversalCard } from "@/components/ui/UniversalCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 
@@ -20,45 +20,20 @@ function AttractionCard({
   categoryLabel: string;
   dict: CatalogDict["attractions"];
 }) {
-  const badge = (
-    <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
-      {categoryLabel}
-    </span>
-  );
-
-  const subInfo = (
-    <>
-      <MapPin className="h-3.5 w-3.5 shrink-0" />
-      {item.cityName}
-    </>
-  );
-
-  const ratingElement =
-    item.rating > 0 ? (
-      <>
-        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-        <span className="font-semibold text-slate-700 dark:text-slate-300">
-          {item.rating.toFixed(1)}
-        </span>
-      </>
-    ) : undefined;
+  const tags = [
+    categoryLabel,
+    item.bestTimeToVisit ? `🕒 ${item.bestTimeToVisit}` : null,
+  ].filter(Boolean) as string[];
 
   return (
-    <BaseCard
+    <UniversalCard
       imageSrc={item.imageUrl}
       imageAlt={item.name}
-      badge={badge}
+      showFavorite
       title={item.name}
-      subInfo={subInfo}
-      rating={ratingElement}
-      footerLeft={
-        item.bestTimeToVisit ? (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <Clock className="h-3.5 w-3.5 shrink-0" />
-            {dict.bestTime} {item.bestTimeToVisit}
-          </span>
-        ) : undefined
-      }
+      location={item.cityName}
+      tags={tags}
+      actionLabel="Batafsil"
     />
   );
 }
@@ -97,7 +72,7 @@ export function AttractionsView({
   }, [items, query, selectedCategory]);
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full md:w-[96%] max-w-[1536px] flex-1 px-4 md:px-8 py-8 sm:px-6">
       <CatalogHeader
         icon={<Compass className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />}
         badge={dict.badge}

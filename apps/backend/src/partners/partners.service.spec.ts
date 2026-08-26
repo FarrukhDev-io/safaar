@@ -1610,3 +1610,88 @@ describe('PartnersService webhooks (SSRF guard)', () => {
     ).rejects.toThrow('WEBHOOK_URL_NOT_ALLOWED');
   });
 });
+
+describe('PartnersService.submitPublicPartnerRequest (regression: Hotel QA BUG-002 — "Mas\'ul shaxs" / contact person was collected on the registration form but silently discarded, never persisted anywhere)', () => {
+  let service: PartnersService;
+  let pg: { query: jest.Mock };
+
+  beforeEach(() => {
+    pg = { query: jest.fn() };
+    service = new PartnersService(
+      pg as unknown as PostgresService,
+      { add: jest.fn() } as unknown as JobQueueService,
+    );
+  });
+
+  it('persists the submitted contact person and returns it verbatim instead of falling back to the company name', async () => {
+    pg.query
+      .mockResolvedValueOnce([]) // duplicate phone/email/taxId check -> none
+      .mockResolvedValueOnce([{ id: 'city-1' }]) // resolveCityId("Samarqand") match
+      .mockResolvedValueOnce([
+        {
+          id: 'org-1',
+          type: 'hotel',
+          legal_name: 'QA Hotel',
+          brand_name: 'QA Hotel',
+          contact_person: 'Test QA Ismoilov',
+          tax_id: '123456789',
+          phone: '+998901234567',
+          email: 'qa@example.com',
+          city_id: 'city-1',
+          address: 'Registon 10',
+          status: 'submitted',
+          rejection_reason: null,
+          created_at: '2026-08-25T00:00:00.000Z',
+          updated_at: '2026-08-25T00:00:00.000Z',
+        },
+      ]); // INSERT ... RETURNING
+
+    const result = await service.submitPublicPartnerRequest({
+      type: 'hotel',
+      companyName: 'QA Hotel',
+      contactPerson: 'Test QA Ismoilov',
+      phone: '+998901234567',
+      email: 'qa@example.com',
+      city: 'Samarqand',
+      address: 'Registon 10',
+      taxId: '123456789',
+    });
+
+    expect(result.item.contactPerson).toBe('Test QA Ismoilov');
+    expect(result.item.contactPerson).not.toBe('QA Hotel');
+
+    // The INSERT must actually write contact_person, not just echo the
+    // input back without persisting it.
+    const insertCall = pg.query.mock.calls[2];
+    expect(insertCall[0]).toMatch(/contact_person/);
+    expect(insertCall[1]).toContain('Test QA Ismoilov');
+  });
+
+  it('falls back to the legal/brand name only for legacy rows that have no contact_person on file', async () => {
+    pg.query.mockResolvedValueOnce([
+      {
+        id: 'org-legacy',
+        type: 'hotel',
+        legal_name: 'Legacy Hotel LLC',
+        brand_name: 'Legacy Hotel',
+        contact_person: null,
+        tax_id: '987654321',
+        phone: '+998901112233',
+        email: 'legacy@example.com',
+        city_id: 'city-1',
+        address: 'Old address',
+        status: 'submitted',
+        rejection_reason: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+
+    const result = await service.publicPartnerRequestStatus(
+      '+998901112233',
+      undefined,
+    );
+
+    expect(result.request?.contactPerson).toBe('Legacy Hotel LLC');
+  });
+});

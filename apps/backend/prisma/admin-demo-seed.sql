@@ -799,4 +799,52 @@ set title = excluded.title,
     read_at = excluded.read_at,
     created_at = excluded.created_at;
 
+insert into attractions (id, city_id, slug, title, description, category, cover_image_url, gallery_images, latitude, longitude, ticket_price, opening_hours, recommended_visit_duration_minutes, rating_average, reviews_count, is_active, created_at, updated_at)
+values
+  ('00000000-0000-8001-0000-000000000001', '00000000-0000-1002-0000-000000000002', 'registon-maydoni',
+   '{"uz":"Registon maydoni","ru":"Площадь Регистан","en":"Registan Square"}',
+   '{"uz":"Samarqandning yuragi — Ulug''bek, Sherdor va Tillakori madrasalaridan tashkil topgan jahon miqyosidagi meʼmoriy ansambl.","ru":"Сердце Самарканда — архитектурный ансамбль медресе Улугбека, Шердор и Тилля-Кори мирового значения.","en":"The heart of Samarkand — a world-renowned architectural ensemble of the Ulugbek, Sher-Dor, and Tilla-Kori madrasas."}',
+   'historical', '/Samarkand-Registan-cinematic.jpeg', '["/Samarkand-Registan-cinematic.jpeg"]', 39.6542400, 66.9758600, 50000, '08:00-20:00', 90, 4.8, 0, true, now(), now()),
+  ('00000000-0000-8001-0000-000000000002', '00000000-0000-1002-0000-000000000003', 'buxoro-eski-shahar',
+   '{"uz":"Buxoro Eski Shahri va Kalon Minorasi","ru":"Старый город Бухары и минарет Калян","en":"Bukhara Old City and Kalyan Minaret"}',
+   '{"uz":"UNESCO ro''yxatidagi tarixiy markaz — Kalon minorasi, masjidi va Mir-Arab madrasasi atrofida joylashgan qadimiy ko''chalar.","ru":"Исторический центр из списка ЮНЕСКО — древние улицы вокруг минарета Калян, мечети и медресе Мир-Араб.","en":"A UNESCO-listed historic center — ancient streets around the Kalyan Minaret, mosque, and Mir-i-Arab Madrasa."}',
+   'historical', '/Bukhara-old-city-golden-hour.jpeg', '["/Bukhara-old-city-golden-hour.jpeg"]', 39.7747000, 64.4144000, 40000, '08:00-19:00', 120, 4.7, 0, true, now(), now()),
+  ('00000000-0000-8001-0000-000000000003', '00000000-0000-1002-0000-000000000004', 'xiva-ichan-qala',
+   '{"uz":"Xiva Ichan-Qal''a","ru":"Ичан-Кала Хивы","en":"Khiva Itchan Kala"}',
+   '{"uz":"Devor bilan o''ralgan qadimiy ichki shahar — O''zbekistondagi birinchi UNESCO Jahon merosi obyekti.","ru":"Обнесённый стеной древний внутренний город — первый объект Всемирного наследия ЮНЕСКО в Узбекистане.","en":"A walled ancient inner city — Uzbekistan''s first UNESCO World Heritage Site."}',
+   'historical', '/Khiva-Ichan-Kala-aerial.jpeg', '["/Khiva-Ichan-Kala-aerial.jpeg"]', 41.3778000, 60.3617000, 45000, '08:00-19:00', 120, 4.8, 0, true, now(), now()),
+  ('00000000-0000-8001-0000-000000000004', '00000000-0000-1002-0000-000000000007', 'chorvoq-suv-ombori',
+   '{"uz":"Chorvoq suv ombori va dam olish hududi","ru":"Чарвакское водохранилище и зона отдыха","en":"Charvak Reservoir and Recreation Area"}',
+   '{"uz":"Toshkentdan bir soatlik masofada joylashgan tog'' ko''li — suzish, qayiqda sayr va piknik uchun sevimli maskan.","ru":"Горное озеро в часе езды от Ташкента — популярное место для плавания, катания на лодках и пикников.","en":"A mountain lake an hour from Tashkent — a favorite spot for swimming, boating, and picnics."}',
+   'nature', '/Charvak-Lake-drone.jpeg', '["/Charvak-Lake-drone.jpeg"]', 41.6206000, 70.0489000, null, '24 soat', 180, 4.6, 0, true, now(), now()),
+  ('00000000-0000-8001-0000-000000000005', '00000000-0000-1002-0000-000000000009', 'zomin-milliy-bogi',
+   '{"uz":"Zomin milliy bog''i","ru":"Заминский национальный парк","en":"Zaamin National Park"}',
+   '{"uz":"Archazorlar va tog'' manzaralari bilan mashhur qo''riqxona — tabiat sayohati va sog''lomlashtirish uchun ideal.","ru":"Заповедник, известный можжевеловыми лесами и горными пейзажами — идеален для природного туризма и оздоровления.","en":"A reserve famous for juniper forests and mountain scenery — ideal for nature tourism and wellness."}',
+   'nature', '/Zaamin.jpeg', '["/Zaamin.jpeg"]', 39.9500000, 68.4500000, 20000, '09:00-18:00', 150, 4.5, 0, true, now(), now())
+on conflict (id) do update
+set title = excluded.title,
+    description = excluded.description,
+    category = excluded.category,
+    cover_image_url = excluded.cover_image_url,
+    gallery_images = excluded.gallery_images,
+    updated_at = now();
+
+insert into promotion_banners (id, title, subtitle, badge_text, image_url, target_url, discount_percentage, start_date, end_date, is_active, sort_order, created_at, updated_at)
+values
+  ('00000000-0000-8002-0000-000000000001',
+   '{"uz":"Yozgi Chorvoq dam olishi","ru":"Летний отдых на Чарваке","en":"Summer getaway at Charvak"}',
+   '{"uz":"Tog'' ko''li bo''yidagi mehmonxonalarda maxsus chegirma","ru":"Специальная скидка в отелях у горного озера","en":"Special discount at hotels by the mountain lake"}',
+   'Aksiya -20%', '/Charvak-Lake-drone.jpeg', '/hotels?city=charvak', 20, now(), now() + interval '30 days', true, 1, now(), now()),
+  ('00000000-0000-8002-0000-000000000002',
+   '{"uz":"Samarqand va Buxoroga tarixiy sayohat","ru":"Историческое путешествие в Самарканд и Бухару","en":"Historic journey to Samarkand and Bukhara"}',
+   '{"uz":"Ikki shahar uchun mehmonxona va transport paketida chegirma","ru":"Скидка на пакет отель + транспорт для двух городов","en":"Discount on hotel + transport package for both cities"}',
+   'Paket -15%', '/Samarkand-Registan-cinematic.jpeg', '/hotels?city=samarqand', 15, now(), now() + interval '45 days', true, 2, now(), now())
+on conflict (id) do update
+set title = excluded.title,
+    subtitle = excluded.subtitle,
+    badge_text = excluded.badge_text,
+    image_url = excluded.image_url,
+    discount_percentage = excluded.discount_percentage,
+    updated_at = now();
+
 commit;

@@ -33,24 +33,6 @@ export class SendOtpDto {
   phone!: string;
 }
 
-export class SendEmailOtpDto {
-  @ApiProperty({ example: 'user@safaar.uz' })
-  @IsEmail()
-  email!: string;
-}
-
-export class VerifyEmailOtpRequestDto extends SendEmailOtpDto {
-  @ApiPropertyOptional({ example: 'otp-challenge-id' })
-  @IsOptional()
-  @IsString()
-  challenge_id?: string;
-
-  @ApiProperty({ example: '482913' })
-  @IsString()
-  @Length(6, 6)
-  code!: string;
-}
-
 export class VerifyOtpRequestDto extends SendOtpDto {
   @ApiPropertyOptional({ example: 'otp-challenge-id' })
   @IsOptional()
@@ -143,17 +125,19 @@ export class UserLoginDto {
 }
 
 export class UserForgotPasswordDto {
-  @ApiProperty({ example: 'user@safaar.uz' })
-  @IsEmail()
-  email!: string;
+  @ApiProperty({ example: '+998901234567' })
+  @IsString()
+  @IsNotEmpty()
+  phone!: string;
 }
 
-export class UserVerifyResetCodeDto extends VerifyEmailOtpRequestDto {}
+export class UserVerifyResetCodeDto extends VerifyOtpRequestDto {}
 
 export class UserResetPasswordDto {
-  @ApiProperty({ example: 'user@safaar.uz' })
-  @IsEmail()
-  email!: string;
+  @ApiProperty({ example: '+998901234567' })
+  @IsString()
+  @IsNotEmpty()
+  phone!: string;
 
   @ApiPropertyOptional({ example: '482913' })
   @IsOptional()
@@ -197,18 +181,29 @@ export class AdminLoginDto {
 }
 
 export class ForgotPasswordDto {
-  @ApiProperty({ example: 'partner@safaar.uz' })
-  @IsEmail()
-  email!: string;
+  @ApiProperty({ example: '+998901234567' })
+  @IsString()
+  @IsNotEmpty()
+  phone!: string;
 }
 
 export class ResetPasswordDto {
-  @ApiProperty()
+  @ApiProperty({ example: '+998901234567' })
   @IsString()
   @IsNotEmpty()
-  token!: string;
+  phone!: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '482913' })
+  @IsString()
+  @Length(6, 6)
+  code!: string;
+
+  @ApiPropertyOptional({ example: 'otp-challenge-id' })
+  @IsOptional()
+  @IsString()
+  challenge_id?: string;
+
+  @ApiProperty({ example: 'N3wP@ssw0rd!' })
   @IsString()
   @IsNotEmpty()
   @IsStrongPassword()
