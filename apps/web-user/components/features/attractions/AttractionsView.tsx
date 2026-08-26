@@ -5,7 +5,7 @@ import { Clock, Compass, MapPin, Star, Search } from "lucide-react";
 import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import type { AttractionItem } from "@/components/catalog/types";
-import { BaseCard } from "@/components/ui/BaseCard";
+import { UniversalCard } from "@/components/ui/UniversalCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 
@@ -20,41 +20,20 @@ function AttractionCard({
   categoryLabel: string;
   dict: CatalogDict["attractions"];
 }) {
-  const badge = (
-    <span className="inline-flex items-center gap-1 rounded-full border border-slate-100/60 bg-white/95 px-2.5 py-1 text-xs font-extrabold text-slate-900 shadow-md backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 dark:text-white">
-      <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
-      <span>{item.rating > 0 ? item.rating.toFixed(1) : "4.8"}</span>
-    </span>
-  );
-
-  const subInfo = (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-      <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      <span>{item.cityName}</span>
-    </span>
-  );
-
-  const ratingElement = (
-    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-      <span className="rounded-md border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
-        {categoryLabel}
-      </span>
-      {item.bestTimeToVisit && (
-        <span className="rounded-md border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 flex items-center gap-1">
-          <Clock className="h-3 w-3" /> {item.bestTimeToVisit}
-        </span>
-      )}
-    </div>
-  );
+  const tags = [
+    categoryLabel,
+    item.bestTimeToVisit ? `🕒 ${item.bestTimeToVisit}` : null,
+  ].filter(Boolean) as string[];
 
   return (
-    <BaseCard
+    <UniversalCard
       imageSrc={item.imageUrl}
       imageAlt={item.name}
-      badge={badge}
+      showFavorite
       title={item.name}
-      subInfo={subInfo}
-      rating={ratingElement}
+      location={item.cityName}
+      tags={tags}
+      actionLabel={dict.viewDetails ?? "Batafsil"}
     />
   );
 }

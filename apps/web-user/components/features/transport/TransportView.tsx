@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/Select";
 import { CategoryTabs, type CategoryTab } from "@/components/ui/CategoryTabs";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Button } from "@/components/ui/Button";
+import { UniversalCard } from "@/components/ui/UniversalCard";
 import type { Locale } from "@/i18n/config";
 
 export type { TransportItem };
@@ -26,89 +27,45 @@ function TransportCard({
   dict: TransportDict;
 }) {
   const price = item.pricePerDaySum > 0 ? item.pricePerDaySum : 650000;
+  const categoryLabel = dict.categories?.[item.categoryKey] ?? item.categoryDefault;
+
+  const tags = [
+    `${item.seats} ${dict.seats || "o'rin"}`,
+    item.hasDriver ? (dict.driverIncluded || "Haydovchi bilan") : (dict.withoutDriver || "Haydovchisiz"),
+    item.transmission || "Avtomat",
+  ].filter(Boolean);
+
+  const viewDetailsLabel = dict.book ?? (dict.call || "Batafsil");
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-        {item.imageUrl ? (
-          <img
-            src={item.imageUrl}
-            alt={item.name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-300 dark:bg-slate-800 dark:text-slate-600">
-            <Car className="h-10 w-10" />
-          </div>
-        )}
-        <div className="absolute left-3 top-3">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-xs font-bold text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white">
-            <span className="text-blue-600">{(item.rating || 4.8).toFixed(1)}</span>
-            <StarIcon className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+    <UniversalCard
+      imageSrc={item.imageUrl}
+      imageAlt={item.name}
+      topLeft={
+        categoryLabel ? (
+          <span className="rounded-full bg-slate-900/70 backdrop-blur-xs px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-white shadow-xs">
+            {categoryLabel}
           </span>
-        </div>
-        <div className="absolute right-3 top-3">
-          <button className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm transition-colors hover:text-red-500 dark:bg-slate-900">
-            <HeartIcon className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col p-4">
-        <div className="mb-1 text-base font-bold text-slate-900 dark:text-white">
-          {item.name}
-        </div>
-        <div className="mb-3 flex items-center text-xs font-medium text-slate-500 dark:text-slate-400">
-          <span>{item.cityName || "Toshkent"}</span>
-          <span className="mx-1">→</span>
-          <span>Samarqand</span>
-        </div>
-
-        <div className="mb-4 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            <UserCheck className="h-3.5 w-3.5" />
-            {item.seats} o'rin
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            <SnowflakeIcon className="h-3.5 w-3.5" />
-            Konditsioner
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            <BagIcon className="h-3.5 w-3.5" />
-            2 ta katta bagaj
-          </span>
-        </div>
-
-        <div className="mt-auto flex items-end justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
-          <div className="flex flex-col">
-            <span className="text-lg font-black text-slate-900 dark:text-white">
-              {formatSum(price)}
-            </span>
-            <span className="text-xs font-medium text-slate-500">
-              Bir tomonlama
-            </span>
-          </div>
-          <Button variant="secondary" className="h-9 min-h-[36px] shadow-none !translate-y-0 rounded-full px-4 text-xs font-bold !text-blue-600 border-blue-200 hover:!bg-blue-50 hover:!border-blue-300 dark:border-blue-900 dark:hover:!bg-blue-950/50">
-            Tanlash &rarr;
-          </Button>
-        </div>
-      </div>
-    </div>
+        ) : undefined
+      }
+      showFavorite
+      title={item.name}
+      location={item.cityName}
+      tags={tags}
+      price={{
+        amount: price,
+        period: dict.perDay || "kuniga",
+      }}
+      actionLabel={viewDetailsLabel}
+      onActionClick={
+        item.phone
+          ? () => {
+              window.location.href = `tel:${item.phone.replace(/\s+/g, "")}`;
+            }
+          : undefined
+      }
+    />
   );
-}
-
-// Helper icons that aren't imported directly
-function StarIcon(props: any) {
-  return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
-}
-function HeartIcon(props: any) {
-  return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
-}
-function SnowflakeIcon(props: any) {
-  return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>;
-}
-function BagIcon(props: any) {
-  return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
 }
 
 export function TransportView({
