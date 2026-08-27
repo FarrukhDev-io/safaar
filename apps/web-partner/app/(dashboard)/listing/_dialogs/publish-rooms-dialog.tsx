@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../../_components/ui/button";
 import { Dialog } from "../../../_components/ui/dialog";
 import { EmptyState } from "../../../_components/ui/empty-state";
@@ -24,20 +24,29 @@ export function PublishRoomsDialog({
   const { allRooms: rooms } = useRooms();
   const updateRoom = useUpdateRoom();
   
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
+  // Derive selected IDs from rooms whenever dialog opens — use key prop on parent
+  // to reset, or track open state changes. Here we use a stable set that resets on open.
+  const initialSet = useMemo(() => {
+    const s = new Set<string>();
     if (open && rooms) {
-      const initial = new Set<string>();
       rooms
         .filter((r) => !r.number.startsWith("DELETED_"))
-        .forEach(r => {
-        if (r.isListed) initial.add(r.id);
-      });
-      setSelectedIds(initial);
+        .forEach((r) => { if (r.isListed) s.add(r.id); });
     }
-  }, [open, rooms]);
+    return s;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]); // Intentionally only depends on `open` — resets when dialog opens
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(initialSet);
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setSelectedIds(new Set(initialSet));
+    }
+  }
+
 
   const handleSave = async () => {
     if (!rooms) return;
@@ -57,7 +66,7 @@ export function PublishRoomsDialog({
       await Promise.all(promises);
       toast.success("E'longa chiqarish muvaffaqiyatli saqlandi");
       onClose();
-    } catch (err) {
+    } catch {
       toast.error("Xatolik yuz berdi");
     } finally {
       setIsSaving(false);

@@ -36,7 +36,10 @@ export function useVehicles() {
 
   return { 
     data: query.data ?? [], 
-    isLoading: query.isLoading && !query.data 
+    isLoading: query.isLoading && !query.data,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
   };
 }
 

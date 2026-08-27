@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Search, History, CheckCircle2, XCircle, RefreshCw, MoreVertical } from "lucide-react";
+import DataTable, { Column } from "@/components/ui/DataTable";
 import Button from "@/components/ui/Button";
 import { AdminApi } from "@/lib/api/admin-api";
 import { AdminRefundTransaction } from "@/types/admin";
@@ -31,20 +32,41 @@ export default function RefundsPage() {
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const [error, setError] = useState(false);
+
   const fetchRefunds = async () => {
+    setLoading(true);
+    setError(false);
     try {
       const data = await AdminApi.getRefunds();
       setRefunds(data);
     } catch (err) {
       toast.error("Qaytarishlarni yuklab bo'lmadi");
+      setError(true);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRefunds();
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await AdminApi.getRefunds();
+        if (!cancelled) setRefunds(data);
+      } catch {
+        if (!cancelled) {
+          toast.error("Qaytarishlarni yuklab bo'lmadi");
+          setError(true);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
+
 
   const handleAction = async (id: string, action: 'approve' | 'reject' | 'retry') => {
     setActionLoading(`${id}-${action}`);
@@ -65,6 +87,107 @@ export default function RefundsPage() {
     r.bookingId.toLowerCase().includes(search.toLowerCase()) ||
     r.reason.toLowerCase().includes(search.toLowerCase())
   );
+
+  const columns: Column<AdminRefundTransaction>[] = [
+    {
+      key: "bookingId",
+      label: "Bron ID",
+      render: (r) => (
+        <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
+          {r.bookingId.substring(0, 8)}...
+        </span>
+      ),
+    },
+    {
+      key: "customerName",
+      label: "Mijoz",
+      render: (r) => <span className="font-medium text-[var(--text-primary)]">{r.customerName}</span>,
+    },
+    {
+      key: "amount",
+      label: "Summa",
+      render: (r) => <span className="font-semibold text-purple-600">{formatPrice(r.amount)}</span>,
+    },
+    {
+      key: "reason",
+      label: "Sabab",
+      render: (r) => (
+        <div className="text-slate-600 max-w-[200px] truncate" title={r.reason}>
+          {r.reason}
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      label: "Holat",
+      render: (r) => (
+        <span className={cn("px-2.5 py-1 rounded-md text-xs font-medium border", STATUS_COLORS[r.status] || "bg-slate-100 text-slate-700")}>
+          {STATUS_LABELS[r.status] || r.status}
+        </span>
+      ),
+    },
+    {
+      key: "createdAt",
+      label: "Sana",
+      render: (r) => <span className="text-[var(--text-secondary)]">{new Date(r.createdAt).toLocaleString('uz-UZ', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>,
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (r) => (
+        <div className="flex justify-end relative">
+          <button
+            onClick={() => setDropdownOpen(dropdownOpen === r.id ? null : r.id)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            {actionLoading?.startsWith(r.id) ? (
+              <span className="inline-block w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+            ) : (
+              <MoreVertical size={18} />
+            )}
+          </button>
+          {dropdownOpen === r.id && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />
+              <div className="absolute right-0 top-8 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-20 py-1 overflow-hidden">
+                {r.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => handleAction(r.id, 'approve')}
+                      className="w-full text-left px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition-colors font-medium"
+                    >
+                      <CheckCircle2 size={16} /> Tasdiqlash
+                    </button>
+                    <button
+                      onClick={() => handleAction(r.id, 'reject')}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors font-medium"
+                    >
+                      <XCircle size={16} /> Rad etish
+                    </button>
+                  </>
+                )}
+                
+                {r.status === 'failed' && (
+                  <button
+                    onClick={() => handleAction(r.id, 'retry')}
+                    className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 transition-colors font-medium"
+                  >
+                    <RefreshCw size={16} /> Qayta urinish
+                  </button>
+                )}
+                
+                {r.status !== 'pending' && r.status !== 'failed' && (
+                  <div className="px-4 py-2 text-xs text-slate-400">
+                    Boshqa amal mavjud emas
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="animate-fade-in flex flex-col h-full">
@@ -95,118 +218,16 @@ export default function RefundsPage() {
         </div>
       </div>
 
-      <div className="flex-1 bg-white border border-[var(--border)] rounded-xl shadow-sm overflow-hidden flex flex-col">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[var(--bg-secondary)] border-b border-[var(--border)] text-[var(--text-secondary)] font-medium">
-              <tr>
-                <th className="px-6 py-4">Bron ID</th>
-                <th className="px-6 py-4">Mijoz</th>
-                <th className="px-6 py-4">Summa</th>
-                <th className="px-6 py-4">Sabab</th>
-                <th className="px-6 py-4">Holat</th>
-                <th className="px-6 py-4">Sana</th>
-                <th className="px-6 py-4 text-right">Amallar</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)]">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-[var(--text-secondary)]">
-                    <span className="inline-block w-6 h-6 border-2 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin" />
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-[var(--text-secondary)]">
-                    Hech narsa topilmadi
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((r) => (
-                  <tr key={r.id} className="hover:bg-[var(--bg-secondary)] transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
-                        {r.bookingId.substring(0, 8)}...
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-medium text-[var(--text-primary)]">
-                      {r.customerName}
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-purple-600">
-                      {formatPrice(r.amount)}
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 max-w-[200px] truncate" title={r.reason}>
-                      {r.reason}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn("px-2.5 py-1 rounded-md text-xs font-medium border", STATUS_COLORS[r.status] || "bg-slate-100 text-slate-700")}>
-                        {STATUS_LABELS[r.status] || r.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-[var(--text-secondary)]">
-                      {new Date(r.createdAt).toLocaleString('uz-UZ', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="relative inline-block text-left">
-                        <button
-                          onClick={() => setDropdownOpen(dropdownOpen === r.id ? null : r.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                        >
-                          {actionLoading?.startsWith(r.id) ? (
-                            <span className="inline-block w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                          ) : (
-                            <MoreVertical size={18} />
-                          )}
-                        </button>
-
-                        {dropdownOpen === r.id && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />
-                            <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-20 py-1 overflow-hidden">
-                              {(r.status === 'requested' || r.status === 'processing') && (
-                                <>
-                                  <button
-                                    onClick={() => handleAction(r.id, 'approve')}
-                                    className="w-full text-left px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition-colors font-medium"
-                                  >
-                                    <CheckCircle2 size={16} /> Tasdiqlash
-                                  </button>
-                                  <button
-                                    onClick={() => handleAction(r.id, 'reject')}
-                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors font-medium"
-                                  >
-                                    <XCircle size={16} /> Rad etish
-                                  </button>
-                                </>
-                              )}
-
-                              {r.status === 'rejected' && (
-                                <button
-                                  onClick={() => handleAction(r.id, 'retry')}
-                                  className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 transition-colors font-medium"
-                                >
-                                  <RefreshCw size={16} /> Qayta ochish
-                                </button>
-                              )}
-
-                              {r.status !== 'requested' && r.status !== 'processing' && r.status !== 'rejected' && (
-                                <div className="px-4 py-2 text-xs text-slate-400">
-                                  Boshqa amal mavjud emas
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        keyField="id"
+        emptyMessage="Hech narsa topilmadi"
+        isLoading={loading}
+        isError={error}
+        onRetry={fetchRefunds}
+        className="flex-1"
+      />
     </div>
   );
 }

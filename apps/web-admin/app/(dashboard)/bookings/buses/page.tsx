@@ -24,15 +24,39 @@ export default function BusBookingsPage() {
   const bookings = useAdminStore((s) => s.busBookings);
   const setBusBookings = useAdminStore((s) => s.setBusBookings);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
+  const fetchBusBookings = () => {
+    setLoading(true);
+    setError(false);
     AdminApi.getBusBookings()
       .then((items) => setBusBookings(items))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      setLoading(true);
+      setError(false);
+      AdminApi.getBusBookings()
+        .then((items) => {
+          if (!cancelled) setBusBookings(items);
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, [setBusBookings]);
 
   const filtered = useMemo(() => {
@@ -114,13 +138,7 @@ export default function BusBookingsPage() {
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
@@ -173,6 +191,9 @@ export default function BusBookingsPage() {
         keyField="id"
         onRowClick={(row) => router.push(`/bookings/${row.id}`)}
         emptyMessage="Ijara bronlari topilmadi"
+        isLoading={loading}
+        isError={error}
+        onRetry={fetchBusBookings}
       />
 
       <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />

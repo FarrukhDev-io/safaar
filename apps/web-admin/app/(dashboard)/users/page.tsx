@@ -27,6 +27,7 @@ export default function UsersPage() {
   const users = useAdminStore((s) => s.users);
   const setUsers = useAdminStore((s) => s.setUsers);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -34,10 +35,33 @@ export default function UsersPage() {
   const [smsMessage, setSmsMessage] = useState("");
   const [smsSending, setSmsSending] = useState(false);
 
-  useEffect(() => {
+  const fetchUsers = () => {
+    setLoading(true);
+    setError(false);
     AdminApi.getUsers()
       .then((items) => setUsers(items))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      setLoading(true);
+      setError(false);
+      AdminApi.getUsers()
+        .then((items) => {
+          if (!cancelled) setUsers(items);
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, [setUsers]);
 
   const filtered = useMemo(() => {
@@ -113,13 +137,7 @@ export default function UsersPage() {
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
@@ -167,6 +185,9 @@ export default function UsersPage() {
         keyField="id"
         onRowClick={(row) => router.push(`/users/${row.id}`)}
         emptyMessage="Foydalanuvchi topilmadi"
+        isLoading={loading}
+        isError={error}
+        onRetry={fetchUsers}
       />
 
       {/* Pagination */}

@@ -30,8 +30,27 @@ export default function FinanceOverviewPage() {
   };
 
   useEffect(() => {
-    fetchOverview();
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [overviewData, chart] = await Promise.all([
+          AdminApi.getFinanceOverview(),
+          AdminApi.getFinanceRevenueChart()
+        ]);
+        if (!cancelled) {
+          setOverview(overviewData);
+          setChartData(chart);
+        }
+      } catch {
+        if (!cancelled) toast.error("Moliya ma'lumotlarini yuklab bo'lmadi");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
+
 
   if (loading) {
     return (

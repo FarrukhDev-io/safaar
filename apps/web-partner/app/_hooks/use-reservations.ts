@@ -27,6 +27,8 @@ export function useReservations() {
   return {
     data,
     isLoading: query.isLoading && data.length === 0,
+    isError: query.isError,
+    error: query.error,
     refetch: query.refetch,
     isFetching: query.isFetching,
   };

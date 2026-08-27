@@ -734,17 +734,35 @@ function toBroadcast(row: ApiRecord): BroadcastNotification {
   };
 }
 
+function paymentProvider(value: unknown): AdminPaymentTransaction['provider'] {
+  const p = asString(value).toLowerCase();
+  if (p === 'payme' || p === 'uzcard' || p === 'humo' || p === 'stripe') return p;
+  return 'click';
+}
+
+function paymentTransactionStatus(value: unknown): AdminPaymentTransaction['status'] {
+  const s = asString(value).toLowerCase();
+  if (s === 'success' || s === 'failed' || s === 'refunded') return s;
+  return 'pending';
+}
+
 function toPaymentTransaction(row: ApiRecord): AdminPaymentTransaction {
   return {
     id: asString(row.id),
     bookingId: asString(row.booking_id ?? row.bookingId),
     customerName: asString(row.customer_name ?? row.customerName, 'Mijoz'),
     amount: asNumber(row.amount),
-    provider: asString(row.provider, 'payme') as any,
-    status: asString(row.status, 'pending') as any,
+    provider: paymentProvider(row.provider),
+    status: paymentTransactionStatus(row.status),
     providerTransactionId: asString(row.provider_reference ?? row.provider_transaction_id ?? row.providerTransactionId) || undefined,
     createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
   };
+}
+
+function refundTransactionStatus(value: unknown): AdminRefundTransaction['status'] {
+  const s = asString(value).toLowerCase();
+  if (s === 'approved' || s === 'rejected' || s === 'failed' || s === 'completed') return s;
+  return 'pending';
 }
 
 function toRefundTransaction(row: ApiRecord): AdminRefundTransaction {
@@ -755,7 +773,7 @@ function toRefundTransaction(row: ApiRecord): AdminRefundTransaction {
     customerName: asString(row.customer_name ?? row.customerName, 'Mijoz'),
     amount: asNumber(row.amount),
     reason: asString(row.reason, 'Sabab ko\'rsatilmagan'),
-    status: asString(row.status, 'requested') as any,
+    status: refundTransactionStatus(row.status),
     createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
   };
 }
@@ -1181,12 +1199,40 @@ export const AdminApi = {
 
   getPartnerLedger: async (id: string): Promise<PartnerLedgerEntry[]> => {
     const { data } = await apiClient.get(`/admin/partners/${id}/ledger`);
-    return unknownItems(data).map(row => asRecord(row) as any);
+    return unknownItems(data).map((row) => {
+      const r = asRecord(row);
+      const type = asString(r.type);
+      return {
+        id: asString(r.id),
+        partnerId: asString(r.partner_id ?? r.partnerId),
+        type: (['booking_revenue','commission_fee','withdrawal','adjustment','refund'] as const).includes(type as PartnerLedgerEntry['type'])
+          ? (type as PartnerLedgerEntry['type'])
+          : 'adjustment',
+        amount: asNumber(r.amount),
+        balanceAfter: asNumber(r.balance_after ?? r.balanceAfter),
+        description: asString(r.description, '—'),
+        referenceId: r.reference_id ? asString(r.reference_id) : undefined,
+        createdAt: asString(r.created_at ?? r.createdAt, new Date().toISOString()),
+      } satisfies PartnerLedgerEntry;
+    });
   },
 
   addPartnerAdjustment: async (id: string, payload: { amount: number; description: string; type: 'adjustment' | 'refund' }): Promise<PartnerLedgerEntry> => {
     const { data } = await apiClient.post(`/admin/partners/${id}/adjustment`, payload);
-    return asRecord(data) as any;
+    const r = asRecord(data);
+    const type = asString(r.type);
+    return {
+      id: asString(r.id),
+      partnerId: asString(r.partner_id ?? r.partnerId, id),
+      type: (['booking_revenue','commission_fee','withdrawal','adjustment','refund'] as const).includes(type as PartnerLedgerEntry['type'])
+        ? (type as PartnerLedgerEntry['type'])
+        : 'adjustment',
+      amount: asNumber(r.amount),
+      balanceAfter: asNumber(r.balance_after ?? r.balanceAfter),
+      description: asString(r.description, payload.description),
+      referenceId: r.reference_id ? asString(r.reference_id) : undefined,
+      createdAt: asString(r.created_at ?? r.createdAt, new Date().toISOString()),
+    } satisfies PartnerLedgerEntry;
   },
 
   // Developer (API & Webhooks)
@@ -1366,37 +1412,98 @@ export const AdminApi = {
   // Finance
   getFinanceOverview: async (): Promise<FinanceOverviewData> => {
     const { data } = await apiClient.get('/admin/finance/overview');
-    return asRecord(data) as any;
+    const r = asRecord(data);
+    return {
+      totalRevenue: asNumber(r.total_revenue ?? r.totalRevenue),
+      totalCommission: asNumber(r.total_commission ?? r.totalCommission),
+      pendingWithdrawals: asNumber(r.pending_withdrawals ?? r.pendingWithdrawals),
+      paidWithdrawals: asNumber(r.paid_withdrawals ?? r.paidWithdrawals),
+      totalRefunds: asNumber(r.total_refunds ?? r.totalRefunds),
+    } satisfies FinanceOverviewData;
   },
 
   getFinanceRevenueChart: async (): Promise<RevenueData[]> => {
     const { data } = await apiClient.get('/admin/finance/revenue-chart');
-    return unknownItems(data).map(row => asRecord(row) as any);
+    return unknownItems(data).map((row) => {
+      const r = asRecord(row);
+      return {
+        month: asString(r.month ?? r.date),
+        commission: asNumber(r.commission ?? r.commission_amount),
+        partnerPayment: asNumber(r.partner_payment ?? r.partnerPayment ?? r.partner_amount),
+      } satisfies RevenueData;
+    });
   },
 
   getProviderReconciliation: async (): Promise<ProviderReconciliation[]> => {
     const { data } = await apiClient.get('/admin/finance/provider-reconciliation');
-    return unknownItems(data).map(row => asRecord(row) as any);
+    return unknownItems(data).map((row) => {
+      const r = asRecord(row);
+      const rawStatus = asString(r.status);
+      return {
+        provider: asString(r.provider),
+        expectedAmount: asNumber(r.expected_amount ?? r.expectedAmount),
+        actualAmount: asNumber(r.actual_amount ?? r.actualAmount),
+        difference: asNumber(r.difference),
+        status: rawStatus === 'mismatched' ? 'mismatched' : 'matched',
+        lastSyncedAt: asString(r.last_synced_at ?? r.lastSyncedAt, new Date().toISOString()),
+      } satisfies ProviderReconciliation;
+    });
   },
 
-  exportFinance: async (filters?: any): Promise<{ url: string }> => {
+  exportFinance: async (filters?: Record<string, unknown>): Promise<{ url: string }> => {
     const { data } = await apiClient.post('/admin/finance/export', filters);
-    return asRecord(data) as any;
+    const r = asRecord(data);
+    return { url: asString(r.url) };
   },
 
-  exportTaxReport: async (filters?: any): Promise<{ url: string }> => {
+  exportTaxReport: async (filters?: Record<string, unknown>): Promise<{ url: string }> => {
     const { data } = await apiClient.post('/admin/finance/tax-report-export', filters);
-    return asRecord(data) as any;
+    const r = asRecord(data);
+    return { url: asString(r.url) };
   },
 
   getFinanceDocuments: async (): Promise<FinanceDocument[]> => {
     const { data } = await apiClient.get('/admin/finance/documents');
-    return unknownItems(data).map(row => asRecord(row) as any);
+    return unknownItems(data).map((row) => {
+      const r = asRecord(row);
+      const docType = asString(r.type);
+      const docStatus = asString(r.status);
+      return {
+        id: asString(r.id),
+        type: (['invoice','tax_report','act'] as const).includes(docType as FinanceDocument['type'])
+          ? (docType as FinanceDocument['type'])
+          : 'invoice',
+        title: asString(r.title, 'Hujjat'),
+        partnerName: r.partner_name ? asString(r.partner_name) : undefined,
+        period: asString(r.period, '—'),
+        url: asString(r.url),
+        status: (['generated','failed','pending'] as const).includes(docStatus as FinanceDocument['status'])
+          ? (docStatus as FinanceDocument['status'])
+          : 'pending',
+        createdAt: asString(r.created_at ?? r.createdAt, new Date().toISOString()),
+      } satisfies FinanceDocument;
+    });
   },
 
   regenerateFinanceDocument: async (id: string): Promise<FinanceDocument> => {
     const { data } = await apiClient.post(`/admin/finance/documents/${id}/regenerate`);
-    return asRecord(data) as any;
+    const r = asRecord(data);
+    const docType = asString(r.type);
+    const docStatus = asString(r.status);
+    return {
+      id: asString(r.id),
+      type: (['invoice','tax_report','act'] as const).includes(docType as FinanceDocument['type'])
+        ? (docType as FinanceDocument['type'])
+        : 'invoice',
+      title: asString(r.title, 'Hujjat'),
+      partnerName: r.partner_name ? asString(r.partner_name) : undefined,
+      period: asString(r.period, '—'),
+      url: asString(r.url),
+      status: (['generated','failed','pending'] as const).includes(docStatus as FinanceDocument['status'])
+        ? (docStatus as FinanceDocument['status'])
+        : 'pending',
+      createdAt: asString(r.created_at ?? r.createdAt, new Date().toISOString()),
+    } satisfies FinanceDocument;
   },
 
   // Payments

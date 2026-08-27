@@ -173,7 +173,6 @@ export function ListingOverview() {
       typeof listing.latitude === 'number' &&
       typeof listing.longitude === 'number';
     const rulesComplete = Boolean(listing.checkInTime && listing.checkOutTime);
-    const roomTypesComplete = roomAds.length > 0 && listedRooms.length > 0;
 
     const base: ListingSection[] = [
       {
@@ -321,7 +320,7 @@ export function ListingOverview() {
     }
 
     return base;
-  }, [cover, listing, showStars, labels, dacha, restaurant, isBus, roomAds, listedRooms]);
+  }, [cover, listing, showStars, labels, dacha, restaurant, isBus, roomAds, listedRooms, vehicles]);
 
   const completedCount = sections.filter((section) => section.complete).length;
   const progress = Math.round((completedCount / sections.length) * 100);

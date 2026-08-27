@@ -160,7 +160,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             count: user.bookingsCount,
             content: (
               <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-white">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--bg-tertiary)]">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase">Bron ID</th>

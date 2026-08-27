@@ -21,11 +21,35 @@ export default function PartnerListingsPage() {
   const listings = useAdminStore((s) => s.listings);
   const setListings = useAdminStore((s) => s.setListings);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const fetchListings = () => {
+    setLoading(true);
+    setError(false);
     AdminApi.getListings()
       .then((items) => setListings(items))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      setLoading(true);
+      setError(false);
+      AdminApi.getListings()
+        .then((items) => {
+          if (!cancelled) setListings(items);
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, [setListings]);
 
   const columns: Column<AdminListing>[] = [
@@ -83,6 +107,9 @@ export default function PartnerListingsPage() {
           data={listings.filter((l) => l.status === "under_review")}
           keyField="id"
           emptyMessage="Kutilayotgan e'lonlar yo'q"
+          isLoading={loading}
+          isError={error}
+          onRetry={fetchListings}
         />
       ),
     },
@@ -95,6 +122,9 @@ export default function PartnerListingsPage() {
           data={listings.filter((l) => l.status === "published")}
           keyField="id"
           emptyMessage="Tasdiqlangan e'lonlar yo'q"
+          isLoading={loading}
+          isError={error}
+          onRetry={fetchListings}
         />
       ),
     },
@@ -107,18 +137,15 @@ export default function PartnerListingsPage() {
           data={listings.filter((l) => l.status === "rejected")}
           keyField="id"
           emptyMessage="Rad etilgan e'lonlar yo'q"
+          isLoading={loading}
+          isError={error}
+          onRetry={fetchListings}
         />
       ),
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6 animate-fade-in">

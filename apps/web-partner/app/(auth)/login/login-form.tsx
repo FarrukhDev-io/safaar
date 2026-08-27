@@ -5,9 +5,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { KeyRound, Phone, FlaskConical } from 'lucide-react';
-import { Button } from '../../_components/ui/button';
-import { Input } from '../../_components/ui/input';
-import { Label } from '../../_components/ui/label';
+import { getPartnerLabels } from '../../_lib/utils/partner-labels';
+import { UserRole } from '@safaar/types';
 import {
   usePartnerPhoneOtpRequest,
   usePartnerPhoneOtpVerify,

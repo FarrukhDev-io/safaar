@@ -18,6 +18,9 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
   className?: string;
+  isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
 }
 
 export default function DataTable<T>({
@@ -27,10 +30,13 @@ export default function DataTable<T>({
   emptyMessage = "Ma'lumot topilmadi",
   onRowClick,
   className,
+  isLoading,
+  isError,
+  onRetry,
 }: DataTableProps<T>) {
   return (
     <div className={cn("overflow-x-auto rounded-xl border border-[var(--border)] bg-white", className)}>
-      <table className="w-full text-sm">
+      <table className="w-full text-sm whitespace-nowrap">
         <thead>
           <tr className="border-b border-[var(--border)] bg-[var(--bg-tertiary)]">
             {columns.map((col) => (
@@ -47,7 +53,29 @@ export default function DataTable<T>({
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border-light)]">
-          {data.length === 0 ? (
+          {isLoading ? (
+            <tr>
+              <td colSpan={columns.length} className="px-4 py-12 text-center text-[var(--text-muted)]">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent"></div>
+                  Yuklanmoqda...
+                </div>
+              </td>
+            </tr>
+          ) : isError ? (
+            <tr>
+              <td colSpan={columns.length} className="px-4 py-12 text-center text-red-500">
+                <div className="flex flex-col items-center gap-2">
+                  <span>Ma'lumotlarni yuklashda xatolik yuz berdi.</span>
+                  {onRetry && (
+                    <button onClick={onRetry} className="text-sm border border-red-200 rounded px-3 py-1 hover:bg-red-50 transition-colors">
+                      Qayta urinish
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ) : data.length === 0 ? (
             <tr>
               <td
                 colSpan={columns.length}

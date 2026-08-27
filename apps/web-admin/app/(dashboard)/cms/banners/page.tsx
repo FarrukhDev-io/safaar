@@ -12,6 +12,18 @@ import { Plus, Edit2, Trash2, Power } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminStore } from "@/lib/store";
 import { AdminApi } from "@/lib/api/admin-api";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const bannerSchema = z.object({
+  title: z.string().min(2, "Kamida 2 ta belgi kiriting"),
+  link: z.string().min(1, "Havolani kiriting"),
+  imageUrl: z.string().min(5, "Rasm havolasini kiriting").url("Noto'g'ri havola formati (http:// yoki https:// dan boshlanishi kerak)"),
+  order: z.number({ required_error: "Tartib raqamini kiriting", invalid_type_error: "Faqat raqam kiriting" }).int().min(1, "Kamida 1 bo'lishi kerak"),
+  isActive: z.boolean(),
+});
+type BannerFormValues = z.infer<typeof bannerSchema>;
 
 function hasRenderableImage(value: string) {
   if (!value) return false;
@@ -51,32 +63,60 @@ export default function CmsBannersPage() {
   const banners = useAdminStore((s) => s.cmsBanners);
   const setCmsBanners = useAdminStore((s) => s.setCmsBanners);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetchBanners = () => {
+    setLoading(true);
+    setError(false);
+    AdminApi.getCmsBanners()
+      .then((items) => setCmsBanners(items))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<CmsBanner | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const [formData, setFormData] = useState({
-    title: "",
-    link: "",
-    imageUrl: "",
-    order: 1,
-    isActive: true,
+  const form = useForm<BannerFormValues>({
+    resolver: zodResolver(bannerSchema),
+    defaultValues: {
+      title: "",
+      link: "",
+      imageUrl: "",
+      order: 1,
+      isActive: true,
+    }
   });
 
   useEffect(() => {
-    AdminApi.getCmsBanners()
-      .then((items) => setCmsBanners(items))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    const load = () => {
+      setLoading(true);
+      setError(false);
+      AdminApi.getCmsBanners()
+        .then((items) => {
+          if (!cancelled) setCmsBanners(items);
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, [setCmsBanners]);
 
   const openNewModal = () => {
-    setFormData({ title: "", link: "", imageUrl: "", order: banners.length + 1, isActive: true });
+    form.reset({ title: "", link: "", imageUrl: "", order: banners.length + 1, isActive: true });
     setEditingBanner(null);
     setIsModalOpen(true);
   };
 
   const openEditModal = (banner: CmsBanner) => {
-    setFormData({
+    form.reset({
       title: banner.title,
       link: banner.link,
       imageUrl: banner.imageUrl,
@@ -87,23 +127,25 @@ export default function CmsBannersPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!formData.title || !formData.link || !formData.imageUrl) {
-      toast.error("Iltimos barcha maydonlarni to'ldiring");
-      return;
+  const onSubmit = form.handleSubmit(async (values) => {
+    setSaving(true);
+    try {
+      if (editingBanner) {
+        const updated = await AdminApi.updateCmsBanner(editingBanner.id, values);
+        setCmsBanners(banners.map((banner) => banner.id === updated.id ? updated : banner));
+        toast.success("Banner muvaffaqiyatli saqlandi!");
+      } else {
+        const created = await AdminApi.createCmsBanner(values);
+        setCmsBanners([...banners, created].sort((a, b) => a.order - b.order));
+        toast.success("Yangi banner qo'shildi!");
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      toast.error("Bannerni saqlashda xatolik yuz berdi");
+    } finally {
+      setSaving(false);
     }
-
-    if (editingBanner) {
-      const updated = await AdminApi.updateCmsBanner(editingBanner.id, formData);
-      setCmsBanners(banners.map((banner) => banner.id === updated.id ? updated : banner));
-      toast.success("Banner muvaffaqiyatli saqlandi!");
-    } else {
-      const created = await AdminApi.createCmsBanner(formData);
-      setCmsBanners([...banners, created].sort((a, b) => a.order - b.order));
-      toast.success("Yangi banner qo'shildi!");
-    }
-    setIsModalOpen(false);
-  };
+  });
 
   const handleToggle = async (banner: CmsBanner) => {
     const updated = await AdminApi.setCmsBannerActive(banner.id, !banner.isActive);
@@ -158,13 +200,15 @@ export default function CmsBannersPage() {
           <Button size="sm" icon={<Plus size={14} />} onClick={openNewModal}>Yangi Banner</Button>
         </div>
         
-        {loading ? (
-          <div className="flex justify-center p-12">
-            <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          <DataTable columns={columns} data={banners} keyField="id" emptyMessage="Bannerlar topilmadi" />
-        )}
+        <DataTable 
+          columns={columns} 
+          data={banners} 
+          keyField="id" 
+          emptyMessage="Bannerlar topilmadi" 
+          isLoading={loading}
+          isError={error}
+          onRetry={fetchBanners}
+        />
       </div>
 
       <Modal
@@ -173,49 +217,69 @@ export default function CmsBannersPage() {
         title={editingBanner ? "Bannerni tahrirlash" : "Yangi Banner"}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Bekor qilish</Button>
-            <Button onClick={handleSave}>Saqlash</Button>
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)} disabled={saving}>Bekor qilish</Button>
+            <Button onClick={() => form.handleSubmit(onSubmit)()} disabled={saving}>
+              {saving ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
           </>
         }
       >
-        <div className="flex flex-col gap-4">
-          <Input 
-            label="Sarlavha" 
-            placeholder="Katta chegirmalar..." 
-            value={formData.title} 
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })} 
-          />
-          <Input
-            label="Rasm URL"
-            placeholder="https://cdn.safaar.uz/banners/..."
-            value={formData.imageUrl}
-            onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-          />
-          <Input 
-            label="Yo'naltirish havolasi (Link)" 
-            placeholder="/hotels?discount=true" 
-            value={formData.link} 
-            onChange={(e) => setFormData({ ...formData, link: e.target.value })} 
-          />
-          <Input 
-            type="number"
-            label="Tartib raqami" 
-            value={formData.order.toString()} 
-            onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })} 
-          />
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Input 
+              label="Sarlavha" 
+              placeholder="Katta chegirmalar..." 
+              {...form.register("title")} 
+            />
+            {form.formState.errors.title && <span className="text-xs text-red-500">{form.formState.errors.title.message}</span>}
+          </div>
+          
+          <div className="flex flex-col gap-1.5">
+            <Input
+              label="Rasm URL"
+              placeholder="https://cdn.safaar.uz/banners/..."
+              {...form.register("imageUrl")}
+            />
+            {form.formState.errors.imageUrl && <span className="text-xs text-red-500">{form.formState.errors.imageUrl.message}</span>}
+          </div>
+          
+          <div className="flex flex-col gap-1.5">
+            <Input 
+              label="Yo'naltirish havolasi (Link)" 
+              placeholder="/hotels?discount=true" 
+              {...form.register("link")} 
+            />
+            {form.formState.errors.link && <span className="text-xs text-red-500">{form.formState.errors.link.message}</span>}
+          </div>
+          
+          <div className="flex flex-col gap-1.5">
+            <Input 
+              type="number"
+              label="Tartib raqami" 
+              {...form.register("order", { valueAsNumber: true })} 
+            />
+            {form.formState.errors.order && <span className="text-xs text-red-500">{form.formState.errors.order.message}</span>}
+          </div>
+          
           <div className="flex flex-col gap-1.5 mt-2">
             <label className="text-sm font-medium text-[var(--text-primary)]">Holat</label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]"
+              <Controller
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <input 
+                    type="checkbox" 
+                    checked={field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]"
+                  />
+                )}
               />
               <span className="text-sm text-[var(--text-muted)]">Faol</span>
             </label>
           </div>
-        </div>
+        </form>
       </Modal>
     </>
   );

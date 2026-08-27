@@ -22,11 +22,35 @@ export default function AuditLogsPage() {
   const [search, setSearch] = useState("");
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const fetchLogs = () => {
+    setLoading(true);
+    setError(false);
     AdminApi.getAuditLogs()
       .then((items) => setLogs(items))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      setLoading(true);
+      setError(false);
+      AdminApi.getAuditLogs()
+        .then((items) => {
+          if (!cancelled) setLogs(items);
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, []);
 
   const filteredLogs = useMemo(() => {
@@ -48,13 +72,7 @@ export default function AuditLogsPage() {
     { key: "date", label: "Sana", render: (row: AuditLog) => formatDateTime(row.date) },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
@@ -92,6 +110,9 @@ export default function AuditLogsPage() {
             data={filteredLogs}
             keyField="id"
             emptyMessage="Audit loglar topilmadi"
+            isLoading={loading}
+            isError={error}
+            onRetry={fetchLogs}
           />
         </div>
 

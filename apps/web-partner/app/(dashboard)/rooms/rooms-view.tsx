@@ -3,7 +3,7 @@
 import { BedDouble, BedSingle, UtensilsCrossed, Users, CarFront, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+
 import { PageHeader } from "../../_components/layout/page-header";
 import { useBeds } from "../../_hooks/use-beds";
 import { useRooms, useUpdateRoom } from "../../_hooks/use-rooms";
@@ -11,6 +11,7 @@ import { useRoomTypes } from "../../_hooks/use-room-types";
 import { RoomStatus, type Bed, type Room, type RoomType } from "../../_lib/domain/types";
 import { RoomDialog } from "../settings/rooms/_dialogs/room-dialog";
 import { BedManagementDialog } from "../settings/rooms/_dialogs/bed-management-dialog";
+import { EmptyState, LoadingState, ErrorState } from "../../_components/ui/empty-state";
 import { Button } from "../../_components/ui/button";
 import { formatMoney } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
@@ -20,7 +21,7 @@ import { DachaDetailsView } from "./dacha-details-view";
 
 export function RoomsView() {
   const router = useRouter();
-  const { allRooms: rooms } = useRooms();
+  const { allRooms: rooms, isLoading, isError, refetch } = useRooms();
   const { data: roomTypes } = useRoomTypes();
   useBeds();
   const beds = useDataStore((s) => s.beds);
@@ -87,7 +88,14 @@ export function RoomsView() {
       </div>
 
       <div className="flex flex-col gap-10">
-        {floors.length === 0 ? (
+        {isLoading ? (
+          <LoadingState title={`${labels.unitPlural} yuklanmoqda...`} />
+        ) : isError ? (
+          <ErrorState 
+            title={`${labels.unitPlural}ni yuklashda xatolik yuz berdi`} 
+            action={<Button onClick={() => refetch()} variant="outline" size="sm">Qayta urinish</Button>} 
+          />
+        ) : floors.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 py-20 px-6 text-center dark:border-zinc-800 dark:bg-zinc-900/20">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100/50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 mb-4">
               {isBus ? <CarFront className="h-8 w-8" /> : restaurant ? <UtensilsCrossed className="h-8 w-8" /> : <BedDouble className="h-8 w-8" />}
@@ -185,7 +193,6 @@ function RoomCard({
   onManageBeds?: () => void;
   labels: any;
 }) {
-  const router = useRouter();
   const freeBeds = beds?.filter((b) => b.status === RoomStatus.VACANT_CLEAN).length ?? 0;
   const { mutate: updateRoom, isPending: isUpdating } = useUpdateRoom();
 

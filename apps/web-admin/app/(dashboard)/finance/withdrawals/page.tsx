@@ -22,13 +22,37 @@ const STATUS_MAP = {
 export default function WithdrawalsPage() {
   const [data, setData] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetchWithdrawals = () => {
+    setLoading(true);
+    setError(false);
+    AdminApi.getWithdrawals()
+      .then((res) => setData(res))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    AdminApi.getWithdrawals().then((res) => {
-      setData(res);
-      setLoading(false);
-    });
+    let cancelled = false;
+    const load = () => {
+      setLoading(true);
+      setError(false);
+      AdminApi.getWithdrawals()
+        .then((res) => {
+          if (!cancelled) setData(res);
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, []);
+
 
   const handleApprove = async (id: string) => {
     if (!confirm("Rostdan ham ushbu to'lov so'rovini tasdiqlamoqchimisiz?")) return;
@@ -83,13 +107,7 @@ export default function WithdrawalsPage() {
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6 animate-fade-in">
@@ -110,6 +128,9 @@ export default function WithdrawalsPage() {
         data={data}
         keyField="id"
         emptyMessage="To'lov so'rovlari topilmadi"
+        isLoading={loading}
+        isError={error}
+        onRetry={fetchWithdrawals}
       />
     </div>
   );

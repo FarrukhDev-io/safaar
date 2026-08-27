@@ -11,10 +11,7 @@ import {
   Calendar,
   UtensilsCrossed,
   Download,
-  Wallet,
-  Clock,
-  CheckCircle2,
-  AlertCircle
+  Wallet
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -142,15 +139,15 @@ export function ReportsView() {
     [ledgerEntries, ledgerTypeFilter],
   );
 
-  const fetchWithdrawals = async () => {
+  const fetchWithdrawals = async (silent = false) => {
     try {
-      setFinanceLoading(true);
+      if (!silent) setFinanceLoading(true);
       const data = await getWithdrawals(token);
       setWithdrawals(data.map(toWithdrawal));
-    } catch (e) {
+    } catch {
       toast.error("Pul yechish tarixini yuklab bo'lmadi");
     } finally {
-      setFinanceLoading(false);
+      if (!silent) setFinanceLoading(false);
     }
   };
 
@@ -222,7 +219,7 @@ export function ReportsView() {
       setWithdrawAmount("");
       setWithdrawBank("");
       fetchWithdrawals();
-    } catch (e) {
+    } catch {
       toast.error("So'rov yuborishda xatolik");
     } finally {
       setIsSubmitting(false);
@@ -570,7 +567,7 @@ export function ReportsView() {
                   <div className="py-12 text-center text-sm text-zinc-500">Yuklanmoqda...</div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
                       <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
                           <th className="px-4 py-3 font-medium text-zinc-500">ID</th>

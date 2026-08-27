@@ -43,7 +43,7 @@ export default function ApplicationStatusPage() {
       if (!res.found) {
         toast.error("Bunday raqamga bog'liq ariza topilmadi");
       }
-    } catch (e) {
+    } catch {
       toast.error("Ariza holatini tekshirib bo'lmadi");
     } finally {
       setLoading(false);
@@ -75,8 +75,8 @@ export default function ApplicationStatusPage() {
         note: "Qayta yuborilgan ariza",
       });
       toast.success("Ariza muvaffaqiyatli qayta yuborildi");
-      setStatusResult({ ...statusResult, status: "submitted" } as typeof statusResult);
-    } catch (e) {
+      setStatusResult({ ...statusResult, status: "submitted" });
+    } catch {
       toast.error("Xatolik yuz berdi");
     } finally {
       setResubmitting(false);

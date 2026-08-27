@@ -22,7 +22,7 @@ export default function DocumentsSettingsPage() {
       setLoading(true);
       const data = await listDocuments(token);
       setDocuments(data.map(toDocument));
-    } catch (e) {
+    } catch {
       toast.error("Hujjatlarni yuklab bo'lmadi");
     } finally {
       setLoading(false);
@@ -34,6 +34,7 @@ export default function DocumentsSettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -42,8 +43,9 @@ export default function DocumentsSettingsPage() {
     try {
       await uploadDocument(file, selectedType, token);
       toast.success("Hujjat yuklandi va tasdiqlash uchun yuborildi");
-      fetchDocs();
-    } catch (e) {
+      const data = await listDocuments(token);
+      setDocuments(data.map(toDocument));
+    } catch {
       toast.error("Hujjat yuklashda xatolik");
     } finally {
       setUploading(false);
@@ -126,7 +128,7 @@ export default function DocumentsSettingsPage() {
 
         <div className="md:col-span-2">
           <div className="rounded-xl border border-[var(--border)] bg-white dark:bg-[var(--card)] overflow-hidden">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-[var(--muted)]/50 border-b border-[var(--border)]">
                 <tr>
                   <th className="px-5 py-3 font-medium text-[var(--muted-foreground)]">Hujjat nomi</th>
