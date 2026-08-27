@@ -121,7 +121,7 @@ export function GuestsView() {
         />
       ) : (
         <div className="overflow-x-auto rounded-card border border-[var(--border)] bg-[var(--surface)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm whitespace-nowrap">
             <thead className="border-b border-[var(--border)] bg-[var(--surface-muted)] text-left text-xs uppercase tracking-wide text-[var(--muted-foreground)]">
               <tr>
                 <th className="px-4 py-3">{labels.guestLabel}</th>

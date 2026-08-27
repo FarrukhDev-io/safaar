@@ -12,6 +12,9 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import { extractApiErrorMessage, formatDate, formatPrice } from "@/lib/utils";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 function defaultValidUntil(): string {
   const d = new Date();
@@ -24,95 +27,109 @@ function toDateInputValue(iso: string): string {
   return Number.isNaN(d.getTime()) ? defaultValidUntil() : d.toISOString().slice(0, 10);
 }
 
-function makeEmptyForm() {
-  return {
-    code: "",
-    discountType: "percent" as "percent" | "fixed",
-    discountValue: "",
-    usageLimit: "100",
-    validUntil: defaultValidUntil(),
-    isActive: true,
-  };
-}
+const promoSchema = z.object({
+  code: z.string().min(3, "Kamida 3 ta belgi").max(20, "20 ta belgidan oshmasin").trim().toUpperCase(),
+  discountType: z.enum(["percent", "fixed"]),
+  discountValue: z.number({ required_error: "Miqdorni kiriting", invalid_type_error: "Faqat raqam kiriting" }).min(1, "Noldan katta bo'lishi kerak"),
+  usageLimit: z.number({ required_error: "Limitni kiriting", invalid_type_error: "Faqat raqam kiriting" }).min(1, "Kamida 1 bo'lishi kerak"),
+  validUntil: z.string().min(1, "Sanani kiriting"),
+  isActive: z.boolean(),
+});
+
+type PromoFormValues = z.infer<typeof promoSchema>;
 
 export default function PromosPage() {
   const [data, setData] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [form, setForm] = useState(makeEmptyForm);
+
+  const form = useForm<PromoFormValues>({
+    resolver: zodResolver(promoSchema),
+    defaultValues: {
+      code: "",
+      discountType: "percent",
+      discountValue: undefined,
+      usageLimit: 100,
+      validUntil: defaultValidUntil(),
+      isActive: true,
+    }
+  });
 
   const loadPromos = useCallback(() => {
+    setLoading(true);
+    setError(false);
     AdminApi.getPromos()
       .then((res) => setData(res))
-      .catch(() => toast.error("Promo-kodlarni yuklab bo'lmadi."))
+      .catch(() => {
+        toast.error("Promo-kodlarni yuklab bo'lmadi.");
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    loadPromos();
-  }, [loadPromos]);
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    AdminApi.getPromos()
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error("Promo-kodlarni yuklab bo'lmadi.");
+          setError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const openCreate = () => {
     setEditingId(null);
-    setForm(makeEmptyForm());
+    form.reset({
+      code: "",
+      discountType: "percent",
+      discountValue: undefined as any,
+      usageLimit: 100,
+      validUntil: defaultValidUntil(),
+      isActive: true,
+    });
     setModalOpen(true);
   };
 
   const openEdit = (promo: PromoCode) => {
     setEditingId(promo.id);
-    setForm({
+    form.reset({
       code: promo.code,
       discountType: promo.discountType,
-      discountValue: String(promo.discountValue),
-      usageLimit: String(promo.usageLimit),
+      discountValue: promo.discountValue,
+      usageLimit: promo.usageLimit,
       validUntil: toDateInputValue(promo.validUntil),
       isActive: promo.isActive,
     });
     setModalOpen(true);
   };
 
-  const handleSave = async () => {
-    const code = form.code.trim();
-    const discountValue = Number(form.discountValue);
-    const usageLimit = Number(form.usageLimit);
-
-    if (!code) {
-      toast.error("Promo-kod nomini kiriting.");
-      return;
-    }
-    if (!discountValue || discountValue <= 0) {
-      toast.error("Chegirma qiymatini kiriting.");
-      return;
-    }
-
+  const onSubmit = form.handleSubmit(async (values) => {
     setSaving(true);
     try {
       if (editingId) {
-        await AdminApi.updatePromo(editingId, {
-          code,
-          discountType: form.discountType,
-          discountValue,
-          usageLimit: usageLimit > 0 ? usageLimit : 100,
-          validUntil: form.validUntil,
-          isActive: form.isActive,
-        });
+        await AdminApi.updatePromo(editingId, values);
         toast.success("Promo-kod yangilandi!");
       } else {
-        await AdminApi.createPromo({
-          code,
-          discountType: form.discountType,
-          discountValue,
-          usageLimit: usageLimit > 0 ? usageLimit : 100,
-          validUntil: form.validUntil,
-        });
+        await AdminApi.createPromo(values);
         toast.success("Promo-kod yaratildi!");
       }
       setModalOpen(false);
       setEditingId(null);
-      setForm(makeEmptyForm());
+      form.reset();
       loadPromos();
     } catch (error) {
       toast.error(
@@ -120,13 +137,13 @@ export default function PromosPage() {
           error,
           editingId
             ? "Promo-kodni saqlab bo'lmadi. Qaytadan urinib ko'ring."
-            : "Promo-kod yaratib bo'lmadi. Qaytadan urinib ko'ring.",
-        ),
+            : "Promo-kod yaratib bo'lmadi. Qaytadan urinib ko'ring."
+        )
       );
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   const handleDelete = async (promo: PromoCode) => {
     if (!confirm(`"${promo.code}" promo-kodini o'chirmoqchimisiz?`)) return;
@@ -187,7 +204,7 @@ export default function PromosPage() {
     },
   ];
 
-  if (loading) return <div className="flex justify-center p-12"><span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>;
+
 
   return (
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6 animate-fade-in">
@@ -197,7 +214,15 @@ export default function PromosPage() {
           Yangi promo-kod
         </Button>
       </div>
-      <DataTable columns={columns} data={data} keyField="id" emptyMessage="Promo-kodlar topilmadi" />
+      <DataTable 
+        columns={columns} 
+        data={data} 
+        keyField="id" 
+        emptyMessage="Promo-kodlar topilmadi" 
+        isLoading={loading}
+        isError={error}
+        onRetry={loadPromos}
+      />
 
       <Modal
         open={modalOpen}
@@ -208,66 +233,92 @@ export default function PromosPage() {
             <Button variant="secondary" onClick={() => setModalOpen(false)} disabled={saving}>
               Bekor qilish
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={() => form.handleSubmit(onSubmit)()} disabled={saving}>
               {saving ? "Saqlanmoqda..." : editingId ? "Saqlash" : "Yaratish"}
             </Button>
           </>
         }
       >
-        <div className="flex flex-col gap-4">
-          <Input
-            label="Promo-kod"
-            placeholder="SUMMER20"
-            value={form.code}
-            onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Chegirma turi"
-              value={form.discountType}
-              onChange={(e) =>
-                setForm({ ...form, discountType: e.target.value as "percent" | "fixed" })
-              }
-              options={[
-                { value: "percent", label: "Foiz (%)" },
-                { value: "fixed", label: "So'm (belgilangan summa)" },
-              ]}
-            />
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
             <Input
-              label={form.discountType === "percent" ? "Chegirma (%)" : "Chegirma (so'm)"}
+              label="Promo-kod"
+              placeholder="SUMMER20"
+              {...form.register("code")}
+              onChange={(e) => {
+                form.setValue("code", e.target.value.toUpperCase(), { shouldValidate: true });
+              }}
+            />
+            {form.formState.errors.code && <span className="text-xs text-red-500">{form.formState.errors.code.message}</span>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Controller
+                control={form.control}
+                name="discountType"
+                render={({ field }) => (
+                  <Select
+                    label="Chegirma turi"
+                    value={field.value}
+                    onChange={(e) => field.onChange(e.target.value)}
+                    options={[
+                      { value: "percent", label: "Foiz (%)" },
+                      { value: "fixed", label: "So'm (belgilangan summa)" },
+                    ]}
+                  />
+                )}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Input
+                label={form.watch("discountType") === "percent" ? "Chegirma (%)" : "Chegirma (so'm)"}
+                type="number"
+                min={1}
+                placeholder={form.watch("discountType") === "percent" ? "20" : "50000"}
+                {...form.register("discountValue", { valueAsNumber: true })}
+              />
+              {form.formState.errors.discountValue && <span className="text-xs text-red-500">{form.formState.errors.discountValue.message}</span>}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Input
+              label="Foydalanish limiti"
               type="number"
               min={1}
-              placeholder={form.discountType === "percent" ? "20" : "50000"}
-              value={form.discountValue}
-              onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
+              placeholder="100"
+              {...form.register("usageLimit", { valueAsNumber: true })}
             />
+            {form.formState.errors.usageLimit && <span className="text-xs text-red-500">{form.formState.errors.usageLimit.message}</span>}
           </div>
-          <Input
-            label="Foydalanish limiti"
-            type="number"
-            min={1}
-            placeholder="100"
-            value={form.usageLimit}
-            onChange={(e) => setForm({ ...form, usageLimit: e.target.value })}
-          />
-          <Input
-            label="Amal qilish muddati"
-            type="date"
-            value={form.validUntil}
-            onChange={(e) => setForm({ ...form, validUntil: e.target.value })}
-          />
-          {editingId && (
-            <Select
-              label="Holat"
-              value={form.isActive ? "active" : "inactive"}
-              onChange={(e) => setForm({ ...form, isActive: e.target.value === "active" })}
-              options={[
-                { value: "active", label: "Faol" },
-                { value: "inactive", label: "Nofaol" },
-              ]}
+          <div className="flex flex-col gap-1.5">
+            <Input
+              label="Amal qilish muddati"
+              type="date"
+              {...form.register("validUntil")}
             />
+            {form.formState.errors.validUntil && <span className="text-xs text-red-500">{form.formState.errors.validUntil.message}</span>}
+          </div>
+          {editingId && (
+            <div className="flex flex-col gap-1.5">
+              <Controller
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <Select
+                    label="Holat"
+                    value={field.value ? "active" : "inactive"}
+                    onChange={(e) => field.onChange(e.target.value === "active")}
+                    options={[
+                      { value: "active", label: "Faol" },
+                      { value: "inactive", label: "Nofaol" },
+                    ]}
+                  />
+                )}
+              />
+            </div>
           )}
-        </div>
+        </form>
       </Modal>
     </div>
   );

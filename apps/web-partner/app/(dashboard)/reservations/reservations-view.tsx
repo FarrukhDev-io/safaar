@@ -23,7 +23,7 @@ import { BookingStatus } from "@safaar/types";
 import { Button } from "../../_components/ui/button";
 import { Card, CardBody } from "../../_components/ui/card";
 import { ConfirmDialog } from "../../_components/ui/dialog";
-import { EmptyState } from "../../_components/ui/empty-state";
+import { EmptyState, LoadingState, ErrorState } from "../../_components/ui/empty-state";
 import { Input } from "../../_components/ui/input";
 import { CheckInDialog } from "../../_components/domain/check-in-dialog";
 import { ReservationStatusBadge } from "../../_components/domain/reservation-status-badge";
@@ -111,7 +111,7 @@ function exportToCsv(items: ReservationView[], unitLabel: string, beds: Bed[], r
 }
 
 export function ReservationsView() {
-  const { data } = useReservations();
+  const { data, isLoading, isError, refetch } = useReservations();
   const router = useRouter();
   const confirmReservation = useConfirmReservation();
   const rejectReservation = useRejectReservation();
@@ -377,7 +377,14 @@ export function ReservationsView() {
             </span>
           </div>
 
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <LoadingState title="Bronlar yuklanmoqda..." />
+          ) : isError ? (
+            <ErrorState 
+              title="Bronlarni yuklashda xatolik yuz berdi" 
+              action={<Button onClick={() => refetch()} variant="outline" size="sm">Qayta urinish</Button>} 
+            />
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={<CalendarRange className="h-10 w-10" aria-hidden />}
               title="Bron topilmadi"

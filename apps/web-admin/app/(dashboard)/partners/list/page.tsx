@@ -26,15 +26,39 @@ export default function PartnersListPage() {
   const partners = useAdminStore((s) => s.partners);
   const setPartners = useAdminStore((s) => s.setPartners);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
+  const fetchPartners = () => {
+    setLoading(true);
+    setError(false);
     AdminApi.getPartners()
       .then((items) => setPartners(items))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      setLoading(true);
+      setError(false);
+      AdminApi.getPartners()
+        .then((items) => {
+          if (!cancelled) setPartners(items);
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, [setPartners]);
 
   const filtered = useMemo(() => {
@@ -121,13 +145,7 @@ export default function PartnersListPage() {
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
@@ -186,6 +204,9 @@ export default function PartnersListPage() {
         keyField="id"
         onRowClick={(row) => router.push(`/partners/${row.id}`)}
         emptyMessage="Hamkor topilmadi"
+        isLoading={loading}
+        isError={error}
+        onRetry={fetchPartners}
       />
 
       {/* Pagination */}

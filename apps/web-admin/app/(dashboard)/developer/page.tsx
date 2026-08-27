@@ -32,8 +32,28 @@ export default function DeveloperPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [keysData, webhooksData] = await Promise.all([
+          AdminApi.getDeveloperApiKeys(),
+          AdminApi.getDeveloperWebhooks(),
+        ]);
+        if (!cancelled) {
+          setApiKeys(keysData);
+          setWebhooks(webhooksData);
+        }
+      } catch {
+        if (!cancelled) toast.error("Dasturchi ma'lumotlarini yuklab bo'lmadi");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
+
 
   const handleDeleteApiKey = async (id: string) => {
     if (!confirm("Rostdan ham ushbu API kalitini o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi va hamkor integratsiyasi ishlamay qoladi.")) return;
@@ -42,7 +62,7 @@ export default function DeveloperPage() {
       await AdminApi.deleteDeveloperApiKey(id);
       toast.success("API kalit o'chirildi");
       setApiKeys(apiKeys.filter(k => k.id !== id));
-    } catch (err: any) {
+    } catch {
       toast.error("API kalitni o'chirib bo'lmadi");
     } finally {
       setDeleteLoading(null);

@@ -3,12 +3,13 @@
 import { CarFront, Pencil } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "../../_components/layout/page-header";
-import { useVehicles, useCreateVehicle, useUpdateVehicle, type VehicleDraft } from "../../_hooks/use-vehicles";
+import { useVehicles, useCreateVehicle, useUpdateVehicle } from "../../_hooks/use-vehicles";
 import { Button } from "../../_components/ui/button";
 import { formatMoney } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
 import { getPartnerLabels } from "../../_lib/utils/partner-labels";
 import { Dialog } from "../../_components/ui/dialog";
+import { EmptyState, LoadingState, ErrorState } from "../../_components/ui/empty-state";
 import { Input } from "../../_components/ui/input";
 import { Label } from "../../_components/ui/label";
 import { useForm } from "react-hook-form";
@@ -27,7 +28,7 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 
 export function VehiclesView() {
-  const { data: vehicles } = useVehicles();
+  const { data: vehicles, isLoading, isError, refetch } = useVehicles();
   const updateVehicle = useUpdateVehicle();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
@@ -52,7 +53,14 @@ export function VehiclesView() {
       </div>
 
       <div className="flex flex-col gap-10">
-        {vehicles.length === 0 ? (
+        {isLoading ? (
+          <LoadingState title="Avtomobillar yuklanmoqda..." />
+        ) : isError ? (
+          <ErrorState 
+            title="Avtomobillarni yuklashda xatolik" 
+            action={<Button onClick={() => refetch()} variant="outline" size="sm">Qayta urinish</Button>} 
+          />
+        ) : vehicles.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 py-20 px-6 text-center dark:border-zinc-800 dark:bg-zinc-900/20">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100/50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 mb-4">
               <CarFront className="h-8 w-8" />
@@ -113,7 +121,7 @@ export function VehiclesView() {
                           values: { status: newStatus },
                         });
                         toast.success("Holati o'zgartirildi");
-                      } catch (error) {
+                      } catch {
                         toast.error("Xatolik yuz berdi");
                       }
                     }}

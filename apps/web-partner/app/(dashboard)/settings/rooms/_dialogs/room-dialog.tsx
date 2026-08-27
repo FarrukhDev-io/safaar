@@ -10,7 +10,6 @@ import { Button } from "../../../../_components/ui/button";
 import { Dialog } from "../../../../_components/ui/dialog";
 import { Input } from "../../../../_components/ui/input";
 import { Label } from "../../../../_components/ui/label";
-import Link from "next/link";
 import { useAuthStore } from "../../../../_stores/auth-store";
 import {
   useCreateRoom,
@@ -154,7 +153,7 @@ export function RoomDialog({ open, onClose, editing }: Props) {
             },
       );
     }
-  }, [open, editing, form, roomTypes]);
+  }, [open, editing, form, roomTypes, restaurant]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     // Check for duplicates in active rooms

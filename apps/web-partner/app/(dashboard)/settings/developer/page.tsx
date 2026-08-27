@@ -39,7 +39,7 @@ export default function DeveloperSettingsPage() {
       ]);
       setApiKeys(keysData);
       setWebhooks(webhooksData);
-    } catch (e) {
+    } catch {
       toast.error("Ma'lumotlarni yuklab bo'lmadi");
     } finally {
       setLoading(false);
@@ -47,7 +47,8 @@ export default function DeveloperSettingsPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const timeoutId = setTimeout(() => fetchData(), 0);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const handleCreateKey = async (e: React.FormEvent) => {
@@ -59,7 +60,7 @@ export default function DeveloperSettingsPage() {
       setNewKeyString(data.key);
       setKeyName("");
       fetchData();
-    } catch (e) {
+    } catch {
       toast.error("Kalit yaratishda xatolik");
     } finally {
       setSubmitting(false);
@@ -76,7 +77,7 @@ export default function DeveloperSettingsPage() {
       setShowWebhookModal(false);
       setWebhookUrl("");
       fetchData();
-    } catch (e) {
+    } catch {
       toast.error("Webhook qo'shishda xatolik");
     } finally {
       setSubmitting(false);
@@ -89,7 +90,7 @@ export default function DeveloperSettingsPage() {
       await deleteApiKey(id, null);
       toast.success("Kalit o'chirildi");
       setApiKeys(apiKeys.filter(k => k.id !== id));
-    } catch (e) {
+    } catch {
       toast.error("Xatolik");
     }
   };
@@ -100,7 +101,7 @@ export default function DeveloperSettingsPage() {
       await deleteWebhook(id, null);
       toast.success("Webhook o'chirildi");
       setWebhooks(webhooks.filter(w => w.id !== id));
-    } catch (e) {
+    } catch {
       toast.error("Xatolik");
     }
   };
@@ -161,7 +162,7 @@ export default function DeveloperSettingsPage() {
           </div>
 
           <div className="rounded-xl border border-[var(--border)] bg-white dark:bg-[var(--card)] overflow-hidden">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-[var(--muted)]/50 border-b border-[var(--border)]">
                 <tr>
                   <th className="px-5 py-3 font-medium text-[var(--muted-foreground)]">Nomi</th>
@@ -207,7 +208,7 @@ export default function DeveloperSettingsPage() {
           </div>
 
           <div className="rounded-xl border border-[var(--border)] bg-white dark:bg-[var(--card)] overflow-hidden">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-[var(--muted)]/50 border-b border-[var(--border)]">
                 <tr>
                   <th className="px-5 py-3 font-medium text-[var(--muted-foreground)]">URL Manzil</th>

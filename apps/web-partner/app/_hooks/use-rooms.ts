@@ -36,7 +36,10 @@ export function useRooms() {
   return { 
     data: query.data?.activeRooms ?? EMPTY_ROOMS, 
     allRooms: query.data?.allRooms ?? EMPTY_ROOMS,
-    isLoading: query.isLoading && !query.data 
+    isLoading: query.isLoading && !query.data,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
   };
 }
 

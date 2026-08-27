@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { cn } from "../../_lib/utils/cn";
 
 interface EmptyStateProps {
@@ -37,5 +38,28 @@ export function EmptyState({
       )}
       {action && <div className="mt-1">{action}</div>}
     </div>
+  );
+}
+
+export function LoadingState({ title = "Yuklanmoqda...", description = "Iltimos kutib turing", className }: { title?: string; description?: string; className?: string }) {
+  return (
+    <EmptyState 
+      className={className}
+      icon={<Loader2 className="animate-spin h-6 w-6" />} 
+      title={title} 
+      description={description} 
+    />
+  );
+}
+
+export function ErrorState({ title = "Xatolik yuz berdi", description, action, className }: { title?: string; description?: string; action?: ReactNode; className?: string }) {
+  return (
+    <EmptyState 
+      className={className}
+      icon={<AlertCircle className="h-6 w-6 text-red-500" />} 
+      title={title} 
+      description={description} 
+      action={action} 
+    />
   );
 }

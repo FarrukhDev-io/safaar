@@ -233,7 +233,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             count: partner.totalBookings,
             content: (
               <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-white">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--bg-tertiary)]">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase">Bron ID</th>
@@ -303,7 +303,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                   </Button>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
+                  <table className="w-full text-sm text-left whitespace-nowrap">
                     <thead className="bg-slate-50 border-b border-[var(--border)] text-slate-500 font-medium">
                       <tr>
                         <th className="px-4 py-3">Sana</th>

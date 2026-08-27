@@ -25,16 +25,40 @@ export default function HotelBookingsPage() {
   const bookings = useAdminStore((s) => s.hotelBookings);
   const setHotelBookings = useAdminStore((s) => s.setHotelBookings);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
+  const fetchBookings = () => {
+    setLoading(true);
+    setError(false);
     AdminApi.getBookings()
       .then((items) => setHotelBookings(items))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      setLoading(true);
+      setError(false);
+      AdminApi.getBookings()
+        .then((items) => {
+          if (!cancelled) setHotelBookings(items);
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, [setHotelBookings]);
 
   const filtered = useMemo(() => {
@@ -127,13 +151,7 @@ export default function HotelBookingsPage() {
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
@@ -204,6 +222,9 @@ export default function HotelBookingsPage() {
         keyField="id"
         onRowClick={(row) => router.push(`/bookings/${row.id}`)}
         emptyMessage="Bron topilmadi"
+        isLoading={loading}
+        isError={error}
+        onRetry={fetchBookings}
       />
 
       {/* Pagination */}

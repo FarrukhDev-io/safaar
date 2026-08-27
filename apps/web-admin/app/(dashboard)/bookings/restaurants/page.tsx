@@ -23,9 +23,36 @@ export default function RestaurantBookingsPage() {
   const router = useRouter();
   const bookings = useAdminStore((s) => s.restaurantBookings);
   const setRestaurantBookings = useAdminStore((s) => s.setRestaurantBookings);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetchBookings = () => {
+    setLoading(true);
+    setError(false);
+    AdminApi.getRestaurantBookings()
+      .then((items) => setRestaurantBookings(items))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    AdminApi.getRestaurantBookings().then((items) => setRestaurantBookings(items));
+    let cancelled = false;
+    const load = () => {
+      setLoading(true);
+      setError(false);
+      AdminApi.getRestaurantBookings()
+        .then((items) => {
+          if (!cancelled) setRestaurantBookings(items);
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, [setRestaurantBookings]);
 
   const [search, setSearch] = useState("");
@@ -175,6 +202,9 @@ export default function RestaurantBookingsPage() {
         keyField="id"
         onRowClick={(row) => router.push(`/bookings/${row.id}`)}
         emptyMessage="Bron topilmadi"
+        isLoading={loading}
+        isError={error}
+        onRetry={fetchBookings}
       />
 
       {/* Pagination */}
