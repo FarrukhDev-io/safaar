@@ -22,6 +22,15 @@ import { config } from "@/lib/config";
 const API_URL = config.apiUrl;
 
 type LoginMode = "login" | "forgot-phone" | "forgot-code" | "reset-password";
+type SocialProvider = "google" | "facebook";
+
+// Backend OAuth callback xato bo'lsa `socialError` bilan `/login`ga qaytaradi,
+// lekin qaysi provider (Google/Facebook) bilan boshlangani query parametrida
+// kelmaydi (bu OAuth callback logikasiga tegishli emas — sof frontend
+// masalasi). Shuning uchun tugma bosilgan zahoti (sahifadan chiqishdan oldin)
+// shu tab'ga xos `sessionStorage`ga yozib qo'yiladi, keyin `/login`ga
+// qaytilganda o'qib, aynan shu provider nomi bilan xato xabari ko'rsatiladi.
+const LAST_OAUTH_PROVIDER_KEY = "safaar_last_oauth_provider";
 
 function GoogleIcon() {
   return (
@@ -140,8 +149,25 @@ export function LoginForm({
     ...(next ? { next } : {}),
     ...(browserOrigin ? { origin: browserOrigin } : {}),
   }).toString();
+
+  const [lastOAuthProvider, setLastOAuthProvider] =
+    useState<SocialProvider | null>(null);
+  useEffect(() => {
+    if (!socialError) return;
+    try {
+      const stored = sessionStorage.getItem(LAST_OAUTH_PROVIDER_KEY);
+      if (stored === "google" || stored === "facebook") {
+        setLastOAuthProvider(stored);
+      }
+    } catch {
+      // Ba'zi brauzer maxfiylik rejimlarida sessionStorage istisno tashlashi
+      // mumkin — bunday holda shunchaki provider nomsiz umumiy xabar
+      // ko'rsatiladi.
+    }
+  }, [socialError]);
+
   const socialErrorMessage = socialError
-    ? socialErrorMessageFor(socialError, dict)
+    ? socialErrorMessageFor(socialError, lastOAuthProvider, dict)
     : "";
 
   return (
@@ -379,6 +405,7 @@ function SocialLoginButtons({
       <div className="flex flex-col gap-3">
         <a
           href={`${API_URL}/auth/google?${oauthQuery}`}
+          onClick={() => rememberOAuthProvider("google")}
           className="flex items-center justify-center gap-3 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98]"
         >
           <GoogleIcon />
@@ -386,6 +413,7 @@ function SocialLoginButtons({
         </a>
         <a
           href={`${API_URL}/auth/facebook?${oauthQuery}`}
+          onClick={() => rememberOAuthProvider("facebook")}
           className="flex items-center justify-center gap-3 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98]"
         >
           <FacebookIcon />
@@ -396,7 +424,20 @@ function SocialLoginButtons({
   );
 }
 
-function socialErrorMessageFor(error: string, dict: AuthDict): string {
+function rememberOAuthProvider(provider: SocialProvider) {
+  try {
+    sessionStorage.setItem(LAST_OAUTH_PROVIDER_KEY, provider);
+  } catch {
+    // Xatolik xabari sahifasi shunchaki provider nomsiz umumiy matnga
+    // qaytadi — OAuth so'rovining o'zi bunga bog'liq emas.
+  }
+}
+
+function socialErrorMessageFor(
+  error: string,
+  provider: SocialProvider | null,
+  dict: AuthDict,
+): string {
   if (
     error === "OAUTH_ACCOUNT_NOT_REGISTERED" ||
     error === "OAUTH_USER_NOT_REGISTERED"
@@ -406,6 +447,8 @@ function socialErrorMessageFor(error: string, dict: AuthDict): string {
   if (error === "USER_NOT_ACTIVE") {
     return dict.accountNotActive;
   }
+  if (provider === "google") return dict.googleLoginError;
+  if (provider === "facebook") return dict.facebookLoginError;
   return dict.socialLoginError;
 }
 
