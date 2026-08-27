@@ -761,8 +761,8 @@ function toPaymentTransaction(row: ApiRecord): AdminPaymentTransaction {
 
 function refundTransactionStatus(value: unknown): AdminRefundTransaction['status'] {
   const s = asString(value).toLowerCase();
-  if (s === 'approved' || s === 'rejected' || s === 'failed' || s === 'completed') return s;
-  return 'pending';
+  if (s === 'processing' || s === 'approved' || s === 'rejected' || s === 'paid') return s;
+  return 'requested';
 }
 
 function toRefundTransaction(row: ApiRecord): AdminRefundTransaction {

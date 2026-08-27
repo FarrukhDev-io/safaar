@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Search, MoreVertical, Key, Edit, Ban, CheckCircle2, Mail, Phone, Calendar } from "lucide-react";
+import { Plus, Search, MoreVertical, Key, Edit, Ban, CheckCircle2, Mail, Phone, Calendar, Shield } from "lucide-react";
 import Button from "@/components/ui/Button";
 import DataTable, { Column } from "@/components/ui/DataTable";
 import { AdminApi } from "@/lib/api/admin-api";

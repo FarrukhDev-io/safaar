@@ -75,7 +75,7 @@ export default function ApplicationStatusPage() {
         note: "Qayta yuborilgan ariza",
       });
       toast.success("Ariza muvaffaqiyatli qayta yuborildi");
-      setStatusResult({ ...statusResult, status: "submitted" });
+      setStatusResult((prev) => (prev ? { ...prev, status: "submitted" } : prev));
     } catch {
       toast.error("Xatolik yuz berdi");
     } finally {

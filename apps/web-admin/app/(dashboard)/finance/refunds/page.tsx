@@ -150,7 +150,7 @@ export default function RefundsPage() {
             <>
               <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />
               <div className="absolute right-0 top-8 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-20 py-1 overflow-hidden">
-                {r.status === 'pending' && (
+                {(r.status === 'requested' || r.status === 'processing') && (
                   <>
                     <button
                       onClick={() => handleAction(r.id, 'approve')}
@@ -166,17 +166,17 @@ export default function RefundsPage() {
                     </button>
                   </>
                 )}
-                
-                {r.status === 'failed' && (
+
+                {r.status === 'rejected' && (
                   <button
                     onClick={() => handleAction(r.id, 'retry')}
                     className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 transition-colors font-medium"
                   >
-                    <RefreshCw size={16} /> Qayta urinish
+                    <RefreshCw size={16} /> Qayta ochish
                   </button>
                 )}
-                
-                {r.status !== 'pending' && r.status !== 'failed' && (
+
+                {r.status !== 'requested' && r.status !== 'processing' && r.status !== 'rejected' && (
                   <div className="px-4 py-2 text-xs text-slate-400">
                     Boshqa amal mavjud emas
                   </div>
