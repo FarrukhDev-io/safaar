@@ -6,6 +6,72 @@ o'chirilmaydi yoki o'zgartirilmaydi.
 
 ---
 
+# 2026-08-27 — Favorite o'zgarishi Vercel production'ga deploy qilindi
+
+## Nima o'zgardi
+Pastdagi "Katalog ❤️ Favorite tugmasini haqiqiy backendga ulash" entrysida
+tasvirlangan o'zgarishlar (commit `1a17ce6b`) `web-user` Vercel production
+muhitiga chiqarildi.
+
+## Nima uchun
+Favorite funksiyasi haqiqiy foydalanuvchilarga yetkazilishi kerak edi.
+
+## O'zgargan fayllar
+Kod o'zgarishi yo'q — faqat deploy. Fayllar ro'yxati uchun quyidagi
+entryga qarang.
+
+## UI/UX
+Production'dagi barcha foydalanuvchilar uchun ❤️ endi haqiqiy saqlanadi
+(pastdagi entryda tasvirlangani kabi).
+
+## API / Backend
+- Backend o'zgardimi: NO
+- Yangi API kerak bo'ldimi: NO
+- Backend deploy qilinmadi (o'zgarmagan)
+
+## Test
+- Pre-deploy: branch/HEAD/git status tekshirildi, kutilmagan o'zgarish
+  topilmadi.
+- Post-deploy production browser QA (haqiqiy ro'yxatdan o'tgan QA
+  hisoblar bilan, bir necha marta):
+  - Hotels: to'liq sikl PASS (bosish → active → refresh → saqlangan →
+    qayta bosish → inactive → refresh → saqlangan), `x-vercel-cache: MISS`
+    tasdiqlandi (keshlanmagan, har doim yangi holat).
+  - Home (Featured/Deals): to'liq sikl PASS.
+  - Guest: ❤️ bosilganda backendga so'rov yuborilmasdan login'ga
+    yo'naltirilishi tasdiqlandi (network monitor orqali).
+  - Restaurants/Transport/Attractions: sahifalar to'g'ri "Ma'lumot
+    topilmadi" holatini ko'rsatadi — productionda hozircha bu 3 katalog
+    uchun 0 ta real yozuv bor (oldindan mavjud data holati, bu deploy
+    bilan bog'liq emas, production DB'ga tegilmadi). Kod yo'li Hotels/
+    Home bilan bir xil (allaqachon tasdiqlangan).
+  - Hotel rasmlari: R2'dan haqiqiy o'lchamlar bilan yuklanmoqda.
+  - Locale-prefixed hreflar: `/uz/hotels/...` formatida to'g'ri.
+  - Console: faqat oldindan mavjud (bu deploydan oldin ham bor bo'lgan,
+    fixed seed ID `00000000-0000-7005-...` bilan tasdiqlangan) 3 ta
+    buzilgan `/images/hotels/*.jpg` fixture-rasm xatosi bor — Favorite
+    bilan bog'liq emas, yangi emas.
+
+## Deploy
+- Vercel production
+- Project: `web-user`
+- URL: https://web-user-rho.vercel.app
+- Deployment ID: `dpl_EjF85CHsp1ZhMeGFYgzyPHEanter`
+
+## Git
+- Branch: `temp/save-all-work`
+- Commit (deploy qilingan): `1a17ce6b`
+
+## Muhim eslatmalar
+- Restaurants/Transport/Attractions kataloglari productionda hozircha
+  bo'sh — bu ma'lumot yetishmasligi, kod nosozligi emas. Kimdir shu
+  kataloglar uchun demo/real ma'lumot qo'shsa, Favorite avtomatik
+  ishlaydi (kod allaqachon tayyor).
+- Yuqorida qayd etilgan 3 ta buzilgan deal-rasm xatosi alohida, kichik
+  tuzatish sifatida qaraladigan — bu ishning qamroviga kirmaydi.
+
+---
+
 # 2026-08-27 — Katalog ❤️ Favorite tugmasini haqiqiy backendga ulash
 
 ## Nima o'zgardi
