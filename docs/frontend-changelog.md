@@ -6,6 +6,125 @@ o'chirilmaydi yoki o'zgartirilmaydi.
 
 ---
 
+# 2026-08-27 — Facebook OAuth — Google bilan bir xil login-or-registration audit va matn tuzatishi
+
+## Nima o'zgardi
+Facebook orqali kirish/ro'yxatdan o'tish Google OAuth bilan bir xil
+"login-or-registration" flow'ga mos ekanligi to'liq audit qilindi.
+**Auditda aniqlandiki, backend va frontend logikasi allaqachon to'liq
+provider-agnostic edi** (Google ishi paytida shared/umumiy funksiyalar
+sifatida yozilgan) — Facebook uchun yangi endpoint, yangi component yoki
+duplicate logika yozishga hojat bo'lmadi.
+
+Audit paytida topilgan yagona real kamchilik: ro'yxatdan o'tish
+sahifasidagi bir nechta xabar matni (subtitle, xato xabarlari) doim
+"Google orqali..." deb qattiq yozilgan edi — Facebook orqali kelgan
+foydalanuvchi ham xuddi shu (noto'g'ri) "Google" so'zini ko'rar edi. Bu
+matnlar endi provayderga bog'liq bo'lmagan (generic) qilib to'g'irlandi.
+
+## Nima uchun
+Facebook login Google bilan bir xil professional va xavfsiz darajada
+ishlashi kerak edi. Audit shuni ko'rsatdiki, bu allaqachon shunday —
+faqat foydalanuvchiga ko'rinadigan matnlarda provayder nomi noto'g'ri
+qattiq yozilgan joylar bor edi.
+
+## O'zgargan fayllar
+- `apps/web-user/locales/{uz,ru,en}/auth.json` — 4 ta kalit
+  (`socialRegisterSubtitle`, `socialAccountNotRegistered`,
+  `socialLoginError`, `socialRegistrationExpired`) "Google" so'zisiz,
+  har qanday ijtimoiy provayder uchun to'g'ri bo'ladigan matnga
+  o'zgartirildi. Masalan (uz): "Google orqali kirish uchun telefon
+  raqamingizni tasdiqlang." → "Kirishni yakunlash uchun telefon
+  raqamingizni tasdiqlang."
+- `apps/backend/src/auth/auth.service.spec.ts` — Facebook uchun 12 ta
+  yangi test qo'shildi (mavjud Google testlari bilan bir xil uslubda):
+  state-bound redirect, mavjud faol Facebook user → instant login, yangi
+  Facebook identity → registration (xato emas), to'liq registration
+  (telefon+OTP → user yaratish → link → session, password_hash
+  tegilmaydi), ikkinchi login instant, nofaol linked user →
+  USER_NOT_ACTIVE, provider_user_id duplicate → OAUTH_ACCOUNT_ALREADY_LINKED,
+  eskirgan/yaroqsiz registration token → 401, xato OTP token'ni
+  "yemaydi", Facebook javobida email yo'q → OAUTH_EMAIL_REQUIRED (xavfsiz
+  rad etish), Facebook email har doim tasdiqlangan deb hisoblanishi
+  (Google'ning verified-email siyosatiga mos).
+
+## Kod o'zgarmagan (auditda tasdiqlangan, kodga tegilmadi)
+- `apps/backend/src/auth/auth.controller.ts` — `startOAuth`/`finishOAuth`
+  allaqachon `provider: 'google'|'facebook'` orqali umumiy.
+- `apps/backend/src/auth/auth.service.ts` — `oauthCallback`,
+  `oauthExchange`, `completeOAuthRegistration`, `upsertOAuthUser`,
+  `fetchOAuthProfile` — barchasi provider-parametrlangan, Facebook uchun
+  alohida yozilishi shart emas edi.
+- `apps/web-user/app/[lang]/(auth)/_components/LoginForm.tsx` — Facebook
+  tugmasi (`/auth/facebook?...`) allaqachon mavjud va Google bilan bir xil
+  pattern.
+- `apps/web-user/app/[lang]/(auth)/_components/RegisterForm.tsx` —
+  `socialProvider`/`oauthProvider` allaqachon umumiy string sifatida
+  o'qiladi, "google"ga qattiq bog'lanmagan.
+- `apps/web-user/app/[lang]/(auth)/auth/social-callback/route.ts` —
+  `result.provider`ni backend qanday qaytarsa, o'shani ishlatadi.
+- `apps/backend/src/config/env.validation.ts` — `FACEBOOK_APP_ID`,
+  `FACEBOOK_APP_SECRET`, `FACEBOOK_CALLBACK_URL` allaqachon deklaratsiya
+  qilingan va validatsiyadan o'tadi.
+- `prisma/schema.prisma` / `user_social_accounts` jadvali — `provider`
+  ustuni erkin VARCHAR(32), `UNIQUE(provider, provider_user_id)` va
+  `UNIQUE(user_id, provider)` constraintlari allaqachon Facebook uchun
+  ham to'g'ri ishlaydi — **migration kerak bo'lmadi**.
+
+## UI/UX
+Ro'yxatdan o'tish sahifasidagi subtitle va xato xabarlari endi "Google"
+so'zini o'z ichiga olmaydi — Facebook (yoki kelajakda boshqa provayder)
+orqali kelgan foydalanuvchiga ham to'g'ri ko'rinadi. Boshqa hech narsa
+vizual jihatdan o'zgarmadi.
+
+## API / Backend
+- Backend o'zgardimi: FAQAT test fayli (`auth.service.spec.ts`) — ishlab
+  chiqarish kodi (production logic) o'zgarmadi.
+- Yangi API kerak bo'ldimi: NO
+- Mavjud API ishlatilgan: `/auth/facebook`, `/auth/facebook/callback`,
+  `/auth/oauth/exchange`, `/auth/oauth/register` — barchasi
+  allaqachon mavjud, faqat test bilan tasdiqlandi.
+
+## Test
+- Backend tests: 406/406 (11 ta yangi Facebook testi qo'shildi, 395 ta
+  eski test o'zgarishsiz o'tdi).
+- Typecheck: PASS (`apps/backend`, `apps/web-user`).
+- Build: PASS (`apps/web-user`).
+- Browser QA (lokal): login sahifasida Facebook tugmasi to'g'ri href
+  bilan ko'rinadi (`/auth/facebook?locale=uz`, Google tugmasi bilan bir
+  xil pattern), konsolda xato yo'q. Ro'yxatdan o'tish sahifasi
+  `?social=facebook&registrationToken=...&email=...&firstName=...`
+  bilan tekshirildi: email prefilled+readonly, ism/familiya
+  prefilled+tahrirlanadigan, parol maydoni ko'rsatilmaydi, yashirin
+  `oauthProvider=facebook` va `registrationToken` maydonlari to'g'ri.
+  Haqiqiy Facebook OAuth uchun App ID/Secret hali berilmagani sabab
+  to'liq end-to-end login/registration browser orqali sinalmadi (kutilgan
+  holat).
+
+## Deploy
+Local only — hali production'ga chiqarilmadi (foydalanuvchi tasdig'ini
+kutmoqda).
+
+## Git
+- Branch: `temp/save-all-work`
+- Commit: (keyingi commit'da)
+
+## Muhim eslatmalar
+- Facebook App ID/Secret hali berilmagan (`FACEBOOK_APP_ID`/
+  `FACEBOOK_APP_SECRET` lokal `.env`da yo'q) — `GET /auth/providers`
+  hozircha `facebook: false` qaytaradi, bu kutilgan holat. Haqiqiy
+  kredensiallar berilgach, hech qanday kod o'zgarishisiz ishlab ketishi
+  kerak (arxitektura allaqachon tayyor).
+- Production `.env`ga hech narsa yozilmadi, hech qanday secret
+  terminalga/logga chiqarilmadi.
+- Haqiqiy Facebook access token yoki boshqa maxfiy token hech qachon
+  frontend URL'iga chiqmaydi — faqat bir martalik `code` (exchange) va
+  `registrationToken` ishlatiladi, bu Google bilan bir xil arxitektura
+  (kodni audit qilish orqali tasdiqlandi, chunki bu funksiyalar Google va
+  Facebook uchun bir xil).
+
+---
+
 # 2026-08-27 — Favorite o'zgarishi Vercel production'ga deploy qilindi
 
 ## Nima o'zgardi
