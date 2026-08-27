@@ -1,0 +1,63 @@
+name: Backend Deploy
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - "apps/backend/**"
+      - "packages/types/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/backend-deploy.yml"
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:types
+      - run: npm run prisma:validate -w @safaar/backend
+      - run: npm run lint -w @safaar/backend
+      - run: npm run test:backend
+      - run: npm run build:backend
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tailscale tarmog'iga ulanish
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: SSH agent sozlash
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Server host key'ini tanish
+        run: ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Serverda deploy qilish
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} '
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+            git fetch origin develop
+            git reset --hard origin/develop
+            npm ci
+            npm run build:backend
+            pm2 restart safaar-backend --update-env
+            pm2 save
+          '
+
+      - name: Sog'liqni tekshirish
+        run: |
+          sleep 5
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} 'curl -sf http://127.0.0.1:4000/v1/health'
