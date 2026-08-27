@@ -4,6 +4,7 @@ interface EnvironmentConfig {
   NODE_ENV: string;
   APP_NAME: string;
   WEB_USER_URL: string;
+  OAUTH_ALLOWED_ORIGINS?: string;
   PORT: number;
   HOST: string;
   ENABLE_DEMO_AUTH: string;
@@ -159,6 +160,9 @@ export function validateEnv(
     NODE_ENV: nodeEnv,
     APP_NAME: String(config.APP_NAME ?? 'safaar-api'),
     WEB_USER_URL: String(config.WEB_USER_URL ?? 'http://localhost:3000'),
+    OAUTH_ALLOWED_ORIGINS: config.OAUTH_ALLOWED_ORIGINS
+      ? String(config.OAUTH_ALLOWED_ORIGINS)
+      : undefined,
     PORT: toNumber(config.PORT, 4000),
     HOST: String(config.HOST ?? '0.0.0.0'),
     ENABLE_DEMO_AUTH: String(config.ENABLE_DEMO_AUTH ?? 'false'),

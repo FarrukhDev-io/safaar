@@ -49,6 +49,8 @@ describe('AuthService email and OAuth', () => {
     delete process.env.FACEBOOK_APP_SECRET;
     process.env.FACEBOOK_CALLBACK_URL =
       'http://localhost:4000/v1/auth/facebook/callback';
+    delete process.env.WEB_USER_URL;
+    delete process.env.OAUTH_ALLOWED_ORIGINS;
     sentMessages.length = 0;
     email.send.mockImplementation((message: EmailMessage) => {
       sentMessages.push(message);
@@ -105,9 +107,105 @@ describe('AuthService email and OAuth', () => {
     );
     expect(cache.set).toHaveBeenCalledWith(
       expect.stringContaining('auth:oauth:state:'),
-      { provider: 'google', locale: 'ru', next: '/ru/account' },
+      {
+        provider: 'google',
+        locale: 'ru',
+        next: '/ru/account',
+        origin: 'http://localhost:3000',
+      },
       600,
     );
+  });
+
+  describe('multi-frontend OAuth return origin (open-redirect prevention)', () => {
+    it('accepts and stores a requested origin that is in OAUTH_ALLOWED_ORIGINS', async () => {
+      process.env.OAUTH_ALLOWED_ORIGINS =
+        'https://web-user-rho.vercel.app,https://safaar-uz.vercel.app';
+
+      const result = await service.oauthRedirect('google', {
+        locale: 'uz',
+        origin: 'https://safaar-uz.vercel.app',
+      });
+
+      expect(result.origin).toBe('https://safaar-uz.vercel.app');
+      expect(cache.set).toHaveBeenCalledWith(
+        expect.stringContaining('auth:oauth:state:'),
+        expect.objectContaining({ origin: 'https://safaar-uz.vercel.app' }),
+        600,
+      );
+    });
+
+    it('refuses an arbitrary/unlisted origin and falls back to the primary allowed origin instead of trusting it', async () => {
+      process.env.OAUTH_ALLOWED_ORIGINS =
+        'https://web-user-rho.vercel.app,https://safaar-uz.vercel.app';
+
+      const result = await service.oauthRedirect('google', {
+        locale: 'uz',
+        origin: 'https://evil-attacker.example.com',
+      });
+
+      expect(result.origin).toBe('https://web-user-rho.vercel.app');
+      expect(cache.set).toHaveBeenCalledWith(
+        expect.stringContaining('auth:oauth:state:'),
+        expect.objectContaining({ origin: 'https://web-user-rho.vercel.app' }),
+        600,
+      );
+    });
+
+    it('round-trips the validated origin end-to-end: redirect with the second allow-listed frontend -> callback returns that same origin', async () => {
+      process.env.OAUTH_ALLOWED_ORIGINS =
+        'https://web-user-rho.vercel.app,https://safaar-uz.vercel.app';
+      cache.take.mockResolvedValueOnce({
+        provider: 'google',
+        locale: 'uz',
+        next: '',
+        origin: 'https://safaar-uz.vercel.app',
+      });
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ access_token: 'provider-token' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              sub: 'google-second-frontend-user',
+              email: 'second-frontend@example.com',
+              email_verified: true,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      const transaction = {
+        query: jest.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]),
+      } as unknown as PostgresTransaction;
+      pg.transaction.mockImplementation(
+        (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+          operation(transaction),
+      );
+
+      const result = await service.oauthCallback(
+        'google',
+        { state: 'valid-state', code: 'provider-code' },
+        'valid-state',
+      );
+
+      expect(result.origin).toBe('https://safaar-uz.vercel.app');
+    });
+
+    it('when OAUTH_ALLOWED_ORIGINS is not configured, only WEB_USER_URL is accepted (backward-compatible single-frontend behavior)', async () => {
+      delete process.env.OAUTH_ALLOWED_ORIGINS;
+
+      const result = await service.oauthRedirect('google', {
+        locale: 'uz',
+        origin: 'https://safaar-uz.vercel.app', // not the configured WEB_USER_URL
+      });
+
+      expect(result.origin).toBe('http://localhost:3000');
+    });
   });
 
   it('rejects an OAuth callback with a mismatched state cookie', async () => {
@@ -623,7 +721,12 @@ describe('AuthService email and OAuth', () => {
     );
     expect(cache.set).toHaveBeenCalledWith(
       expect.stringContaining('auth:oauth:state:'),
-      { provider: 'facebook', locale: 'uz', next: '/uz/account' },
+      {
+        provider: 'facebook',
+        locale: 'uz',
+        next: '/uz/account',
+        origin: 'http://localhost:3000',
+      },
       600,
     );
   });

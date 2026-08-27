@@ -123,9 +123,22 @@ export function LoginForm({
     }
   }, [resetPasswordState.ok]);
 
+  // Backend faqat OAUTH_ALLOWED_ORIGINS ro'yxatidagi origin'larga qaytaradi
+  // (open-redirect'dan himoya) — shu sabab hozirgi sahifa qaysi domenda
+  // ochilgan bo'lsa (masalan safaar-uz.vercel.app yoki web-user-rho.vercel.app),
+  // aynan o'sha origin backendga uzatiladi. `useEffect` orqali olinadi
+  // (render paytida `typeof window` emas) — aks holda server/client render
+  // mos kelmay, React hydration mismatch beradi va href hech qachon
+  // to'g'irlanmaydi ("this won't be patched up").
+  const [browserOrigin, setBrowserOrigin] = useState<string | null>(null);
+  useEffect(() => {
+    setBrowserOrigin(window.location.origin);
+  }, []);
+
   const oauthQuery = new URLSearchParams({
     locale,
     ...(next ? { next } : {}),
+    ...(browserOrigin ? { origin: browserOrigin } : {}),
   }).toString();
   const socialErrorMessage = socialError
     ? socialErrorMessageFor(socialError, dict)

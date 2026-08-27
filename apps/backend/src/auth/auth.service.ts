@@ -85,6 +85,7 @@ interface OAuthStateContext {
   provider: OAuthProvider;
   locale: 'uz' | 'ru' | 'en';
   next: string;
+  origin: string;
 }
 
 interface OAuthExchangeLoginContext {
@@ -357,14 +358,16 @@ export class AuthService {
 
   async oauthRedirect(
     provider: OAuthProvider,
-    input: { locale?: unknown; next?: unknown },
+    input: { locale?: unknown; next?: unknown; origin?: unknown },
   ) {
     const config = this.oauthConfig(provider);
     const state = randomBytes(32).toString('base64url');
+    const origin = this.oauthOrigin(input.origin);
     const context: OAuthStateContext = {
       provider,
       locale: this.oauthLocale(input.locale),
       next: this.safeNext(input.next),
+      origin,
     };
     await this.cache.set(this.oauthStateKey(state), context, 10 * 60);
 
@@ -383,11 +386,40 @@ export class AuthService {
 
     return {
       state,
+      origin,
       redirectUrl:
         provider === 'google'
           ? `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
           : `https://www.facebook.com/v22.0/dialog/oauth?${params.toString()}`,
     };
+  }
+
+  /**
+   * OAuth callback muvaffaqiyatli/muvaffaqiyatsiz bo'lganda foydalanuvchi
+   * qaysi frontend'ga qaytarilishi kerakligini aniqlaydi — faqat
+   * `OAUTH_ALLOWED_ORIGINS` (yoki yagona `WEB_USER_URL`) ro'yxatidagi aniq
+   * origin'lar qabul qilinadi. Noma'lum/soxta qiymat hech qachon
+   * ishlatilmaydi (open redirect oldini olish) — ro'yxatdagi birinchi
+   * (asosiy) origin'ga qaytariladi.
+   */
+  private allowedOAuthOrigins(): string[] {
+    const primary = (process.env.WEB_USER_URL ?? 'http://localhost:3000').replace(
+      /\/$/,
+      '',
+    );
+    const raw = process.env.OAUTH_ALLOWED_ORIGINS;
+    if (!raw) return [primary];
+    const origins = raw
+      .split(',')
+      .map((origin) => origin.trim().replace(/\/$/, ''))
+      .filter(Boolean);
+    return origins.length > 0 ? origins : [primary];
+  }
+
+  private oauthOrigin(value: unknown): string {
+    const allowed = this.allowedOAuthOrigins();
+    const candidate = String(value ?? '').trim().replace(/\/$/, '');
+    return allowed.includes(candidate) ? candidate : allowed[0];
   }
 
   async oauthCallback(
@@ -398,7 +430,7 @@ export class AuthService {
       error?: unknown;
     },
     cookieState: string | undefined,
-  ): Promise<{ code: string; locale: string; next: string }> {
+  ): Promise<{ code: string; locale: string; next: string; origin: string }> {
     const state = String(input.state ?? '');
     const providerError = String(input.error ?? '');
     if (providerError || !state || !cookieState || state !== cookieState) {
@@ -445,6 +477,7 @@ export class AuthService {
       code: exchangeCode,
       locale: context.locale,
       next: context.next,
+      origin: context.origin,
     };
   }
 
