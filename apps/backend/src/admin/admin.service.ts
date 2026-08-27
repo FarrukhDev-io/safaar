@@ -1991,7 +1991,10 @@ export class AdminService {
    * frontend Zustand state'ida (sahifa yangilanganda yo'qolib qolardi,
    * boshqa adminlarga ko'rinmasdi). Endi haqiqiy DB'da saqlanadi.
    */
-  private async internalNotes(entityType: 'booking' | 'partner_organization', entityId: string) {
+  private async internalNotes(
+    entityType: 'booking' | 'partner_organization',
+    entityId: string,
+  ) {
     return this.rows(
       `select id::text, entity_type, entity_id::text, author_id::text, author_name, body, created_at
        from internal_notes
@@ -2011,12 +2014,15 @@ export class AdminService {
     if (!text) {
       throw new BadRequestException({
         code: 'NOTE_BODY_REQUIRED',
-        message: 'Izoh matni bo\'sh bo\'lishi mumkin emas',
+        message: "Izoh matni bo'sh bo'lishi mumkin emas",
       });
     }
 
     const authorRows = actor?.id
-      ? await this.rows(`select full_name, email from admin_users where id = $1::uuid`, [actor.id])
+      ? await this.rows(
+          `select full_name, email from admin_users where id = $1::uuid`,
+          [actor.id],
+        )
       : [];
     const authorName = authorRows[0]
       ? String(authorRows[0]['full_name'] ?? authorRows[0]['email'] ?? '')
@@ -2036,7 +2042,11 @@ export class AdminService {
     return this.internalNotes('booking', id);
   }
 
-  async addBookingNote(actor: RequestActor | undefined, id: string, body: Record<string, unknown>) {
+  async addBookingNote(
+    actor: RequestActor | undefined,
+    id: string,
+    body: Record<string, unknown>,
+  ) {
     return this.addInternalNote(actor, 'booking', id, body);
   }
 
@@ -2044,7 +2054,11 @@ export class AdminService {
     return this.internalNotes('partner_organization', id);
   }
 
-  async addPartnerNote(actor: RequestActor | undefined, id: string, body: Record<string, unknown>) {
+  async addPartnerNote(
+    actor: RequestActor | undefined,
+    id: string,
+    body: Record<string, unknown>,
+  ) {
     return this.addInternalNote(actor, 'partner_organization', id, body);
   }
 
@@ -2761,7 +2775,10 @@ export class AdminService {
       `${this.dbBookingsSql()} ${this.limitClause(query)}`,
     );
     const total = Number(rows[0]?.['total_count'] ?? 0);
-    const items = rows.map(({ total_count: _totalCount, ...row }) => row);
+    const items = rows.map(({ total_count: _totalCount, ...row }) => {
+      void _totalCount;
+      return row;
+    });
 
     return {
       items,
@@ -3055,7 +3072,7 @@ export class AdminService {
       }
       throw new ConflictException({
         code: 'REFUND_INVALID_STATUS',
-        message: `Refund "${existing['status']}" holatidan rad etib bo'lmaydi`,
+        message: `Refund "${String(existing['status'])}" holatidan rad etib bo'lmaydi`,
       });
     }
     await this.audit('refund.reject', actor, { refund_id: id });
@@ -3094,7 +3111,7 @@ export class AdminService {
       }
       throw new ConflictException({
         code: 'REFUND_INVALID_STATUS',
-        message: `Faqat rad etilgan refund'ni qayta ko'rib chiqish mumkin (hozirgi holat: "${existing['status']}")`,
+        message: `Faqat rad etilgan refund'ni qayta ko'rib chiqish mumkin (hozirgi holat: "${String(existing['status'])}")`,
       });
     }
     await this.audit('refund.retry', actor, { refund_id: id });
@@ -3246,7 +3263,7 @@ export class AdminService {
       }
       throw new ConflictException({
         code: 'WITHDRAWAL_INVALID_STATUS',
-        message: `Pul yechish so'rovini "${existing['status']}" holatidan "${nextStatus}"ga o'tkazib bo'lmaydi`,
+        message: `Pul yechish so'rovini "${String(existing['status'])}" holatidan "${nextStatus}"ga o'tkazib bo'lmaydi`,
       });
     }
     this.invalidateAdminCache();

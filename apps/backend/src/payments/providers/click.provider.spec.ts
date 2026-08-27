@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto';
 import { ClickProvider } from './click.provider';
 
 function config(values: Record<string, string | undefined>): ConfigService {
-  return { get: jest.fn((key: string) => values[key]) } as unknown as ConfigService;
+  return {
+    get: jest.fn((key: string) => values[key]),
+  } as unknown as ConfigService;
 }
 
 describe('ClickProvider', () => {
@@ -100,7 +102,9 @@ describe('ClickProvider', () => {
 
     it('rejects a Prepare request with a tampered amount (regression: signature must bind amount)', () => {
       const signTime = '2026-08-21 10:00:00';
-      const signString = md5('111' + '123' + secretKey + 'booking-1' + '1300000.00' + '0' + signTime);
+      const signString = md5(
+        '111' + '123' + secretKey + 'booking-1' + '1300000.00' + '0' + signTime,
+      );
 
       const tampered = {
         click_trans_id: '111',

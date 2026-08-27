@@ -1,6 +1,8 @@
 import type { ConfigService } from '@nestjs/config';
 import { SmsService } from './sms.service';
 
+type FetchCall = [url: string, init?: RequestInit];
+
 describe('SmsService', () => {
   const originalFetch = global.fetch;
 
@@ -57,10 +59,10 @@ describe('SmsService', () => {
 
     expect(result).toEqual({ providerMessageId: 'sms-1', accepted: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+    expect((fetchMock.mock.calls as FetchCall[])[0]?.[0]).toBe(
       'https://notify.eskiz.uz/api/auth/login',
     );
-    const sendCall = fetchMock.mock.calls[1];
+    const sendCall = (fetchMock.mock.calls as FetchCall[])[1];
     expect(sendCall?.[0]).toBe('https://notify.eskiz.uz/api/message/sms/send');
     const sendInit = sendCall?.[1] as RequestInit;
     expect(sendInit.headers).toMatchObject({
@@ -160,9 +162,7 @@ describe('SmsService', () => {
   it('logs in then sends the SMS via the textup API', async () => {
     const fetchMock = jest
       .fn()
-      .mockResolvedValueOnce(
-        jsonResponse(200, { accessToken: 'textup-token' }),
-      )
+      .mockResolvedValueOnce(jsonResponse(200, { accessToken: 'textup-token' }))
       .mockResolvedValueOnce(jsonResponse(200, { smsId: 'sms-1' }));
     global.fetch = fetchMock;
 
@@ -182,10 +182,10 @@ describe('SmsService', () => {
 
     expect(result).toEqual({ providerMessageId: 'sms-1', accepted: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+    expect((fetchMock.mock.calls as FetchCall[])[0]?.[0]).toBe(
       'https://api-auth.textup.uz/v1/login',
     );
-    const sendCall = fetchMock.mock.calls[1];
+    const sendCall = (fetchMock.mock.calls as FetchCall[])[1];
     expect(sendCall?.[0]).toBe('https://sms-api.textup.uz/v1/send');
     const sendInit = sendCall?.[1] as RequestInit;
     expect(sendInit.headers).toMatchObject({
@@ -202,9 +202,7 @@ describe('SmsService', () => {
   it('includes templateId and nicknameId in the textup send body when configured', async () => {
     const fetchMock = jest
       .fn()
-      .mockResolvedValueOnce(
-        jsonResponse(200, { accessToken: 'textup-token' }),
-      )
+      .mockResolvedValueOnce(jsonResponse(200, { accessToken: 'textup-token' }))
       .mockResolvedValueOnce(jsonResponse(200, { smsId: 'sms-1' }));
     global.fetch = fetchMock;
 
@@ -221,7 +219,9 @@ describe('SmsService', () => {
 
     await service.send({ phone: '+998901234567', text: '123456' });
 
-    const sendInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    const sendInit = (
+      fetchMock.mock.calls as FetchCall[]
+    )[1]?.[1] as RequestInit;
     expect(JSON.parse(String(sendInit.body))).toMatchObject({
       templateId: 'template-1',
       nicknameId: 'nickname-1',
@@ -231,13 +231,9 @@ describe('SmsService', () => {
   it('re-authenticates once and retries when the cached textup token has expired (401)', async () => {
     const fetchMock = jest
       .fn()
-      .mockResolvedValueOnce(
-        jsonResponse(200, { accessToken: 'stale-token' }),
-      )
+      .mockResolvedValueOnce(jsonResponse(200, { accessToken: 'stale-token' }))
       .mockResolvedValueOnce(jsonResponse(401, {}))
-      .mockResolvedValueOnce(
-        jsonResponse(200, { accessToken: 'fresh-token' }),
-      )
+      .mockResolvedValueOnce(jsonResponse(200, { accessToken: 'fresh-token' }))
       .mockResolvedValueOnce(jsonResponse(200, { smsId: 'sms-2' }));
     global.fetch = fetchMock;
 
@@ -280,11 +276,9 @@ describe('SmsService', () => {
   it('throws SMS_SEND_FAILED when the textup send request is rejected', async () => {
     global.fetch = jest
       .fn()
+      .mockResolvedValueOnce(jsonResponse(200, { accessToken: 'textup-token' }))
       .mockResolvedValueOnce(
-        jsonResponse(200, { accessToken: 'textup-token' }),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse(400, { message: "Shablon tasdiqlanmagan" }),
+        jsonResponse(400, { message: 'Shablon tasdiqlanmagan' }),
       );
 
     const service = new SmsService(

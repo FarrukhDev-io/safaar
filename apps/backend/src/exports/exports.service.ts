@@ -11,6 +11,19 @@ import type { RequestActor } from '../common/actor';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { UploadsService } from '../uploads/uploads.service';
 
+export interface ExportJobRow {
+  id: string;
+  owner_type: string;
+  owner_id: string;
+  type: string;
+  format: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  error: string | null;
+  download_key: string | null;
+}
+
 @Injectable()
 export class ExportsService {
   constructor(
@@ -26,7 +39,7 @@ export class ExportsService {
     // cheksiz "queued" duplikat qator yaratavermasligi uchun — DB'dagi
     // qisman UNIQUE indeks (faqat queued/processing statusiga) ON
     // CONFLICT orqali hurmat qilinadi.
-    const inserted = await this.pg.query(
+    const inserted = await this.pg.query<ExportJobRow>(
       `INSERT INTO export_jobs (id, owner_type, owner_id, type, format, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (owner_type, owner_id, type, format) WHERE status IN ('queued', 'processing')
@@ -38,7 +51,7 @@ export class ExportsService {
       return inserted[0];
     }
 
-    const [existing] = await this.pg.query(
+    const [existing] = await this.pg.query<ExportJobRow>(
       `SELECT * FROM export_jobs
        WHERE owner_type = 'system' AND owner_id = $1 AND type = $2 AND format = $3
          AND status IN ('queued', 'processing')
@@ -77,7 +90,7 @@ export class ExportsService {
     await this.assertJob(actor, id);
     const now = new Date().toISOString();
 
-    const [job] = await this.pg.query(
+    const [job] = await this.pg.query<ExportJobRow>(
       `UPDATE export_jobs
        SET status = $1, updated_at = $2
        WHERE id = $3
@@ -91,7 +104,7 @@ export class ExportsService {
   private async assertJob(actor: RequestActor | undefined, id: string) {
     const currentActor = this.requireActor(actor);
 
-    const [job] = await this.pg.query(
+    const [job] = await this.pg.query<ExportJobRow>(
       'SELECT * FROM export_jobs WHERE id = $1',
       [id],
     );

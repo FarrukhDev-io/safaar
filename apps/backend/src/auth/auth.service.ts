@@ -519,9 +519,8 @@ export class AuthService {
     // uchun butun Google OAuth jarayonini boshidan qaytarishga majbur
     // bo'lardi). Token faqat OTP muvaffaqiyatli tasdiqlangandan keyin,
     // haqiqatan ishlatilayotganda `.take()` bilan iste'mol qilinadi.
-    const peekedContext = await this.cache.get<OAuthRegistrationContext>(
-      registrationKey,
-    );
+    const peekedContext =
+      await this.cache.get<OAuthRegistrationContext>(registrationKey);
     if (!peekedContext || peekedContext.provider !== provider) {
       throw new UnauthorizedException({
         code: 'OAUTH_REGISTRATION_EXPIRED',

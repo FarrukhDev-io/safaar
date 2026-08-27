@@ -29,7 +29,9 @@ describe('HttpErrorFilter (regression: H-5 malformed input -> 500 instead of 400
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        error: expect.objectContaining({ code: 'INVALID_INPUT' }),
+        error: expect.objectContaining({ code: 'INVALID_INPUT' }) as {
+          code: string;
+        },
       }),
     );
   });
@@ -53,7 +55,9 @@ describe('HttpErrorFilter (regression: H-5 malformed input -> 500 instead of 400
     expect(status).toHaveBeenCalledWith(500);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: expect.objectContaining({ code: 'INTERNAL_ERROR' }),
+        error: expect.objectContaining({ code: 'INTERNAL_ERROR' }) as {
+          code: string;
+        },
       }),
     );
   });
@@ -72,7 +76,7 @@ describe('HttpErrorFilter (regression: H-5 malformed input -> 500 instead of 400
         error: expect.objectContaining({
           code: 'MY_CODE',
           message: 'aniq xato',
-        }),
+        }) as { code: string; message: string },
       }),
     );
   });
