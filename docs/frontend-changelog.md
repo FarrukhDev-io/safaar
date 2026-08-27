@@ -6,6 +6,95 @@ o'chirilmaydi yoki o'zgartirilmaydi.
 
 ---
 
+# 2026-08-27 — OAuth login ikkita production frontend'ni qo'llab-quvvatlaydi (allow-list, open-redirect himoyasi bilan)
+
+## Nima o'zgardi
+`https://web-user-rho.vercel.app` va `https://safaar-uz.vercel.app` — ikkalasi
+ham endi Google/Facebook OAuth login-registration flow'ini to'liq qo'llab-
+quvvatlaydi. Avval backend OAuth callback'dan keyin foydalanuvchini doim
+BITTA qattiq yozilgan (`WEB_USER_URL`) manzilga qaytarardi — ikkinchi domen
+orqali kirilsa ham, OAuth tugagach foydalanuvchi noto'g'ri (birinchi)
+domenga tashlab qo'yilardi.
+
+`LoginForm.tsx`dagi Google/Facebook tugmalari endi hozirgi sahifa qaysi
+domenda ochilgan bo'lsa (`window.location.origin`), o'sha qiymatni OAuth
+so'roviga qo'shib yuboradi — backend esa buni faqat oldindan tasdiqlangan
+(`OAUTH_ALLOWED_ORIGINS`) ro'yxat bilan solishtirib, mos kelsagina
+ishlatadi. Ro'yxatda yo'q/soxta qiymat hech qachon ishonilmaydi — bunday
+holda backend eng birinchi (asosiy) manzilga qaytaradi. Bu **open redirect**
+zaifligining oldini oladi.
+
+## Nima uchun
+Ikkala production domen ham haqiqiy foydalanuvchilar tomonidan ishlatiladi
+va ikkalasida ham OAuth login/ro'yxatdan o'tish bir xil tarzda, to'g'ri
+domenga qaytarish bilan ishlashi kerak edi.
+
+## O'zgargan fayllar
+- `apps/web-user/app/[lang]/(auth)/_components/LoginForm.tsx` — Google/
+  Facebook tugmalarining OAuth so'roviga `origin=<joriy sahifa domeni>`
+  qo'shildi. `useEffect` + `useState` orqali (render paytida `typeof
+  window` emas) — aks holda server/client render mos kelmay, React
+  hydration mismatch berardi va href browser'da hech qachon
+  to'g'irlanmasdi ("this won't be patched up" — bu real xato sifatida
+  topildi va shu yerda tuzatildi, tekshiruv paytida).
+
+## Kod o'zgarmagan (frontend, boshqa joylar)
+`RegisterForm.tsx`, `social-callback/route.ts` — bularga tegilmadi, ular
+allaqachon backend qaytargan `locale`/`next` bilan ishlaydi, domenga
+bog'liq emas.
+
+## UI/UX
+Ko'zga ko'rinadigan o'zgarish yo'q — foydalanuvchi Google/Facebook
+tugmasini bosganda, avvalgidek Google/Facebook login sahifasiga
+yo'naltiriladi, farqi shundaki endi OAuth tugagach **aynan o'sha domenga**
+qaytariladi (ilgari har doim bitta domenga qaytarilardi).
+
+## API / Backend
+- Backend o'zgardimi: HA — `apps/backend/src/auth/auth.controller.ts`,
+  `apps/backend/src/auth/auth.service.ts`, `apps/backend/src/config/
+  env.validation.ts`. Yangi env: `OAUTH_ALLOWED_ORIGINS` (ixtiyoriy,
+  vergul bilan ajratilgan ro'yxat; berilmasa avvalgidek yagona
+  `WEB_USER_URL`ga qaytadi — orqaga moslik saqlangan).
+- Yangi API endpoint kerak bo'ldimi: NO — mavjud `/auth/google`,
+  `/auth/facebook`, `/auth/*/callback` endpointlariga faqat ixtiyoriy
+  `origin` query parametri qo'shildi.
+- DB migration: NO.
+
+## Test
+- Backend: 410/410 (4 ta yangi maxsus test — allow-list'dagi origin
+  qabul qilinishi, ro'yxatda yo'q/soxta origin rad etilib asosiy
+  manzilga qaytarilishi (open-redirect himoyasi), ikkinchi frontend
+  bilan to'liq redirect→callback aylanishi, `OAUTH_ALLOWED_ORIGINS`
+  sozlanmaganda orqaga moslik).
+- Typecheck: PASS (`apps/backend`, `apps/web-user`).
+- Build: PASS (ikkalasi).
+- Browser QA (lokal): login sahifasida Google/Facebook href'lari `origin`
+  parametri bilan to'g'ri shakllanishi, **hydration xatosi yo'qligi**
+  (avval buglik edi, tuzatildi) tekshirildi.
+
+## Deploy
+Local only — hali production'ga chiqarilmadi (foydalanuvchi tasdig'ini
+kutmoqda; bu safar backend uchun haqiqiy kod deploy — dist qayta
+qurish/almashtirish — kerak bo'ladi, faqat env emas).
+
+## Git
+- Branch: `temp/save-all-work`
+- Commit: `99071669`
+
+## Muhim eslatmalar
+- Production `.env`ga `OAUTH_ALLOWED_ORIGINS=https://web-user-rho.vercel.app,https://safaar-uz.vercel.app`
+  qo'shilishi kerak — bu deploy tasdiqlangach bajariladi.
+- `safaar-uz.vercel.app` audit paytida topildi: bu `web-user`dan **boshqa**
+  Vercel loyihasi ("safaar" nomli, Root Directory `.`, umumiy build
+  buyrug'i) — hozircha bir xil kontent ko'rsatayotgandek ko'rinadi, lekin
+  `apps/web-user` bilan avtomatik sinxron emas. Backend allow-list bu
+  farqdan qat'i nazar xavfsiz ishlaydi (faqat ruxsat berilgan manzilga
+  qaytaradi), lekin agar `safaar-uz.vercel.app` alohida qo'lda deploy
+  qilinmasa, u yerda bu `origin` o'zgarishi (va umuman oxirgi frontend
+  kodi) ko'rinmasligi mumkin.
+
+---
+
 # 2026-08-27 — Facebook OAuth — Google bilan bir xil login-or-registration audit va matn tuzatishi
 
 ## Nima o'zgardi
