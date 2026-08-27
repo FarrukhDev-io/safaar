@@ -6,6 +6,92 @@ o'chirilmaydi yoki o'zgartirilmaydi.
 
 ---
 
+# 2026-08-27 — Login sahifasidagi social xato xabarlari provider-specific qilindi (Facebook/Google)
+
+## Nima o'zgardi
+Login sahifasida Google yoki Facebook orqali kirish muvaffaqiyatsiz
+bo'lganda, xato xabari endi **aynan qaysi provider bilan urinilgan bo'lsa**
+o'shani ko'rsatadi:
+- Facebook muvaffaqiyatsiz → "Facebook orqali kirishda xatolik yuz berdi. Qayta urinib ko'ring."
+- Google muvaffaqiyatsiz → "Google orqali kirishda xatolik yuz berdi. Qayta urinib ko'ring."
+
+Avval ikkalasi uchun ham bitta umumiy "Ijtimoiy tarmoq orqali kirishda
+xatolik yuz berdi" matni ko'rsatilardi (avvalroq esa hattoki Facebook
+xatosida ham noto'g'ri "Google orqali..." matni chiqib qolardi).
+
+## Nima uchun
+Foydalanuvchi aynan qaysi provider bilan muammo yuz berganini aniq
+bilishi kerak — ayniqsa endi ikkalasi ham (Google va Facebook) faol
+ishlayotgan bo'lsa.
+
+## Qanday ishlaydi (arxitektura)
+Backend OAuth callback xato bo'lganda `/login?socialError=<kod>` ga
+qaytaradi, lekin qaysi provider bilan boshlangani bu query
+parametrida yo'q (bu OAuth xavfsizlik logikasiga aloqasi yo'q — sof
+frontend masalasi, shu sabab **backend o'zgartirilmadi**). Buning
+o'rniga: foydalanuvchi Google/Facebook tugmasini bosgan zahoti (sahifadan
+chiqishdan oldin) shu tab'ga xos `sessionStorage`ga yozib qo'yiladi;
+`/login`ga qaytilganda shu qiymat o'qilib, mos xabar ko'rsatiladi. Agar
+biror sababdan (masalan to'g'ridan-to'g'ri havola/bookmark orqali kirilgan
+bo'lsa) provider noma'lum bo'lsa, avvalgi umumiy matn zaxira sifatida
+qoladi.
+
+## O'zgargan fayllar
+- `apps/web-user/app/[lang]/(auth)/_components/LoginForm.tsx` — yangi
+  `rememberOAuthProvider()` (tugma bosilganda sessionStorage'ga yozadi),
+  yangi `useEffect` (xato bo'lsa sessionStorage'dan o'qiydi),
+  `socialErrorMessageFor()` endi `provider` argumentini ham qabul qiladi
+  va shunga qarab `dict.googleLoginError`/`dict.facebookLoginError`/
+  (noma'lum bo'lsa) `dict.socialLoginError`ni tanlaydi.
+- `apps/web-user/locales/{uz,ru,en}/auth.json` — yangi ikkita kalit:
+  `googleLoginError`, `facebookLoginError` (uchala tilda ham).
+
+## UI/UX
+Google/Facebook tugmasi bosilib, OAuth muvaffaqiyatsiz bo'lsa, login
+sahifasiga qaytganda endi aniq qaysi provider bilan muammo bo'lganini
+ko'rsatadigan xabar chiqadi. Muvaffaqiyatli login/registratsiya oqimiga
+hech qanday ta'sir yo'q.
+
+## API / Backend
+- Backend o'zgardimi: NO — bu ataylab shunday, chunki masala sof
+  frontend-error-message masalasi edi.
+- DB: NO.
+
+## Test
+- Typecheck: PASS (`apps/web-user`).
+- Build: PASS (`apps/web-user`).
+- Relevant testlar: bu component uchun unit test mavjud emas (loyihada
+  React component'lar uchun unit test infratuzilmasi yo'q, testing
+  backend Jest + Playwright e2e orqali qilinadi) — shu sabab lokal
+  brauzer orqali qo'lda tekshirildi:
+  - Facebook tugmasi bosilib, xato holatida → aynan "Facebook orqali
+    kirishda xatolik yuz berdi..." matni chiqishi tasdiqlandi.
+  - Google tugmasi bosilib, xato holatida → aynan "Google orqali
+    kirishda xatolik yuz berdi..." matni chiqishi tasdiqlandi.
+  - Provider noma'lum (yangi brauzer context, sessionStorage yo'q) →
+    avvalgi umumiy matn zaxira sifatida to'g'ri ishlashi tasdiqlandi.
+  - Google/Facebook tugmalarining `href`lari (OAuth so'rovi, `origin`
+    parametri bilan) o'zgarishsiz qolgani tasdiqlandi — regression yo'q.
+
+## Deploy
+Local only — hali production'ga chiqarilmadi (foydalanuvchi tasdig'ini
+kutmoqda).
+
+## Git
+- Branch: `temp/save-all-work`
+- Commit: `29f3b10f`
+
+## Muhim eslatmalar
+- `sessionStorage` faqat SHU brauzer tab'iga xos — agar user ikki tab'da
+  bir vaqtda Google va Facebook bilan urinsa, har biri o'z tab'ida to'g'ri
+  ishlaydi (aralashmaydi).
+- Bu o'zgarish faqat `LoginForm.tsx`ga tegishli — `RegisterForm.tsx`dagi
+  ijtimoiy-registratsiya xato matnlari (avvalgi audit'da allaqachon
+  provider-neytral qilib tuzatilgan) ga tegilmadi, chunki bu safar so'rov
+  aniq "Login sahifasi" bilan chegaralangan edi.
+
+---
+
 # 2026-08-27 — OAuth login ikkita production frontend'ni qo'llab-quvvatlaydi (allow-list, open-redirect himoyasi bilan)
 
 ## Nima o'zgardi
