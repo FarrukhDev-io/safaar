@@ -32,6 +32,15 @@ import { createTotpSetup, verifyTotpCode, type TotpSetup } from './totp';
 
 type DbRow = Record<string, unknown>;
 
+function isUniqueViolation(error: unknown, constraintName: string): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: string }).code === '23505' &&
+    (error as { constraint?: string }).constraint === constraintName
+  );
+}
+
 interface AdminUserRecord {
   id: string;
   email: string;
@@ -78,9 +87,37 @@ interface OAuthStateContext {
   next: string;
 }
 
-interface OAuthExchangeContext {
+interface OAuthExchangeLoginContext {
   userId: string;
 }
+
+interface OAuthExchangeRegisterContext {
+  provider: OAuthProvider;
+  profile: OAuthProfile;
+}
+
+type OAuthExchangeContext =
+  | OAuthExchangeLoginContext
+  | OAuthExchangeRegisterContext;
+
+function isOAuthExchangeRegisterContext(
+  context: OAuthExchangeContext,
+): context is OAuthExchangeRegisterContext {
+  return 'profile' in context;
+}
+
+interface OAuthRegistrationContext {
+  provider: OAuthProvider;
+  providerUserId: string;
+  email: string;
+  emailVerified: boolean;
+  firstName?: string;
+  lastName?: string;
+}
+
+type OAuthUpsertResult =
+  | { kind: 'login'; userId: string }
+  | { kind: 'register'; profile: OAuthProfile };
 
 interface PasswordResetContext {
   phone: string;
@@ -93,6 +130,25 @@ interface OAuthProfile {
   emailVerified: boolean;
   firstName?: string;
   lastName?: string;
+}
+
+export interface OAuthRegistrationRequiredResult {
+  requiresRegistration: true;
+  registrationToken: string;
+  provider: OAuthProvider;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+interface CompleteOAuthRegistrationInput {
+  provider: string;
+  registration_token: string;
+  phone: string;
+  code: string;
+  challenge_id?: string;
+  first_name?: string;
+  last_name?: string;
 }
 
 @Injectable()
@@ -374,12 +430,14 @@ export class AuthService {
 
     const profile = await this.fetchOAuthProfile(provider, authorizationCode);
 
-    const userId = await this.upsertOAuthUser(provider, profile);
+    const upsertResult = await this.upsertOAuthUser(provider, profile);
 
     const exchangeCode = randomBytes(32).toString('base64url');
     await this.cache.set<OAuthExchangeContext>(
       this.oauthExchangeKey(exchangeCode),
-      { userId },
+      upsertResult.kind === 'login'
+        ? { userId: upsertResult.userId }
+        : { provider, profile: upsertResult.profile },
       60,
     );
 
@@ -390,7 +448,9 @@ export class AuthService {
     };
   }
 
-  async oauthExchange(code: string): Promise<OAuthExchangeResult> {
+  async oauthExchange(
+    code: string,
+  ): Promise<OAuthExchangeResult | OAuthRegistrationRequiredResult> {
     const normalizedCode = code.trim();
     const context = normalizedCode
       ? await this.cache.take<OAuthExchangeContext>(
@@ -402,6 +462,30 @@ export class AuthService {
         code: 'OAUTH_EXCHANGE_INVALID',
         message: 'OAuth kirish kodi yaroqsiz yoki ishlatilgan',
       });
+    }
+
+    if (isOAuthExchangeRegisterContext(context)) {
+      const registrationToken = randomBytes(32).toString('base64url');
+      await this.cache.set<OAuthRegistrationContext>(
+        this.oauthRegistrationKey(registrationToken),
+        {
+          provider: context.provider,
+          providerUserId: context.profile.providerUserId,
+          email: context.profile.email,
+          emailVerified: context.profile.emailVerified,
+          firstName: context.profile.firstName,
+          lastName: context.profile.lastName,
+        },
+        30 * 60,
+      );
+      return {
+        requiresRegistration: true,
+        registrationToken,
+        provider: context.provider,
+        email: context.profile.email,
+        firstName: context.profile.firstName,
+        lastName: context.profile.lastName,
+      };
     }
 
     const rows = await this.pg.query<DbRow>(
@@ -420,6 +504,130 @@ export class AuthService {
         role: Role.USER,
       })),
       user,
+    };
+  }
+
+  async completeOAuthRegistration(
+    dto: CompleteOAuthRegistrationInput,
+  ): Promise<AuthTokens & { user: unknown }> {
+    const provider = dto.provider as OAuthProvider;
+    const registrationKey = this.oauthRegistrationKey(dto.registration_token);
+
+    // Avval faqat "peek" qilamiz (o'chirmasdan) — noto'g'ri/eskirgan OTP
+    // kod kiritilsa ham bir martalik registration token bekor bo'lib
+    // qolmasin (aks holda foydalanuvchi shunchaki kodni xato kiritgani
+    // uchun butun Google OAuth jarayonini boshidan qaytarishga majbur
+    // bo'lardi). Token faqat OTP muvaffaqiyatli tasdiqlangandan keyin,
+    // haqiqatan ishlatilayotganda `.take()` bilan iste'mol qilinadi.
+    const peekedContext = await this.cache.get<OAuthRegistrationContext>(
+      registrationKey,
+    );
+    if (!peekedContext || peekedContext.provider !== provider) {
+      throw new UnauthorizedException({
+        code: 'OAUTH_REGISTRATION_EXPIRED',
+        message: "Ro'yxatdan o'tish sessiyasi muddati tugagan",
+      });
+    }
+
+    const verified = await this.verifyUserOtp({
+      phone: dto.phone,
+      code: dto.code,
+      challenge_id: dto.challenge_id,
+    });
+
+    const registrationContext =
+      await this.cache.take<OAuthRegistrationContext>(registrationKey);
+    if (!registrationContext || registrationContext.provider !== provider) {
+      throw new UnauthorizedException({
+        code: 'OAUTH_REGISTRATION_EXPIRED',
+        message: "Ro'yxatdan o'tish sessiyasi muddati tugagan",
+      });
+    }
+
+    const userId = String((verified.user as DbRow)['id']);
+    const now = new Date().toISOString();
+    const firstName =
+      dto.first_name?.trim() || registrationContext.firstName || null;
+    const lastName =
+      dto.last_name?.trim() || registrationContext.lastName || null;
+    const email = registrationContext.emailVerified
+      ? registrationContext.email
+      : null;
+
+    try {
+      await this.pg.transaction(async (transaction) => {
+        const conflictRows = await transaction.query<DbRow>(
+          `SELECT 1 FROM user_social_accounts
+           WHERE provider = $1 AND provider_user_id = $2 AND user_id <> $3::uuid
+           LIMIT 1`,
+          [provider, registrationContext.providerUserId, userId],
+        );
+        if (conflictRows.length > 0) {
+          throw new BadRequestException({
+            code: 'OAUTH_ACCOUNT_ALREADY_LINKED',
+            message: 'Bu hisob boshqa foydalanuvchiga ulangan',
+          });
+        }
+
+        const existingLinkRows = await transaction.query<DbRow>(
+          `SELECT provider_user_id FROM user_social_accounts
+           WHERE user_id = $1::uuid AND provider = $2
+           LIMIT 1`,
+          [userId, provider],
+        );
+        if (!existingLinkRows[0]) {
+          await transaction.query(
+            `INSERT INTO user_social_accounts
+               (id, user_id, provider, provider_user_id, provider_email,
+                email_verified, created_at, updated_at)
+             VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $7)`,
+            [
+              randomUUID(),
+              userId,
+              provider,
+              registrationContext.providerUserId,
+              registrationContext.email,
+              registrationContext.emailVerified,
+              now,
+            ],
+          );
+        }
+
+        await transaction.query(
+          `UPDATE users
+           SET email = coalesce(email, $2),
+               email_verified_at = CASE WHEN $2 IS NOT NULL THEN coalesce(email_verified_at, $3) ELSE email_verified_at END,
+               first_name = coalesce(first_name, $4),
+               last_name = coalesce(last_name, $5),
+               updated_at = $3
+           WHERE id = $1::uuid`,
+          [userId, email, now, firstName, lastName],
+        );
+      });
+    } catch (error) {
+      if (isUniqueViolation(error, 'users_email_key')) {
+        throw new BadRequestException({
+          code: 'EMAIL_ALREADY_EXISTS',
+          message: 'Bu email boshqa foydalanuvchiga tegishli',
+        });
+      }
+      throw error;
+    }
+
+    const refreshedRows = await this.pg.query<DbRow>(
+      `SELECT id::text, phone, status, preferred_language, bonus_balance,
+              first_name, last_name, email, phone_verified_at, last_login_at,
+              created_at, updated_at
+       FROM users
+       WHERE id = $1::uuid
+       LIMIT 1`,
+      [userId],
+    );
+
+    return {
+      accessToken: verified.accessToken,
+      refreshToken: verified.refreshToken,
+      user: refreshedRows[0] ?? verified.user,
     };
   }
 
@@ -1547,7 +1755,7 @@ export class AuthService {
   private async upsertOAuthUser(
     provider: OAuthProvider,
     profile: OAuthProfile,
-  ): Promise<string> {
+  ): Promise<OAuthUpsertResult> {
     const now = new Date().toISOString();
     return this.pg.transaction(async (transaction) => {
       const linkedRows = await transaction.query<DbRow>(
@@ -1577,9 +1785,17 @@ export class AuthService {
            WHERE id = $1::uuid`,
           [userId, now],
         );
-        return userId;
+        return { kind: 'login', userId };
       }
 
+      // Email orqali moslashtirish faqat provayder email'ni tasdiqlagan
+      // (`emailVerified: true`) hollarda avtomatik ulanadi/kirishga ruxsat
+      // beradi — aks holda tasdiqlanmagan email orqali begona faol
+      // hisobga stixiyali kirib qolish xavfi tug'iladi (hozircha Google va
+      // Facebook uchun fetchOAuthProfile() buni allaqachon kafolatlaydi —
+      // bu qo'shimcha himoya qatlami). Status tekshiruvi esa (USER_NOT_ACTIVE)
+      // email tasdiqlanganligidan qat'i nazar har doim ishlaydi — nofaol
+      // hisob bloklanishi hech qachon zaiflashmaydi.
       const userRows = await transaction.query<DbRow>(
         `SELECT id::text, status::text
          FROM users
@@ -1587,66 +1803,67 @@ export class AuthService {
          LIMIT 1`,
         [profile.email],
       );
-      if (!userRows[0]) {
-        throw new UnauthorizedException({
-          code: 'OAUTH_ACCOUNT_NOT_REGISTERED',
-          message: "Bu Google akkaunt ro'yxatdan o'tmagan",
-        });
-      }
-      if (userRows[0]['status'] !== 'active') {
-        throw new UnauthorizedException({
-          code: 'USER_NOT_ACTIVE',
-          message: 'Foydalanuvchi hisobi faol emas',
-        });
-      }
-      const userId = String(userRows[0]['id']);
+      if (userRows[0]) {
+        if (userRows[0]['status'] !== 'active') {
+          throw new UnauthorizedException({
+            code: 'USER_NOT_ACTIVE',
+            message: 'Foydalanuvchi hisobi faol emas',
+          });
+        }
 
-      const providerRows = await transaction.query<DbRow>(
-        `SELECT provider_user_id
-         FROM user_social_accounts
-         WHERE user_id = $1::uuid AND provider = $2
-         LIMIT 1`,
-        [userId, provider],
-      );
-      if (
-        providerRows[0] &&
-        providerRows[0]['provider_user_id'] !== profile.providerUserId
-      ) {
-        throw new BadRequestException({
-          code: 'OAUTH_ACCOUNT_ALREADY_LINKED',
-          message: 'Bu hisob boshqa ijtimoiy profilga ulangan',
-        });
+        if (profile.emailVerified) {
+          const userId = String(userRows[0]['id']);
+
+          const providerRows = await transaction.query<DbRow>(
+            `SELECT provider_user_id
+             FROM user_social_accounts
+             WHERE user_id = $1::uuid AND provider = $2
+             LIMIT 1`,
+            [userId, provider],
+          );
+          if (
+            providerRows[0] &&
+            providerRows[0]['provider_user_id'] !== profile.providerUserId
+          ) {
+            throw new BadRequestException({
+              code: 'OAUTH_ACCOUNT_ALREADY_LINKED',
+              message: 'Bu hisob boshqa ijtimoiy profilga ulangan',
+            });
+          }
+
+          if (!providerRows[0]) {
+            await transaction.query(
+              `INSERT INTO user_social_accounts
+                 (id, user_id, provider, provider_user_id, provider_email,
+                  email_verified, created_at, updated_at)
+               VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $7)`,
+              [
+                randomUUID(),
+                userId,
+                provider,
+                profile.providerUserId,
+                profile.email,
+                profile.emailVerified,
+                now,
+              ],
+            );
+          }
+
+          await transaction.query(
+            `UPDATE users
+             SET email_verified_at = coalesce(email_verified_at, $2),
+                 first_name = coalesce(first_name, $3),
+                 last_name = coalesce(last_name, $4),
+                 last_login_at = $2,
+                 updated_at = $2
+             WHERE id = $1::uuid`,
+            [userId, now, profile.firstName ?? null, profile.lastName ?? null],
+          );
+          return { kind: 'login', userId };
+        }
       }
 
-      if (!providerRows[0]) {
-        await transaction.query(
-          `INSERT INTO user_social_accounts
-             (id, user_id, provider, provider_user_id, provider_email,
-              email_verified, created_at, updated_at)
-           VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $7)`,
-          [
-            randomUUID(),
-            userId,
-            provider,
-            profile.providerUserId,
-            profile.email,
-            profile.emailVerified,
-            now,
-          ],
-        );
-      }
-
-      await transaction.query(
-        `UPDATE users
-         SET email_verified_at = coalesce(email_verified_at, $2),
-             first_name = coalesce(first_name, $3),
-             last_name = coalesce(last_name, $4),
-             last_login_at = $2,
-             updated_at = $2
-         WHERE id = $1::uuid`,
-        [userId, now, profile.firstName ?? null, profile.lastName ?? null],
-      );
-      return userId;
+      return { kind: 'register', profile };
     });
   }
 
@@ -1688,6 +1905,10 @@ export class AuthService {
 
   private oauthExchangeKey(code: string): string {
     return `auth:oauth:exchange:${this.opaqueCodeHash(code)}`;
+  }
+
+  private oauthRegistrationKey(token: string): string {
+    return `auth:oauth:registration:${this.opaqueCodeHash(token)}`;
   }
 
   private passwordResetKey(token: string): string {

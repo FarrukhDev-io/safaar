@@ -184,7 +184,7 @@ describe('AuthService email and OAuth', () => {
     );
   });
 
-  it('rejects a Google callback when the email is not registered', async () => {
+  it('issues a registration exchange code (not an error) when no Safaar user matches the Google account', async () => {
     cache.take.mockResolvedValueOnce({
       provider: 'google',
       locale: 'uz',
@@ -204,6 +204,7 @@ describe('AuthService email and OAuth', () => {
             sub: 'google-new-user',
             email: 'new-user@example.com',
             email_verified: true,
+            given_name: 'Test',
           }),
           {
             status: 200,
@@ -219,18 +220,366 @@ describe('AuthService email and OAuth', () => {
         operation(transaction),
     );
 
+    const result = await service.oauthCallback(
+      'google',
+      { state: 'valid-state', code: 'provider-code' },
+      'valid-state',
+    );
+
+    expect(typeof result.code).toBe('string');
+    expect(cache.set).toHaveBeenLastCalledWith(
+      expect.stringContaining('auth:oauth:exchange:'),
+      {
+        provider: 'google',
+        profile: {
+          providerUserId: 'google-new-user',
+          email: 'new-user@example.com',
+          emailVerified: true,
+          firstName: 'Test',
+          lastName: undefined,
+        },
+      },
+      60,
+    );
+  });
+
+  it('upsertOAuthUser defensively refuses to auto-link an active account when the profile email is unverified', async () => {
+    // Both current providers' fetchOAuthProfile() already guarantee
+    // emailVerified===true upstream (Google rejects unverified emails
+    // outright, Facebook hardcodes true), so this exercises the private
+    // upsertOAuthUser() gate directly as a defense-in-depth backstop for
+    // any future provider that does not make the same guarantee.
+    const transaction = {
+      // 1) linked-by-provider lookup -> none, 2) email match -> active user found
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: '00000000-0000-4000-8000-000000000009', status: 'active' },
+        ]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    const result = await (
+      service as unknown as {
+        upsertOAuthUser: (
+          provider: string,
+          profile: {
+            providerUserId: string;
+            email: string;
+            emailVerified: boolean;
+          },
+        ) => Promise<{ kind: string }>;
+      }
+    ).upsertOAuthUser('google', {
+      providerUserId: 'google-unverified',
+      email: 'existing-active@example.com',
+      emailVerified: false,
+    });
+
+    // Registration branch (no login), and the matched active account was
+    // never touched (only the 2 lookup queries ran, no UPDATE/INSERT).
+    expect(result).toEqual({
+      kind: 'register',
+      profile: expect.objectContaining({ emailVerified: false }),
+    });
+    expect((transaction.query as jest.Mock).mock.calls.length).toBe(2);
+  });
+
+  it('still blocks a non-active user matched by email regardless of emailVerified', async () => {
+    cache.take.mockResolvedValueOnce({
+      provider: 'google',
+      locale: 'uz',
+      next: '',
+    });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: 'provider-token' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            sub: 'google-blocked',
+            email: 'blocked@example.com',
+            email_verified: true,
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    const transaction = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: '00000000-0000-4000-8000-000000000010', status: 'blocked' },
+        ]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
     await expect(
       service.oauthCallback(
         'google',
         { state: 'valid-state', code: 'provider-code' },
         'valid-state',
       ),
-    ).rejects.toMatchObject({
-      response: {
-        code: 'OAUTH_ACCOUNT_NOT_REGISTERED',
+    ).rejects.toMatchObject({ response: { code: 'USER_NOT_ACTIVE' } });
+    expect(cache.set).not.toHaveBeenCalled();
+  });
+
+  it('oauthExchange mints a one-time registration token when the exchange context has no matched user', async () => {
+    cache.take.mockResolvedValueOnce({
+      provider: 'google',
+      profile: {
+        providerUserId: 'google-new-user',
+        email: 'new-user@example.com',
+        emailVerified: true,
+        firstName: 'Test',
       },
     });
-    expect(cache.set).not.toHaveBeenCalled();
+
+    const result = await service.oauthExchange('some-code');
+
+    expect(result).toMatchObject({
+      requiresRegistration: true,
+      provider: 'google',
+      email: 'new-user@example.com',
+      firstName: 'Test',
+    });
+    expect(
+      (result as { registrationToken: string }).registrationToken,
+    ).toEqual(expect.any(String));
+    expect(cache.set).toHaveBeenCalledWith(
+      expect.stringContaining('auth:oauth:registration:'),
+      expect.objectContaining({
+        provider: 'google',
+        providerUserId: 'google-new-user',
+        email: 'new-user@example.com',
+        emailVerified: true,
+      }),
+      30 * 60,
+    );
+  });
+
+  it('completeOAuthRegistration creates/links the user via phone OTP without ever touching password_hash', async () => {
+    const registrationContext = {
+      provider: 'google',
+      providerUserId: 'google-new-user',
+      email: 'new-user@example.com',
+      emailVerified: true,
+      firstName: 'Test',
+    };
+    cache.get.mockResolvedValueOnce(registrationContext);
+    cache.take.mockResolvedValueOnce(registrationContext);
+    // verifyUserOtp: SELECT user by phone -> not found, INSERT new user
+    pg.query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      // final refetch after enrichment
+      .mockResolvedValueOnce([
+        {
+          id: '00000000-0000-4000-8000-000000000099',
+          phone: '+998901234567',
+          status: 'active',
+          email: 'new-user@example.com',
+          first_name: 'Test',
+          last_name: null,
+        },
+      ]);
+    jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
+
+    const linkTransaction = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([]) // conflict check -> none
+        .mockResolvedValueOnce([]) // existing link check -> none
+        .mockResolvedValueOnce([]) // insert user_social_accounts
+        .mockResolvedValueOnce([]), // update users
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(linkTransaction),
+    );
+
+    otpStore.resetForTests();
+    const challenge = otpStore.create('+998901234567', 'user_login');
+    const code = otpStore.getDeliveryCode(challenge.id)!;
+
+    const result = await service.completeOAuthRegistration({
+      provider: 'google',
+      registration_token: 'reg-token',
+      phone: '+998901234567',
+      code,
+      challenge_id: challenge.id,
+    });
+
+    expect(result.accessToken).toEqual(expect.any(String));
+    expect(result.refreshToken).toEqual(expect.any(String));
+    expect((result.user as { email: string }).email).toBe(
+      'new-user@example.com',
+    );
+    const insertCall = (linkTransaction.query as jest.Mock).mock.calls[2];
+    expect(insertCall[0]).toContain('INSERT INTO user_social_accounts');
+    expect(insertCall[1]).toEqual(
+      expect.arrayContaining([
+        'google',
+        'google-new-user',
+        'new-user@example.com',
+        true,
+      ]),
+    );
+    const updateCall = (linkTransaction.query as jest.Mock).mock.calls[3];
+    expect(updateCall[0]).not.toMatch(/password_hash/i);
+  });
+
+  it('completeOAuthRegistration rejects an expired/invalid registration token', async () => {
+    cache.get.mockResolvedValueOnce(undefined);
+
+    await expect(
+      service.completeOAuthRegistration({
+        provider: 'google',
+        registration_token: 'bad-token',
+        phone: '+998901234567',
+        code: '000000',
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'OAUTH_REGISTRATION_EXPIRED' },
+    });
+  });
+
+  it('a mistyped OTP code does not burn the one-time registration token (only peeked, not consumed)', async () => {
+    cache.get.mockResolvedValueOnce({
+      provider: 'google',
+      providerUserId: 'google-new-user',
+      email: 'new-user@example.com',
+      emailVerified: true,
+    });
+
+    otpStore.resetForTests();
+    otpStore.create('+998901234567', 'user_login');
+
+    await expect(
+      service.completeOAuthRegistration({
+        provider: 'google',
+        registration_token: 'reg-token',
+        phone: '+998901234567',
+        code: '000000', // wrong code
+      }),
+    ).rejects.toMatchObject({ response: { code: 'OTP_INVALID' } });
+
+    // The registration token was only peeked (cache.get), never consumed
+    // (cache.take) — the user can retry the code without redoing Google OAuth.
+    expect(cache.take).not.toHaveBeenCalled();
+  });
+
+  it('completeOAuthRegistration rejects when the Google identity got linked to a different user meanwhile', async () => {
+    const registrationContext = {
+      provider: 'google',
+      providerUserId: 'google-new-user',
+      email: 'new-user@example.com',
+      emailVerified: true,
+    };
+    cache.get.mockResolvedValueOnce(registrationContext);
+    cache.take.mockResolvedValueOnce(registrationContext);
+    pg.query.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
+
+    const conflictTransaction = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([{ '?column?': 1 }]), // conflict check -> already linked elsewhere
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(conflictTransaction),
+    );
+
+    otpStore.resetForTests();
+    const challenge = otpStore.create('+998901234568', 'user_login');
+    const code = otpStore.getDeliveryCode(challenge.id)!;
+
+    await expect(
+      service.completeOAuthRegistration({
+        provider: 'google',
+        registration_token: 'reg-token',
+        phone: '+998901234568',
+        code,
+        challenge_id: challenge.id,
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'OAUTH_ACCOUNT_ALREADY_LINKED' },
+    });
+  });
+
+  it('a second login for the same Google-registered account is instant (no phone/OTP re-prompt)', async () => {
+    cache.take.mockResolvedValueOnce({
+      provider: 'google',
+      locale: 'uz',
+      next: '/uz/account',
+    });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: 'provider-token' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            sub: 'google-new-user',
+            email: 'new-user@example.com',
+            email_verified: true,
+            given_name: 'Test',
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    const transaction = {
+      // Already linked from a prior completeOAuthRegistration -> active user found immediately.
+      query: jest.fn().mockResolvedValueOnce([
+        {
+          user_id: '00000000-0000-4000-8000-000000000099',
+          status: 'active',
+        },
+      ]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    const result = await service.oauthCallback(
+      'google',
+      { state: 'valid-state', code: 'provider-code' },
+      'valid-state',
+    );
+
+    expect(typeof result.code).toBe('string');
+    expect(cache.set).toHaveBeenLastCalledWith(
+      expect.stringContaining('auth:oauth:exchange:'),
+      { userId: '00000000-0000-4000-8000-000000000099' },
+      60,
+    );
+    // Only the linked-account lookup ran — no email-match/registration
+    // queries, confirming this is a single-step instant login.
+    expect((transaction.query as jest.Mock).mock.calls.length).toBe(3);
   });
 });
 

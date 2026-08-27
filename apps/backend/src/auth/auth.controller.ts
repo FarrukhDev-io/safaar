@@ -21,6 +21,7 @@ import { RolesGuard } from '../common/roles.guard';
 import { AuthService } from './auth.service';
 import {
   AdminLoginDto,
+  CompleteOAuthRegistrationDto,
   CompleteProfileDto,
   ForgotPasswordDto,
   LoginDto,
@@ -174,6 +175,12 @@ export class AuthController {
   @Post('oauth/exchange')
   oauthExchange(@Body() body: OAuthExchangeDto) {
     return this.authService.oauthExchange(body.code);
+  }
+
+  @Post('oauth/register')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  completeOAuthRegistration(@Body() body: CompleteOAuthRegistrationDto) {
+    return this.authService.completeOAuthRegistration(body);
   }
 
   @Get('social-accounts')

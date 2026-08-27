@@ -102,6 +102,43 @@ export class OAuthExchangeDto {
   code!: string;
 }
 
+export class CompleteOAuthRegistrationDto {
+  @ApiProperty({ example: 'google' })
+  @IsString()
+  @IsNotEmpty()
+  provider!: string;
+
+  @ApiProperty({ example: 'one-time-oauth-registration-token' })
+  @IsString()
+  @IsNotEmpty()
+  registration_token!: string;
+
+  @ApiProperty({ example: '+998901234567' })
+  @IsString()
+  @IsNotEmpty()
+  phone!: string;
+
+  @ApiProperty({ example: '482913' })
+  @IsString()
+  @Length(6, 6)
+  code!: string;
+
+  @ApiPropertyOptional({ example: 'otp-challenge-id' })
+  @IsOptional()
+  @IsString()
+  challenge_id?: string;
+
+  @ApiPropertyOptional({ example: 'Aziz' })
+  @IsOptional()
+  @IsString()
+  first_name?: string;
+
+  @ApiPropertyOptional({ example: 'Karimov' })
+  @IsOptional()
+  @IsString()
+  last_name?: string;
+}
+
 export class LoginDto {
   @ApiProperty({ example: 'partner@safaar.uz' })
   @IsEmail()

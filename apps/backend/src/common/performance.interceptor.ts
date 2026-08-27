@@ -1,6 +1,7 @@
 import {
   CallHandler,
   ExecutionContext,
+  HttpException,
   Injectable,
   Logger,
   NestInterceptor,
@@ -68,7 +69,7 @@ export class PerformanceInterceptor implements NestInterceptor {
     error: unknown,
   ) {
     const durationMs = Math.round(performance.now() - startedAt);
-    const statusCode = response.statusCode ?? (error ? 500 : undefined) ?? 200;
+    const statusCode = this.statusCodeFor(response, error);
     const event = {
       event: durationMs >= this.slowRequestMs ? 'slow_request' : 'request',
       request_id: requestId,
@@ -85,6 +86,25 @@ export class PerformanceInterceptor implements NestInterceptor {
     }
 
     this.logger.log(line);
+  }
+
+  /**
+   * `response.statusCode` is only authoritative once NestJS's exception
+   * filter has actually written the real status — for a thrown error, this
+   * hook runs earlier (as the error propagates through the RxJS pipeline),
+   * while `response.statusCode` still holds the route's default optimistic
+   * status (e.g. 201 for a bare `@Post()`). Using it for the error branch
+   * silently logged successful-looking status codes for real 4xx/5xx
+   * responses. The thrown error itself is the only reliable source there.
+   */
+  private statusCodeFor(
+    response: ResponseWithPerformance,
+    error: unknown,
+  ): number {
+    if (error) {
+      return error instanceof HttpException ? error.getStatus() : 500;
+    }
+    return response.statusCode ?? 200;
   }
 }
 
