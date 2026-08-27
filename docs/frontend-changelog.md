@@ -107,7 +107,7 @@ kutmoqda).
 
 ## Git
 - Branch: `temp/save-all-work`
-- Commit: (keyingi commit'da)
+- Commit: `fa0b966`
 
 ## Muhim eslatmalar
 - Facebook App ID/Secret hali berilmagan (`FACEBOOK_APP_ID`/
