@@ -1,9 +1,7 @@
-import { ArrowRight } from "lucide-react";
 import type { Locale } from "@/i18n/config";
-import { formatSum } from "@/lib/utils/money";
 import { resolveImage } from "@/lib/images";
 import type { HotelListItem } from "@/types/view";
-import { BaseCard } from "@/components/ui/BaseCard";
+import { UniversalCard } from "@/components/ui/UniversalCard";
 
 export function FeaturedHotelCard({
   hotel,
@@ -20,51 +18,28 @@ export function FeaturedHotelCard({
   };
 }) {
   const imageUrl = resolveImage(hotel.imageUrl);
-
-  const badge =
-    hotel.rating > 0 ? (
-      <span className="rounded-full bg-slate-900/55 px-2.5 py-1 text-xs font-medium text-white">
-        ★ {hotel.rating.toFixed(1)}
-      </span>
-    ) : undefined;
-
-  const subInfo = (
-    <>
-      {hotel.cityName}
-      {hotel.stars > 0 && ` · ${hotel.stars}★`}
-    </>
-  );
-
-  const ratingElement = hotel.reviewsCount > 0 ? (
-    <span>
-      {hotel.rating >= 4.5 ? (dict.excellent || "A'lo") : (dict.good || "Yaxshi")} · {hotel.reviewsCount} {locale === "uz" ? "ta sharh" : (dict.reviews || "reviews")}
-    </span>
-  ) : undefined;
+  const amenityPills = ["Wi-Fi", "Nonushta", "Spa"];
+  const viewDetailsLabel = locale === "ru" ? "Подробнее" : locale === "en" ? "Details" : "Batafsil";
 
   return (
-    <BaseCard
+    <UniversalCard
       imageSrc={imageUrl}
       imageAlt={hotel.name}
-      badge={badge}
+      showFavorite
       title={hotel.name}
-      subInfo={subInfo}
-      rating={ratingElement}
+      location={hotel.cityName}
+      tags={amenityPills}
       href={`/${locale}/hotels/${hotel.slug}`}
-      footerLeft={
-        hotel.minPriceSum > 0 ? (
-          <>
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
-              {formatSum(hotel.minPriceSum)}
-            </span>
-            <span className="text-[10px] text-slate-400">/ {dict.perNight || "kecha"}</span>
-          </>
-        ) : undefined
+      price={
+        hotel.minPriceSum > 0
+          ? {
+              amount: hotel.minPriceSum,
+              period: `1 ${dict.perNight || "kecha"}`,
+            }
+          : undefined
       }
-      footerRight={
-        <span className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition-all group-hover:border-primary-600 group-hover:bg-primary-600 group-hover:text-white dark:border-slate-700 dark:text-slate-300">
-          <ArrowRight className="h-3.5 w-3.5" />
-        </span>
-      }
+      actionLabel={viewDetailsLabel}
     />
   );
 }
+
