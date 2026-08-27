@@ -8,6 +8,7 @@ import type { AttractionItem } from "@/components/catalog/types";
 import { UniversalCard } from "@/components/ui/UniversalCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
+import { useFavoriteToggle } from "@/components/features/favorites/useFavoriteToggle";
 
 export type { AttractionItem };
 
@@ -15,11 +16,24 @@ function AttractionCard({
   item,
   categoryLabel,
   dict,
+  authed,
+  favoriteId,
+  loginHref,
 }: {
   item: AttractionItem;
   categoryLabel: string;
   dict: CatalogDict["attractions"];
+  authed: boolean;
+  favoriteId: string | null;
+  loginHref: string;
 }) {
+  const favorite = useFavoriteToggle({
+    targetType: "attraction",
+    targetId: item.id,
+    initialFavoriteId: favoriteId,
+    authed,
+    loginHref,
+  });
   const tags = [
     categoryLabel,
     item.bestTimeToVisit ? `🕒 ${item.bestTimeToVisit}` : null,
@@ -30,6 +44,9 @@ function AttractionCard({
       imageSrc={item.imageUrl}
       imageAlt={item.name}
       showFavorite
+      isFavorite={favorite.isFavorite}
+      favoritePending={favorite.pending}
+      onFavoriteToggle={favorite.toggle}
       title={item.name}
       location={item.cityName}
       tags={tags}
@@ -41,9 +58,15 @@ function AttractionCard({
 export function AttractionsView({
   dict,
   items,
+  authed,
+  favoriteIds,
+  loginHref,
 }: {
   dict: CatalogDict["attractions"];
   items: AttractionItem[];
+  authed: boolean;
+  favoriteIds: Record<string, string>;
+  loginHref: string;
 }) {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -125,6 +148,9 @@ export function AttractionsView({
                 dict.categories?.[item.categoryKey] ?? item.categoryDefault
               }
               dict={dict}
+              authed={authed}
+              favoriteId={favoriteIds[item.id] ?? null}
+              loginHref={loginHref}
             />
           ))}
         </div>

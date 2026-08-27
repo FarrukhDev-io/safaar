@@ -5,6 +5,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { api } from "@/lib/api";
 import { AttractionsView } from "@/components/features/attractions/AttractionsView";
 import type { AttractionItem } from "@/components/catalog/types";
+import { getFavoritesMap } from "@/lib/account/favorites-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,9 +35,10 @@ export default async function AttractionsPage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [attractionsDict, attractions] = await Promise.all([
+  const [attractionsDict, attractions, favoritesResult] = await Promise.all([
     getDictionary(locale, "attractions"),
     api.catalog.getAttractions(locale),
+    getFavoritesMap("attraction"),
   ]);
 
   const items: AttractionItem[] = attractions.map((item) => ({
@@ -44,9 +46,17 @@ export default async function AttractionsPage({
     categoryKey: toAttractionCategory(item.categoryKey),
   }));
 
+  const loginHref = `/${locale}/login?next=${encodeURIComponent(`/${locale}/attractions`)}`;
+
   return (
     <main className="flex flex-1 flex-col">
-      <AttractionsView dict={attractionsDict} items={items} />
+      <AttractionsView
+        dict={attractionsDict}
+        items={items}
+        authed={favoritesResult.authed}
+        favoriteIds={favoritesResult.favoriteIds}
+        loginHref={loginHref}
+      />
     </main>
   );
 }

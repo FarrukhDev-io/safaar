@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ImageOff, Heart, MapPin, ChevronRight } from "lucide-react";
@@ -19,6 +19,7 @@ export interface UniversalCardProps {
   topRight?: React.ReactNode;
   showFavorite?: boolean;
   isFavorite?: boolean;
+  favoritePending?: boolean;
   onFavoriteToggle?: (isFav: boolean) => void;
 
   // Content
@@ -50,7 +51,8 @@ export function UniversalCard({
   topLeft,
   topRight,
   showFavorite = false,
-  isFavorite: initialIsFavorite = false,
+  isFavorite = false,
+  favoritePending = false,
   onFavoriteToggle,
   title,
   location,
@@ -63,14 +65,11 @@ export function UniversalCard({
   actionIcon,
   onActionClick,
 }: UniversalCardProps) {
-  const [favorite, setFavorite] = useState(initialIsFavorite);
-
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const nextState = !favorite;
-    setFavorite(nextState);
-    onFavoriteToggle?.(nextState);
+    if (favoritePending) return;
+    onFavoriteToggle?.(!isFavorite);
   };
 
   // Resolve Location Node
@@ -166,12 +165,15 @@ export function UniversalCard({
                 <button
                   type="button"
                   aria-label="Sevimli"
+                  aria-pressed={isFavorite}
+                  aria-busy={favoritePending}
+                  disabled={favoritePending}
                   onClick={handleFavoriteClick}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100/80 bg-white/90 shadow-md backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white dark:border-slate-700/80 dark:bg-slate-900/90"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100/80 bg-white/90 shadow-md backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white disabled:opacity-60 disabled:cursor-wait dark:border-slate-700/80 dark:bg-slate-900/90"
                 >
                   <Heart
                     className={`h-4 w-4 transition-colors ${
-                      favorite
+                      isFavorite
                         ? "fill-rose-500 text-rose-500"
                         : "text-slate-600 dark:text-slate-300 hover:text-rose-500"
                     }`}
@@ -224,12 +226,15 @@ export function UniversalCard({
                   <button
                     type="button"
                     aria-label="Sevimli"
+                    aria-pressed={isFavorite}
+                    aria-busy={favoritePending}
+                    disabled={favoritePending}
                     onClick={handleFavoriteClick}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100/80 bg-white/90 shadow-md backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white dark:border-slate-700/80 dark:bg-slate-900/90 cursor-pointer"
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100/80 bg-white/90 shadow-md backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white disabled:opacity-60 disabled:cursor-wait dark:border-slate-700/80 dark:bg-slate-900/90 cursor-pointer"
                   >
                     <Heart
                       className={`h-4 w-4 transition-colors ${
-                        favorite
+                        isFavorite
                           ? "fill-rose-500 text-rose-500"
                           : "text-slate-600 dark:text-slate-300 hover:text-rose-500"
                       }`}

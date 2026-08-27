@@ -15,6 +15,7 @@ import { CategoryTabs, type CategoryTab } from "@/components/ui/CategoryTabs";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Button } from "@/components/ui/Button";
 import { UniversalCard } from "@/components/ui/UniversalCard";
+import { useFavoriteToggle } from "@/components/features/favorites/useFavoriteToggle";
 import type { Locale } from "@/i18n/config";
 
 export type { TransportItem };
@@ -22,10 +23,23 @@ export type { TransportItem };
 function TransportCard({
   item,
   dict,
+  authed,
+  favoriteId,
+  loginHref,
 }: {
   item: TransportItem;
   dict: TransportDict;
+  authed: boolean;
+  favoriteId: string | null;
+  loginHref: string;
 }) {
+  const favorite = useFavoriteToggle({
+    targetType: "transport",
+    targetId: item.id,
+    initialFavoriteId: favoriteId,
+    authed,
+    loginHref,
+  });
   const price = item.pricePerDaySum > 0 ? item.pricePerDaySum : 650000;
   const categoryLabel = dict.categories?.[item.categoryKey] ?? item.categoryDefault;
 
@@ -49,6 +63,9 @@ function TransportCard({
         ) : undefined
       }
       showFavorite
+      isFavorite={favorite.isFavorite}
+      favoritePending={favorite.pending}
+      onFavoriteToggle={favorite.toggle}
       title={item.name}
       location={item.cityName}
       tags={tags}
@@ -74,12 +91,18 @@ export function TransportView({
   locale,
   initialCheckIn = "",
   initialCheckOut = "",
+  authed,
+  favoriteIds,
+  loginHref,
 }: {
   dict: TransportDict;
   items: TransportItem[];
   locale: Locale;
   initialCheckIn?: string;
   initialCheckOut?: string;
+  authed: boolean;
+  favoriteIds: Record<string, string>;
+  loginHref: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -282,7 +305,14 @@ export function TransportView({
 
       <div className="grid grid-cols-1 gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
-          <TransportCard key={item.id} item={item} dict={dict} />
+          <TransportCard
+            key={item.id}
+            item={item}
+            dict={dict}
+            authed={authed}
+            favoriteId={favoriteIds[item.id] ?? null}
+            loginHref={loginHref}
+          />
         ))}
       </div>
 

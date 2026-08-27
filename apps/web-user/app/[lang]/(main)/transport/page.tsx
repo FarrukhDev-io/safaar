@@ -5,6 +5,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { api } from "@/lib/api";
 import { TransportView } from "@/components/features/transport/TransportView";
 import type { TransportItem } from "@/components/catalog/types";
+import { getFavoritesMap } from "@/lib/account/favorites-actions";
 
 export async function generateMetadata({
   params,
@@ -38,15 +39,18 @@ export default async function TransportPage({
   const checkIn = sp.checkIn ?? "";
   const checkOut = sp.checkOut ?? "";
 
-  const [transportDict, transports] = await Promise.all([
+  const [transportDict, transports, favoritesResult] = await Promise.all([
     getDictionary(locale, "transport"),
     api.catalog.getTransports(locale, { checkIn, checkOut }),
+    getFavoritesMap("transport"),
   ]);
 
   const items: TransportItem[] = transports.map((item) => ({
     ...item,
     categoryKey: toTransportCategory(item.categoryKey),
   }));
+
+  const loginHref = `/${locale}/login?next=${encodeURIComponent(`/${locale}/transport`)}`;
 
   return (
     <main className="flex flex-1 flex-col">
@@ -56,6 +60,9 @@ export default async function TransportPage({
         locale={locale}
         initialCheckIn={checkIn}
         initialCheckOut={checkOut}
+        authed={favoritesResult.authed}
+        favoriteIds={favoritesResult.favoriteIds}
+        loginHref={loginHref}
       />
     </main>
   );

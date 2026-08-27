@@ -10,6 +10,7 @@ import { ActiveFilters } from "@/components/hotels/ActiveFilters";
 import { Button } from "@/components/ui/Button";
 import { AccommodationCategoryTabs } from "@/components/features/accommodation/AccommodationCategoryTabs";
 import { AccommodationListWithMap } from "@/components/features/accommodation/AccommodationListWithMap";
+import { getFavoritesMap } from "@/lib/account/favorites-actions";
 import type { HotelListItem } from "@/types/view";
 
 const PAGE_SIZE = 9;
@@ -59,7 +60,7 @@ export async function AccommodationPage({
   const checkOut = one(sp.check_out);
   const guests = int(one(sp.guests));
 
-  const [common, dict, cities, hotelsResult] = await Promise.all([
+  const [common, dict, cities, hotelsResult, favoritesResult] = await Promise.all([
     getDictionary(locale, "common"),
     getDictionary(locale, "hotels"),
     api.catalog.getCities(locale),
@@ -73,7 +74,10 @@ export async function AccommodationPage({
       page,
       limit: PAGE_SIZE,
     }),
+    getFavoritesMap("hotel"),
   ]);
+
+  const loginHref = `/${locale}/login?next=${encodeURIComponent(basePath)}`;
 
   const all: HotelListItem[] = hotelsResult.items;
   const total = hotelsResult.total;
@@ -353,6 +357,9 @@ export async function AccommodationPage({
           safePage={safePage}
           totalPages={totalPages}
           currentParams={currentParams}
+          authed={favoritesResult.authed}
+          favoriteIds={favoritesResult.favoriteIds}
+          loginHref={loginHref}
           filters={
             <Suspense key="filters" fallback={null}>
               <HotelFilters

@@ -11,6 +11,7 @@ import { UniversalCard } from "@/components/ui/UniversalCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
+import { useFavoriteToggle } from "@/components/features/favorites/useFavoriteToggle";
 
 export type { RestaurantItem };
 
@@ -18,11 +19,24 @@ function RestaurantCard({
   item,
   dict,
   locale,
+  authed,
+  favoriteId,
+  loginHref,
 }: {
   item: RestaurantItem;
   dict: CatalogDict["restaurants"];
   locale: Locale;
+  authed: boolean;
+  favoriteId: string | null;
+  loginHref: string;
 }) {
+  const favorite = useFavoriteToggle({
+    targetType: "restaurant",
+    targetId: item.id,
+    initialFavoriteId: favoriteId,
+    authed,
+    loginHref,
+  });
   const price = item.averageCheckSum > 0 ? item.averageCheckSum : 180000;
   const tags = [
     item.cuisine,
@@ -35,6 +49,9 @@ function RestaurantCard({
       imageSrc={item.imageUrl}
       imageAlt={item.name}
       showFavorite
+      isFavorite={favorite.isFavorite}
+      favoritePending={favorite.pending}
+      onFavoriteToggle={favorite.toggle}
       title={item.name}
       location={[item.cityName, item.address].filter(Boolean).join(" · ")}
       tags={tags}
@@ -51,10 +68,16 @@ export function RestaurantsView({
   dict,
   items,
   locale,
+  authed,
+  favoriteIds,
+  loginHref,
 }: {
   dict: CatalogDict["restaurants"];
   items: RestaurantItem[];
   locale: Locale;
+  authed: boolean;
+  favoriteIds: Record<string, string>;
+  loginHref: string;
 }) {
   const [query, setQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
@@ -138,7 +161,15 @@ export function RestaurantsView({
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
           {filtered.map((item) => (
-            <RestaurantCard key={item.id} item={item} dict={dict} locale={locale} />
+            <RestaurantCard
+              key={item.id}
+              item={item}
+              dict={dict}
+              locale={locale}
+              authed={authed}
+              favoriteId={favoriteIds[item.id] ?? null}
+              loginHref={loginHref}
+            />
           ))}
         </div>
       )}

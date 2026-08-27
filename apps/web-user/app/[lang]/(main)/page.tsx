@@ -18,6 +18,7 @@ import { PromoCodesSectionLive } from '@/components/features/home/PromoCodesSect
 import { Skeleton } from '@/components/ui/Skeleton';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { CityPills } from '@/components/features/home/CityPills';
+import { getFavoritesMap } from '@/lib/account/favorites-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export default async function HomePage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [common, dict, cities, featuredResult, rawDeals, promos] =
+  const [common, dict, cities, featuredResult, rawDeals, promos, favoritesResult] =
     await Promise.all([
       getDictionary(locale, 'common'),
       getDictionary(locale, 'home'),
@@ -49,9 +50,11 @@ export default async function HomePage({
       api.hotels.getFeaturedHotels(locale, { limit: 10 }),
       api.cms.getDeals(locale),
       api.promos.listActive().catch(() => []),
+      getFavoritesMap('hotel'),
     ]);
 
   const hotels = [...featuredResult.items];
+  const loginHref = `/${locale}/login?next=${encodeURIComponent(`/${locale}`)}`;
 
   const deals: DealItem[] = rawDeals.map((d) => ({
     id: d.id,
@@ -89,6 +92,9 @@ export default async function HomePage({
               hotels={hotels}
               dict={dict.featured}
               locale={locale}
+              authed={favoritesResult.authed}
+              favoriteIds={favoritesResult.favoriteIds}
+              loginHref={loginHref}
             />
           </Suspense>
         )}
@@ -97,7 +103,14 @@ export default async function HomePage({
       {/* EKRAN 2: Chegirmadagi takliflar */}
       <div className="py-10 sm:py-14">
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-          <DealsSection deals={deals} dict={dict.deals} locale={locale} />
+          <DealsSection
+            deals={deals}
+            dict={dict.deals}
+            locale={locale}
+            authed={favoritesResult.authed}
+            favoriteIds={favoritesResult.favoriteIds}
+            loginHref={loginHref}
+          />
         </Suspense>
       </div>
 

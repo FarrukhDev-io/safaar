@@ -4,6 +4,7 @@ import type { Locale } from "@/i18n/config";
 import { resolveImage } from "@/lib/images";
 import type { HotelListItem } from "@/types/view";
 import { UniversalCard } from "@/components/ui/UniversalCard";
+import { useFavoriteToggle } from "@/components/features/favorites/useFavoriteToggle";
 
 export interface HotelCardLabels {
   perNight: string;
@@ -14,12 +15,25 @@ export function HotelCard({
   hotel,
   locale,
   labels,
+  authed = false,
+  favoriteId = null,
+  loginHref = `/${locale}/login`,
 }: {
   hotel: HotelListItem;
   locale: Locale;
   labels: HotelCardLabels;
+  authed?: boolean;
+  favoriteId?: string | null;
+  loginHref?: string;
 }) {
   const imageUrl = resolveImage(hotel.imageUrl);
+  const favorite = useFavoriteToggle({
+    targetType: "hotel",
+    targetId: hotel.id,
+    initialFavoriteId: favoriteId,
+    authed,
+    loginHref,
+  });
 
   // Amenity Pill Badges (Wi-Fi, Nonushta, Spa / Parking / Restoran)
   const amenityPills = hotel.name.toLowerCase().includes("chimgan")
@@ -36,6 +50,9 @@ export function HotelCard({
       imageSrc={imageUrl}
       imageAlt={hotel.name}
       showFavorite
+      isFavorite={favorite.isFavorite}
+      favoritePending={favorite.pending}
+      onFavoriteToggle={favorite.toggle}
       title={hotel.name}
       location={hotel.cityName}
       tags={amenityPills}

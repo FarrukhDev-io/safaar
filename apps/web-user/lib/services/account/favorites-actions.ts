@@ -21,8 +21,23 @@ export interface FavoriteResult {
   error?: string;
 }
 
+/**
+ * Backend `favorites.target_type` ustuni erkin VARCHAR(32) — hech qanday
+ * enum/CHECK constraint yo'q, shuning uchun har bir katalog turi uchun
+ * o'ziga xos qiymat ishlatish xavfsiz (backendda validatsiya qilinmaydi).
+ * "hotel" — mavjud, "bus" — oldindan e'lon qilingan-u ishlatilmagan
+ * (haqiqiy avtobus/bus-trips funksiyasi uchun ajratilgan, shu sabab
+ * Transport katalogi (`vehicles` jadvali) uchun ishlatilmadi).
+ */
+export type FavoriteTargetType =
+  | "hotel"
+  | "bus"
+  | "restaurant"
+  | "transport"
+  | "attraction";
+
 export async function addFavoriteAction(
-  targetType: "hotel" | "bus",
+  targetType: FavoriteTargetType,
   targetId: string,
 ): Promise<FavoriteResult> {
   const session = await getSession();
@@ -57,4 +72,33 @@ export async function removeFavoriteAction(
     },
     { ok: false },
   );
+}
+
+/**
+ * Katalog sahifalari (hotels/restaurants/transport/attractions) uchun —
+ * joriy foydalanuvchining berilgan turdagi barcha favorite'larini BITTA
+ * so'rovda oladi va `targetId -> favoriteId` map'iga aylantiradi, shunda
+ * har bir karta uchun alohida so'rov yuborilmaydi. Sessiya yo'q bo'lsa
+ * `authed:false` (karta ❤️ bosilganda login'ga yo'naltiriladi, backendga
+ * so'rov yuborilmaydi). Xato bo'lsa ham sahifa qulamasin — bo'sh map bilan
+ * davom etadi (kartalar shunchaki "sevimli emas" holatda ko'rinadi).
+ */
+export async function getFavoritesMap(
+  targetType: FavoriteTargetType,
+): Promise<{ authed: boolean; favoriteIds: Record<string, string> }> {
+  const session = await getSession();
+  if (!session) return { authed: false, favoriteIds: {} };
+
+  try {
+    const favorites = await api.users.getFavorites({ token: session.accessToken });
+    const favoriteIds: Record<string, string> = {};
+    for (const favorite of favorites) {
+      if (favorite.targetType === targetType) {
+        favoriteIds[favorite.targetId] = favorite.id;
+      }
+    }
+    return { authed: true, favoriteIds };
+  } catch {
+    return { authed: true, favoriteIds: {} };
+  }
 }

@@ -24,6 +24,9 @@ export interface AccommodationListWithMapProps {
   headerSort?: React.ReactNode;
   filters?: React.ReactNode;
   activeFilters?: React.ReactNode;
+  authed: boolean;
+  favoriteIds: Record<string, string>;
+  loginHref: string;
 }
 
 export function AccommodationListWithMap({
@@ -38,6 +41,9 @@ export function AccommodationListWithMap({
   headerSort,
   filters,
   activeFilters,
+  authed,
+  favoriteIds,
+  loginHref,
 }: AccommodationListWithMapProps) {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [hoveredHotelId, setHoveredHotelId] = useState<string | null>(null);
@@ -151,6 +157,9 @@ export function AccommodationListWithMap({
                     hotel={hotel}
                     locale={locale}
                     labels={{ perNight: dict.perNight, reviews: dict.reviews }}
+                    authed={authed}
+                    favoriteId={favoriteIds[hotel.id] ?? null}
+                    loginHref={loginHref}
                   />
                 </div>
               ))}
@@ -187,6 +196,9 @@ export function AccommodationListWithMap({
                 hotel={hotel}
                 locale={locale}
                 labels={{ perNight: dict.perNight, reviews: dict.reviews }}
+                authed={authed}
+                favoriteId={favoriteIds[hotel.id] ?? null}
+                loginHref={loginHref}
               />
             ))}
           </div>

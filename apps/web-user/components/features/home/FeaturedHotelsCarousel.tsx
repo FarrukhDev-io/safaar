@@ -9,10 +9,16 @@ export function FeaturedHotelsCarousel({
   hotels,
   dict,
   locale,
+  authed,
+  favoriteIds,
+  loginHref,
 }: {
   hotels: HotelListItem[];
   dict: HomeDict["featured"];
   locale: Locale;
+  authed: boolean;
+  favoriteIds: Record<string, string>;
+  loginHref: string;
 }) {
   const cards = hotels;
 
@@ -41,7 +47,14 @@ export function FeaturedHotelsCarousel({
             key={hotel.id}
             className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
           >
-            <FeaturedHotelCard hotel={hotel} locale={locale} dict={dict} />
+            <FeaturedHotelCard
+              hotel={hotel}
+              locale={locale}
+              dict={dict}
+              authed={authed}
+              favoriteId={favoriteIds[hotel.id] ?? null}
+              loginHref={loginHref}
+            />
           </div>
         ))}
       </FeaturedHotelsMobileCarousel>
@@ -49,7 +62,15 @@ export function FeaturedHotelsCarousel({
       {/* Desktop: 4 cards grid */}
       <div className="hidden gap-4 md:grid md:grid-cols-4">
         {cards.map((hotel) => (
-          <FeaturedHotelCard key={hotel.id} hotel={hotel} locale={locale} dict={dict} />
+          <FeaturedHotelCard
+            key={hotel.id}
+            hotel={hotel}
+            locale={locale}
+            dict={dict}
+            authed={authed}
+            favoriteId={favoriteIds[hotel.id] ?? null}
+            loginHref={loginHref}
+          />
         ))}
       </div>
     </section>
