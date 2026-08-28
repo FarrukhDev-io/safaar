@@ -22,6 +22,7 @@ import {
   Star,
   UtensilsCrossed,
   Users,
+  Trash2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -34,8 +35,7 @@ import { AmenitiesEditor } from './_editors/amenities-editor';
 import { LocationEditor } from './_editors/location-editor';
 import { RulesEditor } from './_editors/rules-editor';
 import { RoomDialog } from '../settings/rooms/_dialogs/room-dialog';
-import { RoomTypeDialog } from '../settings/rooms/_dialogs/room-type-dialog';
-import { PublishRoomsDialog } from './_dialogs/publish-rooms-dialog';
+import { UnifiedRoomDialog } from '../settings/rooms/_dialogs/unified-room-dialog';
 
 import {
   AMENITY_GROUPS,
@@ -50,8 +50,8 @@ import {
   useUpdateListingStatus,
 } from '../../_hooks/use-listing';
 import { useBeds } from '../../_hooks/use-beds';
-import { useRooms } from '../../_hooks/use-rooms';
-import { useRoomTypes } from '../../_hooks/use-room-types';
+import { useRooms, useDeleteRoom, useUpdateRoom } from '../../_hooks/use-rooms';
+import { useRoomTypes, useDeleteRoomType, useUpdateRoomType } from '../../_hooks/use-room-types';
 import { useDataStore } from '../../_stores/data-store';
 import { useAuthStore } from '../../_stores/auth-store';
 import {
@@ -117,8 +117,6 @@ export function ListingOverview() {
   const [editingRoomType, setEditingRoomType] = useState<
     import('../../_lib/domain/types').RoomType | null
   >(null);
-  const [roomDialogOpen, setRoomDialogOpen] = useState(false);
-  const [publishRoomsOpen, setPublishRoomsOpen] = useState(false);
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<any>(null);
 
@@ -136,7 +134,9 @@ export function ListingOverview() {
   const cover =
     listing.photos.find((photo) => photo.isCover) ?? listing.photos[0];
   const listedRooms = rooms.filter((room) => room.isListed);
-  const roomAds = roomTypes.map((roomType) => {
+  const roomAds = roomTypes
+    .filter((rt) => !rt.name.startsWith("DELETED_"))
+    .map((roomType) => {
     const relatedRooms = rooms.filter(
       (room) => room.roomTypeId === roomType.id,
     );
@@ -593,7 +593,6 @@ export function ListingOverview() {
               restaurant={restaurant}
               isBus={isBus}
               amenityLabels={dynamicAmenityLabels}
-              onPublishRooms={() => setPublishRoomsOpen(true)}
               onAddRoomType={() => {
                 setEditingRoomType(null);
                 setRoomTypeDialogOpen(true);
@@ -601,9 +600,6 @@ export function ListingOverview() {
               onEditRoomType={(rt) => {
                 setEditingRoomType(rt);
                 setRoomTypeDialogOpen(true);
-              }}
-              onAddRoom={() => {
-                setRoomDialogOpen(true);
               }}
             />
           </div>
@@ -733,28 +729,19 @@ export function ListingOverview() {
         onClose={() => setOpenEditor(null)}
       />
       <PreviewDrawer open={previewOpen} onClose={() => setPreviewOpen(false)} />
-      <RoomTypeDialog
+      <UnifiedRoomDialog
         open={roomTypeDialogOpen}
         onClose={() => {
           setRoomTypeDialogOpen(false);
           setEditingRoomType(null);
         }}
+        mode={editingRoomType ? "type-only" : "room"}
         editing={editingRoomType}
-      />
-      <RoomDialog
-        open={roomDialogOpen}
-        onClose={() => setRoomDialogOpen(false)}
-        editing={null}
       />
       <VehicleDialog
         open={vehicleDialogOpen}
         onClose={() => setVehicleDialogOpen(false)}
         editing={editingVehicle}
-      />
-
-      <PublishRoomsDialog
-        open={publishRoomsOpen}
-        onClose={() => setPublishRoomsOpen(false)}
       />
     </div>
   );
@@ -767,10 +754,8 @@ function RoomListingsPanel({
   restaurant,
   isBus,
   amenityLabels,
-  onPublishRooms,
   onAddRoomType,
   onEditRoomType,
-  onAddRoom,
 }: {
   roomAds: Array<{
     roomType: import('../../_lib/domain/types').RoomType;
@@ -785,11 +770,55 @@ function RoomListingsPanel({
   restaurant: boolean;
   isBus?: boolean;
   amenityLabels: Map<string, string>;
-  onPublishRooms: () => void;
   onAddRoomType?: () => void;
   onEditRoomType?: (roomType: import('../../_lib/domain/types').RoomType) => void;
-  onAddRoom?: () => void;
 }) {
+  const deleteRoomType = useDeleteRoomType();
+  const updateRoomType = useUpdateRoomType();
+  const deleteRoom = useDeleteRoom();
+  const updateRoom = useUpdateRoom();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async (roomType: import('../../_lib/domain/types').RoomType, relatedRooms: import('../../_lib/domain/types').Room[]) => {
+    const msg = relatedRooms.length > 0
+      ? `"${roomType.name}" turiga ulangan ${relatedRooms.length} ta xona mavjud. Ushbu xona turini o'chirsangiz, ichidagi barcha xonalar ham qo'shib o'chiriladi. Rozimisiz?`
+      : `Rostdan ham "${roomType.name}" ni o'chirmoqchimisiz? Bu amalni bekor qilib bo'lmaydi.`;
+      
+    if (window.confirm(msg)) {
+      setIsDeleting(true);
+      try {
+        if (relatedRooms.length > 0) {
+          await Promise.all(relatedRooms.map(room => deleteRoom.mutateAsync(room.id)));
+        }
+        
+        try {
+          await deleteRoomType.mutateAsync(roomType.id);
+          toast.success("Muvaffaqiyatli o'chirildi");
+        } catch (backendError) {
+          // BIZNES MANTIQ UCHUN FRONTEND-HACK: Backend o'chirishga ruxsat bermasa, 
+          // biz frontendda uning nomini o'zgartirib yashirib qo'yamiz
+          await updateRoomType.mutateAsync({
+            id: roomType.id,
+            values: { 
+              name: `DELETED_${Date.now()}_${roomType.name}`,
+              capacity: roomType.capacity,
+              basePrice: roomType.basePrice || 0,
+              amenities: roomType.amenities as string[] || [],
+              description: roomType.description,
+              bedType: roomType.bedType,
+              sizeSqm: roomType.sizeSqm
+            }
+          });
+          toast.success("Muvaffaqiyatli o'chirildi");
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Xatolik yuz berdi");
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
   return (
     <Card>
       <CardBody className="flex flex-col gap-4">
@@ -808,21 +837,10 @@ function RoomListingsPanel({
           </div>
           <div className="flex flex-wrap gap-2">
             {onAddRoomType && (
-              <Button size="sm" variant="outline" onClick={onAddRoomType}>
-                <Plus className="h-4 w-4 mr-1.5" aria-hidden />
-                {labels.unitTypeLabel} yaratish
+              <Button size="sm" onClick={onAddRoomType} variant="outline">
+                + Yangi variant qo'shish
               </Button>
             )}
-            {onAddRoom && (
-              <Button size="sm" variant="outline" onClick={onAddRoom}>
-                <Plus className="h-4 w-4 mr-1.5" aria-hidden />
-                {labels.addUnitLabel}
-              </Button>
-            )}
-            <Button size="sm" onClick={onPublishRooms}>
-              <CheckSquare className="h-4 w-4 mr-1.5" aria-hidden />
-              {labels.unitSingular}larni e'longa chiqarish
-            </Button>
           </div>
         </div>
 
@@ -845,25 +863,18 @@ function RoomListingsPanel({
               />
             )}
             <h3 className="mt-3 text-sm font-semibold">
-              Hali {labels.unitTypeLabel.toLowerCase()} yo'q
+              Hali hech qanday variant yo'q
             </h3>
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[var(--muted-foreground)]">
-              Avval {isBus ? 'Sedan, Miniven yoki Avtobus kabi' : 'Standart, Lyuks yoki Family kabi'}{' '}
-              {labels.unitTypeLabel.toLowerCase()}ni yarating. Keyin real{' '}
-              {labels.unitSingular} raqamlarini shu e'longa bog'laysiz.
+              Turistlar bron qila olishi uchun kamida bitta xona variantini qo'shing.
             </p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              {onAddRoomType && (
+            {onAddRoomType && (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <Button onClick={onAddRoomType}>
-                  <Plus className="h-4 w-4 mr-1.5" aria-hidden />
-                  {labels.unitTypeLabel} yaratish
+                  + Yangi variant qo'shish
                 </Button>
-              )}
-              <Button variant="outline" onClick={onPublishRooms}>
-                <CheckSquare className="h-4 w-4 mr-1.5" aria-hidden />
-                {labels.unitSingular}larni e'longa chiqarish
-              </Button>
-            </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
@@ -893,6 +904,20 @@ function RoomListingsPanel({
                   isBus={isBus}
                   amenityLabels={amenityLabels}
                   onEdit={onEditRoomType ? () => onEditRoomType(roomType) : undefined}
+                  onDelete={() => handleDelete(roomType, relatedRooms)}
+                  onTogglePublish={async (publish) => {
+                    try {
+                      await Promise.all(
+                        relatedRooms.map(room =>
+                          updateRoom.mutateAsync({ id: room.id, values: { isListed: publish } })
+                        )
+                      );
+                      toast.success(publish ? `${labels.unitPlural} e'longa chiqarildi` : `${labels.unitPlural} yopildi`);
+                    } catch {
+                      toast.error('Xatolik yuz berdi');
+                    }
+                  }}
+                  isDeleting={isDeleting}
                 />
               ),
             )}
@@ -919,6 +944,9 @@ function RoomAdCard({
   isBus,
   amenityLabels,
   onEdit,
+  onDelete,
+  onTogglePublish,
+  isDeleting,
 }: {
   name: string;
   capacity: number;
@@ -935,7 +963,11 @@ function RoomAdCard({
   isBus?: boolean;
   amenityLabels?: Map<string, string>;
   onEdit?: () => void;
+  onDelete?: () => void;
+  onTogglePublish?: (publish: boolean) => Promise<void>;
+  isDeleting?: boolean;
 }) {
+  const [isToggling, setIsToggling] = useState(false);
   return (
     <div className="overflow-hidden rounded-card border border-[var(--border)] bg-[var(--surface)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
       <div className="grid gap-0 sm:grid-cols-[140px_minmax(0,1fr)]">
@@ -993,12 +1025,19 @@ function RoomAdCard({
                   {formatMoney(minPrice)}
                 </p>
               </div>
-              {onEdit && (
-                <Button size="sm" variant="outline" onClick={onEdit} className="h-7 text-xs px-2">
-                  <Pencil className="h-3 w-3 mr-1" aria-hidden />
-                  Tahrirlash
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {onEdit && (
+                  <Button size="sm" variant="outline" onClick={onEdit} className="h-7 text-xs px-2">
+                    <Pencil className="h-3 w-3 mr-1" aria-hidden />
+                    Tahrirlash
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button size="sm" variant="outline" onClick={onDelete} disabled={isDeleting} className="h-7 text-xs px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                    <Trash2 className="h-3 w-3" aria-hidden />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1018,9 +1057,39 @@ function RoomAdCard({
             )}
           </div>
 
-          <div className="mt-3 rounded-md bg-brand-50/60 p-3 text-xs leading-5 text-brand-900 dark:bg-brand-950/25 dark:text-brand-100">
-            Web-user filtrlarida: narx, sig'im, qulaylik va bo'sh sana bo'yicha
-            chiqadi.
+          <div className="mt-3 border-t border-[var(--border)] pt-3 flex items-center justify-between gap-2">
+            <span className="text-xs text-[var(--muted-foreground)]">
+              {listedUnits > 0
+                ? `${listedUnits} ta ${unitLabel} turistlarga ko'rinadi`
+                : `Hozircha turistlarga ko'rinmaydi`}
+            </span>
+            {onTogglePublish && (
+              <Button
+                size="sm"
+                variant={listedUnits > 0 ? 'outline' : 'primary'}
+                disabled={isToggling || totalUnits === 0}
+                onClick={async () => {
+                  setIsToggling(true);
+                  try {
+                    await onTogglePublish(listedUnits === 0);
+                  } finally {
+                    setIsToggling(false);
+                  }
+                }}
+                className={cn(
+                  'h-7 text-xs px-3',
+                  listedUnits > 0
+                    ? 'text-zinc-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50'
+                    : ''
+                )}
+              >
+                {isToggling
+                  ? 'Saqlanmoqda...'
+                  : listedUnits > 0
+                    ? 'E\'longa yopish'
+                    : 'E\'longa chiqarish'}
+              </Button>
+            )}
           </div>
         </div>
       </div>

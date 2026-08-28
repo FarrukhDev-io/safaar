@@ -1,15 +1,15 @@
 "use client";
 
-import { BedDouble, BedSingle, UtensilsCrossed, Users, CarFront } from "lucide-react";
+import { BedDouble, BedSingle, UtensilsCrossed, Users, CarFront, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "../../_components/layout/page-header";
 import { useBeds } from "../../_hooks/use-beds";
-import { useRooms, useUpdateRoom } from "../../_hooks/use-rooms";
+import { useRooms, useUpdateRoom, useDeleteRoom } from "../../_hooks/use-rooms";
 import { useRoomTypes } from "../../_hooks/use-room-types";
 import { RoomStatus, type Bed, type Room, type RoomType } from "../../_lib/domain/types";
-import { RoomDialog } from "../settings/rooms/_dialogs/room-dialog";
+import { UnifiedRoomDialog } from "../settings/rooms/_dialogs/unified-room-dialog";
 import { BedManagementDialog } from "../settings/rooms/_dialogs/bed-management-dialog";
 import { EmptyState, LoadingState, ErrorState } from "../../_components/ui/empty-state";
 import { Button } from "../../_components/ui/button";
@@ -20,7 +20,7 @@ import { getPartnerLabels, hasBeds, hasBuses, isDacha, isRestaurant } from "../.
 
 export function RoomsView() {
   const router = useRouter();
-  const { allRooms: rooms, isLoading, isError, refetch } = useRooms();
+  const { data: rooms, isLoading, isError, refetch } = useRooms();
   const { data: roomTypes } = useRoomTypes();
   useBeds();
   const beds = useDataStore((s) => s.beds);
@@ -31,8 +31,10 @@ export function RoomsView() {
   const restaurant = isRestaurant(partnerType);
   const isBus = hasBuses(partnerType);
 
+  const { mutate: deleteRoom } = useDeleteRoom();
+
   const [addingRoom, setAddingRoom] = useState(false);
-  const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [editingRoom] = useState<null>(null);
   const [managingBedsFor, setManagingBedsFor] = useState<Room | null>(null);
 
   useEffect(() => {
@@ -105,18 +107,8 @@ export function RoomsView() {
               Hali hech qanday {labels.unitSingular} qo'shilmagan
             </h3>
             <p className="mt-2 mb-6 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
-              {labels.unitSingular} qo'shishdan oldin, avval uning {labels.unitTypeLabel.toLowerCase()}sini yaratishingiz kerak (masalan, narxi va rasmlari bilan).
+              Yuqori o'ng burchakdagi "{labels.addUnitLabel}" tugmasi orqali yangi {labels.unitSingular.toLowerCase()} qo'shishingiz mumkin.
             </p>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => router.push('/listing')}>
-                {labels.unitTypeLabel} yaratish
-              </Button>
-              {roomTypes.length > 0 && (
-                <Button onClick={() => setAddingRoom(true)}>
-                  {labels.addUnitLabel}
-                </Button>
-              )}
-            </div>
           </div>
         ) : (
           floors.map(({ floor, rooms }) => (
@@ -142,7 +134,12 @@ export function RoomsView() {
                       beds={isHostel ? roomBeds : undefined}
                       restaurant={restaurant}
                       isBus={isBus}
-                      onEdit={() => setEditingRoom(room)}
+                      onEdit={() => {}}
+                      onDelete={() => {
+                        if (window.confirm(`Rostdan ham ${room.number} raqamli ${labels.unitSingular.toLowerCase()}ni o'chirmoqchimisiz?`)) {
+                          deleteRoom(room.id);
+                        }
+                      }}
                       onManageBeds={isHostel ? () => setManagingBedsFor(room) : undefined}
                       labels={labels}
                     />
@@ -154,16 +151,10 @@ export function RoomsView() {
         )}
       </div>
 
-      <RoomDialog
+      <UnifiedRoomDialog
         open={addingRoom}
         onClose={() => setAddingRoom(false)}
-        editing={null}
-      />
-
-      <RoomDialog
-        open={!!editingRoom}
-        onClose={() => setEditingRoom(null)}
-        editing={editingRoom}
+        mode="room"
       />
 
       <BedManagementDialog
@@ -182,6 +173,7 @@ function RoomCard({
   restaurant,
   isBus,
   onEdit,
+  onDelete,
   onManageBeds,
   labels,
 }: {
@@ -191,6 +183,7 @@ function RoomCard({
   restaurant: boolean;
   isBus?: boolean;
   onEdit: () => void;
+  onDelete: () => void;
   onManageBeds?: () => void;
   labels: any;
 }) {
@@ -242,6 +235,13 @@ function RoomCard({
               title="Tahrirlash"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            </button>
+            <button
+              onClick={onDelete}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors border border-transparent hover:border-red-200"
+              title="O'chirish"
+            >
+              <Trash2 className="h-4 w-4" />
             </button>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400">
               {isBus ? (

@@ -39,6 +39,7 @@ export function PublishRoomsDialog({
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(initialSet);
   const [prevOpen, setPrevOpen] = useState(open);
+  const [isSaving, setIsSaving] = useState(false);
 
   if (open !== prevOpen) {
     setPrevOpen(open);

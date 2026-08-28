@@ -94,7 +94,11 @@ export function useDeleteRoomType() {
   return useMutation({
     mutationFn: async (id: string) => {
       const hotel = await getPrimaryHotel(accessToken);
-      return partners.deleteRoomType(hotel.id, id, accessToken);
+      const res = await partners.deleteRoomType(hotel.id, id, accessToken);
+      if (!res.ok) {
+        throw new Error(res.reason ?? "O'chirishda xatolik yuz berdi");
+      }
+      return res;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: roomTypesQueryKey });
