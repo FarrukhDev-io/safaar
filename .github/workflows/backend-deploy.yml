@@ -29,13 +29,8 @@ jobs:
 
   deploy:
     needs: checks
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, safaar-backend]
     steps:
-      - name: Tailscale tarmog'iga ulanish
-        uses: tailscale/github-action@v3
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-
       - name: SSH agent sozlash
         uses: webfactory/ssh-agent@v0.9.0
         with:
