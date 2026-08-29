@@ -1,0 +1,12 @@
+# gitleaks yolg'on signallari (false positive) — real credential emas.
+# Har bir qator gitleaks natijasidagi "Fingerprint:" qiymati.
+#
+# 1-2) TASKS.md fayllaridagi bir xil qiymat — Google Docs/Sheets ID yoki
+#      shunga o'xshash ID, kredensial emas.
+79f8b7ae77ad69d3671772d02875f720ad209fd0:frontend_adham_tasks.md:generic-api-key:113
+408460bc36228fb7899f178787ea7cefcc209739:apps/web-admin/TASKS.md:generic-api-key:113
+# 3) E2E xavfsizlik test fixture'i — nomi "test-partner-pepper..." bo'lgan
+#    ATAYLAB soxta test qiymati, ishlab chiqarish kredensiali emas.
+8bc7fa5617d01e2df454a0fca7c8464f944a1c35:apps/backend/test/security/security-findings.e2e-spec.ts:generic-api-key:28
+# 4) README'dagi misol/placeholder URL ("abc123def456" — soxta token misoli).
+cd587de781539cdb74d8d627c719bd6b8e962441:apps/backend/README.md:generic-api-key:5
