@@ -1,9 +1,22 @@
 name: Backend Deploy
 
+# Backend uchun to'liq "tekshir → deploy" pipeline:
+#   1) checks       — build:types, prisma validate, typecheck, format:check,
+#                      lint, npm audit (CRITICAL gate), test, build
+#   2) secret-scan  — kodga tushib qolgan parol/token/kalitlarni topadi
+#   3) docker-build — Dockerfile'ni quradi (push qilmaydi) + Trivy bilan
+#                      image ichidagi zaifliklarni skanerlaydi (CRITICAL bloklaydi)
+#   4) deploy       — YUQORIDAGI BARCHASI o'tsagina, eng oxirida ishga tushadi
+#
+# `develop` VA `temp/save-all-work`ning ikkalasiga push — serverga AYNAN
+# o'sha push qilingan branch deploy qilinadi (`github.ref_name` orqali
+# dinamik aniqlanadi, `develop`ga qattiq bog'lab qo'yilmagan).
+
 on:
   push:
     branches:
       - develop
+      - temp/save-all-work
     paths:
       - "apps/backend/**"
       - "packages/types/**"
@@ -30,8 +43,58 @@ jobs:
       - run: npm run test:backend
       - run: npm run build:backend
 
+  secret-scan:
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-build:
+    name: Docker image build + scan (CRITICAL gate)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          push: false
+          load: true
+          tags: safaar-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Image'ni Trivy bilan skanerlash — natijalar Security tab'ga
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: safaar-backend:ci
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+      - name: Trivy natijalarini Security tab'ga yuklash
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+      - name: CRITICAL darajali image zaifliklarini bloklash
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: safaar-backend:ci
+          format: table
+          severity: CRITICAL
+          exit-code: "1"
+
   deploy:
-    needs: checks
+    needs: [checks, secret-scan, docker-build]
     runs-on: [self-hosted, safaar-backend]
     steps:
       - name: SSH agent sozlash
@@ -43,17 +106,19 @@ jobs:
         run: ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
       - name: Serverda deploy qilish
+        env:
+          DEPLOY_BRANCH: ${{ github.ref_name }}
         run: |
-          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} '
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
-            git fetch origin develop
-            git reset --hard origin/develop
+            git fetch origin $DEPLOY_BRANCH
+            git reset --hard origin/$DEPLOY_BRANCH
             npm ci
             npm run build:backend
             pm2 restart safaar-backend --update-env
             pm2 save
-          '
+          "
 
       - name: Sog'liqni tekshirish (smoke test)
         run: |

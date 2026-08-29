@@ -1,5 +1,10 @@
 name: CI
 
+# Faqat backend uchun — frontend (web-user/web-partner/web-admin) tekshiruvlari
+# bu workflow'dan chiqarib tashlangan (backend deploy pipeline'ini
+# frontend'dagi lint/build muammolari bloklamasligi uchun). Frontendlar
+# Vercel orqali alohida deploy qilinadi va bu workflow'ga bog'liq emas.
+
 on:
   push:
     branches: [main, develop]
@@ -14,13 +19,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 1) Qaysi paketlar o'zgarganini aniqlaydi
+  # 1) Backend o'zgarganini aniqlaydi
   changes:
     runs-on: ubuntu-latest
     outputs:
-      web-user: ${{ steps.filter.outputs.web-user }}
-      web-partner: ${{ steps.filter.outputs.web-partner }}
-      web-admin: ${{ steps.filter.outputs.web-admin }}
       backend: ${{ steps.filter.outputs.backend }}
     steps:
       - uses: actions/checkout@v4
@@ -32,68 +34,11 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - 'packages/types/**'
-            web-user:
-              - *shared
-              - 'apps/web-user/**'
-            web-partner:
-              - *shared
-              - 'apps/web-partner/**'
-            web-admin:
-              - *shared
-              - 'apps/web-admin/**'
             backend:
               - *shared
               - 'apps/backend/**'
 
-  # 2) Har bir o'zgargan app'ni build + lint qiladi
-  web-user:
-    needs: changes
-    if: ${{ needs.changes.outputs.web-user == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build:types
-      - run: npm run build -w @safaar/api-client
-      - run: npm run lint -w @safaar/web-user
-      - run: npm run build:user
-
-  web-partner:
-    needs: changes
-    if: ${{ needs.changes.outputs.web-partner == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build:types
-      - run: npm run build -w @safaar/api-client
-      - run: npm run lint -w @safaar/web-partner
-      - run: npm run build:partner
-
-  web-admin:
-    needs: changes
-    if: ${{ needs.changes.outputs.web-admin == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build:types
-      - run: npm run build -w @safaar/api-client
-      - run: npm run lint -w @safaar/web-admin
-      - run: npm run build:admin
-
+  # 2) Backend o'zgargan bo'lsa — build + lint
   backend:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -195,13 +140,13 @@ jobs:
   # 4) Umumiy gate — branch protection uchun
   ci-success:
     name: CI Success
-    needs: [web-user, web-partner, web-admin, backend, boundary-check]
+    needs: [backend, boundary-check]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Natijalarni tekshirish
         run: |
-          results="${{ needs.web-user.result }} ${{ needs.web-partner.result }} ${{ needs.web-admin.result }} ${{ needs.backend.result }} ${{ needs.boundary-check.result }}"
+          results="${{ needs.backend.result }} ${{ needs.boundary-check.result }}"
           echo "Job natijalari: $results"
           for r in $results; do
             if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
