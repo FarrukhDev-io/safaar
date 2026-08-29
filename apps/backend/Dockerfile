@@ -24,7 +24,17 @@ COPY apps/backend apps/backend
 # uchun bu yerda faqat sintaktik jihatdan to'g'ri placeholder yetarli.
 # Runtime'da bu qiymat haqiqiy sir bilan almashtiriladi (env_file/`-e`).
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
-RUN npm run prisma:generate -w @safaar/backend && npm run build:types && npm run build:backend
+# `npm run build:types`/`build:backend` (root) `turbo`ni chaqiradi — turbo
+# esa filtrlashdan OLDIN BUTUN monorepo workspace grafini o'qishga urinadi
+# (root package.json'dagi "workspaces": ["packages/*","apps/*"] bo'yicha),
+# lekin Docker build kontekstida FAQAT packages/types va apps/backend bor
+# (apps/web-user, apps/web-partner, apps/web-admin, packages/api-client
+# ataylab yo'q — image'ni yengil saqlash uchun). Shu sabab turbo xato
+# berardi. Shuning uchun bu yerda turbo'ni chetlab o'tib, har bir
+# workspace'ning O'Z build skriptini to'g'ridan-to'g'ri chaqiramiz.
+RUN npm run prisma:generate -w @safaar/backend
+RUN npm run build -w @safaar/types
+RUN npm run build -w @safaar/backend
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app

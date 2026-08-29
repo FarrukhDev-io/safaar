@@ -63,6 +63,7 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
           exit-code: "0"
+          trivyignores: .trivyignore
       - name: Trivy natijalarini Security tab'ga yuklash
         uses: github/codeql-action/upload-sarif@v3
         if: always()
