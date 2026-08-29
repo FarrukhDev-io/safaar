@@ -1,0 +1,135 @@
+name: Security
+
+# Xavfsizlik tekshiruvlari — FAQAT BACKEND uchun (frontend ataylab chiqarib
+# tashlangan — web-user/web-partner/web-admin bu workflow'ni ishga
+# tushirmaydi va CodeQL faqat apps/backend + packages/types'ni skanerlaydi):
+#  1) secret-scan   — kodga tasodifan tushib qolgan parol/token/kalitlarni topadi
+#  2) dependency-audit — bog'liqliklardagi ma'lum zaifliklarni auditga oladi
+#     (CRITICAL darajada blok qiladi; high/moderate hisobotda ko'rsatiladi)
+#  3) dependency-review — PR orqali YANGI qo'shilayotgan zaif/litsenziyasi
+#     mos kelmaydigan bog'liqlikni bloklaydi (mavjud bog'liqliklarga tegmaydi)
+#  4) codeql — statik xavfsizlik tahlili (SAST), natijalar Security tab'ga
+#     yuklanadi (kengaytirilgan audit, PR'ni bloklamaydi)
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "apps/backend/**"
+      - "packages/types/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/security.yml"
+  pull_request:
+    paths:
+      - "apps/backend/**"
+      - "packages/types/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/security.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-audit:
+    name: Dependency vulnerability audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: npm audit — hisobot + CRITICAL gate
+        run: |
+          set +e
+          npm audit --json > audit.json
+          set -e
+
+          node -e "
+            const r = require('./audit.json');
+            const v = r.metadata?.vulnerabilities ?? {};
+            const lines = [
+              '## 🔎 Dependency audit',
+              '',
+              '| Daraja | Soni |',
+              '|---|---|',
+              \`| critical | \${v.critical ?? 0} |\`,
+              \`| high | \${v.high ?? 0} |\`,
+              \`| moderate | \${v.moderate ?? 0} |\`,
+              \`| low | \${v.low ?? 0} |\`,
+              '',
+              (v.critical ?? 0) > 0
+                ? '❌ CRITICAL darajali zaiflik(lar) topildi — bu build bloklanadi.'
+                : 'ℹ️ CRITICAL darajali zaiflik yo\\'q. Yuqori/moderate darajalar mavjud bo\\'lsa ham (mavjud bog\\'liqliklarda), bular alohida remediation vazifasi sifatida kuzatiladi va hozircha bloklamaydi.',
+            ];
+            console.log(lines.join('\n'));
+          " | tee -a "$GITHUB_STEP_SUMMARY"
+
+          CRITICAL=$(node -e "console.log(require('./audit.json').metadata?.vulnerabilities?.critical ?? 0)")
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::$CRITICAL ta CRITICAL darajali zaiflik topildi."
+            npm audit --audit-level=critical
+            exit 1
+          fi
+
+  dependency-review:
+    name: New dependency review (PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always
+
+  codeql:
+    name: CodeQL (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["javascript-typescript"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+          # Faqat backend + umumiy types shartnomasi skanerlanadi — frontend
+          # (web-user/web-partner/web-admin) ataylab chiqarib tashlangan.
+          config: |
+            paths:
+              - apps/backend
+              - packages/types
+            paths-ignore:
+              - apps/web-user
+              - apps/web-partner
+              - apps/web-admin
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
