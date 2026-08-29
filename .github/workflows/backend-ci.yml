@@ -56,7 +56,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Image'ni Trivy bilan skanerlash (OS/paket zaifliklari)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: safaar-backend:ci
           format: sarif
