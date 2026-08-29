@@ -8,6 +8,13 @@ RUN npm ci --workspace=@safaar/backend --include-workspace-root
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
+# `node:*-bookworm-slim` OpenSSL'ni o'z ichiga olmaydi, lekin Prisma'ning
+# schema/query-engine binarylari uni talab qiladi (aks holda platformani
+# aniqlay olmay, noto'g'ri/mos kelmaydigan engine yuklab olishga urinadi) —
+# bu Prisma + slim image kombinatsiyasi uchun keng tarqalgan, hujjatlashtirilgan
+# muammo.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
 COPY packages/types packages/types
@@ -22,6 +29,11 @@ RUN npm run prisma:generate -w @safaar/backend && npm run build:types && npm run
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Runtime'da ham query engine binarysi ishlashi uchun OpenSSL kerak (qarang
+# yuqoridagi "build" bosqichidagi izoh).
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/package.json /app/package-lock.json ./
 COPY --from=build /app/node_modules ./node_modules
