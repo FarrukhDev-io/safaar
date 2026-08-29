@@ -23,7 +23,10 @@ jobs:
       - run: npm ci
       - run: npm run build:types
       - run: npm run prisma:validate -w @safaar/backend
+      - run: npm run typecheck -w @safaar/backend
+      - run: npm run format:check -w @safaar/backend
       - run: npm run lint -w @safaar/backend
+      - run: npm audit --workspace=@safaar/backend --audit-level=critical
       - run: npm run test:backend
       - run: npm run build:backend
 
@@ -52,7 +55,25 @@ jobs:
             pm2 save
           '
 
-      - name: Sog'liqni tekshirish
+      - name: Sog'liqni tekshirish (smoke test)
         run: |
           sleep 5
-          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} 'curl -sf http://127.0.0.1:4000/v1/health'
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} '
+            set -e
+            echo "-- /v1/health --"
+            curl -sf http://127.0.0.1:4000/v1/health
+            echo
+            echo "-- /v1/auth/providers --"
+            curl -sf http://127.0.0.1:4000/v1/auth/providers
+            echo
+            echo "-- pm2 status --"
+            pm2 jlist | node -e "
+              const p = JSON.parse(require(\"fs\").readFileSync(0, \"utf8\"));
+              const app = p.find((x) => x.name === \"safaar-backend\");
+              if (!app || app.pm2_env.status !== \"online\") {
+                console.error(\"safaar-backend is not online\");
+                process.exit(1);
+              }
+              console.log(\"safaar-backend PM2 status: online\");
+            "
+          '

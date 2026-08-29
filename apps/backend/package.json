@@ -23,6 +23,8 @@
     "prisma:studio": "prisma studio",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "security:hash-password": "ts-node scripts/hash-password.ts",
     "postman:generate": "node postman/generate-collection.mjs",
     "test": "jest",
