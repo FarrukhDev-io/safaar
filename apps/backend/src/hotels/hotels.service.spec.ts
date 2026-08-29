@@ -94,4 +94,78 @@ describe('HotelsService.findAll', () => {
       "po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'mixed')",
     );
   });
+
+  it.each(['dacha', 'resort', 'sanatorium'])(
+    'filters by a single partner type when ?type=%s (category routes)',
+    async (type) => {
+      pg.query
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await service.findAll({ type });
+
+      const [sql, params] = pg.query.mock.calls[0] as [string, unknown[]];
+      expect(sql).toContain('po.type = $1');
+      expect(sql).not.toContain(
+        "po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'mixed')",
+      );
+      expect(params[0]).toBe(type);
+    },
+  );
+
+  it('normalizes ?type casing/whitespace before filtering', async () => {
+    pg.query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await service.findAll({ type: '  Dacha ' });
+
+    const [sql, params] = pg.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain('po.type = $1');
+    expect(params[0]).toBe('dacha');
+  });
+
+  it.each(['bus', 'restaurant', 'garbage', ''])(
+    'ignores a non-accommodation / unknown ?type=%p and keeps the default catalog',
+    async (type) => {
+      pg.query
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await service.findAll({ type });
+
+      const [sql] = pg.query.mock.calls[0] as [string, unknown[]];
+      expect(sql).toContain(
+        "po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'mixed')",
+      );
+      expect(sql).not.toContain('po.type = $1');
+    },
+  );
+});
+
+describe('HotelsService.findOne', () => {
+  it('allows sanatorium and resort listings (their detail pages must resolve)', async () => {
+    const cache = {
+      getOrSet: jest.fn(),
+    } as unknown as AppCacheService;
+    const pg = {
+      query: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<PostgresService>;
+    const service = new HotelsService(cache, pg);
+
+    await expect(service.findOne('some-slug')).rejects.toMatchObject({
+      response: { code: 'HOTEL_NOT_FOUND' },
+    });
+
+    const [sql] = pg.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain(
+      "po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'sanatorium', 'resort', 'mixed')",
+    );
+  });
 });

@@ -34,6 +34,11 @@ export interface AccommodationPageProps {
   searchParams: SearchParams;
   basePath: string;
   title: string;
+  /**
+   * Yashash-joyi turi filtri (`dacha` | `resort` | `sanatorium`). `/hotels`
+   * uchun `undefined` — umumiy katalog.
+   */
+  accommodationType?: string;
 }
 
 export async function AccommodationPage({
@@ -41,6 +46,7 @@ export async function AccommodationPage({
   searchParams: sp,
   basePath,
   title,
+  accommodationType,
 }: AccommodationPageProps) {
   const cityId = one(sp.city_id);
   const search = one(sp.search);
@@ -68,6 +74,7 @@ export async function AccommodationPage({
       cityId,
       search,
       stars,
+      type: accommodationType,
       minPrice,
       maxPrice,
       sort,

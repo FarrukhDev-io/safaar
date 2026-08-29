@@ -17,6 +17,12 @@ export interface HotelListParams {
   neLng?: number;
   swLat?: number;
   swLng?: number;
+  /**
+   * Yashash-joyi turi bo'yicha filtr (`partner_organizations.type`). Kategoriya
+   * sahifalari uchun: `dacha`, `resort`, `sanatorium` va h.k. Berilmasa —
+   * umumiy "Mehmonxonalar" katalogi qaytadi.
+   */
+  type?: string;
 }
 
 export interface HotelListResult {
@@ -46,6 +52,7 @@ export const hotelsService = {
         city_id: params.cityId,
         search: params.search,
         stars: params.stars,
+        type: params.type,
         page: params.page,
         limit: params.limit,
         featured: params.featured ? "true" : undefined,

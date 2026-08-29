@@ -6,6 +6,78 @@ o'chirilmaydi yoki o'zgartirilmaydi.
 
 ---
 
+# 2026-08-29 — `/uz/dachas`, `/uz/resorts`, `/uz/sanatoriums` kategoriya filtri (P2 bug)
+
+## Asl bug
+`/uz/dachas`, `/uz/resorts`, `/uz/sanatoriums` uchala sahifasi ham **umumiy
+`/uz/hotels` ro'yxatini** ko'rsatardi — faqat sahifa sarlavhasi ("Dachalar" /
+"Oromgohlar" / "Sanatoriylar") farq qilardi, kartalar esa hammasi
+`/uz/hotels/<slug>`ga bog'lanardi. Foydalanuvchi dacha bo'limiga kirsa ham
+mehmonxonalarni ko'rardi.
+
+## Root cause
+- `apps/web-user/components/accommodation/AccommodationPage.tsx` (hotels /
+  dachas / resorts / sanatoriums — hammasi shu bitta komponentdan render
+  bo'ladi) `api.hotels.getHotels(...)`ni **hech qanday tur/kategoriya filtri
+  bermasdan** chaqirardi.
+- Backend `GET /v1/hotels` (`HotelsService.findAllFresh`) `partner_organizations.type`
+  bo'yicha faqat **qattiq yozilgan** `IN ('hotel','hostel','guesthouse','motel','dacha','mixed')`
+  ishlatardi — `?type=` parametri yo'q edi. Bundan tashqari bu ro'yxatda
+  `sanatorium`/`resort` umuman yo'q edi (garchi `PartnerOrganizationType`
+  enum'ida ular bor).
+
+## Kategoriya = qaysi maydon
+Mavjud maydon: **`partner_organizations.type`** (`PartnerOrganizationType` enum:
+`hotel, hostel, guesthouse, motel, dacha, sanatorium, resort, restaurant, mixed`).
+Yangi maydon/jadval qo'shilmadi. `Hotel` modelida allaqachon `// Dacha uchun`
+(`land_area_sotix`, `has_outdoor_pool`, …) va `// Sanatoriy uchun`
+(`medical_profiles`, `included_treatments`, …) maydonlari bor.
+
+## O'zgartirildi
+| Fayl | O'zgarish |
+|---|---|
+| `apps/backend/src/hotels/hotels.service.ts` | `findAllFresh`: yangi `?type=` filtri — yaroqli yashash-joyi turi berilsa `po.type = $N`, aks holda avvalgi standart `IN (...)` ro'yxati (`/hotels` **o'zgarmaydi**). `findOne` (detal sahifa) `IN (...)` ro'yxatiga `sanatorium`, `resort` qo'shildi — aks holda ularning detal sahifasi 404 berardi. `map()` avtomatik `findAll`dan meros oladi. `cacheKey` `type`ni avtomatik hisobga oladi. |
+| `packages/api-client/src/services/hotels.ts` | `HotelListParams`ga `type?: string` + `getHotels` query'siga `type` uzatildi. |
+| `apps/web-user/components/features/accommodation/renderAccommodationRoute.tsx` | Route kaliti → tur xaritasi: `dachas→dacha`, `resorts→resort`, `sanatoriums→sanatorium`, `hotels→undefined`. `AccommodationPage`ga `accommodationType` prop'i uzatiladi. |
+| `apps/web-user/components/accommodation/AccommodationPage.tsx` | Yangi `accommodationType?` prop → `getHotels`ga `type` sifatida uzatiladi. |
+| `apps/backend/src/hotels/hotels.service.spec.ts` | Yangi testlar: `?type=dacha/resort/sanatorium` → `po.type = $1`; case/whitespace normalizatsiyasi; noma'lum/`bus`/`restaurant` `type` → standart katalog; `findOne` sanatorium/resort'ga ruxsat beradi. Mavjud testlar zaiflashtirilmadi. |
+
+Vizual dizayn takrorlanmadi — bir xil `AccommodationPage` + `AccommodationListWithMap`
++ `AccommodationCategoryTabs` ishlatiladi, faqat `type` filtri qo'shildi.
+
+## Production ma'lumot holati (2026-08-29, prod DB tekshiruvi)
+- `resort` (published + approved): **2** → `/uz/resorts` ularni ko'rsatadi.
+- `sanatorium`: **1** → `/uz/sanatoriums` uni ko'rsatadi.
+- `dacha`: **0 published** (2 ta approved dacha *hamkori* bor, lekin ularning
+  `hotels` yozuvi hali `published` emas: 2 draft + 1 pending_review) →
+  `/uz/dachas` **bo'sh holat** ko'rsatadi. Bu **filtr xatosi emas** —
+  FILTR ISHLAYDI, shu KATEGORIYA UCHUN PUBLISHED PROD MA'LUMOT YO'Q.
+
+## Qanday test qilish
+- `GET /v1/hotels?type=resort` → faqat `resort` turidagi published+approved
+  e'lonlar. `GET /v1/hotels` (parametrsiz) → avvalgidek.
+- `/uz/resorts` DevTools Network'da `.../v1/hotels?type=resort` so'rovi ketishi
+  kerak; `/uz/hotels` da `type` yo'q.
+- `/uz/hotels` regressiyasi bo'lmasligi kerak (bir xil ro'yxat).
+- Backend: `npx jest src/hotels` (11 test).
+
+## Qaytadan kiritmaslik uchun
+Yangi accommodation kategoriya route qo'shsangiz: `renderAccommodationRoute.tsx`
+dagi `ACCOMMODATION_TYPE_BY_KEY` xaritasiga qo'shing va `hotels.service.ts` dagi
+`ACCOMMODATION_TYPES` set'ida tur borligiga ishonch hosil qiling. Backend
+`findAllFresh` va `findOne` ikkalasi ham yangi turni qo'llab-quvvatlashi shart
+(list ko'rinsa-yu detal 404 bersa — yarim ishlaydi).
+
+## Deploy
+Ikki tomonlama: backend (`HotelsService` o'zgarishi) **va** web-user (`?type=`
+uzatish). Web-user'ni yolg'iz deploy qilish yetarli emas — hozirgi prod backend
+noma'lum `?type=` ni e'tiborsiz qoldiradi. Bu yozuv yozilганда: **lokal fixed,
+deploy kutilmoqda** (backend deploy alohida, boshqa sessiyaning davom etayotgan
+backend ishi bilan muvofiqlashtirilishi kerak).
+
+## Git
+- Branch: `temp/save-all-work` (yangi branch/merge/push yo'q).
+
 # 2026-08-29 — Ikki production bug: (F1) NotificationsBell header'ga ulanmagan edi, (F2) `/sw.js` MIME xatosi
 
 QA (production'ga qarshi Playwright) ikkita haqiqiy frontend/deploy nosozligini
