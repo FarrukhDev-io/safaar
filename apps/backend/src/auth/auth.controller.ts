@@ -458,7 +458,9 @@ export class AuthController {
 
   private oauthOrigin(value: unknown): string {
     const allowed = this.allowedOAuthOrigins();
-    const candidate = String(value ?? '').trim().replace(/\/$/, '');
+    const candidate = String(value ?? '')
+      .trim()
+      .replace(/\/$/, '');
     return allowed.includes(candidate) ? candidate : allowed[0];
   }
 

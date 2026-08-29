@@ -403,10 +403,9 @@ export class AuthService {
    * (asosiy) origin'ga qaytariladi.
    */
   private allowedOAuthOrigins(): string[] {
-    const primary = (process.env.WEB_USER_URL ?? 'http://localhost:3000').replace(
-      /\/$/,
-      '',
-    );
+    const primary = (
+      process.env.WEB_USER_URL ?? 'http://localhost:3000'
+    ).replace(/\/$/, '');
     const raw = process.env.OAUTH_ALLOWED_ORIGINS;
     if (!raw) return [primary];
     const origins = raw
@@ -418,7 +417,9 @@ export class AuthService {
 
   private oauthOrigin(value: unknown): string {
     const allowed = this.allowedOAuthOrigins();
-    const candidate = String(value ?? '').trim().replace(/\/$/, '');
+    const candidate = String(value ?? '')
+      .trim()
+      .replace(/\/$/, '');
     return allowed.includes(candidate) ? candidate : allowed[0];
   }
 
@@ -552,9 +553,8 @@ export class AuthService {
     // uchun butun Google OAuth jarayonini boshidan qaytarishga majbur
     // bo'lardi). Token faqat OTP muvaffaqiyatli tasdiqlangandan keyin,
     // haqiqatan ishlatilayotganda `.take()` bilan iste'mol qilinadi.
-    const peekedContext = await this.cache.get<OAuthRegistrationContext>(
-      registrationKey,
-    );
+    const peekedContext =
+      await this.cache.get<OAuthRegistrationContext>(registrationKey);
     if (!peekedContext || peekedContext.provider !== provider) {
       throw new UnauthorizedException({
         code: 'OAUTH_REGISTRATION_EXPIRED',

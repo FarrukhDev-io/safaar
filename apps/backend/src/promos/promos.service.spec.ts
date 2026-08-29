@@ -1,6 +1,10 @@
 import { PostgresService } from '../infrastructure/postgres.service';
 import { PromosService } from './promos.service';
 
+type QueryCall = [sql: string, params?: readonly unknown[]];
+const queryCallsOf = (obj: { query: unknown }): QueryCall[] =>
+  (obj.query as jest.Mock).mock.calls as QueryCall[];
+
 describe('PromosService.redeem (regression: H-2 usage_limit was decorative)', () => {
   let pg: { query: jest.Mock };
   let service: PromosService;
@@ -16,7 +20,7 @@ describe('PromosService.redeem (regression: H-2 usage_limit was decorative)', ()
     const result = await service.redeem('ONE_USE');
 
     expect(result).toBe(true);
-    const [sql, params] = pg.query.mock.calls[0]!;
+    const [sql, params] = queryCallsOf(pg)[0];
     expect(String(sql)).toContain('jsonb_set');
     expect(String(sql)).toContain('usedCount');
     expect(params).toEqual(['one_use']);
@@ -42,7 +46,7 @@ describe('PromosService.redeem (regression: H-2 usage_limit was decorative)', ()
 
     await service.redeem('ONE_USE');
 
-    const [sql] = pg.query.mock.calls[0]!;
+    const [sql] = queryCallsOf(pg)[0];
     expect(String(sql)).toContain('usageLimit');
     expect(String(sql).toLowerCase()).toContain('update cms_entries');
   });
@@ -73,7 +77,7 @@ describe('PromosService.validate', () => {
     const result = await service.validate({ code: 'ONE_USE' });
 
     expect(result.valid).toBe(true);
-    const [sql] = pg.query.mock.calls[0]!;
+    const [sql] = queryCallsOf(pg)[0];
     expect(String(sql).toLowerCase()).toContain('select');
     expect(String(sql).toLowerCase()).not.toContain('update');
   });

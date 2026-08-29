@@ -66,7 +66,9 @@ describe('BookingsService.createHotel guest checkout', () => {
       events as unknown as EventsService,
       email as unknown as EmailService,
       promos as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
     );
   });
 
@@ -352,7 +354,9 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
     );
   });
 
@@ -472,7 +476,9 @@ describe('BookingsService.createBus (regression: BUG-04 seat double-selling)', (
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
     );
   });
 
@@ -576,7 +582,9 @@ describe('BookingsService.createVehicleRental (rent-a-car: date-range booking ag
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
     );
   });
 
@@ -699,7 +707,9 @@ describe('BookingsService.cancel (regression: explicit cancellation never releas
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
     );
   });
 
@@ -805,7 +815,9 @@ describe('BookingsService.findOne — authorization (regression: unauthenticated
       } as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
     );
   });
 
@@ -860,7 +872,9 @@ describe('BookingsService.lookupBooking (guest — booking_number + email)', () 
       } as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
     );
   });
 
@@ -942,7 +956,9 @@ describe('BookingsService.expireStaleBookings (regression: BUG-09 hold expiry, a
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
     );
   });
 

@@ -44,7 +44,9 @@ describe('AppCacheService.take (regression: production Redis 6.0.16 does not sup
   }
 
   it('retrieves and removes a value stored via Redis, without calling the unsupported GETDEL command', async () => {
-    const cache = new AppCacheService(redisConfig() as unknown as ConfigService);
+    const cache = new AppCacheService(
+      redisConfig() as unknown as ConfigService,
+    );
 
     await cache.set('reset-token-key', { phone: '+998901234567' }, 600);
 

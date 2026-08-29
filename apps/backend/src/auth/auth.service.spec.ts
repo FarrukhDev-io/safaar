@@ -19,6 +19,10 @@ import * as argon2 from 'argon2';
 
 jest.mock('argon2');
 
+type QueryCall = [sql: string, params?: readonly unknown[]];
+const queryCallsOf = (obj: { query: unknown }): QueryCall[] =>
+  (obj.query as jest.Mock).mock.calls as QueryCall[];
+
 describe('AuthService email and OAuth', () => {
   const originalEnv = { ...process.env };
   const originalFetch = global.fetch;
@@ -382,9 +386,11 @@ describe('AuthService email and OAuth', () => {
     // never touched (only the 2 lookup queries ran, no UPDATE/INSERT).
     expect(result).toEqual({
       kind: 'register',
-      profile: expect.objectContaining({ emailVerified: false }),
+      profile: expect.objectContaining({ emailVerified: false }) as {
+        emailVerified: boolean;
+      },
     });
-    expect((transaction.query as jest.Mock).mock.calls.length).toBe(2);
+    expect(queryCallsOf(transaction).length).toBe(2);
   });
 
   it('still blocks a non-active user matched by email regardless of emailVerified', async () => {
@@ -456,9 +462,9 @@ describe('AuthService email and OAuth', () => {
       email: 'new-user@example.com',
       firstName: 'Test',
     });
-    expect(
-      (result as { registrationToken: string }).registrationToken,
-    ).toEqual(expect.any(String));
+    expect((result as { registrationToken: string }).registrationToken).toEqual(
+      expect.any(String),
+    );
     expect(cache.set).toHaveBeenCalledWith(
       expect.stringContaining('auth:oauth:registration:'),
       expect.objectContaining({
@@ -528,7 +534,7 @@ describe('AuthService email and OAuth', () => {
     expect((result.user as { email: string }).email).toBe(
       'new-user@example.com',
     );
-    const insertCall = (linkTransaction.query as jest.Mock).mock.calls[2];
+    const insertCall = queryCallsOf(linkTransaction)[2];
     expect(insertCall[0]).toContain('INSERT INTO user_social_accounts');
     expect(insertCall[1]).toEqual(
       expect.arrayContaining([
@@ -538,7 +544,7 @@ describe('AuthService email and OAuth', () => {
         true,
       ]),
     );
-    const updateCall = (linkTransaction.query as jest.Mock).mock.calls[3];
+    const updateCall = queryCallsOf(linkTransaction)[3];
     expect(updateCall[0]).not.toMatch(/password_hash/i);
   });
 
@@ -595,9 +601,7 @@ describe('AuthService email and OAuth', () => {
     jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
 
     const conflictTransaction = {
-      query: jest
-        .fn()
-        .mockResolvedValueOnce([{ '?column?': 1 }]), // conflict check -> already linked elsewhere
+      query: jest.fn().mockResolvedValueOnce([{ '?column?': 1 }]), // conflict check -> already linked elsewhere
     } as unknown as PostgresTransaction;
     pg.transaction.mockImplementation(
       (operation: (value: PostgresTransaction) => Promise<unknown>) =>
@@ -747,9 +751,11 @@ describe('AuthService email and OAuth', () => {
     });
     const transaction = {
       // linked-by-provider lookup finds an active user immediately.
-      query: jest.fn().mockResolvedValueOnce([
-        { user_id: '00000000-0000-4000-8000-000000000201', status: 'active' },
-      ]),
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([
+          { user_id: '00000000-0000-4000-8000-000000000201', status: 'active' },
+        ]),
     } as unknown as PostgresTransaction;
     pg.transaction.mockImplementation(
       (operation: (value: PostgresTransaction) => Promise<unknown>) =>
@@ -893,7 +899,7 @@ describe('AuthService email and OAuth', () => {
     expect(result.accessToken).toEqual(expect.any(String));
     expect(result.refreshToken).toEqual(expect.any(String));
     expect((result.user as { email: string }).email).toBe('fb-new@example.com');
-    const insertCall = (linkTransaction.query as jest.Mock).mock.calls[2];
+    const insertCall = queryCallsOf(linkTransaction)[2];
     expect(insertCall[0]).toContain('INSERT INTO user_social_accounts');
     expect(insertCall[1]).toEqual(
       expect.arrayContaining([
@@ -903,7 +909,7 @@ describe('AuthService email and OAuth', () => {
         true,
       ]),
     );
-    const updateCall = (linkTransaction.query as jest.Mock).mock.calls[3];
+    const updateCall = queryCallsOf(linkTransaction)[3];
     expect(updateCall[0]).not.toMatch(/password_hash/i);
   });
 
@@ -962,7 +968,10 @@ describe('AuthService email and OAuth', () => {
     const transaction = {
       // linked-by-provider lookup finds the user, but status is not active.
       query: jest.fn().mockResolvedValueOnce([
-        { user_id: '00000000-0000-4000-8000-000000000203', status: 'blocked' },
+        {
+          user_id: '00000000-0000-4000-8000-000000000203',
+          status: 'blocked',
+        },
       ]),
     } as unknown as PostgresTransaction;
     pg.transaction.mockImplementation(
@@ -995,9 +1004,7 @@ describe('AuthService email and OAuth', () => {
     jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
 
     const conflictTransaction = {
-      query: jest
-        .fn()
-        .mockResolvedValueOnce([{ '?column?': 1 }]), // conflict check -> already linked elsewhere
+      query: jest.fn().mockResolvedValueOnce([{ '?column?': 1 }]), // conflict check -> already linked elsewhere
     } as unknown as PostgresTransaction;
     pg.transaction.mockImplementation(
       (operation: (value: PostgresTransaction) => Promise<unknown>) =>
@@ -1083,7 +1090,7 @@ describe('AuthService email and OAuth', () => {
     expect(cache.set).not.toHaveBeenCalled();
   });
 
-  it('[11] Facebook emails are always treated as verified, matching Google\'s verified-email auto-link policy — an existing active Safaar user matched only by email (never linked before) gets logged in, not re-registered', async () => {
+  it("[11] Facebook emails are always treated as verified, matching Google's verified-email auto-link policy — an existing active Safaar user matched only by email (never linked before) gets logged in, not re-registered", async () => {
     process.env.FACEBOOK_APP_ID = 'facebook-app';
     process.env.FACEBOOK_APP_SECRET = 'facebook-secret';
     cache.take.mockResolvedValueOnce({
@@ -1130,7 +1137,7 @@ describe('AuthService email and OAuth', () => {
       60,
     );
     // Auto-linked via the INSERT — no phone/OTP registration was required.
-    const insertCall = (transaction.query as jest.Mock).mock.calls[3];
+    const insertCall = queryCallsOf(transaction)[3];
     expect(insertCall[0]).toContain('INSERT INTO user_social_accounts');
     expect(insertCall[1]).toEqual(
       expect.arrayContaining(['facebook', 'fb-first-link']),
@@ -1180,7 +1187,7 @@ describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column 
 
     expect(result.setup_id).toBeDefined();
     expect(result.recovery_codes).toHaveLength(8);
-    const [sql] = pg.query.mock.calls[0]!;
+    const [sql] = queryCallsOf(pg)[0];
     expect(sql).not.toContain('recovery_code_hashes');
   });
 
@@ -1198,14 +1205,14 @@ describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column 
     expect(result).toEqual({ enabled: true });
     expect(pg.transaction).toHaveBeenCalledTimes(1);
 
-    const calls = pg.query.mock.calls;
+    const calls = queryCallsOf(pg);
     // calls[0] = pre-check SELECT; calls[1..3] = tranzaksiya ichidagi so'rovlar.
-    expect(calls[1]![0]).toContain('UPDATE admin_users');
-    expect(calls[1]![0]).not.toContain('recovery_code_hashes');
-    expect(calls[2]![0]).toContain('DELETE FROM admin_recovery_codes');
-    expect(calls[3]![0]).toContain('INSERT INTO admin_recovery_codes');
+    expect(calls[1][0]).toContain('UPDATE admin_users');
+    expect(calls[1][0]).not.toContain('recovery_code_hashes');
+    expect(calls[2][0]).toContain('DELETE FROM admin_recovery_codes');
+    expect(calls[3][0]).toContain('INSERT INTO admin_recovery_codes');
     // 8 ta recovery kod, har biri (admin_id, code_hash) — 16 ta parametr.
-    expect((calls[3]![1] as unknown[]).length).toBe(16);
+    expect((calls[3][1] as unknown[]).length).toBe(16);
   });
 
   it('admin2faConfirm rejects an invalid TOTP code and writes nothing', async () => {
@@ -1227,10 +1234,10 @@ describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column 
     const result = await service.admin2faDisable(adminActor);
 
     expect(result).toEqual({ disabled: true, sessions_revoked: true });
-    const calls = pg.query.mock.calls;
-    expect(calls[1]![0]).toContain('UPDATE admin_users');
-    expect(calls[1]![0]).not.toContain('recovery_code_hashes');
-    expect(calls[2]![0]).toContain('DELETE FROM admin_recovery_codes');
+    const calls = queryCallsOf(pg);
+    expect(calls[1][0]).toContain('UPDATE admin_users');
+    expect(calls[1][0]).not.toContain('recovery_code_hashes');
+    expect(calls[2][0]).toContain('DELETE FROM admin_recovery_codes');
   });
 });
 
@@ -1290,7 +1297,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
         service.userLogin({ email: 'victim@safaar.uz', password: 'wrong' }),
       ).rejects.toMatchObject({
         status: 401,
-        response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+        response: expect.objectContaining({
+          code: 'AUTH_INVALID_CREDENTIALS',
+        }) as { code: string },
       });
     }
 
@@ -1298,7 +1307,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
       service.userLogin({ email: 'victim@safaar.uz', password: 'wrong' }),
     ).rejects.toMatchObject({
       status: 401,
-      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }),
+      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }) as {
+        code: string;
+      },
     });
   });
 
@@ -1355,7 +1366,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
         service.userLogin({ email: 'user@safaar.uz', password: 'wrong' }),
       ).rejects.toMatchObject({
         status: 401,
-        response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+        response: expect.objectContaining({
+          code: 'AUTH_INVALID_CREDENTIALS',
+        }) as { code: string },
       });
     }
   });
@@ -1373,7 +1386,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
       service.partnerLogin({ email: 'partner@safaar.uz', password: 'wrong' }),
     ).rejects.toMatchObject({
       status: 401,
-      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }),
+      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }) as {
+        code: string;
+      },
     });
   });
 
@@ -1390,7 +1405,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
       service.adminLogin({ username: 'admin', password: 'wrong' }),
     ).rejects.toMatchObject({
       status: 401,
-      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }),
+      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }) as {
+        code: string;
+      },
     });
   });
 
@@ -1400,14 +1417,18 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
       await expect(
         service.userLogin({ email: 'shared@safaar.uz', password: 'wrong' }),
       ).rejects.toMatchObject({
-        response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+        response: expect.objectContaining({
+          code: 'AUTH_INVALID_CREDENTIALS',
+        }) as { code: string },
       });
     }
 
     await expect(
       service.partnerLogin({ email: 'shared@safaar.uz', password: 'wrong' }),
     ).rejects.toMatchObject({
-      response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+      response: expect.objectContaining({
+        code: 'AUTH_INVALID_CREDENTIALS',
+      }) as { code: string },
     });
   });
 });

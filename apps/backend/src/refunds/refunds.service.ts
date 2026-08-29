@@ -26,10 +26,13 @@ export class RefundsService {
     const currentActor = this.requireActor(actor);
     const isAdminActor = currentActor.actorType === 'admin';
 
-    if (isAdminActor && !actorHasPermissions(currentActor, [Permission.FinanceWrite])) {
+    if (
+      isAdminActor &&
+      !actorHasPermissions(currentActor, [Permission.FinanceWrite])
+    ) {
       throw new ForbiddenException({
         code: 'FORBIDDEN',
-        message: 'Refund yaratish uchun ruxsat yo\'q',
+        message: "Refund yaratish uchun ruxsat yo'q",
       });
     }
 

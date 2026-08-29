@@ -16,7 +16,11 @@ describe('PerformanceInterceptor (logged status_code on thrown errors)', () => {
 
   function buildContext(defaultStatusCode: number) {
     const response = { statusCode: defaultStatusCode, setHeader: jest.fn() };
-    const request = { method: 'POST', originalUrl: '/v1/auth/oauth/register', headers: {} };
+    const request = {
+      method: 'POST',
+      originalUrl: '/v1/auth/oauth/register',
+      headers: {},
+    };
     const context = {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -29,7 +33,8 @@ describe('PerformanceInterceptor (logged status_code on thrown errors)', () => {
   function loggedEventFor(handler: CallHandler, level: 'warn' | 'log') {
     const interceptor = new PerformanceInterceptor(config);
     const spy = jest.spyOn(
-      (interceptor as unknown as { logger: Record<'warn' | 'log', jest.Mock> }).logger,
+      (interceptor as unknown as { logger: Record<'warn' | 'log', jest.Mock> })
+        .logger,
       level,
     );
     const { context } = buildContext(201);
@@ -44,7 +49,10 @@ describe('PerformanceInterceptor (logged status_code on thrown errors)', () => {
 
   it('logs the real status for a thrown HttpException(401)', async () => {
     const handler: CallHandler = {
-      handle: () => throwError(() => new HttpException({ code: 'OAUTH_REGISTRATION_EXPIRED' }, 401)),
+      handle: () =>
+        throwError(
+          () => new HttpException({ code: 'OAUTH_REGISTRATION_EXPIRED' }, 401),
+        ),
     };
     const logged = await loggedEventFor(handler, 'warn');
     expect(logged.status_code).toBe(401);
@@ -52,7 +60,11 @@ describe('PerformanceInterceptor (logged status_code on thrown errors)', () => {
 
   it('logs the real status for a thrown HttpException(400)', async () => {
     const handler: CallHandler = {
-      handle: () => throwError(() => new HttpException({ code: 'OAUTH_ACCOUNT_ALREADY_LINKED' }, 400)),
+      handle: () =>
+        throwError(
+          () =>
+            new HttpException({ code: 'OAUTH_ACCOUNT_ALREADY_LINKED' }, 400),
+        ),
     };
     const logged = await loggedEventFor(handler, 'warn');
     expect(logged.status_code).toBe(400);

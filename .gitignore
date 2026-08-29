@@ -85,3 +85,4 @@ scratch.js
 scratch.ts
 scratch.*.js
 scratch.*.ts
+tsconfig.tsbuildinfo

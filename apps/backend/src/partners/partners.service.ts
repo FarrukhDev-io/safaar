@@ -4667,7 +4667,10 @@ export class PartnersService {
       organizationId: String(row['id']),
       companyName: String(row['brand_name'] ?? row['legal_name'] ?? 'Hamkor'),
       contactPerson: String(
-        row['contact_person'] ?? row['legal_name'] ?? row['brand_name'] ?? 'Masul shaxs',
+        row['contact_person'] ??
+          row['legal_name'] ??
+          row['brand_name'] ??
+          'Masul shaxs',
       ),
       phone: String(row['phone'] ?? ''),
       email: String(row['email'] ?? ''),

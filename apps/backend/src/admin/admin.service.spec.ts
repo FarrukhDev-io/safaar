@@ -39,7 +39,9 @@ describe('AdminService frontend action endpoints', () => {
       partnerDashboardUpdated: jest.fn(),
     };
     smsMock = {
-      send: jest.fn().mockResolvedValue({ accepted: true, providerMessageId: '' }),
+      send: jest
+        .fn()
+        .mockResolvedValue({ accepted: true, providerMessageId: '' }),
     };
     service = new AdminService(
       {
@@ -125,7 +127,9 @@ describe('AdminService frontend action endpoints', () => {
       pgMock.query
         .mockResolvedValueOnce([notificationRow])
         .mockResolvedValueOnce([{ phone: '+998901234567' }]);
-      smsMock.send.mockRejectedValueOnce(new Error('SMS_PROVIDER_NOT_CONFIGURED'));
+      smsMock.send.mockRejectedValueOnce(
+        new Error('SMS_PROVIDER_NOT_CONFIGURED'),
+      );
 
       const result = await service.userMessage(actor, userId, {
         message: 'Salom!',

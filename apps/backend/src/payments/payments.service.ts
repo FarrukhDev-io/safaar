@@ -212,7 +212,9 @@ export class PaymentsService {
   }
 
   private webUserUrl(): string {
-    return (this.config.get<string>('WEB_USER_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
+    return (
+      this.config.get<string>('WEB_USER_URL') ?? 'http://localhost:3000'
+    ).replace(/\/$/, '');
   }
 
   /**
@@ -223,7 +225,11 @@ export class PaymentsService {
    */
   async clickPrepare(body: ClickPrepareBody) {
     if (!this.click.verifyPrepareSignature(body)) {
-      return this.clickError(body, CLICK_ERROR.SIGN_CHECK_FAILED, 'SIGN CHECK FAILED!');
+      return this.clickError(
+        body,
+        CLICK_ERROR.SIGN_CHECK_FAILED,
+        'SIGN CHECK FAILED!',
+      );
     }
 
     const bookingId = String(body.merchant_trans_id ?? '');
@@ -250,7 +256,11 @@ export class PaymentsService {
 
   async clickComplete(body: ClickCompleteBody) {
     if (!this.click.verifyCompleteSignature(body)) {
-      return this.clickError(body, CLICK_ERROR.SIGN_CHECK_FAILED, 'SIGN CHECK FAILED!');
+      return this.clickError(
+        body,
+        CLICK_ERROR.SIGN_CHECK_FAILED,
+        'SIGN CHECK FAILED!',
+      );
     }
 
     if (Number(body.error) < 0) {
@@ -288,11 +298,7 @@ export class PaymentsService {
     }
   }
 
-  private clickError(
-    body: ClickPrepareBody,
-    error: number,
-    errorNote: string,
-  ) {
+  private clickError(body: ClickPrepareBody, error: number, errorNote: string) {
     return {
       success: true as const,
       click_trans_id: body.click_trans_id,

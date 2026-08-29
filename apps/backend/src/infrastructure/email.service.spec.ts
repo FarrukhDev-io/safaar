@@ -88,12 +88,19 @@ describe('EmailService', () => {
 
     expect(nodemailer.createTransport).toHaveBeenCalledWith(
       expect.objectContaining({
-        connectionTimeout: expect.any(Number),
-        greetingTimeout: expect.any(Number),
-        socketTimeout: expect.any(Number),
+        connectionTimeout: expect.any(Number) as number,
+        greetingTimeout: expect.any(Number) as number,
+        socketTimeout: expect.any(Number) as number,
       }),
     );
-    const options = (nodemailer.createTransport as jest.Mock).mock.calls[0]![0];
+    type SmtpTransportOptions = {
+      connectionTimeout: number;
+      greetingTimeout: number;
+      socketTimeout: number;
+    };
+    const transportCalls = (nodemailer.createTransport as jest.Mock).mock
+      .calls as [SmtpTransportOptions][];
+    const options = transportCalls[0][0];
     expect(options.connectionTimeout).toBeLessThanOrEqual(15_000);
     expect(options.greetingTimeout).toBeLessThanOrEqual(15_000);
     expect(options.socketTimeout).toBeLessThanOrEqual(15_000);

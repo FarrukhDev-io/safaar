@@ -9,6 +9,10 @@ import { hmacSha256 } from '../auth/security';
 
 const secret = 'test-payment-webhook-secret-32-characters';
 
+type QueryCall = [sql: string, params?: readonly unknown[]];
+const queryCallsOf = (obj: { query: unknown }): QueryCall[] =>
+  (obj.query as jest.Mock).mock.calls as QueryCall[];
+
 describe('PaymentsService — authorization (regression: unauthenticated IDOR)', () => {
   let service: PaymentsService;
   let pg: jest.Mocked<Pick<PostgresService, 'query'>>;
@@ -158,7 +162,7 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
 
     expect(result).toMatchObject({ booking_outcome: 'confirmed' });
 
-    const confirmCall = pg.query.mock.calls.find(([sql]) =>
+    const confirmCall = queryCallsOf(pg).find(([sql]) =>
       String(sql).includes('SET status = $1, confirmed_at'),
     );
     expect(confirmCall).toBeDefined();
@@ -168,7 +172,7 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
       'booking-1',
     ]);
 
-    const ledgerCall = pg.query.mock.calls.find(([sql]) =>
+    const ledgerCall = queryCallsOf(pg).find(([sql]) =>
       String(sql).includes('INSERT INTO partner_ledger_entries'),
     );
     expect(ledgerCall).toBeDefined();
@@ -210,7 +214,7 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
     expect(result).toMatchObject({
       booking_outcome: 'awaiting_partner_confirmation',
     });
-    const confirmCall = pg.query.mock.calls.find(([sql]) =>
+    const confirmCall = queryCallsOf(pg).find(([sql]) =>
       String(sql).includes('SET status = $1, confirmed_at'),
     );
     expect(confirmCall?.[1]?.[0]).toBe('awaiting_partner_confirmation');
@@ -243,12 +247,12 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
     expect(result.payment?.status).toBe('paid');
 
     // Bron statusi hech qachon "confirmed"ga jim o'zgartirilmasligi kerak.
-    const confirmCall = pg.query.mock.calls.find(([sql]) =>
+    const confirmCall = queryCallsOf(pg).find(([sql]) =>
       String(sql).includes('SET status = $1, confirmed_at'),
     );
     expect(confirmCall).toBeUndefined();
 
-    const refundCall = pg.query.mock.calls.find(([sql]) =>
+    const refundCall = queryCallsOf(pg).find(([sql]) =>
       String(sql).includes('INSERT INTO refunds'),
     );
     expect(refundCall).toBeDefined();
@@ -281,7 +285,7 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
       'x-safaar-signature': sign('click', 'prepare', body),
     });
 
-    const bookingUpdateCall = pg.query.mock.calls.find(([sql]) =>
+    const bookingUpdateCall = queryCallsOf(pg).find(([sql]) =>
       String(sql).startsWith('UPDATE bookings'),
     );
     expect(bookingUpdateCall).toBeUndefined();
@@ -336,13 +340,15 @@ describe('PaymentsService.createPayment (regression: payment_url was always null
       pg as unknown as PostgresService,
       { get: jest.fn() } as never,
       click as never,
-      payme as never,
+      payme,
     );
   });
 
   it('returns a real checkout URL when Click is configured', async () => {
     click.isConfigured.mockReturnValue(true);
-    click.buildCheckoutUrl.mockReturnValue('https://my.click.uz/services/pay?service_id=1');
+    click.buildCheckoutUrl.mockReturnValue(
+      'https://my.click.uz/services/pay?service_id=1',
+    );
     pg.query
       .mockResolvedValueOnce([bookingRow]) // assertBookingVisible
       .mockResolvedValueOnce([]) // no existing pending payment
@@ -355,17 +361,17 @@ describe('PaymentsService.createPayment (regression: payment_url was always null
     expect(result.payment_url).toBe(
       'https://my.click.uz/services/pay?service_id=1',
     );
-    const insertCall = pg.query.mock.calls.find(([sql]) =>
+    const insertCall = queryCallsOf(pg).find(([sql]) =>
       String(sql).includes('INSERT INTO payments'),
     );
-    expect(insertCall?.[1]).toContain('https://my.click.uz/services/pay?service_id=1');
+    expect(insertCall?.[1]).toContain(
+      'https://my.click.uz/services/pay?service_id=1',
+    );
   });
 
   it('fails clearly instead of returning a fake/null payment_url when Click is not configured', async () => {
     click.isConfigured.mockReturnValue(false);
-    pg.query
-      .mockResolvedValueOnce([bookingRow])
-      .mockResolvedValueOnce([]);
+    pg.query.mockResolvedValueOnce([bookingRow]).mockResolvedValueOnce([]);
 
     await expect(
       service.createPayment(owner, 'booking-1', { provider: 'click' }),
@@ -449,7 +455,10 @@ describe('PaymentsService.clickPrepare / clickComplete (real Click protocol)', (
       sign_string: 'wrong',
     });
 
-    expect(result).toMatchObject({ error: -1, error_note: 'SIGN CHECK FAILED!' });
+    expect(result).toMatchObject({
+      error: -1,
+      error_note: 'SIGN CHECK FAILED!',
+    });
     expect(pg.transaction).not.toHaveBeenCalled();
   });
 
@@ -505,7 +514,7 @@ describe('PaymentsService.clickPrepare / clickComplete (real Click protocol)', (
     });
 
     expect(result).toMatchObject({ error: 0, error_note: 'Success' });
-    const ledgerCall = pg.query.mock.calls.find(([sql]) =>
+    const ledgerCall = queryCallsOf(pg).find(([sql]) =>
       String(sql).includes('INSERT INTO partner_ledger_entries'),
     );
     expect(ledgerCall).toBeDefined();
@@ -526,7 +535,10 @@ describe('PaymentsService.clickPrepare / clickComplete (real Click protocol)', (
       error: -9,
     });
 
-    expect(result).toMatchObject({ error: -9, error_note: 'Transaction cancelled' });
+    expect(result).toMatchObject({
+      error: -9,
+      error_note: 'Transaction cancelled',
+    });
     expect(pg.transaction).not.toHaveBeenCalled();
   });
 });
