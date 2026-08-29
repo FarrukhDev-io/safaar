@@ -24,7 +24,12 @@ COPY apps/backend apps/backend
 # uchun bu yerda faqat sintaktik jihatdan to'g'ri placeholder yetarli.
 # Runtime'da bu qiymat haqiqiy sir bilan almashtiriladi (env_file/`-e`).
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
-RUN npm run prisma:generate -w @safaar/backend && npm run build:types && npm run build:backend
+# Alohida RUN qatorlari — qaysi bosqich muvaffaqiyatsiz bo'lsa, xato
+# xabarida ANIQ shu buyruq ko'rinadi (bitta zanjirlangan RUN'da bularning
+# barchasi bitta umumiy "exit code: 1" ostida yashiringan edi).
+RUN npm run prisma:generate -w @safaar/backend
+RUN npm run build:types
+RUN npm run build:backend
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
