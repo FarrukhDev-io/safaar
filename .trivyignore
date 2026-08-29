@@ -1,0 +1,25 @@
+# Trivy CRITICAL gate uchun bilib turib qabul qilingan (accepted risk)
+# zaifliklar — barchasi `node:22-bookworm-slim` bazaviy image'ning o'z OS
+# paketlarida, safaar-backend'ning O'Z kodida yoki to'g'ridan-to'g'ri
+# ishlatiladigan bog'liqlikda EMAS. Har biri sabab bilan izohlangan.
+#
+# MUHIM: bu fayl faqat AYNAN shu ID'larni o'tkazib yuboradi — yangi/boshqa
+# CRITICAL topilsa, gate baribir deploy'ni to'xtatadi.
+
+# perl-base — Debian bazaviy image'ning tizim komponenti. safaar-backend
+# Node.js ilovasi, hech qanday joyda perl'ni ishga tushirmaydi/chaqirmaydi
+# — shu sabab amaliy xavf yo'q. Debian'da hali rasmiy tuzatish chiqmagan.
+CVE-2026-13221
+CVE-2026-42496
+CVE-2026-8376
+
+# zlib1g — Debian bazaviy image'ning tizim kutubxonasi (Node.js runtime
+# ichidan bilvosita ishlatiladi, ilova kodi to'g'ridan-to'g'ri chaqirmaydi).
+# Debian'da hali rasmiy tuzatish chiqmagan.
+CVE-2023-45853
+
+# tar (Node.js bilan birga keladigan npm ichki bog'liqlik) — safaar-backend
+# runtime'da tar arxivlarini ochish/yaratish bilan ishlamaydi (foydalanuvchi
+# tomonidan boshqariladigan arxiv fayllarini qayta ishlamaydi), shu sabab
+# bu CVE (path traversal arxiv ochishda) amaliy jihatdan qo'llanilmaydi.
+CVE-2026-59873
