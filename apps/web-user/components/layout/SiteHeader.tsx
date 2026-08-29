@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/cn";
 import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
 import { LocaleSwitcher } from "./LocaleSwitcher";
+import { NotificationsBell } from "./NotificationsBell";
 
 function AuthButtons({
   authed,
@@ -70,10 +71,17 @@ export function SiteHeader({
   locale,
   dict,
   authed,
+  token,
 }: {
   locale: Locale;
   dict: CommonDict;
   authed: boolean;
+  /**
+   * Kirgan foydalanuvchining access tokeni — faqat `NotificationsBell`ga
+   * uzatiladi (bildirishnomalarni backenddan olish uchun). Yo'q bo'lsa
+   * qo'ng'iroq umuman render qilinmaydi.
+   */
+  token?: string;
 }) {
   const base = `/${locale}`;
   const navDict = dict.nav as typeof dict.nav & {
@@ -110,6 +118,12 @@ export function SiteHeader({
   const authActions = <AuthButtons authed={authed} locale={locale} dict={dict} orientation="horizontal" />;
   const authActionsLight = <AuthButtons authed={authed} locale={locale} dict={dict} orientation="vertical" />;
 
+  // Bildirishnomalar qo'ng'irog'i faqat kirgan foydalanuvchi uchun (token
+  // bo'lsa). `NotificationsBell`ning o'zi ham `token` bo'lmasa `null`
+  // qaytaradi — bu ikki bosqichli tekshiruv ataylab.
+  const notifications =
+    authed && token ? <NotificationsBell locale={locale} token={token} /> : null;
+
   const actions = (
     <div className="flex items-center gap-2">
       {localeSwitcherLight}
@@ -123,6 +137,7 @@ export function SiteHeader({
       brand={dict.brand}
       brandHref={base}
       actions={actions}
+      notifications={notifications}
       localeSwitcher={localeSwitcherLight}
       authActions={authActionsLight}
     />

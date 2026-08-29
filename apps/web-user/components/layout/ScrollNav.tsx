@@ -20,6 +20,12 @@ interface Props {
   brand: string;
   brandHref: string;
   actions: React.ReactNode;
+  /**
+   * Bildirishnomalar qo'ng'irog'i (kirgan foydalanuvchida). Mobil top-bar'da
+   * hamburger tugmasi yonida va desktop navbar'ning o'ng blokida ko'rsatiladi.
+   * Berilmasa (mehmon) hech narsa render qilinmaydi.
+   */
+  notifications?: React.ReactNode;
   localeSwitcher?: React.ReactNode;
   authActions?: React.ReactNode;
 }
@@ -203,7 +209,7 @@ function MobileAccordionGroup({
   );
 }
 
-export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, authActions }: Props) {
+export function ScrollNav({ items, brand, brandHref, actions, notifications, localeSwitcher, authActions }: Props) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -235,15 +241,18 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
       {/* ═══ Mobile header ═══ */}
       <header className="mt-2 sticky top-2 z-100 mx-4 flex h-14 items-center justify-between rounded-2xl bg-white/95 px-5 text-slate-900 shadow-[0_4px_16px_rgba(0,0,0,0.15)] backdrop-blur-md md:hidden dark:bg-slate-950/95 dark:text-white">
         <BrandLogo href={brandHref} brand={brand} />
-        <button
-          type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-expanded={menuOpen}
-          aria-label={menuOpen ? "Menyuni yopish" : "Menyuni ochish"}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-slate-900 transition-colors hover:bg-slate-100 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-slate-300 dark:hover:bg-slate-800"
-        >
-          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-0.5">
+          {notifications}
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? "Menyuni yopish" : "Menyuni ochish"}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-900 transition-colors hover:bg-slate-100 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </header>
 
       {/* ═══ Mobile drawer ═══ */}
@@ -364,7 +373,10 @@ export function ScrollNav({ items, brand, brandHref, actions, localeSwitcher, au
             })}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2.5">{actions}</div>
+          <div className="flex shrink-0 items-center gap-2.5">
+            {notifications}
+            {actions}
+          </div>
         </div>
       </nav>
     </>

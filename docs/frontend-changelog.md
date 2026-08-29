@@ -6,6 +6,222 @@ o'chirilmaydi yoki o'zgartirilmaydi.
 
 ---
 
+# 2026-08-29 — Ikki production bug: (F1) NotificationsBell header'ga ulanmagan edi, (F2) `/sw.js` MIME xatosi
+
+QA (production'ga qarshi Playwright) ikkita haqiqiy frontend/deploy nosozligini
+aniqladi. Ikkalasi ham `apps/web-user`da, ikkalasi ham tuzatildi.
+
+---
+
+## F1 — NotificationsBell header'ga ulanmagan edi
+
+### Asl bug
+`components/layout/NotificationsBell.tsx` — to'liq yozilgan komponent (bildirishnoma
+`list`, `markRead`, `markAllRead`, dropdown UI, 30s polling, `notification.created`
+real-time event). Lekin **hech qayerda import/render qilinmagan** edi. Kirgan
+foydalanuvchi bildirishnomalarni ko'ra olmasdi — web-user'da boshqa bildirishnoma
+UI'si umuman yo'q (`grep -r notification app/` — bo'sh).
+
+### Root cause / nega yuz bergan
+`SiteHeader.tsx` faqat `authed: boolean` propini olardi, `token`ni emas.
+`NotificationsBell` esa `token` (access JWT) talab qiladi — usiz `null` qaytaradi.
+Komponent yozilgan, lekin header'ni yig'ish bosqichida hech kim uni `SiteHeader`
+ичiga qo'ymagan va token'ni unga uzatmagan. Klassik "yarim yetkazilgan feature".
+
+### Nima o'zgardi
+1. `app/[lang]/(main)/layout.tsx` — `<SiteHeader ... token={session?.accessToken} />`
+   (session allaqachon shu yerda `getSession()` orqali olinardi; `accessToken`
+   xuddi shu joydagi `<RealtimeProvider accessToken=...>`ga ham beriladi, ya'ni
+   token'ni client'ga ochish **yangi xavf emas** — mavjud pattern).
+2. `components/layout/SiteHeader.tsx` — yangi ixtiyoriy `token?: string` propi;
+   `const notifications = authed && token ? <NotificationsBell locale={locale}
+   token={token} /> : null;` — ikki bosqichli tekshiruv (prop + komponentning
+   o'z `if (!token) return null`).
+3. `components/layout/ScrollNav.tsx` — yangi ixtiyoriy `notifications?: ReactNode`
+   propi. Desktop navbar'ning o'ng blokida (`actions`dan oldin) VA mobil top-bar'da
+   (hamburger tugmasi yonida) render qilinadi.
+
+### To'g'ri arxitektura / integratsiya nuqtasi
+- Token manbasi: **faqat** `app/[lang]/(main)/layout.tsx` server component'ida
+  `getSession()` (httpOnly `safaar_session` cookie). Boshqa joydan token olmang.
+- Ulanish nuqtasi: `(main)/layout.tsx` → `SiteHeader` (`token` prop) → `ScrollNav`
+  (`notifications` prop) → `NotificationsBell`. `SiteHeader`/`(main)/layout` server
+  component; `NotificationsBell`/`ScrollNav` client — server client'ni prop sifatida
+  uzatishi to'g'ri pattern.
+- `NotificationsBell` `useRealtimeEvent`dan foydalanadi → **`RealtimeProvider`
+  ichida bo'lishi shart**. `(main)/layout.tsx` allaqachon butun daraxtni
+  `<RealtimeProvider>`ga o'raydi, shu sabab shu layout'dan tashqarida ishlatib
+  bo'lmaydi.
+- Responsив: `AuthButtons` bilan bir xil — qo'ng'iroq **ikki marta** render
+  qilinadi (desktop nav + mobil header, CSS bilan almashtiriladi). Natijada DOM'da
+  2 nusxa bo'ladi (faqat bittasi ko'rinadi). Tegishli tradeoff: 2 ta 30s polling
+  (har biri 1 `GET /notifications`). Yengil; agar keyinchalik muammo bo'lsa —
+  fetch'ni umumiy context/hook'ga ko'tarish kerak.
+
+### Qayta kiritmaslik uchun
+- `SiteHeader`ga yangi "kirgan-foydalanuvchi" element qo'shsangiz, token'ni
+  `(main)/layout.tsx`dan prop orqali bering — `SiteHeader` ichida `getSession()`
+  chaqirmang (u client emas, lekin arxitekturani buzadi va boshqa layout'larda
+  sinadi).
+- `NotificationsBell`ni faqat `(main)` route-group ichida ishlating (`RealtimeProvider`
+  + `getSession` shu yerda).
+- Qo'ng'iroqni `authed && token` bilan gate qiling — `authed` bo'lib token
+  bo'lmasligi mumkin (muddati o'tgan sessiya `getSession`da `null` qaytaradi, lekin
+  himoya sifatida ikki tekshiruv qoldiriladi).
+
+### Qanday tekshirish (verify)
+Lokal production build + real backend:
+```
+cd apps/web-user
+NEXT_PUBLIC_API_URL=https://111-88-246-79.sslip.io/v1 \
+NEXT_PUBLIC_SITE_URL=http://localhost:3100 \
+npx next build && npx next start -p 3100
+```
+Keyin:
+- Kirmagan holatda `/uz/hotels` → `button[aria-label="Bildirishnomalar"]` = **0 ta**.
+- Telefon+OTP orqali ro'yxatdan o'ting (dev kod real backend javobida) → header'da
+  qo'ng'iroq **ko'rinadi**; bosilганда dropdown ochiladi (`role="menu"` ичida
+  "Bildirishnomalar" sarlavhasi); `GET /notifications` so'rovi ketadi.
+- Desktop (≥768px) → qo'ng'iroq navbar'da; mobil (<768px) → top-bar'da hamburger
+  yonida.
+- E2E: `e2e/tests/user/critical-flow.spec.ts` (18-qadam) shu qo'ng'iroqni tekshiradi.
+  **DIQQAT:** bu spec default'da **production**ga qarshi ishlaydi. `localhost`ga
+  qarshi ishlatilsa, qo'ng'iroqning `GET /notifications` so'rovi **CORS**dan
+  o'tmaydi (backend `Access-Control-Allow-Origin` ro'yxatida faqat
+  `web-user-rho.vercel.app` / `safaar.vercel.app` bor, `localhost` yo'q) — bu
+  lokal-cross-origin cheklovi, regressiya emas.
+
+E2E test o'zgarishi (asosli): `critical-flow.spec.ts`da qo'ng'iroq lokatori
+`getByLabel('Bildirishnomalar')` → `locator('button[aria-label="Bildirishnomalar"]:visible').first()`
+qilindi, chunki responsив ikki-render tufayli `getByLabel` endi 2 element topib
+Playwright strict-mode xatosi berardi. Bu `favorites-qa.spec.ts`dagi `heartButton`
+helper'i (`button[aria-label="Sevimli"]:visible`) bilan bir xil andoza.
+
+---
+
+## F2 — Production konsolida `The script has an unsupported MIME type ('text/html')`
+
+### Asl bug
+Production'da **har bir sahifa** brauzer konsolida quyidagi xatoni chiqarardi:
+```
+The script has an unsupported MIME type ('text/html').
+```
+Lokal dev'da yo'q edi — faqat production'da.
+
+### Root cause (aniq)
+`components/pwa/ServiceWorkerRegister.tsx`:
+```js
+if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+```
+- `NODE_ENV === "production"` sharti → **faqat production'da** ishga tushadi (shu
+  sabab lokal dev'da xato yo'q).
+- Ammo `apps/web-user/public/sw.js` **umuman mavjud emas edi** — na fayl, na uni
+  generatsiya qiladigan vosita (`next-pwa`/`serwist`/`workbox` — yo'q; `package.json`
+  toza).
+- Vercel'da `/sw.js` uchun statik fayl topilmagach, so'rov Next.js ilovasiga
+  tushib, javob sifatida ilovaning HTML app-shell/404 sahifasi qaytarilardi:
+  ```
+  GET https://web-user-rho.vercel.app/sw.js
+  → HTTP 200
+  → Content-Type: text/html; charset=utf-8
+  → body: <meta name="robots" ...><script src="/_next/static/chunks/...">...
+  ```
+- `next.config.ts`dagi `X-Content-Type-Options: nosniff` header MIME tekshiruvni
+  qat'iy qiladi → brauzer `text/html`ni skript sifatida ishlatishdan bosh tortadi
+  va registratsiyani rad etadi, konsolga yuqoridagi xatoni yozadi.
+- `.catch(() => {})` faqat **promise rejection**ni yutadi; brauzerning o'z konsol
+  xatosini yashira olmaydi (u register() rad etilishidan oldin chiqadi).
+
+### Nega yuz bergan
+Ilovada PWA niyati bor edi — `manifest.webmanifest`, `appleWebApp`, `themeColor`,
+`PwaInstallBanner` (mount qilingan), `PushSubscriptionManager` (mount qilinmagan),
+`/[lang]/offline` route, va `ServiceWorkerRegister`. Lekin **service worker faylining
+o'zi hech qachon yozilmagan** — registratsiya kodi "kelajakdagi" faylga tayanardi.
+
+### Nima o'zgardi
+`apps/web-user/public/sw.js` **qo'shildi** — ataylab MINIMAL service worker:
+- `install` → `skipWaiting()`, `activate` → `clients.claim()` (yangilanish tez
+  tarqaladi).
+- Bo'sh `fetch` listener — `respondWith` chaqirmaydi, demak **tarmoq xatti-harakati
+  o'zgarmaydi** (brauzer odatdagidek yuklaydi). Bu PWA "installable" evristikasi
+  uchun kifoya.
+- **Hech narsani kesh qilmaydi** → eskirgan-kontent xavfi yo'q (bu sayt ilgari
+  hech qachon SW ishlatmagan, shuning uchun konservativ yondashuv).
+
+`ServiceWorkerRegister.tsx` **o'zgartirilmadi** — fayl mavjud bo'lgach, u to'g'ri
+ishlaydi. Console xatosi manbasida yo'qoladi (suppress qilinmaydi).
+
+Qo'shimcha ta'sir: `PwaInstallBanner` endi ishlashi mumkin — Chrome
+`beforeinstallprompt`ni faqat SW ro'yxatdan o'tgan bo'lsa yuboradi (ilgari SW yo'q
+edi → banner hech qachon chiqmasdi).
+
+### Production MIME/skript xatosini qanday diagnostika qilish (kelajak uchun)
+1. Brauzer DevTools → Console'da xato matnini o'qing. `text/html` bo'lsa — bir
+   skript **HTML** qaytaryapti (odatda 404 → app-shell).
+2. **Aniq URL'ni toping.** Chrome console matnida URL bo'lmaydi. Vositalar:
+   - DevTools → Network → "JS" filtri → `text/html` `Content-Type`li yoki 4xx
+     status'li skript so'rovini qidiring.
+   - `resourceType === 'script'` odatiy `<script>`larni qamrab oladi, lekin
+     **service worker** / `<link rel=modulepreload>` / preload'lar `'other'` bo'ladi
+     — Playwright/Puppeteer probe'da `page.on('response')`ни FILTRSIZ yozib,
+     `content-type` va `status`ни tekshiring.
+   - To'g'ridan-to'g'ri: `curl -sI https://<host>/<shubhali-yo'l>` → `Content-Type`.
+3. Manbani aniqlang: application kodi (`navigator.serviceWorker.register`,
+   `<Script src>`, dinamik `import()`), analytics (`/_vercel/insights/script.js` —
+   Web Analytics yoqilmagan bo'lsa 404), framework config, deployment rewrite, yoki
+   **yo'q asset** (bu holatda — `public/sw.js`).
+4. Tuzatish: yetishmayotgan asset'ni qo'shing YOKI xato skript-yo'lini to'g'rilang
+   YOKI (agar funksiya kerak bo'lmasa) registratsiya/`<Script>`ni olib tashlang.
+   **Console'ni suppress qilib yashirmang.**
+5. Production deploy'da tekshiring: `curl -sI https://<host>/sw.js` →
+   `content-type: application/javascript`; brauzer konsolida xato yo'q;
+   `navigator.serviceWorker.getRegistration()` → registratsiya bor.
+
+### Kelajakda offline/kesh kerak bo'lsa
+`public/sw.js`ни to'ldiring yoki `next-pwa`/`serwist` qo'shing. `/[lang]/offline`
+route allaqachon bor — offline fallback uchun ishlatish mumkin.
+`PushSubscriptionManager.tsx` (hozir mount qilinmagan) web-push uchun shu SW'ga
+`push`/`notificationclick` handlerlari qo'shilishini talab qiladi.
+
+---
+
+## Tekshirilgan (verification)
+
+| Nima | Natija |
+|---|---|
+| `npm run build:types && build -w @safaar/api-client && build -w @safaar/web-user` | ✅ PASS |
+| `tsc --noEmit` (`apps/web-user`) | ✅ PASS |
+| `eslint` (o'zgargan fayllar) | ✅ PASS |
+| F2: lokal prod `curl /sw.js` | ✅ `200`, `content-type: application/javascript` |
+| F2: brauzer — SW ro'yxatdan o'tdi, `active: true`, **0 ta MIME console error** | ✅ |
+| F1: kirmagan holat — qo'ng'iroq DOM'da yo'q | ✅ `0` |
+| F1: kirgan holat — qo'ng'iroq desktop navbar + mobil top-bar'da ko'rinadi | ✅ |
+| F1: qo'ng'iroq bosilганда dropdown ochiladi ("Bildirishnomalar" sarlavha) | ✅ |
+| F1: backend CORS `web-user-rho.vercel.app` origin uchun `/notifications`ga ruxsat beradi | ✅ (`204`, `Access-Control-Allow-Origin` mos) |
+
+**E2E:** `favorites-qa.spec.ts` + `critical-flow.spec.ts` — default target **production**.
+Deploy'dan keyin `web-user-rho.vercel.app`ga qarshi qayta ishga tushirilishi kerak
+(lokal `localhost`ga qarshi — qo'ng'iroqning `/notifications` so'rovi CORS shovqini
+beradi, chunki backend allowlist'ida `localhost` yo'q).
+
+## O'zgargan fayllar
+- `apps/web-user/app/[lang]/(main)/layout.tsx` — `token` prop
+- `apps/web-user/components/layout/SiteHeader.tsx` — `token` prop + `NotificationsBell`
+- `apps/web-user/components/layout/ScrollNav.tsx` — `notifications` slot (desktop + mobil)
+- `apps/web-user/public/sw.js` — **yangi** minimal service worker
+- `e2e/tests/user/critical-flow.spec.ts` — qo'ng'iroq lokatori `:visible` bilan (test-side, asosli)
+
+## Deploy
+Bu yozuv yozilганда — **hali deploy qilinmagan** (foydalanuvchi tasdig'i kutilmoqda).
+web-user deploy workflow'i: `cd apps/web-user && npx vercel --prod` (Vercel loyihasi
+`web-user`, prod URL `https://web-user-rho.vercel.app`; git auto-deploy yo'q, manual CLI).
+
+## Git
+- Branch: `temp/save-all-work` (foydalanuvchi ko'rsatmasi bilan alohida branch
+  yaratilmadi; commit qilinmadi).
+
 # 2026-08-27 — Login sahifasidagi social xato xabarlari provider-specific qilindi (Facebook/Google)
 
 ## Nima o'zgardi
