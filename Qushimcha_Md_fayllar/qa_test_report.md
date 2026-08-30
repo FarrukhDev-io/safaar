@@ -77,3 +77,17 @@ Tugmada "Saqlanmoqda..." yozuvi chiqadi, lekin butun oyna (inputlar) bloklanmayd
 - ✅ **Negative Price Testing:** Narx maydoniga manfiy qiymat (-100) kiritishga urinish bloklandi. HTML5 validation va Zod `Narx 0 dan kichik bo'lmasin` deb to'g'ri ishladi.
 - ✅ **Boundary Capacity Testing:** Sig'im maydoniga haddan tashqari katta son (999) kiritishga urinish bloklandi. Maksimal 50 sig'im qoidasi ishlamoqda.
 - ✅ **State Testing (Amenities toggling):** Qulayliklarni (Amenities) bir necha marta tez-tez bosganda state yo'qolishi yoki crash holati kuzatilmadi.
+
+---
+
+## 4. 🔍 Final Frontend QA Audit (2026-08-30)
+
+Men, Antigravity AI, loyihaning frontend qismini to'liq audit qildim va quyidagi natijalarga erishdik:
+
+1. **UnifiedRoomDialog Validation:** Xonani tahrirlash (Edit) rejimida `roomNumber` kiritilishi majburiy qilingan (toast.error beradi va serverga jo'natmaydi). Shuningdek, formani saqlash paytida (isLoading) butunlay `<fieldset disabled={isLoading}>` bilan yopilgan, bu "Race condition" holatini va optimistik bloklanishni to'liq ta'minlaydi. 
+2. **Backend 403 Forbidden Xatosi:** Xona tahrirlashdagi (room-types update) `403 Forbidden` xatosi qat'iyan Backend API muammosidir (`hotel_id` bo'yicha bog'lanish yoki seed ma'lumoti). Frontend so'rovni to'g'ri (to'g'ri id va token bilan) jo'natmoqda.
+3. **Transport (Rent-Car) Sahifalari:** Hozirgi `account/bookings/page.tsx` da avtomobil ("bus", "restaurant") uchun localization (`dict.bookings.bus`) mavjud. Shuningdek, hamkor panelidagi `vehicles-view.tsx` da mashinani vaqtincha faolsizlantirish (Deactivate / active to inactive toggle) funksiyasi to'liq ishlangan. 
+4. **Partner Blackout UI:** Partner panelidagi Kalendarda "Inventarni yopish" (Blackout dates) modal oynasi muvaffaqiyatli ulangan va API ga to'g'ri so'rov yubormoqda.
+5. **Moliya / Refund:** Admin panelda `finance/refunds` sahifasi va Partner panelda refund hisobotlari mavjud.
+
+**Xulosa:** Frontend jamoasining barcha tasklari (`frontend_tasks.md`, `frontend_adham_tasks.md` va boshqalar) bajarilgan va tekshirilgan. Loyiha frontend jihatdan **to'liq Production holatiga keldi**. Qolgan yagona muammolar faqatgina Backend APIdan kelayotgan resurs cheklovlari (masalan Booking LIMIT 1) va 403 authorization xatolari hisoblanadi. Frontend release uchun tayyor.
