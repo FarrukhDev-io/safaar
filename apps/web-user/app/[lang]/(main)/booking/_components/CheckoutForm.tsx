@@ -34,13 +34,13 @@ export function CheckoutForm({
   dict: CheckoutDict & { firstName?: string; lastName?: string; email?: string; phone?: string };
   hotelId: string;
   hotelName: string;
-  room: { id: string; name: string; priceSum: number };
+  room: { id: string; name: string; priceSum: number; capacity: number };
   defaults: { checkIn: string; checkOut: string; guests: number };
   isGuest?: boolean;
 }) {
   const [checkIn, setCheckIn] = useState(defaults.checkIn);
   const [checkOut, setCheckOut] = useState(defaults.checkOut);
-  const [guests, setGuests] = useState(defaults.guests);
+  const [guests, setGuests] = useState(Math.min(room.capacity, Math.max(1, defaults.guests)));
   const [state, action, pending] = useActionState<CheckoutState, FormData>(
     createBookingAction,
     {},
@@ -156,9 +156,9 @@ export function CheckoutForm({
                 type="number"
                 name="guests"
                 min={1}
-                max={20}
+                max={room.capacity}
                 value={guests}
-                onChange={(e) => setGuests(Math.max(1, Number(e.target.value)))}
+                onChange={(e) => setGuests(Math.min(room.capacity, Math.max(1, Number(e.target.value))))}
               />
             </label>
           </div>
