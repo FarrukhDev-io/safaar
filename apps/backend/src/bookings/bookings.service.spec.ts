@@ -80,10 +80,11 @@ describe('BookingsService.createHotel guest checkout', () => {
           id: 'room-1',
           hotel_id: 'hotel-1',
           base_price: '100000',
+          total_inventory: 1,
         },
       ])
       // sana-ziddiyat tekshiruvi (bo'sh = ziddiyat yo'q)
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ booked_count: 0 }])
       .mockResolvedValueOnce([]) // INSERT bookings
       .mockResolvedValueOnce([]) // INSERT booking_status_history
       .mockResolvedValueOnce([]) // SELECT existing pending payment (none)
@@ -124,9 +125,14 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([hotelRow])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ booked_count: 0 }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
@@ -153,9 +159,14 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([hotelRow])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([]) // conflict check
+      .mockResolvedValueOnce([{ booked_count: 0 }]) // conflict check
       .mockResolvedValueOnce([]) // INSERT bookings
       .mockResolvedValueOnce([]) // INSERT booking_status_history (created)
       .mockResolvedValueOnce([]) // existing pending payment check
@@ -180,9 +191,14 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([{ ...hotelRow, commission_rate: 20 }])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ booked_count: 0 }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
@@ -211,9 +227,14 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([hotelRow])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ booked_count: 0 }])
       .mockResolvedValueOnce([]) // INSERT bookings
       .mockResolvedValueOnce([]) // INSERT booking_status_history
       .mockResolvedValueOnce([]) // SELECT existing pending payment
@@ -261,10 +282,15 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([hotelRow])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
       // sana-ziddiyat tekshiruvi — mavjud bron topildi
-      .mockResolvedValueOnce([{ id: 'existing-booking-1' }]);
+      .mockResolvedValueOnce([{ booked_count: 1 }]);
 
     await expect(
       service.createHotel(undefined, {
@@ -280,6 +306,62 @@ describe('BookingsService.createHotel guest checkout', () => {
     // Ziddiyat topilgach INSERT chaqirilmasligi kerak (faqat 3 ta so'rov:
     // hotel, room-lock, conflict-check).
     expect(pg.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('total_inventory=10 bo\'lgan xona turida 1 ta bron qilingandan keyin ham qolgan 9 tasini sotib bo\'ladi (regression: "soxta sold-out" — ilgari LIMIT 1 tufayli BITTA bron ham qolgan barcha inventarni "band" qilib qo\'yardi)', async () => {
+    pg.query
+      .mockResolvedValueOnce([hotelRow])
+      .mockResolvedValueOnce([
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 10,
+        },
+      ])
+      // Shu sanalarga allaqachon 1 ta xona band qilingan (10 tadan) — bu
+      // ENDI ziddiyat HISOBLANMASLIGI kerak, chunki 1 + 1 <= 10.
+      .mockResolvedValueOnce([{ booked_count: 1 }])
+      .mockResolvedValueOnce([]) // INSERT bookings
+      .mockResolvedValueOnce([]) // INSERT booking_status_history
+      .mockResolvedValueOnce([]) // SELECT existing pending payment
+      .mockResolvedValueOnce([]); // INSERT payments
+
+    const result = await service.createHotel(undefined, {
+      hotel_id: 'hotel-1',
+      room_id: 'room-1',
+      check_in: '2026-08-10',
+      check_out: '2026-08-12',
+      rooms: 1,
+      guest_email: 'guest@example.com',
+    });
+
+    expect(result.booking.room_id).toBe('room-1');
+  });
+
+  it("total_inventory=10 bo'lgan xona turida 10 tasi allaqachon band bo'lsa, 11-chi so'rov 409 bilan rad etiladi", async () => {
+    pg.query
+      .mockResolvedValueOnce([hotelRow])
+      .mockResolvedValueOnce([
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 10,
+        },
+      ])
+      .mockResolvedValueOnce([{ booked_count: 10 }]);
+
+    await expect(
+      service.createHotel(undefined, {
+        hotel_id: 'hotel-1',
+        room_id: 'room-1',
+        check_in: '2026-08-10',
+        check_out: '2026-08-12',
+        rooms: 1,
+        guest_email: 'guest@example.com',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
   });
 
   it('noto‘g‘ri check_in/check_out uchun 400 qaytaradi (500 emas)', async () => {
@@ -364,9 +446,14 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
     pg.query
       .mockResolvedValueOnce([restaurantHotelRow])
       .mockResolvedValueOnce([
-        { id: 'table-1', hotel_id: 'hotel-r1', base_price: '150000' },
+        {
+          id: 'table-1',
+          hotel_id: 'hotel-r1',
+          base_price: '150000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([]) // slot conflict check — bo'sh
+      .mockResolvedValueOnce([{ booked_count: 0 }]) // slot conflict check — bo'sh
       .mockResolvedValueOnce([]) // INSERT bookings
       .mockResolvedValueOnce([]) // INSERT booking_status_history
       .mockResolvedValueOnce([]) // existing pending payment check
@@ -425,9 +512,14 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
     pg.query
       .mockResolvedValueOnce([restaurantHotelRow])
       .mockResolvedValueOnce([
-        { id: 'table-1', hotel_id: 'hotel-r1', base_price: '150000' },
+        {
+          id: 'table-1',
+          hotel_id: 'hotel-r1',
+          base_price: '150000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([{ id: 'existing-1' }]);
+      .mockResolvedValueOnce([{ booked_count: 1 }]);
 
     await expect(
       service.createHotel(undefined, {

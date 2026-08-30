@@ -170,7 +170,7 @@ describe('PartnersService frontend action endpoints', () => {
   it('rejects updating a room type that belongs to a different hotel, even with a valid hotelId the caller does own (regression: cross-tenant room_type IDOR)', async () => {
     pgMock.query
       .mockResolvedValueOnce([hotelRow]) // assertHotel(hotelId) — caller's own hotel, succeeds
-      .mockResolvedValueOnce([{ owned: false }]); // assertRoomTypeOwnedByHotel — belongs elsewhere
+      .mockResolvedValueOnce([{ owned_by_self: false, used_by_other: true }]); // assertRoomTypeOwnedByHotel — belongs elsewhere, never used by caller
 
     await expect(
       service.updateRoomType(actor, hotelId, 'someone-elses-room-type-id', {
@@ -179,10 +179,43 @@ describe('PartnersService frontend action endpoints', () => {
     ).rejects.toMatchObject({ status: 403 });
   });
 
+  it('allows updating a room type that IS shared with other hotels, as long as the caller\'s own hotel also uses it (regression: false-positive 403 "Bu xona turi boshqa mehmonxonaga tegishli" on legitimately shared catalog room_types, e.g. seeded "standard"/"deluxe")', async () => {
+    pgMock.query
+      .mockResolvedValueOnce([hotelRow]) // assertHotel
+      .mockResolvedValueOnce([{ owned_by_self: true, used_by_other: true }]) // assertRoomTypeOwnedByHotel — shared, but caller also owns it
+      .mockResolvedValueOnce([
+        {
+          id: 'room-type-1',
+          code: 'standard',
+          name: { uz: 'Standard' },
+          description: null,
+          image_url: null,
+          bed_type: null,
+          size_sqm: null,
+          base_price: 100000,
+          capacity: 2,
+          amenities: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ]); // UPDATE ... RETURNING
+
+    const roomType = await service.updateRoomType(
+      actor,
+      hotelId,
+      'room-type-1',
+      {
+        base_price: 150000,
+      },
+    );
+
+    expect(roomType).toMatchObject({ id: 'room-type-1' });
+  });
+
   it('allows updating a room type that is not yet linked to any hotel (freshly created, no rooms yet)', async () => {
     pgMock.query
       .mockResolvedValueOnce([hotelRow]) // assertHotel
-      .mockResolvedValueOnce([{ owned: true }]) // assertRoomTypeOwnedByHotel — unlinked, allowed
+      .mockResolvedValueOnce([{ owned_by_self: false, used_by_other: false }]) // assertRoomTypeOwnedByHotel — unlinked, allowed
       .mockResolvedValueOnce([
         {
           id: 'room-type-1',

@@ -1272,21 +1272,41 @@ export class PartnersService {
    * hali hech qanday xona foydalanmagan bo'lsa (masalan yangi yaratilgan,
    * xonalar hali qo'shilmagan), uni har qanday hamkor tahrirlashi/
    * o'chirishi mumkin bo'lib qolar edi — shu holatni ham yopish uchun
-   * "hech kimga bog'lanmagan" holat ham "meniki" deb hisoblanadi, lekin
-   * BOSHQA mehmonxonaga bog'langan bo'lsa qat'iy rad etiladi.
+   * "hech kimga bog'lanmagan" holat ham "meniki" deb hisoblanadi.
+   *
+   * MUHIM: bir xil `room_type` (masalan seed'dagi "standard"/"deluxe")
+   * BIR NECHTA mehmonxona tomonidan qonuniy ravishda baham ko'rilishi
+   * mumkin (`hotel_rooms` orqali). Ilgari bu yerda "agar BOSHQA mehmonxona
+   * ham shu turdan foydalansa — rad et" deb tekshirilardi — bu esa
+   * xuddi shu turdan foydalanayotgan HAMMA hamkorlarni (jumladan joriy
+   * hamkorning o'zini ham!) "begona" deb hisoblab, tahrirlash/o'chirishni
+   * butunlay bloklab qo'yardi (real production QA orqali topilgan —
+   * `403 Forbidden` xatosi, "Bu xona turi boshqa mehmonxonaga tegishli").
+   * Endi to'g'ri mantiq: joriy mehmonxonaning O'ZI shu turdan foydalansa —
+   * ruxsat (boshqalar ham foydalanishi muhim emas). Faqat joriy mehmonxona
+   * UMUMAN foydalanmagan VA bu tur FAQAT boshqa (begona) mehmonxona(lar)ga
+   * bog'langan bo'lsagina — rad etiladi.
    */
   private async assertRoomTypeOwnedByHotel(
     hotelId: string,
     roomTypeId: string,
   ) {
-    const [row] = await this.pg.query<{ owned: boolean }>(
-      `SELECT NOT EXISTS (
-         SELECT 1 FROM hotel_rooms
-         WHERE room_type_id = $1::uuid AND hotel_id <> $2::uuid
-       ) AS owned`,
+    const [row] = await this.pg.query<{
+      owned_by_self: boolean;
+      used_by_other: boolean;
+    }>(
+      `SELECT
+         EXISTS (
+           SELECT 1 FROM hotel_rooms
+           WHERE room_type_id = $1::uuid AND hotel_id = $2::uuid
+         ) AS owned_by_self,
+         EXISTS (
+           SELECT 1 FROM hotel_rooms
+           WHERE room_type_id = $1::uuid AND hotel_id <> $2::uuid
+         ) AS used_by_other`,
       [roomTypeId, hotelId],
     );
-    if (!row?.owned) {
+    if (!row?.owned_by_self && row?.used_by_other) {
       throw new ForbiddenException({
         code: 'ROOM_TYPE_FORBIDDEN',
         message: 'Bu xona turi boshqa mehmonxonaga tegishli',
