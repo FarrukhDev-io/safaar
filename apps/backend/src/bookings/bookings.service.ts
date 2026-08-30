@@ -48,6 +48,7 @@ interface HotelRoomRow {
   id: string;
   hotel_id: string;
   base_price: string | number;
+  total_inventory: number;
 }
 
 interface TripRow {
@@ -336,7 +337,7 @@ export class BookingsService {
     // (`partners.service.ts createBooking`) allaqachon to'g'ri qo'llangan.
     const { booking, payment } = await this.pg.transaction(async (tx) => {
       const [room] = await tx.query<HotelRoomRow>(
-        "SELECT id, base_price, hotel_id FROM hotel_rooms WHERE id = $1 AND hotel_id = $2 AND status = 'active' FOR UPDATE",
+        "SELECT id, base_price, hotel_id, total_inventory FROM hotel_rooms WHERE id = $1 AND hotel_id = $2 AND status = 'active' FOR UPDATE",
         [roomId, hotelId],
       );
 
@@ -347,30 +348,41 @@ export class BookingsService {
         });
       }
 
+      // MUHIM: `hotel_rooms` bitta jismoniy xona/stolni emas, balki BUTUN
+      // bir XONA TURINI (masalan "Standart", `total_inventory=10` — shu
+      // turdan 10 tasi bor) ifodalaydi — buni `total_inventory` ustuni
+      // isbotlaydi. Ilgari bu yerda faqat "biror ziddiyatli bron bormi"
+      // (`LIMIT 1`) tekshirilardi — ya'ni 10 tadan BITTASI band qilinishi
+      // BILANOQ, tizim qolgan 9 tasini ham "sotib bo'lmaydi" deb rad
+      // etardi ("soxta sold-out" — real production QA orqali topilgan
+      // eng jiddiy moliyaviy xato). Endi ziddiyatli bronlardagi band
+      // qilingan XONALAR SONI (`price_snapshot.rooms`) yig'indisi hisoblab,
+      // `total_inventory` bilan solishtiriladi.
       const activeExclusions = [BS.CANCELLED, BS.EXPIRED, BS.COMPLETED];
-      const conflicts = isRestaurant
-        ? await tx.query<{ id: string }>(
-            `SELECT id FROM bookings
+      const [{ booked_count: bookedCountRaw }] = isRestaurant
+        ? await tx.query<{ booked_count: string | number }>(
+            `SELECT COALESCE(SUM(COALESCE((price_snapshot->>'rooms')::int, 1)), 0) AS booked_count
+             FROM bookings
              WHERE room_id = $1::uuid
                AND status NOT IN ($2, $3, $4)
                AND check_in = $5::date
                AND slot_time IS NOT NULL
                AND slot_time < ($6::time + interval '90 minutes')
-               AND $6::time < (slot_time + interval '90 minutes')
-             LIMIT 1`,
+               AND $6::time < (slot_time + interval '90 minutes')`,
             [room.id, ...activeExclusions, checkIn, slotTime],
           )
-        : await tx.query<{ id: string }>(
-            `SELECT id FROM bookings
+        : await tx.query<{ booked_count: string | number }>(
+            `SELECT COALESCE(SUM(COALESCE((price_snapshot->>'rooms')::int, 1)), 0) AS booked_count
+             FROM bookings
              WHERE room_id = $1::uuid
                AND status NOT IN ($2, $3, $4)
                AND check_in < $5::date
-               AND $6::date < check_out
-             LIMIT 1`,
+               AND $6::date < check_out`,
             [room.id, ...activeExclusions, checkOut, checkIn],
           );
 
-      if (conflicts[0]) {
+      const bookedCount = Number(bookedCountRaw);
+      if (bookedCount + rooms > room.total_inventory) {
         throw new ConflictException({
           code: isRestaurant ? 'TABLE_ALREADY_BOOKED' : 'ROOM_ALREADY_BOOKED',
           message: isRestaurant

@@ -365,6 +365,9 @@ export class AuthController {
       JSON.stringify({
         locale: this.oauthLocale(query['locale']),
         next: this.safeNext(query['next']),
+        // `result.origin` — servis allaqachon allow-list bo'yicha
+        // tasdiqlagan qiymat (userdan kelgan xom `query['origin']` emas).
+        origin: result.origin,
       }),
       {
         httpOnly: true,
@@ -398,7 +401,7 @@ export class AuthController {
       response.clearCookie(returnCookieName, { path: '/' });
       const target = new URL(
         `/${result.locale}/auth/social-callback`,
-        this.webUserUrl(),
+        result.origin,
       );
       target.searchParams.set('code', result.code);
       if (result.next) target.searchParams.set('next', result.next);
@@ -406,7 +409,7 @@ export class AuthController {
     } catch (error) {
       response.clearCookie(cookieName, { path: '/' });
       response.clearCookie(returnCookieName, { path: '/' });
-      const target = new URL(`/${fallback.locale}/login`, this.webUserUrl());
+      const target = new URL(`/${fallback.locale}/login`, fallback.origin);
       target.searchParams.set('socialError', this.oauthErrorCode(error));
       if (fallback.next) target.searchParams.set('next', fallback.next);
       return response.redirect(302, target.toString());
@@ -434,18 +437,47 @@ export class AuthController {
     return process.env.WEB_USER_URL ?? 'http://localhost:3000';
   }
 
+  /**
+   * Faqat `OAUTH_ALLOWED_ORIGINS` (yoki yagona `WEB_USER_URL`)dagi aniq
+   * origin'lar qabul qilinadi — bu return-cookie o'qilganda ham qayta
+   * tekshiriladi (cookie qiymati brauzer tomonida, ya'ni ishonchsiz manba
+   * hisoblanadi), xuddi locale/next allaqachon shunday qayta tekshirilgani
+   * kabi. Noma'lum/soxta qiymat hech qachon ishlatilmaydi (open redirect
+   * oldini olish).
+   */
+  private allowedOAuthOrigins(): string[] {
+    const primary = this.webUserUrl().replace(/\/$/, '');
+    const raw = process.env.OAUTH_ALLOWED_ORIGINS;
+    if (!raw) return [primary];
+    const origins = raw
+      .split(',')
+      .map((origin) => origin.trim().replace(/\/$/, ''))
+      .filter(Boolean);
+    return origins.length > 0 ? origins : [primary];
+  }
+
+  private oauthOrigin(value: unknown): string {
+    const allowed = this.allowedOAuthOrigins();
+    const candidate = String(value ?? '')
+      .trim()
+      .replace(/\/$/, '');
+    return allowed.includes(candidate) ? candidate : allowed[0];
+  }
+
   private oauthReturnContext(value: string | undefined): {
     locale: 'uz' | 'ru' | 'en';
     next: string;
+    origin: string;
   } {
     try {
       const parsed = JSON.parse(value ?? '{}') as Record<string, unknown>;
       return {
         locale: this.oauthLocale(parsed['locale']),
         next: this.safeNext(parsed['next']),
+        origin: this.oauthOrigin(parsed['origin']),
       };
     } catch {
-      return { locale: 'uz', next: '' };
+      return { locale: 'uz', next: '', origin: this.webUserUrl() };
     }
   }
 

@@ -40,7 +40,7 @@ export class PostgresService implements OnModuleDestroy {
 
     if (!connectionString) {
       throw new Error(
-        'DATABASE_URL talab qilinadi — Neon PostgreSQL URL ni .env faylida belgilang',
+        'DATABASE_URL talab qilinadi — PostgreSQL ulanish URL ni .env faylida belgilang',
       );
     }
 

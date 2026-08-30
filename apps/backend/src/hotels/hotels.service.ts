@@ -4,6 +4,32 @@ import { AppCacheService } from '../infrastructure/cache.service';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { parseGeoBounds } from '../common/geo-bounds';
 
+// `partner_organizations.type` (PartnerOrganizationType) qiymatlaridan yashash
+// joyi turidagilari — `hotels` katalogi/detali faqat shularni ko'rsatadi
+// (`bus`, `restaurant` emas).
+const ACCOMMODATION_TYPES = new Set([
+  'hotel',
+  'hostel',
+  'guesthouse',
+  'motel',
+  'dacha',
+  'sanatorium',
+  'resort',
+  'mixed',
+]);
+
+/**
+ * `?type=` so'rov parametrini tekshiradi. Yaroqli yashash-joyi turi bo'lsa
+ * o'sha qiymatni qaytaradi (kategoriya sahifalari — /dachas, /resorts,
+ * /sanatoriums — uchun), aks holda `undefined` (umumiy /hotels ro'yxati).
+ */
+function normalizeAccommodationType(
+  value: string | string[] | undefined,
+): string | undefined {
+  const v = (Array.isArray(value) ? value[0] : value)?.trim().toLowerCase();
+  return v && ACCOMMODATION_TYPES.has(v) ? v : undefined;
+}
+
 @Injectable()
 export class HotelsService {
   constructor(
@@ -22,16 +48,25 @@ export class HotelsService {
       "h.status = 'published'",
       'h.deleted_at IS NULL',
       "po.status = 'approved'",
-      // `hotels` jadvali barcha hamkor turlari (jumladan transport/restoran)
-      // uchun umumiy "e'lon" yozuvi sifatida ishlatiladi (masalan
-      // getPrimaryHotel() auto-create orqali). Faqat yashash joyi turidagi
-      // tashkilotlar shu ommaviy mehmonxonalar katalogida chiqishi kerak —
-      // aks holda transport/restoran e'lonlari noto'g'ri bo'limda chiqib
-      // qoladi.
-      "po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'mixed')",
     ];
     const params: unknown[] = [];
     let paramIndex = 1;
+
+    // `hotels` jadvali barcha hamkor turlari (jumladan transport/restoran) uchun
+    // umumiy "e'lon" yozuvi sifatida ishlatiladi (getPrimaryHotel() auto-create
+    // orqali). `?type=` berilsa — kategoriya sahifasi (/dachas, /resorts,
+    // /sanatoriums) — aynan o'sha yashash-joyi turi ko'rsatiladi; berilmasa,
+    // sukut bo'yicha "Mehmonxonalar" katalogi (sanatoriy/oromgoh o'z
+    // bo'limlarida qoladi, transport/restoran esa hech qachon chiqmaydi).
+    const accommodationType = normalizeAccommodationType(query.type);
+    if (accommodationType) {
+      conditions.push(`po.type = $${paramIndex++}`);
+      params.push(accommodationType);
+    } else {
+      conditions.push(
+        "po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'mixed')",
+      );
+    }
 
     if (query.city_id) {
       conditions.push(`h.city_id = $${paramIndex++}`);
@@ -158,7 +193,7 @@ export class HotelsService {
         AND h.status = 'published'
         AND h.deleted_at IS NULL
         AND po.status = 'approved'
-        AND po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'mixed')`,
+        AND po.type IN ('hotel', 'hostel', 'guesthouse', 'motel', 'dacha', 'sanatorium', 'resort', 'mixed')`,
       [slugOrId],
     );
 

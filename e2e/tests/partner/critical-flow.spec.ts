@@ -22,7 +22,9 @@ async function loginAsPartner(page: import('@playwright/test').Page) {
 
   await page.locator('#code').fill(code!.trim());
   await page.getByRole('button', { name: 'Kabinetga kirish' }).click();
-  await page.waitForURL(/localhost:3001\/(?!login)/, { timeout: 15_000 });
+  await page.waitForURL((url) => !url.pathname.startsWith('/login'), {
+    timeout: 15_000,
+  });
 }
 
 test.describe('Partner critical flow', () => {

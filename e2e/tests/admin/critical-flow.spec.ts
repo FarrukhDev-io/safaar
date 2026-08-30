@@ -11,7 +11,7 @@ import { trackPageIssues } from '../helpers/console-tracker';
  */
 
 const ADMIN_EMAIL = 'admin@safaar.uz';
-const ADMIN_PASSWORD = 'LocalTest123!';
+const ADMIN_PASSWORD = 'Admin12345!';
 
 test.describe('Admin critical flow', () => {
   test('login, users, partners, bookings, CMS, notifications, logout', async ({ page }) => {

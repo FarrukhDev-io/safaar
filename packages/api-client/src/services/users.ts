@@ -10,7 +10,7 @@ export interface UpdateProfileInput {
 }
 
 export interface AddFavoriteInput {
-  targetType: "hotel" | "bus";
+  targetType: "hotel" | "bus" | "restaurant" | "transport" | "attraction";
   targetId: string;
 }
 

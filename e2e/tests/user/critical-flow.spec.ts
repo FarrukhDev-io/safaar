@@ -55,11 +55,15 @@ test.describe('User critical flow', () => {
     await expect(page).toHaveURL(/\/hotels/);
     await page.waitForLoadState('networkidle');
 
-    // 18. Notifications — bell tugmasi авторизациялangan foydalanuvchiga ko'rinishi kerak
-    const bell = page.getByLabel('Bildirishnomalar');
+    // 18. Notifications — bell tugmasi авторизациялangan foydalanuvchiga ko'rinishi kerak.
+    // SiteHeader qo'ng'iroqni responsив tarzda IKKI marta render qiladi (desktop
+    // navbar + mobil top-bar, CSS bilan almashtiriladi — `AuthButtons` bilan bir
+    // xil andoza), shu sabab `:visible` bilan aynan foydalanuvchi ko'radigan
+    // nusxa tanlanadi (favorites-qa'dagi `heartButton` helper'i ham shunday).
+    const bell = page.locator('button[aria-label="Bildirishnomalar"]:visible').first();
     await expect(bell).toBeVisible({ timeout: 10_000 });
     await bell.click();
-    await expect(page.getByText('Bildirishnomalar', { exact: true })).toBeVisible();
+    await expect(page.getByRole('menu').getByText('Bildirishnomalar', { exact: true })).toBeVisible();
     await bell.click(); // yopish
 
     // 20. Logout — real forma submit
