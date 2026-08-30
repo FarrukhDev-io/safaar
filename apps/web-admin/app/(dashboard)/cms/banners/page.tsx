@@ -20,7 +20,7 @@ const bannerSchema = z.object({
   title: z.string().min(2, "Kamida 2 ta belgi kiriting"),
   link: z.string().min(1, "Havolani kiriting"),
   imageUrl: z.string().min(5, "Rasm havolasini kiriting").url("Noto'g'ri havola formati (http:// yoki https:// dan boshlanishi kerak)"),
-  order: z.number({ required_error: "Tartib raqamini kiriting", invalid_type_error: "Faqat raqam kiriting" }).int().min(1, "Kamida 1 bo'lishi kerak"),
+  order: z.number().int().min(1, "Kamida 1 bo'lishi kerak"),
   isActive: z.boolean(),
 });
 type BannerFormValues = z.infer<typeof bannerSchema>;
@@ -218,7 +218,7 @@ export default function CmsBannersPage() {
         footer={
           <>
             <Button variant="ghost" onClick={() => setIsModalOpen(false)} disabled={saving}>Bekor qilish</Button>
-            <Button onClick={() => form.handleSubmit(onSubmit)()} disabled={saving}>
+            <Button onClick={onSubmit} disabled={saving}>
               {saving ? "Saqlanmoqda..." : "Saqlash"}
             </Button>
           </>

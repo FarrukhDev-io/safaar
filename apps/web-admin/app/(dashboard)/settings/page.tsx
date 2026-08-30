@@ -14,8 +14,8 @@ import Cookies from "js-cookie";
 import { createPortal } from "react-dom";
 
 const settingsSchema = z.object({
-  commissionRate: z.coerce.number().min(0).max(100),
-  busCommissionRate: z.coerce.number().min(0).max(100),
+  commissionRate: z.number().min(0).max(100),
+  busCommissionRate: z.number().min(0).max(100),
   maintenanceMode: z.boolean(),
   contactEmail: z.string().email("Yaroqli elektron pochta kiriting"),
 });
@@ -210,7 +210,7 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Mehmonxonalar komissiyasi (%)</label>
               <input
                 type="number"
-                {...register("commissionRate")}
+                {...register("commissionRate", { valueAsNumber: true })}
                 className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
               />
               {errors.commissionRate && <p className="text-red-500 text-xs mt-1">{errors.commissionRate.message}</p>}
@@ -219,7 +219,7 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Avtobuslar komissiyasi (%)</label>
               <input
                 type="number"
-                {...register("busCommissionRate")}
+                {...register("busCommissionRate", { valueAsNumber: true })}
                 className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
               />
               {errors.busCommissionRate && <p className="text-red-500 text-xs mt-1">{errors.busCommissionRate.message}</p>}

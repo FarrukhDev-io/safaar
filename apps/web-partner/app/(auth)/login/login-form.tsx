@@ -5,26 +5,12 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { KeyRound, Phone, FlaskConical } from 'lucide-react';
-import { getPartnerLabels } from '../../_lib/utils/partner-labels';
-import { UserRole } from '@safaar/types';
 import {
   usePartnerPhoneOtpRequest,
   usePartnerPhoneOtpVerify,
 } from '../../_hooks/use-auth';
 
-// ─── Demo tur tanlash ─────────────────────────────────────────────────────────
-const DEMO_PHONE = '+998901234567';
 
-const DEMO_TYPES = [
-  { value: 'hotel',      emoji: '🏨', label: 'Mehmonxona' },
-  { value: 'hostel',     emoji: '🛏️', label: 'Hostel' },
-  { value: 'dacha',      emoji: '🏡', label: 'Dacha' },
-  { value: 'restaurant', emoji: '🍽️', label: 'Restoran' },
-  { value: 'bus',        emoji: '🚗', label: 'Rent Car' },
-  { value: 'guesthouse', emoji: '🏠', label: 'Mehmon uyi' },
-  { value: 'motel',      emoji: '🛣️', label: 'Motel' },
-] as const;
-// ─────────────────────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
   phone: z
@@ -49,7 +35,7 @@ interface PhoneChallenge {
 
 export function LoginForm() {
   const [challenge, setChallenge] = useState<PhoneChallenge | null>(null);
-  const [demoType, setDemoType] = useState<string>('hotel');
+
   const [watchedPhone, setWatchedPhone] = useState('');
   const otpRequest = usePartnerPhoneOtpRequest();
   const otpVerify = usePartnerPhoneOtpVerify();
@@ -58,7 +44,7 @@ export function LoginForm() {
     defaultValues: { phone: '+998', code: '' },
   });
 
-  const isDemo = watchedPhone.trim() === DEMO_PHONE || watchedPhone.replace(/\D/g, '') === '998901234567';
+
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (!challenge) {
@@ -67,8 +53,7 @@ export function LoginForm() {
         setChallenge({
           phone: result.phone,
           challengeId: result.challengeId,
-          // Demo rejimda foydalanuvchi tanlagan turni ishlatamiz
-          partnerType: (result.phone === DEMO_PHONE || result.phone.replace(/\D/g, '') === '998901234567') ? demoType : result.partnerType,
+          partnerType: result.partnerType,
           devCode: result.devCode,
         });
         form.setValue('phone', result.phone);
@@ -157,34 +142,7 @@ export function LoginForm() {
         )}
       </div>
 
-      {/* ── Demo rejim: tur tanlash paneli ──────────────────────────────── */}
-      {isDemo && !challenge && (
-        <div className="rounded-2xl border border-orange-200 bg-orange-50/80 p-3.5 flex flex-col gap-2.5">
-          <p className="text-xs font-bold text-orange-800 flex items-center gap-1.5">
-            <FlaskConical className="h-4 w-4 text-orange-600 animate-bounce" />
-            Demo rejim — Sinov uchun hamkor turini tanlang:
-          </p>
-          <div className="grid grid-cols-4 gap-1.5">
-            {DEMO_TYPES.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() => setDemoType(t.value)}
-                className={[
-                  'flex flex-col items-center gap-1 rounded-xl border px-1 py-2 text-center text-xs transition-all cursor-pointer',
-                  demoType === t.value
-                    ? 'border-orange-500 bg-white font-bold text-orange-900 shadow-md shadow-orange-500/10 ring-2 ring-orange-500/20'
-                    : 'border-transparent bg-orange-100/60 hover:bg-white text-slate-600 hover:text-slate-900',
-                ].join(' ')}
-              >
-                <span className="text-lg leading-none">{t.emoji}</span>
-                <span className="leading-tight text-[11px]">{t.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {/* ─────────────────────────────────────────────────────────────────── */}
+
 
       {challenge ? (
         <div className="flex flex-col gap-1.5 animate-fade-in">
@@ -201,7 +159,7 @@ export function LoginForm() {
               type="text"
               autoComplete="one-time-code"
               inputMode="numeric"
-              placeholder={challenge.phone === DEMO_PHONE || challenge.phone.replace(/\D/g, '') === '998901234567' ? '000000' : '6 xonali kod'}
+              placeholder="6 xonali kod"
               className="w-full pl-10 pr-4 py-3 tracking-[0.3em] font-mono text-center text-lg rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 focus:bg-white transition-all"
               aria-invalid={Boolean(form.formState.errors.code)}
               aria-describedby="code-help code-error"
@@ -215,9 +173,7 @@ export function LoginForm() {
             />
           </div>
           <p id="code-help" className="text-[11px] text-slate-500 font-medium">
-            {challenge.phone === DEMO_PHONE || challenge.phone.replace(/\D/g, '') === '998901234567'
-              ? '🎮 Demo rejim: kodni kiriting → 000000'
-              : `Kod ${challenge.phone} raqamiga yuborildi.`}
+            {`Kod ${challenge.phone} raqamiga yuborildi.`}
           </p>
           
           {challenge.devCode && (

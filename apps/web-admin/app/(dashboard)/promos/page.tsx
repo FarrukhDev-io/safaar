@@ -29,9 +29,9 @@ function toDateInputValue(iso: string): string {
 
 const promoSchema = z.object({
   code: z.string().min(3, "Kamida 3 ta belgi").max(20, "20 ta belgidan oshmasin").trim().toUpperCase(),
-  discountType: z.enum(["percent", "fixed"]),
-  discountValue: z.number({ required_error: "Miqdorni kiriting", invalid_type_error: "Faqat raqam kiriting" }).min(1, "Noldan katta bo'lishi kerak"),
-  usageLimit: z.number({ required_error: "Limitni kiriting", invalid_type_error: "Faqat raqam kiriting" }).min(1, "Kamida 1 bo'lishi kerak"),
+  discountType: z.enum(["percentage", "fixed"]),
+  discountValue: z.number().min(1, "Noldan katta bo'lishi kerak"),
+  usageLimit: z.number().min(1, "Kamida 1 bo'lishi kerak"),
   validUntil: z.string().min(1, "Sanani kiriting"),
   isActive: z.boolean(),
 });
@@ -51,7 +51,7 @@ export default function PromosPage() {
     resolver: zodResolver(promoSchema),
     defaultValues: {
       code: "",
-      discountType: "percent",
+      discountType: "percentage",
       discountValue: undefined,
       usageLimit: 100,
       validUntil: defaultValidUntil(),
@@ -95,7 +95,7 @@ export default function PromosPage() {
     setEditingId(null);
     form.reset({
       code: "",
-      discountType: "percent",
+      discountType: "percentage",
       discountValue: undefined as any,
       usageLimit: 100,
       validUntil: defaultValidUntil(),
@@ -161,7 +161,7 @@ export default function PromosPage() {
 
   const columns: Column<PromoCode>[] = [
     { key: "code", label: "Promo-kod", render: (row) => <span className="font-bold text-lg tracking-widest bg-[var(--bg-tertiary)] px-2 py-1 rounded">{row.code}</span> },
-    { key: "discountValue", label: "Chegirma", render: (row) => <span className="font-medium text-[var(--accent)]">{row.discountType === "percent" ? `${row.discountValue}%` : formatPrice(row.discountValue)}</span> },
+    { key: "discountValue", label: "Chegirma", render: (row) => <span className="font-medium text-[var(--accent)]">{row.discountType === "percentage" ? `${row.discountValue}%` : formatPrice(row.discountValue)}</span> },
     { key: "usageLimit", label: "Foydalanish (ishlatildi / limit)", render: (row) => <span className="text-sm text-[var(--text-secondary)]">{row.usedCount} / {row.usageLimit}</span> },
     { key: "validUntil", label: "Amal qilish muddati", render: (row) => <span className="text-sm">{formatDate(row.validUntil)}</span> },
     {
@@ -233,7 +233,7 @@ export default function PromosPage() {
             <Button variant="secondary" onClick={() => setModalOpen(false)} disabled={saving}>
               Bekor qilish
             </Button>
-            <Button onClick={() => form.handleSubmit(onSubmit)()} disabled={saving}>
+            <Button onClick={onSubmit} disabled={saving}>
               {saving ? "Saqlanmoqda..." : editingId ? "Saqlash" : "Yaratish"}
             </Button>
           </>
@@ -263,7 +263,7 @@ export default function PromosPage() {
                     value={field.value}
                     onChange={(e) => field.onChange(e.target.value)}
                     options={[
-                      { value: "percent", label: "Foiz (%)" },
+                      { value: "percentage", label: "Foiz (%)" },
                       { value: "fixed", label: "So'm (belgilangan summa)" },
                     ]}
                   />
@@ -272,10 +272,10 @@ export default function PromosPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Input
-                label={form.watch("discountType") === "percent" ? "Chegirma (%)" : "Chegirma (so'm)"}
+                label={form.watch("discountType") === "percentage" ? "Chegirma (%)" : "Chegirma (so'm)"}
                 type="number"
                 min={1}
-                placeholder={form.watch("discountType") === "percent" ? "20" : "50000"}
+                placeholder={form.watch("discountType") === "percentage" ? "20" : "50000"}
                 {...form.register("discountValue", { valueAsNumber: true })}
               />
               {form.formState.errors.discountValue && <span className="text-xs text-red-500">{form.formState.errors.discountValue.message}</span>}

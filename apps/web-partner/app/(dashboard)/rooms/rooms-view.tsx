@@ -34,7 +34,7 @@ export function RoomsView() {
   const { mutate: deleteRoom } = useDeleteRoom();
 
   const [addingRoom, setAddingRoom] = useState(false);
-  const [editingRoom] = useState<null>(null);
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [managingBedsFor, setManagingBedsFor] = useState<Room | null>(null);
 
   useEffect(() => {
@@ -134,7 +134,7 @@ export function RoomsView() {
                       beds={isHostel ? roomBeds : undefined}
                       restaurant={restaurant}
                       isBus={isBus}
-                      onEdit={() => {}}
+                      onEdit={() => setEditingRoom(room)}
                       onDelete={() => {
                         if (window.confirm(`Rostdan ham ${room.number} raqamli ${labels.unitSingular.toLowerCase()}ni o'chirmoqchimisiz?`)) {
                           deleteRoom(room.id);
@@ -155,6 +155,14 @@ export function RoomsView() {
         open={addingRoom}
         onClose={() => setAddingRoom(false)}
         mode="room"
+      />
+
+      <UnifiedRoomDialog
+        open={!!editingRoom}
+        onClose={() => setEditingRoom(null)}
+        mode="room"
+        editing={roomTypes?.find(t => t.id === editingRoom?.roomTypeId) ?? null}
+        editingPhysicalRoom={editingRoom}
       />
 
       <BedManagementDialog
