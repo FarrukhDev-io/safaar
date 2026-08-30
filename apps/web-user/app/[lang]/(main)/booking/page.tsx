@@ -117,7 +117,7 @@ export default async function CheckoutPage({
         dict={dict}
         hotelId={hotel.id}
         hotelName={hotel.name}
-        room={{ id: room.id, name: room.name, priceSum: room.priceSum }}
+        room={{ id: room.id, name: room.name, priceSum: room.priceSum, capacity: room.capacity }}
         defaults={{ checkIn, checkOut, guests }}
         isGuest={!session}
       />

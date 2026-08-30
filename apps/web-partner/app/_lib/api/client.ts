@@ -115,23 +115,9 @@ function isAuthEndpoint(path: string): boolean {
 
 function handleUnauthorized(error: HttpError, token?: string | null) {
   // Demo token bilan 401 bo'lsa logout qilmaymiz
-  if (token && token.startsWith('demo.')) return;
+  // removed demo token bypass logic
   if (error.status === 401 && token) {
     unauthorizedHandler?.(error);
-  }
-}
-
-/** LocalStorage'dagi tokenni o'qib demo rejimda ekanligini aniqlaydi. */
-function isDemoMode(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    const auth = JSON.parse(
-      localStorage.getItem('safaar-partner-auth') || '{}',
-    );
-    const token: unknown = auth?.state?.tokens?.accessToken;
-    return typeof token === 'string' && token.startsWith('demo.');
-  } catch {
-    return false;
   }
 }
 
@@ -251,11 +237,7 @@ async function requestInternal<T>(
 
   let response: Response;
   try {
-    // Demo rejimda backend so'rovlarini o'tkazib yuboramiz
-    if (isDemoMode() || (token && token.startsWith('demo.'))) {
-      // Endpoint turiga qarab bo'sh natija qaytaramiz
-      return (Array.isArray([]) ? [] : null) as unknown as T;
-    }
+
     response = await fetch(buildUrl(path, searchParams), init);
   } catch (cause) {
     // fetch'ning o'zi otgan xato: tarmoq yo'q, CORS, backend offline va h.k.

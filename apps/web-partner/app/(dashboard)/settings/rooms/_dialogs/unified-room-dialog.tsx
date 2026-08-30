@@ -12,11 +12,11 @@ import { Input } from "../../../../_components/ui/input";
 import { Label } from "../../../../_components/ui/label";
 import { useAuthStore } from "../../../../_stores/auth-store";
 import { useCreateRoomType, useUpdateRoomType } from "../../../../_hooks/use-room-types";
-import { useCreateRoom, useRooms } from "../../../../_hooks/use-rooms";
+import { useCreateRoom, useUpdateRoom, useRooms } from "../../../../_hooks/use-rooms";
 import { useGenerateBeds } from "../../../../_hooks/use-beds";
 import { partners } from "../../../../_lib/api";
 import { getPartnerLabels, hasBeds, hasBuses, isRestaurant } from "../../../../_lib/utils/partner-labels";
-import { RoomStatus, type RoomType } from "../../../../_lib/domain/types";
+import { RoomStatus, type RoomType, type Room } from "../../../../_lib/domain/types";
 
 const ROOM_AMENITY_OPTIONS = [
   { value: "wifi", label: "Wi-Fi" },
@@ -80,14 +80,16 @@ interface Props {
   onClose: () => void;
   mode?: UnifiedRoomDialogMode;
   editing?: RoomType | null; // editing room type (for type-only mode)
+  editingPhysicalRoom?: Room | null; // physical room being edited
 }
 
-export function UnifiedRoomDialog({ open, onClose, mode = "room", editing }: Props) {
+export function UnifiedRoomDialog({ open, onClose, mode = "room", editing, editingPhysicalRoom }: Props) {
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
   const createRoomType = useCreateRoomType();
   const updateRoomType = useUpdateRoomType();
   const createRoom = useCreateRoom();
+  const updateRoom = useUpdateRoom();
   const generateBeds = useGenerateBeds();
   const { data: activeRooms } = useRooms();
   const isHostel = hasBeds(partnerType);
@@ -128,8 +130,8 @@ export function UnifiedRoomDialog({ open, onClose, mode = "room", editing }: Pro
           basePrice: editing.basePrice,
           capacity: editing.capacity,
           amenities: editing.amenities as string[],
-          roomNumber: "",
-          floor: 1,
+          roomNumber: editingPhysicalRoom?.number || "",
+          floor: editingPhysicalRoom?.floor || 1,
         });
       } else {
         form.reset({
@@ -146,7 +148,7 @@ export function UnifiedRoomDialog({ open, onClose, mode = "room", editing }: Pro
         });
       }
     }
-  }, [open, editing, form, restaurant]);
+  }, [open, editing, editingPhysicalRoom, form, restaurant]);
 
   const selectedAmenities = useWatch({ control: form.control, name: "amenities" }) ?? [];
   const imageUrl = useWatch({ control: form.control, name: "imageUrl" }) ?? "";
@@ -176,6 +178,31 @@ export function UnifiedRoomDialog({ open, onClose, mode = "room", editing }: Pro
   const onSubmit = form.handleSubmit(async (values) => {
     setSubmitting(true);
     try {
+      if (editingPhysicalRoom) {
+        if (!values.roomNumber?.trim()) {
+          toast.error("Xona raqami kiritilishi majburiy");
+          setSubmitting(false);
+          return;
+        }
+        // Update both RoomType and Physical Room
+        if (editing) {
+          await updateRoomType.mutateAsync({ id: editing.id, values });
+        }
+        await updateRoom.mutateAsync({
+          id: editingPhysicalRoom.id,
+          values: {
+            number: values.roomNumber,
+            floor: values.floor,
+            roomTypeId: editing?.id,
+            isListed: editingPhysicalRoom.isListed,
+            status: editingPhysicalRoom.status,
+          } as any
+        });
+        toast.success(`Xona va tur ma'lumotlari yangilandi`);
+        onClose();
+        return;
+      }
+
       if (editing && mode === "type-only") {
         // Faqat tur tahrirlash (Listing sahifasidagi "Tahrirlash" tugmasi)
         await updateRoomType.mutateAsync({ id: editing.id, values });
@@ -238,14 +265,18 @@ export function UnifiedRoomDialog({ open, onClose, mode = "room", editing }: Pro
   const err = form.formState.errors;
   const isLoading = submitting || uploadingImage;
 
-  const title = editing
-    ? `${labels.unitTypeLabel}ni tahrirlash`
-    : mode === "room"
-      ? `Yangi ${labels.unitSingular} qo'shish`
-      : `Yangi ${labels.unitTypeLabel.toLowerCase()}`;
+  const title = editingPhysicalRoom 
+    ? `${unitCap} ${editingPhysicalRoom.number} va uning turini tahrirlash`
+    : editing
+      ? `${labels.unitTypeLabel}ni tahrirlash`
+      : mode === "room"
+        ? `Yangi ${labels.unitSingular} qo'shish`
+        : `Yangi ${labels.unitTypeLabel.toLowerCase()}`;
 
-  const description = editing
-    ? `${labels.unitTypeLabel} ma'lumotlarini tahrirlash`
+  const description = editingPhysicalRoom
+    ? `Diqqat: Xona turi o'zgartirilsa, shunga o'xshash boshqa xonalarning ham turi o'zgaradi.`
+    : editing
+      ? `${labels.unitTypeLabel} ma'lumotlarini tahrirlash`
     : mode === "room"
       ? `${unitCap} ma'lumotlari va e'lon uchun to'liq ma'lumot kiriting. Xona darhol e'longa chiqariladi.`
       : isBus ? "Masalan: Sedan, SUV, Miniven, Biznes klass"
@@ -255,7 +286,7 @@ export function UnifiedRoomDialog({ open, onClose, mode = "room", editing }: Pro
   return (
     <Dialog open={open} onClose={onClose} title={title} description={description} size="lg">
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
-
+        <fieldset disabled={isLoading} className="flex flex-col gap-5 group-disabled:opacity-70">
         {/* ─── E'LON MA'LUMOTLARI ─── */}
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)]/40 p-4">
           <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-brand-700 dark:text-brand-300">
@@ -396,7 +427,7 @@ export function UnifiedRoomDialog({ open, onClose, mode = "room", editing }: Pro
         </div>
 
         {/* ─── FIZIK XONA MA'LUMOTLARI (faqat room mode da) ─── */}
-        {mode === "room" && !editing && (
+        {mode === "room" && (!editing || editingPhysicalRoom) && (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)]/40 p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
               Xona raqami va joylashuvi (ichki boshqaruv)
@@ -449,6 +480,7 @@ export function UnifiedRoomDialog({ open, onClose, mode = "room", editing }: Pro
                   : "Variant qo'shish"}
           </Button>
         </div>
+        </fieldset>
       </form>
     </Dialog>
   );

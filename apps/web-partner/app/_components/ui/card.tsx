@@ -13,7 +13,7 @@ export function Card({ className, interactive, ...props }: CardProps) {
         "rounded-lg border border-[var(--border-light)] bg-white transition-all duration-200",
         "relative overflow-hidden",
         interactive &&
-          "hover:border-[var(--border)]",
+        "hover:border-[var(--border)]",
         className,
       )}
       {...props}

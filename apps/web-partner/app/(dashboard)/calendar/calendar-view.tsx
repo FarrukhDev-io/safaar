@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Info,
   Plus,
+  Lock,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BookingStatus } from "@safaar/types";
@@ -14,6 +15,7 @@ import { Card, CardBody } from "../../_components/ui/card";
 import { EmptyState } from "../../_components/ui/empty-state";
 import { Tooltip } from "../../_components/ui/tooltip";
 import { WalkInDialog, type WalkInInitial } from "../../_components/domain/walk-in-dialog";
+import { BlackoutDialog } from "../../_components/domain/blackout-dialog";
 import { PageHeader } from "../../_components/layout/page-header";
 import { useBeds } from "../../_hooks/use-beds";
 import { useRooms } from "../../_hooks/use-rooms";
@@ -94,6 +96,7 @@ export function CalendarView() {
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkInInitial, setWalkInInitial] = useState<WalkInInitial>({});
   const [mainTab, setMainTab] = useState<"bookings" | "inventory">("bookings");
+  const [blackoutOpen, setBlackoutOpen] = useState(false);
 
   const startDate = addDays(TODAY_ISO, startOffset);
   const days = useMemo(
@@ -260,16 +263,26 @@ export function CalendarView() {
         description={labels.calendarDescription}
         actions={
           mainTab === "bookings" ? (
-            <Button
-              size="sm"
-              onClick={() => {
-                setWalkInInitial({});
-                setWalkInOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              {labels.newBookingLabel}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setBlackoutOpen(true)}
+              >
+                <Lock className="h-4 w-4 mr-1.5" aria-hidden />
+                Inventarni yopish
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setWalkInInitial({});
+                  setWalkInOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1.5" aria-hidden />
+                {labels.newBookingLabel}
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -540,6 +553,11 @@ export function CalendarView() {
         open={walkInOpen}
         onClose={() => setWalkInOpen(false)}
         initialValues={walkInInitial}
+      />
+      <BlackoutDialog
+        open={blackoutOpen}
+        onClose={() => setBlackoutOpen(false)}
+        hotelId={useAuthStore.getState().user?.organizationId}
       />
         </>
       )}
