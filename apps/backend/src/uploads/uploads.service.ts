@@ -422,6 +422,18 @@ export class UploadsService implements OnModuleInit {
         message: 'Fayl yoki real URL yuborilishi kerak',
       });
     }
+    // `providedUrl` ikki xil manbadan kelishi mumkin: (a) presign+to'g'ridan-
+    // to'g'ri-R2-ga-yuklash oqimi (bizning o'z bucket'imiz) yoki (b) tashqi
+    // CMS URL (`CreateMediaDto.url` — bu holatda haqiqatan ham tashqi manba,
+    // bizda emas). Faqat (a) holatda — obyekt bizning bucket'imizda ekanini
+    // aniqlasak — R2'dan haqiqiy bayt-imzoni o'qib, mijoz e'lon qilgan
+    // `mimeType` bilan solishtiramiz. Bu — to'g'ridan-to'g'ri multipart
+    // yuklashda ishlatiladigan `assertFileSignature()` bilan bir xil
+    // himoyani presign yo'liga ham olib keladi (Content-Type spoofing'ga
+    // qarshi, PHASE 14E).
+    if (!stored && providedUrl) {
+      await this.verifyRemoteObjectSignatureIfOwned(providedUrl, mimeType);
+    }
     const objectKey =
       stored?.objectKey ?? `${ownerType}/${ownerId}/${randomUUID()}`;
     const url = stored?.url ?? providedUrl;
@@ -628,18 +640,101 @@ export class UploadsService implements OnModuleInit {
       });
     }
 
-    const valid =
-      (file.mimetype === 'image/jpeg' && isJpeg(file.buffer)) ||
-      (file.mimetype === 'image/png' && isPng(file.buffer)) ||
-      (file.mimetype === 'image/webp' && isWebp(file.buffer)) ||
-      (file.mimetype === 'application/pdf' && isPdf(file.buffer));
-
-    if (!valid) {
+    if (!matchesSignature(file.buffer, file.mimetype)) {
       throw new BadRequestException({
         code: 'UPLOAD_SIGNATURE_INVALID',
         message: 'Fayl tarkibi ruxsat etilgan turga mos emas',
       });
     }
+  }
+
+  /**
+   * Presign+to'g'ridan-to'g'ri-R2-ga-yuklash oqimida fayl baytlari backend
+   * orqali hech qachon o'tmaydi — shu sabab mijoz e'lon qilgan Content-Type
+   * (`mimeType`) tekshirilmagan bo'lib qolar edi (PHASE 14D MEDIUM-3).
+   * Agar `url` bizning o'z R2 bucket'imizdagi obyektga ishora qilsa, uning
+   * dastlabki baytlarini (Range so'rovi bilan, to'liq faylni emas) o'qib,
+   * haqiqiy bayt-imzoni e'lon qilingan `mimeType` bilan solishtiramiz —
+   * xuddi to'g'ridan-to'g'ri yuklashda ishlatiladigan tekshiruv kabi.
+   *
+   * `url` tashqi (bizning bucket'imizga tegishli bo'lmagan) manba bo'lsa —
+   * bu tekshiruv butunlay o'tkazib yuboriladi (bu — alohida, mavjud
+   * ishonch modeli: `CreateMediaDto.url`ning o'zi tashqi CMS URL'lariga
+   * ham ruxsat beradi).
+   */
+  private async verifyRemoteObjectSignatureIfOwned(
+    url: string,
+    mimeType: string,
+  ): Promise<void> {
+    const config = this.r2Config();
+    if (!config) return;
+
+    const owned = this.resolveOwnR2Object(url, config);
+    if (!owned) return;
+
+    // Faqat imzo-tekshiruvi qamrab olgan turlar uchun (image/document) —
+    // boshqa MIME allaqachon `assertUploadAllowed()` orqali rad etilgan
+    // bo'ladi, shuning uchun bu yerga faqat ruxsat etilgan 4 tadan biri
+    // yetib keladi.
+    let signatureBytes: Buffer;
+    try {
+      const client = this.r2Client(config);
+      const response = await client.send(
+        new GetObjectCommand({
+          Bucket: owned.bucket,
+          Key: owned.objectKey,
+          Range: 'bytes=0-15',
+        }),
+      );
+      signatureBytes = await streamToBuffer(response.Body);
+    } catch (error) {
+      throw this.storageError('verify uploaded object signature', error);
+    }
+
+    if (!matchesSignature(signatureBytes, mimeType)) {
+      throw new BadRequestException({
+        code: 'UPLOAD_SIGNATURE_INVALID',
+        message: 'Fayl tarkibi ruxsat etilgan turga mos emas',
+      });
+    }
+  }
+
+  /**
+   * `url` bizning o'z R2 konfiguratsiyamiz (`r2PublicUrl()`) tomonidan
+   * generatsiya qilingan bo'lishi mumkin bo'lgan ikkala shaklni ham
+   * (public base URL orqali VA to'g'ridan-to'g'ri endpoint/bucket/key
+   * orqali) tan oladi. Mos kelmasa — `undefined` (tashqi URL, tekshirilmaydi).
+   */
+  private resolveOwnR2Object(
+    url: string,
+    config: R2StorageConfig,
+  ): { bucket: string; objectKey: string } | undefined {
+    if (config.publicBaseUrl) {
+      const base = `${config.publicBaseUrl.replace(/\/$/, '')}/`;
+      if (url.startsWith(base)) {
+        const objectKey = url.slice(base.length);
+        return objectKey
+          ? { bucket: config.publicBucket, objectKey }
+          : undefined;
+      }
+    }
+
+    const endpointBase = `${config.endpoint.replace(/\/$/, '')}/`;
+    if (url.startsWith(endpointBase)) {
+      const rest = url.slice(endpointBase.length);
+      const slashIndex = rest.indexOf('/');
+      if (slashIndex <= 0) return undefined;
+      const bucket = rest.slice(0, slashIndex);
+      const objectKey = rest.slice(slashIndex + 1);
+      if (
+        (bucket === config.publicBucket || bucket === config.privateBucket) &&
+        objectKey
+      ) {
+        return { bucket, objectKey };
+      }
+    }
+
+    return undefined;
   }
 
   private safeProvidedUrl(value: unknown): string | undefined {
@@ -790,6 +885,28 @@ function isWebp(buffer: Buffer): boolean {
 
 function isPdf(buffer: Buffer): boolean {
   return buffer.subarray(0, 5).toString('ascii') === '%PDF-';
+}
+
+async function streamToBuffer(
+  body: import('@aws-sdk/client-s3').GetObjectCommandOutput['Body'],
+): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  // AWS SDK v3'ning Node.js runtime'idagi `Body` — `Readable` stream
+  // (browser/edge runtime'da boshqacha bo'lardi, backend bu yerda doim
+  // Node.js'da ishlaydi).
+  for await (const chunk of body as AsyncIterable<Buffer | Uint8Array>) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+function matchesSignature(buffer: Buffer, mimetype: string): boolean {
+  return (
+    (mimetype === 'image/jpeg' && isJpeg(buffer)) ||
+    (mimetype === 'image/png' && isPng(buffer)) ||
+    (mimetype === 'image/webp' && isWebp(buffer)) ||
+    (mimetype === 'application/pdf' && isPdf(buffer))
+  );
 }
 
 function hasControlChars(value: string): boolean {

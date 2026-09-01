@@ -103,7 +103,30 @@ export class ChatService {
       });
     }
 
-    if (actor.actorType === 'user' && room.user_id !== actor.id) {
+    // `chat_rooms`da tashkilot/tenant chegarasini ifodalovchi ustun
+    // UMUMAN YO'Q (faqat `id, user_id, status, created_at, updated_at`) —
+    // shuning uchun "faqat shu hamkorga tegishli xonalar" kabi to'g'ri
+    // scoping'ni hozircha DB darajasida qurib bo'lmaydi (PHASE 14F/14G
+    // auditda aniqlangan). Shu sabab bu yerda aniq RUXSAT RO'YXATI
+    // (allow-list) ishlatiladi — kimga ruxsat berilishi HAR DOIM aniq
+    // yozilgan, "boshqa hamma narsaga ruxsat" degan implicit holat yo'q:
+    //   - 'user': faqat o'ziga tegishli xona
+    //   - 'admin' / SUPER_ADMIN: umumiy support-navbat operatori sifatida
+    //     istalgan xonaga (mahsulot qarori — markazlashtirilgan support)
+    //   - 'partner': HOZIRCHA RAD ETILADI — chunki xonani biror hamkor
+    //     tashkilotiga bog'lash uchun schema'da hech qanday ustun yo'q,
+    //     shuning uchun "faqat o'z tashkilotiga tegishli" tekshiruvini
+    //     xavfsiz amalga oshirib bo'lmaydi. (Bu funksiya frontend
+    //     tomonidan hozircha umuman chaqirilmaydi — tasdiqlangan, PHASE 14F
+    //     — shuning uchun bu cheklov birorta ham mavjud oqimni buzmaydi.)
+    //     Agar kelajakda hamkorlarga umumiy support-chat kerak bo'lsa,
+    //     avval `chat_rooms`ga tegishli scoping ustuni/relatsiyasi
+    //     (schema migration) qo'shilishi kerak.
+    const isOwner = actor.actorType === 'user' && room.user_id === actor.id;
+    const isAdminOperator =
+      actor.actorType === 'admin' || actor.role === Role.SUPER_ADMIN;
+
+    if (!isOwner && !isAdminOperator) {
       throw new ForbiddenException({
         code: 'CHAT_ROOM_FORBIDDEN',
         message: 'Bu chat xonasi sizga tegishli emas',

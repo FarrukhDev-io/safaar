@@ -56,15 +56,20 @@ export class PartnerApiService {
     }
 
     if (body.status === 'completed') {
+      // Defense-in-depth: yuqorida SELECT allaqachon egalikni tasdiqlagan
+      // bo'lsa-da, UPDATE'ning o'z WHERE shartiga ham
+      // `partner_organization_id`ni qo'shamiz — shu qatordagina emas,
+      // har doim, har bir yozuv amalida mustaqil ravishda tekshiriladi.
       await this.pg.query(
-        `UPDATE bookings SET status = $1, updated_at = $2 WHERE id = $3`,
-        [BookingStatus.COMPLETED, now, id],
+        `UPDATE bookings SET status = $1, updated_at = $2
+         WHERE id = $3 AND partner_organization_id = $4`,
+        [BookingStatus.COMPLETED, now, id, organizationId],
       );
     }
 
     const updated = await this.pg.query(
-      `SELECT * FROM bookings WHERE id = $1`,
-      [id],
+      `SELECT * FROM bookings WHERE id = $1 AND partner_organization_id = $2`,
+      [id, organizationId],
     );
     return updated[0];
   }
