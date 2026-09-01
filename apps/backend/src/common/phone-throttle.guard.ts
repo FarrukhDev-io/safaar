@@ -74,8 +74,29 @@ export class PhoneOtpThrottleGuard implements CanActivate {
   }
 }
 
+/**
+ * PHASE 14I — CRITICAL FIX: avvalgi versiya faqat `.trim()` qilardi, ya'ni
+ * "+998901234567", "998901234567", "+998 90 123 45 67" va
+ * "+998-90-123-45-67" — hammasi bitta HAQIQIY raqam bo'lsa-da, Map'da
+ * TO'RTTA ALOHIDA kalit sifatida ko'rinardi — bu per-phone limitni
+ * format almashtirish orqali cheksiz chetlab o'tish imkonini berardi
+ * (14H auditda CONFIRMED bypass sifatida topilgan).
+ *
+ * Endi `AuthService.normalizePhone()`dagi (allaqachon production'da
+ * ishlatilayotgan, to'g'ri) mantiq bilan bir xil: faqat raqamlar
+ * qoldiriladi, `998` bilan boshlanmasa old qo'shiladi. Ikkalasi ham
+ * BIR XIL kanonik shaklga ("+998901234567") tushadi — endi Map'da
+ * BITTA kalit.
+ */
 function normalizePhone(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  const digits = value.replace(/\D/g, '');
+  // Juda qisqa/bo'sh raqamlar (masalan butunlay noto'g'ri/bo'sh input)
+  // uchun normalizatsiya qilmaymiz — aks holda turli xil noto'g'ri
+  // qiymatlar barchasi bitta umumiy "+998" kalitiga tushib, bir-biriga
+  // aloqasi bo'lmagan so'rovlar bir xil limitni bo'lishib olishi mumkin
+  // edi. Haqiqiy O'zbekiston raqami har doim kamida 9 ta raqamdan
+  // iborat (kod bo'lmasa) — bundan qisqasi amalda yaroqsiz.
+  if (digits.length < 9) return undefined;
+  return digits.startsWith('998') ? `+${digits}` : `+998${digits}`;
 }
