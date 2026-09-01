@@ -113,16 +113,6 @@ export class CatalogService {
     });
   }
 
-  async busTypes() {
-    return this.cache.getOrSet('catalog:bus-types', 3600, async () => {
-      return this.postgres.query(`
-        select id::text, code, name, created_at, updated_at
-        from bus_types
-        order by name ->> 'uz'
-      `);
-    });
-  }
-
   async cancellationPolicies() {
     return this.cache.getOrSet(
       'catalog:cancellation-policies',

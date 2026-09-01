@@ -27,11 +27,6 @@ export class CatalogController {
     return this.catalogService.roomTypes();
   }
 
-  @Get('bus-types')
-  busTypes() {
-    return this.catalogService.busTypes();
-  }
-
   @Get('cancellation-policies')
   cancellationPolicies() {
     return this.catalogService.cancellationPolicies();

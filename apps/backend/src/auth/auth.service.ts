@@ -843,12 +843,26 @@ export class AuthService {
     const hash = await argon2.hash(String(body.password));
     const now = new Date().toISOString();
 
-    await this.pg.query(
+    const rows = await this.pg.query<{ id: string }>(
       `UPDATE users
        SET password_hash = $2, updated_at = $3
-       WHERE phone = $1 AND deleted_at IS NULL`,
+       WHERE phone = $1 AND deleted_at IS NULL
+       RETURNING id::text`,
       [phone, hash, now],
     );
+
+    // Parol muvaffaqiyatli tiklangandan keyin — aynan SHU hisobning
+    // mavjud sessiyalarini (access/refresh) bekor qilamiz. Bu — "hisobim
+    // buzilgan bo'lishi mumkin" deb parolni tiklagan foydalanuvchi uchun
+    // eng muhim himoya: parol tiklashdan OLDIN kimdir tokenni o'g'irlagan
+    // bo'lsa, u eski token bilan ishlashda davom eta olmasligi kerak
+    // (xuddi `admin2faDisable()`da qo'llanilgan naqsh — PHASE 14G, avval
+    // aniqlangan HIGH topilma). Yangi login'ga hech qanday to'sqinlik
+    // qilmaydi — `revokeActor` faqat MAVJUD sessiyalarni yopadi, keyingi
+    // `userLogin()` chaqiruvi har doim yangi sessiya yaratadi.
+    if (rows[0]?.id) {
+      await authSessionStore.revokeActor(rows[0].id);
+    }
 
     return { reset: true };
   }
@@ -1198,6 +1212,10 @@ export class AuthService {
       `update partner_users set password_hash = $2, updated_at = $3 where id = $1`,
       [userId, hash, new Date().toISOString()],
     );
+
+    // `userResetPassword()`dagi bilan bir xil sabab: parol tiklangandan
+    // keyin shu hamkor xodimining eski sessiyalari bekor qilinadi (PHASE 14G).
+    await authSessionStore.revokeActor(String(userId));
 
     return { actor_type: actorType, reset: true };
   }

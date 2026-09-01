@@ -1611,11 +1611,14 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     expect(result.sent).toBe(true);
   });
 
-  it('completes the full user reset flow: request -> verify -> reset_token -> new password_hash written by phone', async () => {
+  it('completes the full user reset flow: request -> verify -> reset_token -> new password_hash written by phone, and revokes existing sessions (PHASE 14G security fix)', async () => {
     pg.query.mockResolvedValueOnce([
       { id: '00000000-0000-4000-8000-000000000001' },
     ]);
     process.env.ENABLE_DEMO_AUTH = 'true';
+    const revokeActorSpy = jest
+      .spyOn(authSessionStore, 'revokeActor')
+      .mockResolvedValue(1);
     const requested = (await service.userForgotPassword('+998901234567')) as {
       challenge_id: string;
       dev_code?: string;
@@ -1637,7 +1640,12 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     };
     cache.take.mockResolvedValueOnce(storedContext);
 
-    pg.query.mockResolvedValueOnce([]);
+    // Haqiqiy DB'da `UPDATE ... RETURNING id::text` yangilangan qatorni
+    // qaytaradi — bo'sh massiv emas (bo'sh massiv `revokeActor()`
+    // chaqirilishini niqoblab qo'yardi, PHASE 14G test-review'da topildi).
+    pg.query.mockResolvedValueOnce([
+      { id: '00000000-0000-4000-8000-000000000001' },
+    ]);
     await service.userResetPassword({
       phone: '+998901234567',
       reset_token: verified.reset_token,
@@ -1647,6 +1655,12 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     expect(pg.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE users'),
       expect.arrayContaining(['+998901234567']),
+    );
+    // PHASE 14G (HIGH fix): parol tiklangandan keyin foydalanuvchining
+    // mavjud sessiyalari (eski access/refresh tokenlari) bekor qilinishi
+    // SHART.
+    expect(revokeActorSpy).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-000000000001',
     );
   });
 
@@ -1705,8 +1719,11 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     expect(pg.query).not.toHaveBeenCalled();
   });
 
-  it('completes the full partner reset flow: request -> confirm -> new password_hash written on partner_users', async () => {
+  it('completes the full partner reset flow: request -> confirm -> new password_hash written on partner_users, and revokes existing sessions (PHASE 14G security fix)', async () => {
     process.env.ENABLE_DEMO_AUTH = 'true';
+    const revokeActorSpy = jest
+      .spyOn(authSessionStore, 'revokeActor')
+      .mockResolvedValue(1);
     pg.query.mockResolvedValueOnce([
       { user_id: '00000000-0000-4000-8000-000000000010' },
     ]);
@@ -1728,6 +1745,13 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     expect(pg.query).toHaveBeenLastCalledWith(
       expect.stringContaining('update partner_users'),
       expect.arrayContaining(['00000000-0000-4000-8000-000000000010']),
+    );
+    // PHASE 14G (HIGH fix): parol tiklangandan keyin shu hamkor xodimining
+    // mavjud sessiyalari (eski access/refresh tokenlari) bekor qilinishi
+    // SHART — aks holda parol tiklashdan oldin tokenni o'g'irlagan
+    // hujumchi tiklashdan keyin ham ishlashda davom etardi.
+    expect(revokeActorSpy).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-000000000010',
     );
   });
 

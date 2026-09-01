@@ -16,6 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import { Role } from '@safaar/types';
 import type { Request, Response } from 'express';
 import { CurrentActor, type RequestActor } from '../common/actor';
+import { PhoneOtpThrottleGuard } from '../common/phone-throttle.guard';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
 import { AuthService } from './auth.service';
@@ -46,6 +47,7 @@ export class AuthController {
 
   @Post('user/send-otp')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseGuards(PhoneOtpThrottleGuard)
   requestUserOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendUserOtp(dto.phone);
   }
@@ -58,6 +60,7 @@ export class AuthController {
 
   @Post('otp/request')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseGuards(PhoneOtpThrottleGuard)
   requestOtpAlias(@Body() dto: SendOtpDto) {
     return this.authService.sendPartnerOtp(dto.phone);
   }
@@ -91,6 +94,7 @@ export class AuthController {
 
   @Post('user/forgot-password')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseGuards(PhoneOtpThrottleGuard)
   userForgotPassword(@Body() body: UserForgotPasswordDto) {
     return this.authService.userForgotPassword(body.phone);
   }
@@ -216,6 +220,7 @@ export class AuthController {
 
   @Post('partner/forgot-password')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseGuards(PhoneOtpThrottleGuard)
   partnerForgotPassword(@Body() body: ForgotPasswordDto) {
     return this.authService.passwordResetRequest(
       'partner',
