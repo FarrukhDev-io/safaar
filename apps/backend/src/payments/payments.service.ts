@@ -1,11 +1,13 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { createHash, randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { BookingStatus, Role } from '@safaar/types';
@@ -26,6 +28,12 @@ import {
   type ClickPrepareBody,
 } from './providers/click.provider';
 import { PaymeProvider } from './providers/payme.provider';
+import {
+  UZUM_ERROR,
+  UZUM_STATUS,
+  UzumProvider,
+  UzumWebhookError,
+} from './providers/uzum.provider';
 
 type HeaderMap = Record<string, string | string[] | undefined>;
 
@@ -47,6 +55,15 @@ const BS = {
 
 const OPEN_BOOKING_STATUSES = [BS.PENDING, BS.AWAITING_PAYMENT];
 const SETTLED_BOOKING_STATUSES = [BS.EXPIRED, BS.CANCELLED];
+
+/**
+ * To'lov allaqachon yakuniy holatga o'tgan bo'lsa, webhook event uni qayta
+ * yozib yubormasligi kerak (`processPaymentEvent` idempotentligi). Click
+ * oqimida payment doim `pending`/`processing` bo'ladi — bu ro'yxat unga
+ * ta'sir qilmaydi; Uzum `/reverse` esa `/confirm`dan alohida `event_key`
+ * ishlatgani uchun parallel `reverse`+`confirm`da bu himoya zarur.
+ */
+const TERMINAL_PAYMENT_STATUSES = ['paid', 'reversed', 'refunded', 'failed'];
 
 interface BookingVisibilityRow {
   id: string;
@@ -86,11 +103,17 @@ interface PaymentEventRow {
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
+  /** Uzum `/confirm` oynasi (30 daq) + xavfsizlik buferi (5 daq). */
+  private static readonly UZUM_CONFIRM_WINDOW_MS = 35 * 60_000;
+
   constructor(
     private readonly pg: PostgresService,
     private readonly config: ConfigService,
     private readonly click: ClickProvider,
     private readonly payme: PaymeProvider,
+    private readonly uzum: UzumProvider,
   ) {}
 
   async payment(actor: RequestActor | undefined, bookingId: string) {
@@ -177,6 +200,13 @@ export class PaymentsService {
     amount: number,
   ): string | null {
     if (provider === 'cash') {
+      return null;
+    }
+
+    // Uzum'da checkout/redirect YO'Q — foydalanuvchi to'lovni Uzum
+    // ilovasidan boshlaydi, `payments` qatori `/uzum/webhook/create`
+    // kelganda yaratiladi.
+    if (provider === 'uzum') {
       return null;
     }
 
@@ -435,6 +465,30 @@ export class PaymentsService {
           code: 'PAYMENT_NOT_FOUND',
           message: 'Webhook uchun payment topilmadi',
         });
+      }
+
+      // Tanlangan to'lov allaqachon yakuniy holatda (paid/reversed/refunded/
+      // failed) bo'lsa — bu event uni qayta "paid" qilmasligi kerak. Masalan
+      // parallel Uzum `/reverse` (payment → reversed) + kechikkan `/confirm`:
+      // `/confirm` `event_key`i `/reverse`nikidan farq qilgani uchun claim
+      // o'tadi, lekin bu yerda to'xtatamiz — aks holda `reversed` → `paid`
+      // "sakrash" va soxta avto-refund yuz beradi.
+      if (
+        payment.status &&
+        TERMINAL_PAYMENT_STATUSES.includes(String(payment.status))
+      ) {
+        await tx.query(
+          'UPDATE payment_events SET payment_id = $1 WHERE id = $2',
+          [payment.id, eventRow.id],
+        );
+        return {
+          provider,
+          event,
+          accepted: true,
+          duplicate: true,
+          payment,
+          processed_at: eventRow.processed_at,
+        };
       }
 
       this.assertPaymentMatchesPayload(payment, body);
@@ -738,8 +792,539 @@ export class PaymentsService {
 
   private provider(value: unknown): string {
     const provider = String(value ?? 'click');
-    return ['click', 'payme', 'uzcard', 'humo', 'cash'].includes(provider)
+    return ['click', 'payme', 'uzcard', 'humo', 'cash', 'uzum'].includes(
+      provider,
+    )
       ? provider
       : 'click';
+  }
+
+  // ==========================================================================
+  //  UZUM MERCHANT API — rasmiy contract (developer.uzumbank.uz, 1.0.0).
+  //  5 ta webhook: /check /create /confirm /reverse /status.
+  //  Toza Uzum logikasi `UzumProvider`da (ClickProvider naqshi); bu yerda
+  //  payment domen logikasi. `/confirm` mavjud `processPaymentEvent()`ni
+  //  qayta ishlatadi — uning semantikasi o'zgartirilmagan.
+  // ==========================================================================
+
+  /** Uzum `params.account` = SAFAAR `bookings.booking_number` (SAFAAR qarori). */
+  private readUzumAccount(body: Record<string, unknown>): string {
+    const params = body.params;
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new UzumWebhookError(UZUM_ERROR.BAD_JSON, body.serviceId);
+    }
+    const account = (params as Record<string, unknown>).account;
+    const value = typeof account === 'string' ? account.trim() : '';
+    if (!value) {
+      throw new UzumWebhookError(UZUM_ERROR.MISSING_PARAMS, body.serviceId);
+    }
+    return value;
+  }
+
+  private readUzumTransId(body: Record<string, unknown>): string {
+    const transId = typeof body.transId === 'string' ? body.transId.trim() : '';
+    if (!transId) {
+      throw new UzumWebhookError(UZUM_ERROR.MISSING_PARAMS, body.serviceId);
+    }
+    return transId;
+  }
+
+  private readUzumAmountTiyin(body: Record<string, unknown>): number {
+    const amount = body.amount;
+    if (amount === undefined || amount === null || amount === '') {
+      throw new UzumWebhookError(UZUM_ERROR.MISSING_PARAMS, body.serviceId);
+    }
+    const n = Number(amount);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
+      throw new UzumWebhookError(UZUM_ERROR.INVALID_AMOUNT, body.serviceId);
+    }
+    return n;
+  }
+
+  private async findBookingByNumber(bookingNumber: string) {
+    const [booking] = await this.pg.query<BookingRow>(
+      'SELECT * FROM bookings WHERE booking_number = $1',
+      [bookingNumber],
+    );
+    return booking;
+  }
+
+  /**
+   * Bron hozir Uzum orqali to'lanishga yaroqlimi? Yaroqsiz bo'lsa
+   * contractdagi mos error-code'ni tashlaydi. HECH QANDAY yozuv qilmaydi.
+   */
+  private assertUzumPayable(booking: BookingRow, serviceId: unknown): void {
+    const status = String(booking.status);
+    if (
+      status === BS.CONFIRMED ||
+      status === BS.AWAITING_PARTNER_CONFIRMATION ||
+      status === BS.COMPLETED
+    ) {
+      throw new UzumWebhookError(UZUM_ERROR.ALREADY_PAID, serviceId);
+    }
+    if (!OPEN_BOOKING_STATUSES.includes(status)) {
+      // cancelled / expired / boshqa yopiq holat.
+      throw new UzumWebhookError(UZUM_ERROR.CANCELLED, serviceId);
+    }
+    const expiresAt = booking.expires_at
+      ? Date.parse(String(booking.expires_at))
+      : NaN;
+    if (Number.isFinite(expiresAt) && expiresAt < Date.now()) {
+      // Muddati o'tgan — `expireStaleBookings` cron bir daqiqada `expired`ga o'tkazadi.
+      throw new UzumWebhookError(UZUM_ERROR.CANCELLED, serviceId);
+    }
+  }
+
+  /**
+   * `/check` — to'lov mumkinligini tekshiradi. YOZUV QILMAYDI.
+   * Muvaffaqiyat: `{ serviceId, timestamp, status: "OK", data }`.
+   */
+  async uzumCheck(body: Record<string, unknown>) {
+    const serviceId = this.uzum.assertServiceId(body.serviceId);
+    const account = this.readUzumAccount(body);
+
+    const booking = await this.findBookingByNumber(account);
+    if (!booking) {
+      throw new UzumWebhookError(UZUM_ERROR.ACCOUNT_NOT_FOUND, serviceId);
+    }
+
+    const [paid] = await this.pg.query<PaymentRow>(
+      "SELECT id FROM payments WHERE booking_id = $1 AND status = 'paid' LIMIT 1",
+      [booking.id],
+    );
+    if (paid) {
+      throw new UzumWebhookError(UZUM_ERROR.ALREADY_PAID, serviceId);
+    }
+
+    this.assertUzumPayable(booking, serviceId);
+
+    // Rasmiy contract `/check` 200 namunasi `data: {}` (bo'sh) ko'rsatadi.
+    // `data` ichidagi aniq kalitlar (masalan summa) merchant onboarding'da
+    // kelishiladi — kelishilmaguncha hech qanday taxminiy field qo'shmaymiz.
+    return this.uzum.checkOk(serviceId, {});
+  }
+
+  /**
+   * `/create` — Uzum tranzaksiyasini SAFAAR tarafida ro'yxatga oladi.
+   * Idempotent: bir xil `transId` qayta kelsa → 10010.
+   */
+  async uzumCreate(body: Record<string, unknown>) {
+    const serviceId = this.uzum.assertServiceId(body.serviceId);
+    const account = this.readUzumAccount(body);
+    const transId = this.readUzumTransId(body);
+    const amountTiyin = this.readUzumAmountTiyin(body);
+
+    return this.pg.transaction(async (tx) => {
+      const [dup] = await tx.query<{ id: string }>(
+        `SELECT id FROM payments
+         WHERE provider = 'uzum'
+           AND (provider_reference = $1 OR idempotency_key = $2)
+         LIMIT 1`,
+        [transId, `uzum:${transId}`],
+      );
+      if (dup) {
+        throw new UzumWebhookError(UZUM_ERROR.ALREADY_CREATED, serviceId);
+      }
+
+      const claimed = await tx.query<{ id: string }>(
+        `INSERT INTO payment_events (id, provider, event_type, event_key, payload, payload_hash, processed_at)
+         VALUES ($1, 'uzum', 'create', $2, $3::jsonb, $4, $5)
+         ON CONFLICT (event_key) DO NOTHING
+         RETURNING id`,
+        [
+          randomUUID(),
+          `uzum:create:${transId}`,
+          JSON.stringify(body),
+          createHash('sha256').update(this.stableStringify(body)).digest('hex'),
+          new Date().toISOString(),
+        ],
+      );
+      if (claimed.length === 0) {
+        throw new UzumWebhookError(UZUM_ERROR.ALREADY_CREATED, serviceId);
+      }
+
+      const [booking] = await tx.query<BookingRow>(
+        'SELECT * FROM bookings WHERE booking_number = $1 FOR UPDATE',
+        [account],
+      );
+      if (!booking) {
+        throw new UzumWebhookError(UZUM_ERROR.ACCOUNT_NOT_FOUND, serviceId);
+      }
+
+      const [paid] = await tx.query<PaymentRow>(
+        "SELECT id FROM payments WHERE booking_id = $1 AND status = 'paid' LIMIT 1",
+        [booking.id],
+      );
+      if (paid) {
+        throw new UzumWebhookError(UZUM_ERROR.ALREADY_PAID, serviceId);
+      }
+      // Muddati o'tgan/bekor qilingan bronni QAYTA TIRILTIRMAYMIZ.
+      this.assertUzumPayable(booking, serviceId);
+
+      const expectedTiyin = this.uzum.toTiyin(Number(booking.total_amount));
+      if (amountTiyin !== expectedTiyin) {
+        throw new UzumWebhookError(UZUM_ERROR.INVALID_AMOUNT, serviceId);
+      }
+
+      const now = new Date().toISOString();
+      const [existing] = await tx.query<PaymentRow>(
+        `SELECT * FROM payments
+         WHERE booking_id = $1 AND status IN ('pending', 'processing')
+         ORDER BY created_at DESC
+         LIMIT 1
+         FOR UPDATE`,
+        [booking.id],
+      );
+      let paymentId: string;
+      if (existing) {
+        paymentId = existing.id;
+        await tx.query(
+          `UPDATE payments
+           SET provider = 'uzum', status = 'processing',
+               amount = $1, currency = $2,
+               provider_reference = $3, idempotency_key = $4, updated_at = $5
+           WHERE id = $6`,
+          [
+            booking.total_amount,
+            booking.currency,
+            transId,
+            `uzum:${transId}`,
+            now,
+            paymentId,
+          ],
+        );
+      } else {
+        paymentId = randomUUID();
+        await tx.query(
+          `INSERT INTO payments
+             (id, booking_id, provider, status, amount, currency, payment_url,
+              provider_reference, idempotency_key, created_at, updated_at)
+           VALUES ($1, $2, 'uzum', 'processing', $3, $4, NULL, $5, $6, $7, $7)`,
+          [
+            paymentId,
+            booking.id,
+            booking.total_amount,
+            booking.currency,
+            transId,
+            `uzum:${transId}`,
+            now,
+          ],
+        );
+      }
+
+      await tx.query(
+        'UPDATE payment_events SET payment_id = $1 WHERE id = $2',
+        [paymentId, claimed[0].id],
+      );
+
+      // Uzum confirm oynasi (30 daq) SAFAAR default (15 daq)dan uzun —
+      // faqat hali OCHIQ bo'lsa muddatni now+35 daqiqaga uzaytiramiz.
+      await tx.query(
+        `UPDATE bookings
+         SET expires_at = $1, updated_at = $2
+         WHERE id = $3 AND status IN ('pending', 'awaiting_payment')`,
+        [
+          new Date(
+            Date.now() + PaymentsService.UZUM_CONFIRM_WINDOW_MS,
+          ).toISOString(),
+          now,
+          booking.id,
+        ],
+      );
+
+      return this.uzum.created(serviceId, transId, amountTiyin, {});
+    });
+  }
+
+  /**
+   * `/confirm` — to'lov muvaffaqiyatli; xizmatni ko'rsatamiz, tranzaksiyani
+   * yakuniy holatga o'tkazamiz. Mavjud `processPaymentEvent()`ni qayta
+   * ishlatadi (booking → confirmed, ledger BIR MARTA, `event_key` UNIQUE).
+   */
+  async uzumConfirm(body: Record<string, unknown>) {
+    const serviceId = this.uzum.assertServiceId(body.serviceId);
+    const transId = this.readUzumTransId(body);
+
+    if (
+      typeof body.paymentSource !== 'string' ||
+      !String(body.paymentSource).trim()
+    ) {
+      throw new UzumWebhookError(UZUM_ERROR.MISSING_PARAMS, serviceId);
+    }
+    if (typeof body.phone !== 'string' || !String(body.phone).trim()) {
+      throw new UzumWebhookError(UZUM_ERROR.MISSING_PARAMS, serviceId);
+    }
+
+    const [payment] = await this.pg.query<PaymentRow>(
+      `SELECT * FROM payments
+       WHERE provider = 'uzum'
+         AND (provider_reference = $1 OR idempotency_key = $2)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [transId, `uzum:${transId}`],
+    );
+    if (!payment) {
+      throw new UzumWebhookError(UZUM_ERROR.TRANS_NOT_FOUND, serviceId);
+    }
+    const pStatus = String(payment.status ?? '');
+    if (pStatus === 'paid') {
+      throw new UzumWebhookError(UZUM_ERROR.ALREADY_CONFIRMED, serviceId);
+    }
+    if (
+      pStatus === 'reversed' ||
+      pStatus === 'refunded' ||
+      pStatus === 'failed'
+    ) {
+      throw new UzumWebhookError(UZUM_ERROR.TRANS_CANCELLED, serviceId);
+    }
+
+    // Rasmiy contractda `/confirm` summa/valyuta yubormaydi. Himoya sifatida
+    // `amount`/`total_amount`/`currency`ni olib tashlaymiz — aks holda bank
+    // kutilmaganda tiyin `amount` qo'shsa `assertPaymentMatchesPayload`
+    // (so'm bilan solishtirib) noto'g'ri mismatch beradi.
+    const confirmBody: Record<string, unknown> = { ...body };
+    delete confirmBody.amount;
+    delete confirmBody.total_amount;
+    delete confirmBody.currency;
+    const result = (await this.processPaymentEvent(
+      'uzum',
+      'confirm',
+      `uzum:confirm:${transId}`,
+      {
+        ...confirmBody,
+        booking_id: payment.booking_id,
+        transaction_id: transId,
+      },
+    )) as { duplicate?: boolean; payment?: { status?: unknown } };
+
+    if (result.duplicate) {
+      // Takroriy yoki parallel `/confirm`. Agar to'lov shu orada bekor
+      // qilingan bo'lsa (parallel `/reverse`) — 10015; aks holda
+      // "allaqachon tasdiqlangan" — 10016.
+      const dupStatus = String(result.payment?.status ?? '');
+      if (
+        dupStatus === 'reversed' ||
+        dupStatus === 'refunded' ||
+        dupStatus === 'failed'
+      ) {
+        throw new UzumWebhookError(UZUM_ERROR.TRANS_CANCELLED, serviceId);
+      }
+      throw new UzumWebhookError(UZUM_ERROR.ALREADY_CONFIRMED, serviceId);
+    }
+
+    return this.uzum.confirmed(
+      serviceId,
+      transId,
+      this.uzum.toTiyin(Number(payment.amount)),
+      {},
+    );
+  }
+
+  /**
+   * `/reverse` — Uzum tranzaksiyani bekor qildi (pulni o'zi qaytardi).
+   * Payment → reversed, bron → cancelled, ledger kompensatsiyasi. SAFAAR
+   * ichida `refunds` qatori YARATILMAYDI. Idempotent (10018).
+   */
+  async uzumReverse(body: Record<string, unknown>) {
+    const serviceId = this.uzum.assertServiceId(body.serviceId);
+    const transId = this.readUzumTransId(body);
+
+    return this.pg.transaction(async (tx) => {
+      const [payment] = await tx.query<PaymentRow>(
+        `SELECT * FROM payments
+         WHERE provider = 'uzum'
+           AND (provider_reference = $1 OR idempotency_key = $2)
+         ORDER BY created_at DESC
+         LIMIT 1
+         FOR UPDATE`,
+        [transId, `uzum:${transId}`],
+      );
+      if (!payment) {
+        throw new UzumWebhookError(UZUM_ERROR.TRANS_NOT_FOUND, serviceId);
+      }
+      const pStatus = String(payment.status ?? '');
+      if (pStatus === 'reversed' || pStatus === 'refunded') {
+        throw new UzumWebhookError(UZUM_ERROR.ALREADY_REVERSED, serviceId);
+      }
+      if (pStatus !== 'processing' && pStatus !== 'paid') {
+        throw new UzumWebhookError(UZUM_ERROR.CANNOT_REVERSE, serviceId);
+      }
+
+      const claimed = await tx.query<{ id: string }>(
+        `INSERT INTO payment_events (id, provider, event_type, event_key, payload, payload_hash, processed_at)
+         VALUES ($1, 'uzum', 'reverse', $2, $3::jsonb, $4, $5)
+         ON CONFLICT (event_key) DO NOTHING
+         RETURNING id`,
+        [
+          randomUUID(),
+          `uzum:reverse:${transId}`,
+          JSON.stringify(body),
+          createHash('sha256').update(this.stableStringify(body)).digest('hex'),
+          new Date().toISOString(),
+        ],
+      );
+      if (claimed.length === 0) {
+        throw new UzumWebhookError(UZUM_ERROR.ALREADY_REVERSED, serviceId);
+      }
+
+      const now = new Date().toISOString();
+      const wasPaid = pStatus === 'paid';
+
+      await tx.query(
+        "UPDATE payments SET status = 'reversed', updated_at = $1 WHERE id = $2",
+        [now, payment.id],
+      );
+      await tx.query(
+        'UPDATE payment_events SET payment_id = $1 WHERE id = $2',
+        [payment.id, claimed[0].id],
+      );
+
+      const [booking] = await tx.query<BookingRow>(
+        'SELECT * FROM bookings WHERE id = $1 FOR UPDATE',
+        [payment.booking_id],
+      );
+      if (
+        booking &&
+        booking.status !== BS.CANCELLED &&
+        booking.status !== BS.COMPLETED &&
+        booking.status !== BS.EXPIRED
+      ) {
+        await tx.query(
+          `UPDATE bookings
+           SET status = 'cancelled', cancelled_at = $1,
+               cancel_reason_text = $2, expires_at = NULL, updated_at = $1
+           WHERE id = $3`,
+          [now, 'Uzum reverse (bank tomonidan bekor qilindi)', booking.id],
+        );
+        await this.recordStatusHistory(
+          tx,
+          booking.id,
+          BS.CANCELLED,
+          'payment_reversed',
+        );
+
+        if (wasPaid) {
+          // Ledger kompensatsiyasi — `partner_ledger_entries.type` erkin
+          // varchar(80); `booking_earned` musbat yozuvini bekor qiluvchi
+          // manfiy `booking_reversed` yozuvi.
+          await tx.query(
+            `INSERT INTO partner_ledger_entries (id, organization_id, booking_id, type, amount, currency, created_at)
+             VALUES ($1, $2, $3, 'booking_reversed', $4, $5, $6)`,
+            [
+              randomUUID(),
+              booking.partner_organization_id,
+              booking.id,
+              -Number(booking.partner_payable),
+              booking.currency,
+              now,
+            ],
+          );
+        }
+
+        // Avtobus o'rindiq hold'larini bo'shatamiz (mehmonxona bronida 0 qator).
+        await tx.query(
+          `UPDATE trip_seats
+           SET status = 'available', held_by_booking_id = NULL, held_until = NULL
+           WHERE held_by_booking_id = $1 AND status = 'held'`,
+          [booking.id],
+        );
+      }
+
+      return this.uzum.reversed(
+        serviceId,
+        transId,
+        this.uzum.toTiyin(Number(payment.amount)),
+        {},
+      );
+    });
+  }
+
+  /**
+   * `/status` — tranzaksiya holatini qaytaradi. READ-ONLY, deterministik
+   * (Uzum `/confirm` timeout'da buni 10 martagacha so'raydi).
+   */
+  async uzumStatus(body: Record<string, unknown>) {
+    const serviceId = this.uzum.assertServiceId(body.serviceId);
+    const transId = this.readUzumTransId(body);
+
+    const [payment] = await this.pg.query<PaymentRow>(
+      `SELECT * FROM payments
+       WHERE provider = 'uzum'
+         AND (provider_reference = $1 OR idempotency_key = $2)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [transId, `uzum:${transId}`],
+    );
+    if (!payment) {
+      throw new UzumWebhookError(UZUM_ERROR.TRANS_NOT_FOUND, serviceId);
+    }
+
+    const map: Record<string, string> = {
+      pending: UZUM_STATUS.CREATED,
+      awaiting_cash: UZUM_STATUS.CREATED,
+      processing: UZUM_STATUS.CREATED,
+      paid: UZUM_STATUS.CONFIRMED,
+      reversed: UZUM_STATUS.REVERSED,
+      refunded: UZUM_STATUS.REVERSED,
+      failed: UZUM_STATUS.FAILED,
+    };
+    const status = map[String(payment.status ?? '')] ?? UZUM_STATUS.CREATED;
+
+    const createdMs = payment.created_at
+      ? Date.parse(String(payment.created_at))
+      : NaN;
+    const updatedMs = payment.updated_at
+      ? Date.parse(String(payment.updated_at))
+      : NaN;
+
+    return this.uzum.statusResult(
+      serviceId,
+      transId,
+      status,
+      {
+        transTime: Number.isFinite(createdMs) ? createdMs : null,
+        confirmTime:
+          status === UZUM_STATUS.CONFIRMED && Number.isFinite(updatedMs)
+            ? updatedMs
+            : null,
+        reverseTime:
+          status === UZUM_STATUS.REVERSED && Number.isFinite(updatedMs)
+            ? updatedMs
+            : null,
+      },
+      this.uzum.toTiyin(Number(payment.amount)),
+      {},
+    );
+  }
+
+  /**
+   * Uzum contract: `/create`dan 30 daqiqa ichida `/confirm` kelmasa —
+   * tranzaksiya muvaffaqiyatsiz hisoblanadi, uni `FAILED`ga o'tkazamiz.
+   * (Bron `expires_at = now+35 min` bo'lgani uchun `expireStaleBookings`
+   * croni orqali ~5 daqiqadan keyin `expired`ga o'tadi.)
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async failStaleUzumTransactions(): Promise<void> {
+    try {
+      const rows = await this.pg.query<{ id: string }>(
+        `UPDATE payments
+         SET status = 'failed', updated_at = now()
+         WHERE provider = 'uzum'
+           AND status IN ('pending', 'processing')
+           AND created_at < now() - interval '30 minutes'
+         RETURNING id`,
+      );
+      if (rows.length > 0) {
+        this.logger.log(
+          `${rows.length} ta Uzum tranzaksiyasi 30 daqiqada tasdiqlanmadi — 'failed'ga o'tkazildi`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `failStaleUzumTransactions xatosi: ${
+          error instanceof Error ? error.message : 'nomaʼlum'
+        }`,
+      );
+    }
   }
 }

@@ -78,6 +78,7 @@ describe('Security regression tests', () => {
       { get: jest.fn() } as never,
       { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
     );
     const body = {
       booking_id: 'booking-1',
