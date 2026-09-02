@@ -200,11 +200,24 @@ done. (Note: the stale root `railway.json` `startCommand` contains
 
 ---
 
-## Neon — historical status
+## Neon — historical status (decommissioned)
 
 Neon (host `ep-billowing-term-…neon.tech`, database `neondb`) was
 an **earlier** hosted database. It is **no longer used by production** and its
-compute quota is exhausted (connections fail). It may still appear in individual
-developers' local `apps/backend/.env` files — replace with the `.env.example`
-value. The `.githooks/pre-commit` guard and `.gitignore` `scratch.*` rules exist
-because a Neon password was once committed via `scratch.js`; keep those guards.
+compute quota is exhausted (connections fail).
+
+**Decommission status:** the stale Neon `DATABASE_URL` has been scrubbed from the
+tracked-template and local env files in this repo (`apps/backend/.env`,
+`apps/backend/.env.production.backup` now use the `.env.example` local value;
+`.env.local` remains the authoritative local config). Nothing in code, Prisma,
+CI/CD, `scripts/deploy-production.sh`, or the production `backend.env` references
+Neon. The Neon **project itself must be deleted manually from the Neon console**,
+and the exposed `neondb_owner` credential should be treated as compromised
+(rotate/retire it) — it sat in plaintext local env files.
+
+If a developer's local `apps/backend/.env` still points `DATABASE_URL` at Neon,
+replace it with the `.env.example` value or a personal local Postgres.
+
+The `.githooks/pre-commit` guard and `.gitignore` `scratch.*` rules exist
+because a Neon password was once committed via `scratch.js`; **keep those guards**
+(they protect against secret commits in general, not just Neon).
