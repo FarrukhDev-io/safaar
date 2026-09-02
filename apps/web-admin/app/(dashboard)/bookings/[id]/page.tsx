@@ -25,6 +25,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [noteDraft, setNoteDraft] = useState(bookingNotes[id] ?? "");
+  const [isRefunding, setIsRefunding] = useState(false);
 
   useEffect(() => {
     AdminApi.getBookingDetail(id)
@@ -53,8 +54,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
   const isHotel = booking.serviceType === "hotel";
   const isRestaurant = booking.serviceType === "restaurant";
-
-  const [isRefunding, setIsRefunding] = useState(false);
 
   const handleCancel = async () => {
     if (confirm("Rostdan ham ushbu bronni bekor qilmoqchimisiz?")) {

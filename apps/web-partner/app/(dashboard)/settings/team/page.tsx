@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, UserPlus, Mail, Shield, Trash2, ShieldAlert } from "lucide-react";
+import { Users, UserPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PartnerTeamMember, listTeamMembers, inviteTeamMember, deleteTeamMember, updateTeamMember } from "@/app/_lib/api/endpoints/partners";
 
@@ -15,19 +15,30 @@ export default function TeamSettingsPage() {
 
   const fetchMembers = async () => {
     try {
-      setLoading(true);
       const data = await listTeamMembers(null);
       setMembers(data);
-    } catch (e) {
+    } catch {
       toast.error("Jamoa a'zolarini yuklab bo'lmadi");
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMembers();
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await listTeamMembers(null);
+        if (!cancelled) setMembers(data);
+      } catch {
+        if (!cancelled) toast.error("Jamoa a'zolarini yuklab bo'lmadi");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
+
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +53,7 @@ export default function TeamSettingsPage() {
       setShowInviteModal(false);
       setInviteForm({ name: "", email: "", role: "staff" });
       fetchMembers();
-    } catch (e) {
+    } catch {
       toast.error("Taklif yuborishda xatolik");
     } finally {
       setSubmitting(false);
@@ -55,7 +66,7 @@ export default function TeamSettingsPage() {
       await deleteTeamMember(id, null);
       toast.success("Xodim o'chirildi");
       setMembers(members.filter((m) => m.id !== id));
-    } catch (e) {
+    } catch {
       toast.error("Xodimni o'chirib bo'lmadi");
     }
   };
@@ -65,7 +76,7 @@ export default function TeamSettingsPage() {
       await updateTeamMember(id, { role: newRole }, null);
       toast.success("Rol o'zgartirildi");
       setMembers(members.map((m) => (m.id === id ? { ...m, role: newRole as any } : m)));
-    } catch (e) {
+    } catch {
       toast.error("Rolni o'zgartirib bo'lmadi");
     }
   };
@@ -96,7 +107,7 @@ export default function TeamSettingsPage() {
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-white dark:bg-[var(--card)] overflow-hidden">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-left text-sm whitespace-nowrap">
           <thead className="bg-[var(--muted)]/50 border-b border-[var(--border)]">
             <tr>
               <th className="px-6 py-3 font-medium text-[var(--muted-foreground)]">Xodim</th>

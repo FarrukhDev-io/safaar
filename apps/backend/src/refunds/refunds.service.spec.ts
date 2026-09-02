@@ -24,7 +24,7 @@ describe('RefundsService.create', () => {
   let service: RefundsService;
 
   beforeEach(() => {
-    pg = { query: jest.fn() } as any;
+    pg = { query: jest.fn() };
     service = new RefundsService(pg as unknown as PostgresService);
   });
 
@@ -44,7 +44,7 @@ describe('RefundsService.create', () => {
     expect(result.requested_amount).toBe(800000);
   });
 
-  it('blocks a user from creating a refund for someone else\'s booking (regression)', async () => {
+  it("blocks a user from creating a refund for someone else's booking (regression)", async () => {
     pg.query.mockResolvedValueOnce([bookingRow]);
 
     await expect(

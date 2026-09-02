@@ -5,6 +5,7 @@ import { AdminApi } from "@/lib/api/admin-api";
 import type { FinanceReport, ProviderReconciliation, FinanceDocument } from "@/types/admin";
 import { formatDate, formatPrice, cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
+import DataTable, { Column } from "@/components/ui/DataTable";
 import { Download, FileText, CheckCircle2, AlertTriangle, RefreshCw, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,8 +19,11 @@ export default function FinanceReportsPage() {
   const [exportLoading, setExportLoading] = useState(false);
   const [taxExportLoading, setTaxExportLoading] = useState(false);
 
+  const [error, setError] = useState(false);
+
   const fetchData = async () => {
     setLoading(true);
+    setError(false);
     try {
       if (activeTab === 'reports') {
         const data = await AdminApi.getFinanceReports();
@@ -33,13 +37,39 @@ export default function FinanceReportsPage() {
       }
     } catch (err) {
       toast.error("Ma'lumotlarni yuklab bo'lmadi");
+      setError(true);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    let cancelled = false;
+    const load = async () => {
+      try {
+        if (cancelled) return;
+        setLoading(true);
+        if (activeTab === 'reports') {
+          const data = await AdminApi.getFinanceReports();
+          if (!cancelled) setReports(data);
+        } else if (activeTab === 'reconciliation') {
+          const data = await AdminApi.getProviderReconciliation();
+          if (!cancelled) setReconciliations(data);
+        } else if (activeTab === 'documents') {
+          const data = await AdminApi.getFinanceDocuments();
+          if (!cancelled) setDocuments(data);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error("Ma'lumotlarni yuklab bo'lmadi");
+          setError(true);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, [activeTab]);
 
   const handleExportFinance = async () => {
@@ -119,126 +149,104 @@ export default function FinanceReportsPage() {
         </button>
       </div>
 
-      <div className="flex-1 bg-white border border-[var(--border)] rounded-xl shadow-sm overflow-hidden flex flex-col">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <span className="inline-block w-8 h-8 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-[var(--bg-secondary)] border-b border-[var(--border)] text-[var(--text-secondary)] font-medium">
-                {activeTab === 'reports' && (
-                  <tr>
-                    <th className="px-6 py-4">ID</th>
-                    <th className="px-6 py-4">Hisobot nomi</th>
-                    <th className="px-6 py-4">Davr</th>
-                    <th className="px-6 py-4">Umumiy Daromad</th>
-                    <th className="px-6 py-4">Sof Komissiya</th>
-                    <th className="px-6 py-4">Sana</th>
-                  </tr>
-                )}
-                {activeTab === 'reconciliation' && (
-                  <tr>
-                    <th className="px-6 py-4">Provayder</th>
-                    <th className="px-6 py-4">Kutilayotgan Summa</th>
-                    <th className="px-6 py-4">Haqiqiy Summa</th>
-                    <th className="px-6 py-4">Farq</th>
-                    <th className="px-6 py-4">Holat</th>
-                    <th className="px-6 py-4">Sinxronlash vaqti</th>
-                  </tr>
-                )}
-                {activeTab === 'documents' && (
-                  <tr>
-                    <th className="px-6 py-4">Hujjat nomi</th>
-                    <th className="px-6 py-4">Turi</th>
-                    <th className="px-6 py-4">Hamkor</th>
-                    <th className="px-6 py-4">Davr</th>
-                    <th className="px-6 py-4">Holat</th>
-                    <th className="px-6 py-4 text-right">Amallar</th>
-                  </tr>
-                )}
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {activeTab === 'reports' && reports.length === 0 && (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-[var(--text-secondary)]">Ma'lumot topilmadi</td></tr>
-                )}
-                {activeTab === 'reports' && reports.map((row) => (
-                  <tr key={row.id} className="hover:bg-[var(--bg-secondary)] transition-colors">
-                    <td className="px-6 py-4 font-mono text-xs">{row.id}</td>
-                    <td className="px-6 py-4 font-medium">{row.title}</td>
-                    <td className="px-6 py-4 text-sm">{row.period}</td>
-                    <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{formatPrice(row.totalRevenue)}</td>
-                    <td className="px-6 py-4 font-semibold text-[var(--success)]">{formatPrice(row.totalCommission)}</td>
-                    <td className="px-6 py-4 text-sm">{formatDate(row.dateGenerated)}</td>
-                  </tr>
-                ))}
+      <div className="flex-1 flex flex-col min-h-0">
+        {activeTab === 'reports' && (
+          <DataTable
+            columns={[
+              { key: "id", label: "ID", render: (r) => <span className="font-mono text-xs">{r.id}</span> },
+              { key: "title", label: "Hisobot nomi", render: (r) => <span className="font-medium">{r.title}</span> },
+              { key: "period", label: "Davr" },
+              { key: "totalRevenue", label: "Umumiy Daromad", render: (r) => <span className="font-semibold text-[var(--text-primary)]">{formatPrice(r.totalRevenue)}</span> },
+              { key: "totalCommission", label: "Sof Komissiya", render: (r) => <span className="font-semibold text-[var(--success)]">{formatPrice(r.totalCommission)}</span> },
+              { key: "dateGenerated", label: "Sana", render: (r) => <span>{formatDate(r.dateGenerated)}</span> },
+            ]}
+            data={reports}
+            keyField="id"
+            emptyMessage="Ma'lumot topilmadi"
+            isLoading={loading}
+            isError={error}
+            onRetry={fetchData}
+            className="flex-1"
+          />
+        )}
 
-                {activeTab === 'reconciliation' && reconciliations.length === 0 && (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-[var(--text-secondary)]">Solishtirish ma'lumotlari topilmadi</td></tr>
-                )}
-                {activeTab === 'reconciliation' && reconciliations.map((row, i) => (
-                  <tr key={i} className="hover:bg-[var(--bg-secondary)] transition-colors">
-                    <td className="px-6 py-4 font-medium capitalize">{row.provider}</td>
-                    <td className="px-6 py-4">{formatPrice(row.expectedAmount)}</td>
-                    <td className="px-6 py-4">{formatPrice(row.actualAmount)}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn("font-semibold", row.difference !== 0 ? "text-red-500" : "text-emerald-500")}>
-                        {formatPrice(row.difference)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {row.status === 'matched' ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md text-xs font-medium">
-                          <CheckCircle2 size={14} /> Muvofiq
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-xs font-medium">
-                          <AlertTriangle size={14} /> Farq mavjud
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm">{formatDate(row.lastSyncedAt)}</td>
-                  </tr>
-                ))}
+        {activeTab === 'reconciliation' && (
+          <DataTable
+            columns={[
+              { key: "provider", label: "Provayder", render: (r) => <span className="font-medium capitalize">{r.provider}</span> },
+              { key: "expectedAmount", label: "Kutilayotgan Summa", render: (r) => formatPrice(r.expectedAmount) },
+              { key: "actualAmount", label: "Haqiqiy Summa", render: (r) => formatPrice(r.actualAmount) },
+              { key: "difference", label: "Farq", render: (r) => <span className={cn("font-semibold", r.difference !== 0 ? "text-red-500" : "text-emerald-500")}>{formatPrice(r.difference)}</span> },
+              { 
+                key: "status", 
+                label: "Holat", 
+                render: (r) => r.status === 'matched' ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md text-xs font-medium">
+                    <CheckCircle2 size={14} /> Muvofiq
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-xs font-medium">
+                    <AlertTriangle size={14} /> Farq mavjud
+                  </span>
+                )
+              },
+              { key: "lastSyncedAt", label: "Sinxronlash vaqti", render: (r) => <span>{formatDate(r.lastSyncedAt)}</span> },
+            ]}
+            data={reconciliations}
+            keyField="provider"
+            emptyMessage="Solishtirish ma'lumotlari topilmadi"
+            isLoading={loading}
+            isError={error}
+            onRetry={fetchData}
+            className="flex-1"
+          />
+        )}
 
-                {activeTab === 'documents' && documents.length === 0 && (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-[var(--text-secondary)]">Hujjatlar topilmadi</td></tr>
-                )}
-                {activeTab === 'documents' && documents.map((row) => (
-                  <tr key={row.id} className="hover:bg-[var(--bg-secondary)] transition-colors">
-                    <td className="px-6 py-4 font-medium">{row.title}</td>
-                    <td className="px-6 py-4 capitalize text-slate-600">{row.type.replace('_', ' ')}</td>
-                    <td className="px-6 py-4">{row.partnerName || "—"}</td>
-                    <td className="px-6 py-4 text-sm">{row.period}</td>
-                    <td className="px-6 py-4">
-                      {row.status === 'generated' ? (
-                        <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded text-xs font-medium">Tayyor</span>
-                      ) : row.status === 'pending' ? (
-                        <span className="text-amber-600 bg-amber-50 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 inline-flex">
-                          <RefreshCw size={12} className="animate-spin" /> Yaratilmoqda
-                        </span>
-                      ) : (
-                        <span className="text-red-600 bg-red-50 px-2 py-1 rounded text-xs font-medium">Xatolik</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        {row.status === 'generated' && row.url && (
-                          <a href={row.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors" title="Yuklab olish">
-                            <Download size={18} />
-                          </a>
-                        )}
-                        <button onClick={() => handleRegenerateDoc(row.id)} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors" title="Qayta generatsiya qilish">
-                          <RefreshCcw size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {activeTab === 'documents' && (
+          <DataTable
+            columns={[
+              { key: "title", label: "Hujjat nomi", render: (r) => <span className="font-medium">{r.title}</span> },
+              { key: "type", label: "Turi", render: (r) => <span className="capitalize text-slate-600">{r.type.replace('_', ' ')}</span> },
+              { key: "partnerName", label: "Hamkor", render: (r) => r.partnerName || "—" },
+              { key: "period", label: "Davr" },
+              { 
+                key: "status", 
+                label: "Holat", 
+                render: (r) => r.status === 'generated' ? (
+                  <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded text-xs font-medium">Tayyor</span>
+                ) : r.status === 'pending' ? (
+                  <span className="text-amber-600 bg-amber-50 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 inline-flex">
+                    <RefreshCw size={12} className="animate-spin" /> Yaratilmoqda
+                  </span>
+                ) : (
+                  <span className="text-red-600 bg-red-50 px-2 py-1 rounded text-xs font-medium">Xatolik</span>
+                )
+              },
+              {
+                key: "actions",
+                label: "",
+                render: (r) => (
+                  <div className="flex justify-end gap-2">
+                    {r.status === 'generated' && r.url && (
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors" title="Yuklab olish">
+                        <Download size={18} />
+                      </a>
+                    )}
+                    <button onClick={() => handleRegenerateDoc(r.id)} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors" title="Qayta generatsiya qilish">
+                      <RefreshCcw size={18} />
+                    </button>
+                  </div>
+                )
+              }
+            ]}
+            data={documents}
+            keyField="id"
+            emptyMessage="Hujjatlar topilmadi"
+            isLoading={loading}
+            isError={error}
+            onRetry={fetchData}
+            className="flex-1"
+          />
         )}
       </div>
     </div>

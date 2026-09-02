@@ -8,11 +8,12 @@ import {
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { BookingStatus, Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
 import { calculateCommission } from '../common/finance';
+import { AppCacheService } from '../infrastructure/cache.service';
 import { EmailService } from '../infrastructure/email.service';
 import {
   PostgresService,
@@ -48,6 +49,7 @@ interface HotelRoomRow {
   id: string;
   hotel_id: string;
   base_price: string | number;
+  total_inventory: number;
 }
 
 interface TripRow {
@@ -96,7 +98,103 @@ export class BookingsService {
     private readonly emailService: EmailService,
     private readonly promosService: PromosService,
     private readonly paymentsService: PaymentsService,
+    private readonly cache: AppCacheService,
   ) {}
+
+  /**
+   * `Idempotency-Key` header orqali booking-yaratish so'rovlarini
+   * dublikatsiyadan himoya qiladi (PHASE 14G, PHASE 14F'da aniqlangan
+   * MEDIUM topilma). `bookings` jadvalida bu maqsad uchun ustun/UNIQUE
+   * constraint YO'Q va migration bu fazada ataylab qo'llanilmadi —
+   * shuning uchun mavjud, allaqachon production'da ishlatilayotgan
+   * Redis-backed `AppCacheService.getOrSet()` primitividan foydalaniladi
+   * (parol-tiklash tokenlari uchun ham xuddi shu servis ishlatiladi).
+   *
+   * Xatti-harakat:
+   *  - Header YO'Q  → eskicha ishlaydi (orqaga qarab to'liq moslashuvchan,
+   *    hech qanday mavjud client buzilmaydi).
+   *  - BIR XIL kalit + BIR XIL so'rov tanasi (SHA-256 fingerprint) →
+   *    ikkinchi marta booking YARATILMAYDI, birinchi natija qaytariladi.
+   *  - BIR XIL kalit + BOSHQA so'rov tanasi → 409 CONFLICT (rad etiladi).
+   *  - Parallel (bir vaqtdagi) so'rovlar — `getOrSet`ning ichki
+   *    `inFlight` xaritasi orqali bitta ijro natijasini bo'lishadi
+   *    (bitta backend instance doirasida — hozirgi production topologiyasi
+   *    aynan shunday, bitta instance; gorizontal masshtablashda bu
+   *    kafolat instance-lararo TO'LIQ atomik bo'lmaydi — bu mavjud
+   *    `getOrSet` utilitasining hujjatlashtirilgan chegarasi, PHASE 14G
+   *    tomonidan yaratilmagan).
+   *  - Kalit har doim `actor.id` (yoki mehmon-checkout uchun `'guest'`)
+   *    bilan bog'lanadi — boshqa foydalanuvchining kaliti bilan
+   *    to'qnashuv MUMKIN EMAS.
+   */
+  private async withIdempotency<T>(
+    actor: RequestActor | undefined,
+    idempotencyKey: string | undefined,
+    body: Record<string, unknown>,
+    create: () => Promise<T>,
+  ): Promise<T> {
+    const key = idempotencyKey?.trim();
+    if (!key) {
+      return create();
+    }
+    if (key.length > 200) {
+      throw new BadRequestException({
+        code: 'IDEMPOTENCY_KEY_INVALID',
+        message: 'Idempotency-Key qiymati juda uzun',
+      });
+    }
+
+    // Mehmon (guest) checkout'da actor yo'q — bu holatda "guest" scope
+    // ishlatiladi. Bu — ro'yxatdan o'tgan foydalanuvchilarga qaraganda
+    // kuchsizroq izolyatsiya (barcha mehmon so'rovlari bitta "guest"
+    // scope'ni bo'lishadi), lekin bu yerda ham qat'iy per-IP `@Throttle`
+    // (10/min) allaqachon amal qiladi — shu bilan birga ikkalasi
+    // to'ldiradi.
+    const scope = actor?.id ?? 'guest';
+    const cacheKey = `idem:booking:${scope}:${key}`;
+    const bodyFingerprint = this.stableHash(body);
+
+    const claim = await this.cache.get<{ fingerprint: string }>(
+      `${cacheKey}:fp`,
+    );
+    if (claim && claim.fingerprint !== bodyFingerprint) {
+      throw new ConflictException({
+        code: 'IDEMPOTENCY_KEY_REUSED',
+        message:
+          "Bu Idempotency-Key allaqachon boshqa so'rov tanasi bilan ishlatilgan",
+      });
+    }
+    if (!claim) {
+      await this.cache.set(
+        `${cacheKey}:fp`,
+        { fingerprint: bodyFingerprint },
+        600,
+      );
+    }
+
+    return this.cache.getOrSet(cacheKey, 600, create);
+  }
+
+  private stableHash(value: unknown): string {
+    return createHash('sha256')
+      .update(this.stableStringify(value))
+      .digest('hex');
+  }
+
+  private stableStringify(value: unknown): string {
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => this.stableStringify(item)).join(',')}]`;
+    }
+    if (value !== null && typeof value === 'object') {
+      const entries = Object.entries(value as Record<string, unknown>).sort(
+        ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
+      );
+      return `{${entries
+        .map(([k, v]) => `${JSON.stringify(k)}:${this.stableStringify(v)}`)
+        .join(',')}}`;
+    }
+    return JSON.stringify(value);
+  }
 
   /**
    * `expires_at`si o'tib ketgan, hali `pending`/`awaiting_payment`
@@ -229,6 +327,16 @@ export class BookingsService {
   async createHotel(
     actor: RequestActor | undefined,
     dto: Record<string, unknown>,
+    idempotencyKey?: string,
+  ) {
+    return this.withIdempotency(actor, idempotencyKey, dto, () =>
+      this.createHotelInternal(actor, dto),
+    );
+  }
+
+  private async createHotelInternal(
+    actor: RequestActor | undefined,
+    dto: Record<string, unknown>,
   ) {
     const userId = actor?.id ?? null;
     const hotelId = String(dto.hotel_id ?? dto.hotelId ?? '');
@@ -336,7 +444,7 @@ export class BookingsService {
     // (`partners.service.ts createBooking`) allaqachon to'g'ri qo'llangan.
     const { booking, payment } = await this.pg.transaction(async (tx) => {
       const [room] = await tx.query<HotelRoomRow>(
-        "SELECT id, base_price, hotel_id FROM hotel_rooms WHERE id = $1 AND hotel_id = $2 AND status = 'active' FOR UPDATE",
+        "SELECT id, base_price, hotel_id, total_inventory FROM hotel_rooms WHERE id = $1 AND hotel_id = $2 AND status = 'active' FOR UPDATE",
         [roomId, hotelId],
       );
 
@@ -347,30 +455,41 @@ export class BookingsService {
         });
       }
 
+      // MUHIM: `hotel_rooms` bitta jismoniy xona/stolni emas, balki BUTUN
+      // bir XONA TURINI (masalan "Standart", `total_inventory=10` — shu
+      // turdan 10 tasi bor) ifodalaydi — buni `total_inventory` ustuni
+      // isbotlaydi. Ilgari bu yerda faqat "biror ziddiyatli bron bormi"
+      // (`LIMIT 1`) tekshirilardi — ya'ni 10 tadan BITTASI band qilinishi
+      // BILANOQ, tizim qolgan 9 tasini ham "sotib bo'lmaydi" deb rad
+      // etardi ("soxta sold-out" — real production QA orqali topilgan
+      // eng jiddiy moliyaviy xato). Endi ziddiyatli bronlardagi band
+      // qilingan XONALAR SONI (`price_snapshot.rooms`) yig'indisi hisoblab,
+      // `total_inventory` bilan solishtiriladi.
       const activeExclusions = [BS.CANCELLED, BS.EXPIRED, BS.COMPLETED];
-      const conflicts = isRestaurant
-        ? await tx.query<{ id: string }>(
-            `SELECT id FROM bookings
+      const [{ booked_count: bookedCountRaw }] = isRestaurant
+        ? await tx.query<{ booked_count: string | number }>(
+            `SELECT COALESCE(SUM(COALESCE((price_snapshot->>'rooms')::int, 1)), 0) AS booked_count
+             FROM bookings
              WHERE room_id = $1::uuid
                AND status NOT IN ($2, $3, $4)
                AND check_in = $5::date
                AND slot_time IS NOT NULL
                AND slot_time < ($6::time + interval '90 minutes')
-               AND $6::time < (slot_time + interval '90 minutes')
-             LIMIT 1`,
+               AND $6::time < (slot_time + interval '90 minutes')`,
             [room.id, ...activeExclusions, checkIn, slotTime],
           )
-        : await tx.query<{ id: string }>(
-            `SELECT id FROM bookings
+        : await tx.query<{ booked_count: string | number }>(
+            `SELECT COALESCE(SUM(COALESCE((price_snapshot->>'rooms')::int, 1)), 0) AS booked_count
+             FROM bookings
              WHERE room_id = $1::uuid
                AND status NOT IN ($2, $3, $4)
                AND check_in < $5::date
-               AND $6::date < check_out
-             LIMIT 1`,
+               AND $6::date < check_out`,
             [room.id, ...activeExclusions, checkOut, checkIn],
           );
 
-      if (conflicts[0]) {
+      const bookedCount = Number(bookedCountRaw);
+      if (bookedCount + rooms > room.total_inventory) {
         throw new ConflictException({
           code: isRestaurant ? 'TABLE_ALREADY_BOOKED' : 'ROOM_ALREADY_BOOKED',
           message: isRestaurant
@@ -460,6 +579,16 @@ export class BookingsService {
    * Mehmon (guest) checkout ruxsat etiladi — hotel kabi, login shart emas.
    */
   async createVehicleRental(
+    actor: RequestActor | undefined,
+    dto: Record<string, unknown>,
+    idempotencyKey?: string,
+  ) {
+    return this.withIdempotency(actor, idempotencyKey, dto, () =>
+      this.createVehicleRentalInternal(actor, dto),
+    );
+  }
+
+  private async createVehicleRentalInternal(
     actor: RequestActor | undefined,
     dto: Record<string, unknown>,
   ) {
@@ -649,6 +778,16 @@ export class BookingsService {
   }
 
   async createBus(
+    actor: RequestActor | undefined,
+    dto: Record<string, unknown>,
+    idempotencyKey?: string,
+  ) {
+    return this.withIdempotency(actor, idempotencyKey, dto, () =>
+      this.createBusInternal(actor, dto),
+    );
+  }
+
+  private async createBusInternal(
     actor: RequestActor | undefined,
     dto: Record<string, unknown>,
   ) {

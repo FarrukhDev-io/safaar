@@ -167,12 +167,8 @@ export class SmsService {
         recipients: [message.phone],
         message: message.text,
         name: 'Safaar OTP',
-        ...(this.textupTemplateId
-          ? { templateId: this.textupTemplateId }
-          : {}),
-        ...(this.textupNicknameId
-          ? { nicknameId: this.textupNicknameId }
-          : {}),
+        ...(this.textupTemplateId ? { templateId: this.textupTemplateId } : {}),
+        ...(this.textupNicknameId ? { nicknameId: this.textupNicknameId } : {}),
       }),
       signal: AbortSignal.timeout(8_000),
     });

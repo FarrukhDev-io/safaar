@@ -33,7 +33,12 @@ describe('JobQueueService (regression: BullMQ rejects ":" in custom jobId)', () 
     );
 
     expect(addMock).toHaveBeenCalledTimes(1);
-    const [, , bullOptions] = addMock.mock.calls[0]!;
+    type BullAddCall = [
+      name: string,
+      payload: unknown,
+      options: { jobId: string },
+    ];
+    const [, , bullOptions] = (addMock.mock.calls as BullAddCall[])[0];
     expect(bullOptions.jobId).toBe('partner-export_org-1_partner-bookings_csv');
     expect(bullOptions.jobId).not.toContain(':');
   });

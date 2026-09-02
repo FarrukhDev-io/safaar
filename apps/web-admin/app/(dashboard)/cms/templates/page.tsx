@@ -291,7 +291,7 @@ export default function CmsTemplatesPage() {
       </Card>
 
       <Card className="overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--bg-tertiary)]">
               <th className="px-4 py-3 text-left">Shablon</th>

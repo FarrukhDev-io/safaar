@@ -1,5 +1,6 @@
 import { Role } from '@safaar/types';
 import type { RequestActor } from '../common/actor';
+import type { AppCacheService } from '../infrastructure/cache.service';
 import { EmailService } from '../infrastructure/email.service';
 import { PostgresService } from '../infrastructure/postgres.service';
 import { PromosService } from '../promos/promos.service';
@@ -18,6 +19,22 @@ function noopPromosService(): jest.Mocked<
       discount_value: 0,
     }),
     redeem: jest.fn().mockResolvedValue(true),
+  };
+}
+
+// PHASE 14G: `Idempotency-Key` fixi `AppCacheService`ni talab qiladi.
+// Mavjud testlarning hech biri bu header'ni yubormaydi (eski xatti-harakat
+// — `withIdempotency()` shunday holatda `cache`ga umuman tegmasdan
+// to'g'ridan-to'g'ri asl yaratish funksiyasini chaqiradi), shuning uchun
+// bu yerda faqat konstruktor signaturasini qondirish uchun minimal stub
+// yetarli — metodlarning hech biri haqiqatan chaqirilmaydi.
+function noopCacheService(): Record<string, jest.Mock> {
+  return {
+    get: jest.fn().mockResolvedValue(undefined),
+    set: jest.fn().mockResolvedValue(undefined),
+    getOrSet: jest.fn((_key: string, _ttl: number, producer: () => unknown) =>
+      Promise.resolve(producer()),
+    ),
   };
 }
 
@@ -66,7 +83,10 @@ describe('BookingsService.createHotel guest checkout', () => {
       events as unknown as EventsService,
       email as unknown as EmailService,
       promos as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
+      noopCacheService() as unknown as AppCacheService,
     );
   });
 
@@ -78,10 +98,11 @@ describe('BookingsService.createHotel guest checkout', () => {
           id: 'room-1',
           hotel_id: 'hotel-1',
           base_price: '100000',
+          total_inventory: 1,
         },
       ])
       // sana-ziddiyat tekshiruvi (bo'sh = ziddiyat yo'q)
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ booked_count: 0 }])
       .mockResolvedValueOnce([]) // INSERT bookings
       .mockResolvedValueOnce([]) // INSERT booking_status_history
       .mockResolvedValueOnce([]) // SELECT existing pending payment (none)
@@ -122,9 +143,14 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([hotelRow])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ booked_count: 0 }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
@@ -151,9 +177,14 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([hotelRow])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([]) // conflict check
+      .mockResolvedValueOnce([{ booked_count: 0 }]) // conflict check
       .mockResolvedValueOnce([]) // INSERT bookings
       .mockResolvedValueOnce([]) // INSERT booking_status_history (created)
       .mockResolvedValueOnce([]) // existing pending payment check
@@ -178,9 +209,14 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([{ ...hotelRow, commission_rate: 20 }])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ booked_count: 0 }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
@@ -209,9 +245,14 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([hotelRow])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ booked_count: 0 }])
       .mockResolvedValueOnce([]) // INSERT bookings
       .mockResolvedValueOnce([]) // INSERT booking_status_history
       .mockResolvedValueOnce([]) // SELECT existing pending payment
@@ -259,10 +300,15 @@ describe('BookingsService.createHotel guest checkout', () => {
     pg.query
       .mockResolvedValueOnce([hotelRow])
       .mockResolvedValueOnce([
-        { id: 'room-1', hotel_id: 'hotel-1', base_price: '100000' },
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 1,
+        },
       ])
       // sana-ziddiyat tekshiruvi — mavjud bron topildi
-      .mockResolvedValueOnce([{ id: 'existing-booking-1' }]);
+      .mockResolvedValueOnce([{ booked_count: 1 }]);
 
     await expect(
       service.createHotel(undefined, {
@@ -278,6 +324,62 @@ describe('BookingsService.createHotel guest checkout', () => {
     // Ziddiyat topilgach INSERT chaqirilmasligi kerak (faqat 3 ta so'rov:
     // hotel, room-lock, conflict-check).
     expect(pg.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('total_inventory=10 bo\'lgan xona turida 1 ta bron qilingandan keyin ham qolgan 9 tasini sotib bo\'ladi (regression: "soxta sold-out" — ilgari LIMIT 1 tufayli BITTA bron ham qolgan barcha inventarni "band" qilib qo\'yardi)', async () => {
+    pg.query
+      .mockResolvedValueOnce([hotelRow])
+      .mockResolvedValueOnce([
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 10,
+        },
+      ])
+      // Shu sanalarga allaqachon 1 ta xona band qilingan (10 tadan) — bu
+      // ENDI ziddiyat HISOBLANMASLIGI kerak, chunki 1 + 1 <= 10.
+      .mockResolvedValueOnce([{ booked_count: 1 }])
+      .mockResolvedValueOnce([]) // INSERT bookings
+      .mockResolvedValueOnce([]) // INSERT booking_status_history
+      .mockResolvedValueOnce([]) // SELECT existing pending payment
+      .mockResolvedValueOnce([]); // INSERT payments
+
+    const result = await service.createHotel(undefined, {
+      hotel_id: 'hotel-1',
+      room_id: 'room-1',
+      check_in: '2026-08-10',
+      check_out: '2026-08-12',
+      rooms: 1,
+      guest_email: 'guest@example.com',
+    });
+
+    expect(result.booking.room_id).toBe('room-1');
+  });
+
+  it("total_inventory=10 bo'lgan xona turida 10 tasi allaqachon band bo'lsa, 11-chi so'rov 409 bilan rad etiladi", async () => {
+    pg.query
+      .mockResolvedValueOnce([hotelRow])
+      .mockResolvedValueOnce([
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 10,
+        },
+      ])
+      .mockResolvedValueOnce([{ booked_count: 10 }]);
+
+    await expect(
+      service.createHotel(undefined, {
+        hotel_id: 'hotel-1',
+        room_id: 'room-1',
+        check_in: '2026-08-10',
+        check_out: '2026-08-12',
+        rooms: 1,
+        guest_email: 'guest@example.com',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
   });
 
   it('noto‘g‘ri check_in/check_out uchun 400 qaytaradi (500 emas)', async () => {
@@ -352,7 +454,10 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
+      noopCacheService() as unknown as AppCacheService,
     );
   });
 
@@ -360,9 +465,14 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
     pg.query
       .mockResolvedValueOnce([restaurantHotelRow])
       .mockResolvedValueOnce([
-        { id: 'table-1', hotel_id: 'hotel-r1', base_price: '150000' },
+        {
+          id: 'table-1',
+          hotel_id: 'hotel-r1',
+          base_price: '150000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([]) // slot conflict check — bo'sh
+      .mockResolvedValueOnce([{ booked_count: 0 }]) // slot conflict check — bo'sh
       .mockResolvedValueOnce([]) // INSERT bookings
       .mockResolvedValueOnce([]) // INSERT booking_status_history
       .mockResolvedValueOnce([]) // existing pending payment check
@@ -421,9 +531,14 @@ describe('BookingsService.createHotel restaurant (time-slot) reservations', () =
     pg.query
       .mockResolvedValueOnce([restaurantHotelRow])
       .mockResolvedValueOnce([
-        { id: 'table-1', hotel_id: 'hotel-r1', base_price: '150000' },
+        {
+          id: 'table-1',
+          hotel_id: 'hotel-r1',
+          base_price: '150000',
+          total_inventory: 1,
+        },
       ])
-      .mockResolvedValueOnce([{ id: 'existing-1' }]);
+      .mockResolvedValueOnce([{ booked_count: 1 }]);
 
     await expect(
       service.createHotel(undefined, {
@@ -472,7 +587,10 @@ describe('BookingsService.createBus (regression: BUG-04 seat double-selling)', (
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
+      noopCacheService() as unknown as AppCacheService,
     );
   });
 
@@ -576,7 +694,10 @@ describe('BookingsService.createVehicleRental (rent-a-car: date-range booking ag
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       promos as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
+      noopCacheService() as unknown as AppCacheService,
     );
   });
 
@@ -699,7 +820,10 @@ describe('BookingsService.cancel (regression: explicit cancellation never releas
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
+      noopCacheService() as unknown as AppCacheService,
     );
   });
 
@@ -805,7 +929,10 @@ describe('BookingsService.findOne — authorization (regression: unauthenticated
       } as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
+      noopCacheService() as unknown as AppCacheService,
     );
   });
 
@@ -860,7 +987,10 @@ describe('BookingsService.lookupBooking (guest — booking_number + email)', () 
       } as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
+      noopCacheService() as unknown as AppCacheService,
     );
   });
 
@@ -942,7 +1072,10 @@ describe('BookingsService.expireStaleBookings (regression: BUG-09 hold expiry, a
       events as unknown as EventsService,
       { send: jest.fn() } as unknown as EmailService,
       noopPromosService() as unknown as PromosService,
-      { buildCheckoutUrl: jest.fn().mockReturnValue(null) } as unknown as PaymentsService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
+      noopCacheService() as unknown as AppCacheService,
     );
   });
 
@@ -1033,5 +1166,157 @@ describe('BookingsService.expireStaleBookings (regression: BUG-09 hold expiry, a
     pg.transaction.mockRejectedValueOnce(new Error('DB down'));
 
     await expect(service.expireStaleBookings()).resolves.toBeUndefined();
+  });
+});
+
+describe('BookingsService — Idempotency-Key (PHASE 14G security fix)', () => {
+  let service: BookingsService;
+  let pg: jest.Mocked<Pick<PostgresService, 'query'>> & {
+    transaction: jest.Mock;
+  };
+  let events: {
+    bookingStatusChanged: jest.Mock;
+    partnerDashboardUpdated: jest.Mock;
+    adminDashboardUpdated: jest.Mock;
+  };
+  let promos: jest.Mocked<Pick<PromosService, 'validate' | 'redeem'>>;
+
+  const hotelRow = {
+    id: 'hotel-1',
+    partner_organization_id: 'partner-1',
+    partner_type: 'hotel',
+    commission_rate: 12,
+    check_in_time: null,
+    check_out_time: null,
+  };
+
+  const actor = {
+    id: 'user-1',
+    actorType: 'user' as const,
+    role: Role.USER,
+    roles: [Role.USER],
+  };
+
+  const dto = {
+    hotel_id: 'hotel-1',
+    room_id: 'room-1',
+    check_in: '2026-08-10',
+    check_out: '2026-08-12',
+    rooms: 1,
+    guests: 2,
+  };
+
+  /**
+   * `AppCacheService`ning HAQIQIY Map-asoslangan minigan versiyasi — 8 ta
+   * boshqa describe blokidagi `noopCacheService()`dan farqli o'laroq, bu
+   * yerda `getOrSet` chindan MEMOIZATSIYA qiladi (birinchi chaqiruv
+   * natijasini saqlaydi, ikkinchisida qayta hisoblamaydi) — aynan
+   * production'dagi `AppCacheService.getOrSet()` bilan bir xil shartnoma.
+   */
+  function fakeCacheService(): Record<string, jest.Mock> {
+    const store = new Map<string, unknown>();
+    return {
+      get: jest.fn((key: string) => Promise.resolve(store.get(key))),
+      set: jest.fn((key: string, value: unknown) => {
+        store.set(key, value);
+        return Promise.resolve(true);
+      }),
+      getOrSet: jest.fn(
+        async (key: string, _ttl: number, producer: () => unknown) => {
+          if (store.has(key)) return store.get(key);
+          const value = await producer();
+          store.set(key, value);
+          return value;
+        },
+      ),
+    };
+  }
+
+  function queueSuccessfulHotelBookingResponses() {
+    pg.query
+      .mockResolvedValueOnce([hotelRow]) // hotel lookup
+      .mockResolvedValueOnce([
+        {
+          id: 'room-1',
+          hotel_id: 'hotel-1',
+          base_price: '100000',
+          total_inventory: 5,
+        },
+      ]) // room lookup (FOR UPDATE)
+      .mockResolvedValueOnce([{ booked_count: 0 }]) // sana-ziddiyat tekshiruvi
+      .mockResolvedValueOnce([]) // INSERT bookings
+      .mockResolvedValueOnce([]) // INSERT booking_status_history
+      .mockResolvedValueOnce([]) // SELECT existing pending payment
+      .mockResolvedValueOnce([]); // INSERT payments
+  }
+
+  beforeEach(() => {
+    pg = {
+      query: jest.fn(),
+      transaction: jest.fn((operation: (tx: unknown) => unknown) =>
+        Promise.resolve(operation({ query: pg.query })),
+      ),
+    };
+    events = {
+      bookingStatusChanged: jest.fn(),
+      partnerDashboardUpdated: jest.fn(),
+      adminDashboardUpdated: jest.fn(),
+    };
+    promos = noopPromosService();
+    service = new BookingsService(
+      pg as unknown as PostgresService,
+      events as unknown as EventsService,
+      { send: jest.fn() } as unknown as EmailService,
+      promos as unknown as PromosService,
+      {
+        buildCheckoutUrl: jest.fn().mockReturnValue(null),
+      } as unknown as PaymentsService,
+      fakeCacheService() as unknown as AppCacheService,
+    );
+  });
+
+  it('SAME key + SAME request body → duplicate booking yaratilmaydi (bitta transaction, ikkinchi chaqiruv keshdan qaytadi)', async () => {
+    queueSuccessfulHotelBookingResponses();
+
+    const first = await service.createHotel(actor, dto, 'idem-key-1');
+    const second = await service.createHotel(actor, dto, 'idem-key-1');
+
+    expect(second).toBe(first); // aynan bir xil (keshlangan) natija obyekti
+    expect(pg.transaction).toHaveBeenCalledTimes(1); // faqat BITTA marta haqiqiy yaratish
+  });
+
+  it('SAME key + BOSHQA request body → 409 CONFLICT (rad etiladi, yaratilmaydi)', async () => {
+    queueSuccessfulHotelBookingResponses();
+
+    await service.createHotel(actor, dto, 'idem-key-2');
+
+    await expect(
+      service.createHotel(
+        actor,
+        { ...dto, rooms: 2 }, // boshqa so'rov tanasi
+        'idem-key-2',
+      ),
+    ).rejects.toMatchObject({ response: { code: 'IDEMPOTENCY_KEY_REUSED' } });
+    expect(pg.transaction).toHaveBeenCalledTimes(1); // ikkinchi urinish yaratishga yetib bormadi
+  });
+
+  it("BOSHQA user'ning bir xil kaliti to'qnashmaydi (alohida scope)", async () => {
+    queueSuccessfulHotelBookingResponses();
+    queueSuccessfulHotelBookingResponses();
+
+    await service.createHotel(actor, dto, 'shared-key');
+    await service.createHotel({ ...actor, id: 'user-2' }, dto, 'shared-key');
+
+    expect(pg.transaction).toHaveBeenCalledTimes(2); // ikkalasi ham HAQIQIY yaratildi
+  });
+
+  it("Idempotency-Key header YO'Q bo'lsa — eskicha ishlaydi (orqaga qarab moslashuvchan)", async () => {
+    queueSuccessfulHotelBookingResponses();
+    queueSuccessfulHotelBookingResponses();
+
+    await service.createHotel(actor, dto, undefined);
+    await service.createHotel(actor, dto, undefined);
+
+    expect(pg.transaction).toHaveBeenCalledTimes(2); // key yo'q — har doim yangi yaratiladi
   });
 });

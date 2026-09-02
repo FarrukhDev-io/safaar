@@ -1,6 +1,5 @@
 import { rawApi } from "../client";
 import { camelizeKeys } from "../case";
-import { tiyinToSum } from "../money";
 import type { CmsPageView, Locale } from "../types";
 
 export interface PublicStatsView {
@@ -79,8 +78,8 @@ function toDealView(raw: RawDeal, locale: Locale): DealView {
     name: pickLocale(raw.name, locale),
     cityName: pickLocale(raw.cityName, locale),
     imageUrl: raw.imageUrl ?? "",
-    oldPriceSum: tiyinToSum(raw.oldPrice ?? 0),
-    newPriceSum: tiyinToSum(raw.newPrice ?? 0),
+    oldPriceSum: Number(raw.oldPrice ?? 0),
+    newPriceSum: Number(raw.newPrice ?? 0),
     discountPercent: raw.discountPercent ?? 0,
     endsAt: raw.endsAt ?? "",
     status: raw.status ?? "active",

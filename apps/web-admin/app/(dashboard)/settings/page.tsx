@@ -1,5 +1,8 @@
 "use client";
 
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Settings, Save, AlertTriangle, ShieldCheck, ShieldAlert, KeyRound, Copy } from "lucide-react";
@@ -10,15 +13,35 @@ import { QRCodeSVG } from "qrcode.react";
 import Cookies from "js-cookie";
 import { createPortal } from "react-dom";
 
+const settingsSchema = z.object({
+  commissionRate: z.number().min(0).max(100),
+  busCommissionRate: z.number().min(0).max(100),
+  maintenanceMode: z.boolean(),
+  contactEmail: z.string().email("Yaroqli elektron pochta kiriting"),
+});
+
+type SettingsFormValues = z.infer<typeof settingsSchema>;
+
 export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
-  const [settings, setSettings] = useState({
-    commissionRate: "15",
-    busCommissionRate: "10",
-    maintenanceMode: false,
-    contactEmail: "support@safaar.uz",
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<SettingsFormValues>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: {
+      commissionRate: 15,
+      busCommissionRate: 10,
+      maintenanceMode: false,
+      contactEmail: "support@safaar.uz",
+    },
   });
+
+  const maintenanceMode = watch("maintenanceMode");
 
   const { user, login } = useAuthStore();
   
@@ -38,7 +61,12 @@ export default function SettingsPage() {
     let cancelled = false;
     AdminApi.getSettings()
       .then((data) => {
-        if (!cancelled) setSettings(data);
+        if (!cancelled) {
+          setValue("commissionRate", Number(data.commissionRate) || 0);
+          setValue("busCommissionRate", Number(data.busCommissionRate) || 0);
+          setValue("maintenanceMode", data.maintenanceMode);
+          setValue("contactEmail", data.contactEmail);
+        }
       })
       .catch(() => {
         if (!cancelled) toast.error("Sozlamalarni yuklab bo'lmadi.");
@@ -49,17 +77,19 @@ export default function SettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setValue]);
 
-  const handleSave = async () => {
-    setLoading(true);
+  const onSubmit = async (data: SettingsFormValues) => {
     try {
-      await AdminApi.updateSettings(settings);
+      await AdminApi.updateSettings({
+        commissionRate: data.commissionRate.toString(),
+        busCommissionRate: data.busCommissionRate.toString(),
+        maintenanceMode: data.maintenanceMode,
+        contactEmail: data.contactEmail,
+      });
       toast.success("Sozlamalar saqlandi!");
     } catch {
       toast.error("Sozlamalarni saqlab bo'lmadi. Qaytadan urinib ko'ring.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -125,20 +155,19 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full animate-fade-in max-w-4xl relative">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Tizim Sozlamalari</h1>
-          <p className="text-[var(--text-secondary)] text-sm mt-1">
-            Platformaning asosiy komissiya foizlari, 2FA va texnik xizmat sozlamalari
-          </p>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Tizim Sozlamalari</h1>
+            <p className="text-[var(--text-secondary)] text-sm mt-1">
+              Platformaning asosiy komissiya foizlari, 2FA va texnik xizmat sozlamalari
+            </p>
+          </div>
+          <Button type="submit" disabled={isSubmitting || fetching} className="flex items-center gap-2">
+            {isSubmitting ? <span className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" /> : <Save size={16} />}
+            Saqlash
+          </Button>
         </div>
-        <Button onClick={handleSave} disabled={loading || fetching} className="flex items-center gap-2">
-          {loading ? <span className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" /> : <Save size={16} />}
-          Saqlash
-        </Button>
-      </div>
-
-      <div className="space-y-6">
         {/* Ikki bosqichli tasdiqlash (2FA) */}
         <div className="bg-white border border-[var(--border)] rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
@@ -181,19 +210,19 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Mehmonxonalar komissiyasi (%)</label>
               <input
                 type="number"
-                value={settings.commissionRate}
-                onChange={(e) => setSettings({ ...settings, commissionRate: e.target.value })}
+                {...register("commissionRate", { valueAsNumber: true })}
                 className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
               />
+              {errors.commissionRate && <p className="text-red-500 text-xs mt-1">{errors.commissionRate.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Avtobuslar komissiyasi (%)</label>
               <input
                 type="number"
-                value={settings.busCommissionRate}
-                onChange={(e) => setSettings({ ...settings, busCommissionRate: e.target.value })}
+                {...register("busCommissionRate", { valueAsNumber: true })}
                 className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
               />
+              {errors.busCommissionRate && <p className="text-red-500 text-xs mt-1">{errors.busCommissionRate.message}</p>}
             </div>
           </div>
         </div>
@@ -211,10 +240,10 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Yordam elektron pochtasi</label>
               <input
                 type="email"
-                value={settings.contactEmail}
-                onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })}
+                {...register("contactEmail")}
                 className="w-full max-w-md px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
               />
+              {errors.contactEmail && <p className="text-red-500 text-xs mt-1">{errors.contactEmail.message}</p>}
             </div>
             
             <div className="p-4 rounded-xl border border-[var(--danger)]/20 bg-[var(--danger)]/5 flex items-start gap-4">
@@ -230,19 +259,18 @@ export default function SettingsPage() {
                   <input
                     type="checkbox"
                     className="sr-only peer"
-                    checked={settings.maintenanceMode}
-                    onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
+                    {...register("maintenanceMode")}
                   />
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--danger)]"></div>
                   <span className="ml-3 text-sm font-medium text-[var(--text-primary)]">
-                    {settings.maintenanceMode ? "Yoqilgan" : "O'chirilgan"}
+                    {maintenanceMode ? "Yoqilgan" : "O'chirilgan"}
                   </span>
                 </label>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </form>
 
       {/* 2FA Setup Modal */}
       {is2FASetupOpen && setupData && typeof window !== "undefined" && createPortal(

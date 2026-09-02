@@ -25,7 +25,7 @@ packages/
 | Qatlam   | Texnologiya                                                |
 | -------- | ---------------------------------------------------------- |
 | Frontend | Next.js 16, React 19, Tailwind CSS v4, TypeScript (strict) |
-| Backend  | NestJS, PostgreSQL (Neon), Redis, Cloudflare R2            |
+| Backend  | NestJS, PostgreSQL 14 (Yandex Cloud VM), Redis, Cloudflare R2 |
 | Auth     | JWT + Refresh Token, SMS OTP                               |
 | To'lov   | Click, Payme, Uzcard, Humo                                 |
 

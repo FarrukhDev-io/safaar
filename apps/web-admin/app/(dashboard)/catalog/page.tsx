@@ -17,6 +17,7 @@ export default function CatalogPage() {
   const [regions, setRegions] = useState<CatalogRegion[]>([]);
   const [amenities, setAmenities] = useState<CatalogAmenity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -28,18 +29,42 @@ export default function CatalogPage() {
   const [amenitiesFilter, setAmenitiesFilter] = useState<CatalogAmenity['type'] | 'all'>('all');
 
   const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([AdminApi.getRegions(), AdminApi.getAmenities()])
       .then(([reg, amen]) => {
         setRegions(reg);
         setAmenities(amen);
       })
-      .catch(() => toast.error("Katalog ma'lumotlarini yuklab bo'lmadi."))
+      .catch(() => {
+        toast.error("Katalog ma'lumotlarini yuklab bo'lmadi.");
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    Promise.all([AdminApi.getRegions(), AdminApi.getAmenities()])
+      .then(([reg, amen]) => {
+        if (!cancelled) {
+          setRegions(reg);
+          setAmenities(amen);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error("Katalog ma'lumotlarini yuklab bo'lmadi.");
+          setError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -195,7 +220,7 @@ export default function CatalogPage() {
     },
   ];
 
-  if (loading) return <div className="flex justify-center p-12"><span className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>;
+
 
   return (
     <div className="max-w-[1200px] mx-auto flex flex-col gap-6 animate-fade-in">
@@ -245,13 +270,24 @@ export default function CatalogPage() {
           </div>
         )}
         {activeTab === "regions" ? (
-          <DataTable columns={regionColumns} data={regions} keyField="id" emptyMessage="Viloyatlar topilmadi" />
+          <DataTable 
+            columns={regionColumns} 
+            data={regions} 
+            keyField="id" 
+            emptyMessage="Viloyatlar topilmadi"
+            isLoading={loading}
+            isError={error}
+            onRetry={load}
+          />
         ) : (
           <DataTable 
             columns={amenityColumns} 
             data={amenitiesFilter === 'all' ? amenities : amenities.filter(a => a.type === amenitiesFilter)} 
             keyField="id" 
-            emptyMessage="Qulayliklar topilmadi" 
+            emptyMessage="Qulayliklar topilmadi"
+            isLoading={loading}
+            isError={error}
+            onRetry={load}
           />
         )}
       </div>

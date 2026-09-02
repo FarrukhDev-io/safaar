@@ -31,7 +31,8 @@ export function OnboardingWizard() {
     if (isLoaded && !hasRoomTypes && !hasRooms && !dismissed) {
       const stored = localStorage.getItem("safaar_onboarding_dismissed");
       if (!stored) {
-        setOpen(true);
+        const timeoutId = setTimeout(() => setOpen(true), 0);
+        return () => clearTimeout(timeoutId);
       }
     }
   }, [isLoaded, hasRoomTypes, hasRooms, dismissed]);

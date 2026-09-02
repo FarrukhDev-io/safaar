@@ -14,6 +14,10 @@ jest.mock('../common/ssrf-guard', () => ({
 
 import { assertPublicHttpUrl } from '../common/ssrf-guard';
 
+type QueryCall = [sql: string, params?: readonly unknown[]];
+const queryCallsOf = (obj: { query: unknown }): QueryCall[] =>
+  (obj.query as jest.Mock).mock.calls as QueryCall[];
+
 describe('PartnersService frontend action endpoints', () => {
   let service: PartnersService;
   let pgMock: jest.Mocked<Pick<PostgresService, 'query'>> & {
@@ -166,7 +170,7 @@ describe('PartnersService frontend action endpoints', () => {
   it('rejects updating a room type that belongs to a different hotel, even with a valid hotelId the caller does own (regression: cross-tenant room_type IDOR)', async () => {
     pgMock.query
       .mockResolvedValueOnce([hotelRow]) // assertHotel(hotelId) — caller's own hotel, succeeds
-      .mockResolvedValueOnce([{ owned: false }]); // assertRoomTypeOwnedByHotel — belongs elsewhere
+      .mockResolvedValueOnce([{ owned_by_self: false, used_by_other: true }]); // assertRoomTypeOwnedByHotel — belongs elsewhere, never used by caller
 
     await expect(
       service.updateRoomType(actor, hotelId, 'someone-elses-room-type-id', {
@@ -175,10 +179,43 @@ describe('PartnersService frontend action endpoints', () => {
     ).rejects.toMatchObject({ status: 403 });
   });
 
+  it('allows updating a room type that IS shared with other hotels, as long as the caller\'s own hotel also uses it (regression: false-positive 403 "Bu xona turi boshqa mehmonxonaga tegishli" on legitimately shared catalog room_types, e.g. seeded "standard"/"deluxe")', async () => {
+    pgMock.query
+      .mockResolvedValueOnce([hotelRow]) // assertHotel
+      .mockResolvedValueOnce([{ owned_by_self: true, used_by_other: true }]) // assertRoomTypeOwnedByHotel — shared, but caller also owns it
+      .mockResolvedValueOnce([
+        {
+          id: 'room-type-1',
+          code: 'standard',
+          name: { uz: 'Standard' },
+          description: null,
+          image_url: null,
+          bed_type: null,
+          size_sqm: null,
+          base_price: 100000,
+          capacity: 2,
+          amenities: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ]); // UPDATE ... RETURNING
+
+    const roomType = await service.updateRoomType(
+      actor,
+      hotelId,
+      'room-type-1',
+      {
+        base_price: 150000,
+      },
+    );
+
+    expect(roomType).toMatchObject({ id: 'room-type-1' });
+  });
+
   it('allows updating a room type that is not yet linked to any hotel (freshly created, no rooms yet)', async () => {
     pgMock.query
       .mockResolvedValueOnce([hotelRow]) // assertHotel
-      .mockResolvedValueOnce([{ owned: true }]) // assertRoomTypeOwnedByHotel — unlinked, allowed
+      .mockResolvedValueOnce([{ owned_by_self: false, used_by_other: false }]) // assertRoomTypeOwnedByHotel — unlinked, allowed
       .mockResolvedValueOnce([
         {
           id: 'room-type-1',
@@ -671,7 +708,7 @@ describe('PartnersService.withdrawal (regression: C-2 unlimited overdraft)', () 
       bankAccount: '8600 1111 2222 3333',
     });
 
-    expect(pg.query.mock.calls[0]?.[0]).toContain('FOR UPDATE');
+    expect(queryCallsOf(pg)[0]?.[0]).toContain('FOR UPDATE');
   });
 
   it('excludes refunded/cancelled bookings from the withdrawable balance because the ledger itself already nets them out (regression: balance previously summed ALL bookings regardless of status)', async () => {
@@ -799,7 +836,7 @@ describe('PartnersService.createHotel business-type enforcement (regression: any
 
     await service.createHotel(actor, { name: 'Grand Hotel' }).catch(() => {});
 
-    expect(pg.query.mock.calls.length).toBeGreaterThan(1);
+    expect(queryCallsOf(pg).length).toBeGreaterThan(1);
   });
 
   it('does not block a restaurant-type organization (restaurants also live in the hotels table)', async () => {
@@ -816,7 +853,7 @@ describe('PartnersService.createHotel business-type enforcement (regression: any
 
     await service.createHotel(actor, { name: 'Osh Markazi' }).catch(() => {});
 
-    expect(pg.query.mock.calls.length).toBeGreaterThan(1);
+    expect(queryCallsOf(pg).length).toBeGreaterThan(1);
   });
 });
 
@@ -862,7 +899,7 @@ describe('PartnersService.createBusCompany (regression: no live code path ever c
     const result = await service.createBusCompany(actor, {});
 
     expect(result).toMatchObject({ id: 'company-1', status: 'active' });
-    const insertCall = pg.query.mock.calls.find(
+    const insertCall = queryCallsOf(pg).find(
       ([sql]) =>
         typeof sql === 'string' && sql.includes('INSERT INTO bus_companies'),
     );
@@ -885,7 +922,7 @@ describe('PartnersService.createBusCompany (regression: no live code path ever c
     const result = await service.createBusCompany(actor, {});
 
     expect(result).toMatchObject({ id: 'company-existing' });
-    const insertCall = pg.query.mock.calls.find(
+    const insertCall = queryCallsOf(pg).find(
       ([sql]) =>
         typeof sql === 'string' && sql.includes('INSERT INTO bus_companies'),
     );
@@ -912,7 +949,7 @@ describe('PartnersService.createBusCompany (regression: no live code path ever c
 
     const result = await service.createBusCompany(actor, { name: 'My Fleet' });
     expect(result).toMatchObject({ id: 'company-2' });
-    const insertCall = pg.query.mock.calls.find(
+    const insertCall = queryCallsOf(pg).find(
       ([sql]) =>
         typeof sql === 'string' && sql.includes('INSERT INTO bus_companies'),
     );
@@ -961,7 +998,7 @@ describe('PartnersService.busCompany / updateBusCompany (read + rename for the t
     const result = await service.busCompany(actor);
 
     expect(result).toMatchObject({ id: 'company-1', name: 'Comfort Bus' });
-    expect(pg.query.mock.calls[0][1]).toEqual(['org-1']);
+    expect(queryCallsOf(pg)[0][1]).toEqual(['org-1']);
   });
 
   it('updates the bus company name for the caller organization', async () => {
@@ -981,7 +1018,7 @@ describe('PartnersService.busCompany / updateBusCompany (read + rename for the t
     });
 
     expect(result).toMatchObject({ id: 'company-1', name: 'Renamed Fleet' });
-    const updateCall = pg.query.mock.calls.find(
+    const updateCall = queryCallsOf(pg).find(
       ([sql]) =>
         typeof sql === 'string' && sql.includes('UPDATE bus_companies'),
     );
@@ -1080,7 +1117,7 @@ describe('PartnersService vehicle/company mutations invalidate the public transp
       price_per_day: 250000,
     });
 
-    const insertCall = pg.query.mock.calls.find(
+    const insertCall = queryCallsOf(pg).find(
       ([sql]) =>
         typeof sql === 'string' && sql.includes('INSERT INTO vehicles'),
     );
@@ -1285,7 +1322,7 @@ describe('PartnersService.rejectBooking / cancelTrip (regression: explicit cance
 
     await service.rejectBooking(actor, 'booking-1', { reason: 'No-show' });
 
-    const seatRelease = pg.query.mock.calls.find(
+    const seatRelease = queryCallsOf(pg).find(
       ([sql]) => typeof sql === 'string' && sql.includes('trip_seats'),
     );
     expect(seatRelease).toBeDefined();
@@ -1307,7 +1344,7 @@ describe('PartnersService.rejectBooking / cancelTrip (regression: explicit cance
 
     expect(result).toMatchObject({ id: 'trip-1', status: 'cancelled' });
 
-    const seatRelease = pg.query.mock.calls.find(
+    const seatRelease = queryCallsOf(pg).find(
       ([sql]) =>
         typeof sql === 'string' &&
         sql.includes('trip_seats') &&
@@ -1316,7 +1353,7 @@ describe('PartnersService.rejectBooking / cancelTrip (regression: explicit cance
     expect(seatRelease).toBeDefined();
     expect(seatRelease?.[1]).toEqual(['trip-1']);
 
-    const refundInsert = pg.query.mock.calls.find(
+    const refundInsert = queryCallsOf(pg).find(
       ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO refunds'),
     );
     expect(refundInsert).toBeDefined();
@@ -1343,7 +1380,7 @@ describe('PartnersService.rejectBooking / cancelTrip (regression: explicit cance
 
     await service.cancelTrip(actor, 'trip-1');
 
-    const refundInsert = pg.query.mock.calls.find(
+    const refundInsert = queryCallsOf(pg).find(
       ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO refunds'),
     );
     expect(refundInsert).toBeUndefined();
@@ -1382,7 +1419,7 @@ describe('PartnersService.financeOverview / ledger (regression: balance was SUM(
       available_balance: 160000,
       currency: 'UZS',
     });
-    const [ledgerSql] = pg.query.mock.calls[0]!;
+    const [ledgerSql] = queryCallsOf(pg)[0];
     expect(String(ledgerSql)).toContain('FROM partner_ledger_entries');
   });
 
@@ -1421,7 +1458,7 @@ describe('PartnersService.financeOverview / ledger (regression: balance was SUM(
 
     const result = await service.ledger(actor, {});
     expect(result).toHaveLength(1);
-    const [sql, params] = pg.query.mock.calls[0]!;
+    const [sql, params] = queryCallsOf(pg)[0];
     expect(String(sql)).toContain('FROM partner_ledger_entries');
     expect(String(sql)).toContain('WHERE organization_id = $1');
     expect(params).toEqual(['org-1']);
@@ -1483,7 +1520,7 @@ describe('PartnersService.createExport (regression: M-2 duplicate in-flight expo
 
     await service.createExport(actor, 'finance', { format: 'csv' });
 
-    const [sql] = pg.query.mock.calls[0]!;
+    const [sql] = queryCallsOf(pg)[0];
     expect(String(sql)).toContain('ON CONFLICT');
     expect(String(sql)).toContain("status IN ('queued', 'processing')");
   });
@@ -1516,7 +1553,9 @@ describe('PartnersService.deleteTeamMember (regression: L-1 false success on cro
       service.deleteTeamMember(actor, 'other-org-member-id'),
     ).rejects.toMatchObject({
       status: 404,
-      response: expect.objectContaining({ code: 'TEAM_MEMBER_NOT_FOUND' }),
+      response: expect.objectContaining({ code: 'TEAM_MEMBER_NOT_FOUND' }) as {
+        code: string;
+      },
     });
   });
 
@@ -1662,7 +1701,7 @@ describe('PartnersService.submitPublicPartnerRequest (regression: Hotel QA BUG-0
 
     // The INSERT must actually write contact_person, not just echo the
     // input back without persisting it.
-    const insertCall = pg.query.mock.calls[2];
+    const insertCall = queryCallsOf(pg)[2];
     expect(insertCall[0]).toMatch(/contact_person/);
     expect(insertCall[1]).toContain('Test QA Ismoilov');
   });

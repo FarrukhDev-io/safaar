@@ -1,13 +1,27 @@
 "use client";
 
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Shield, Search, MoreVertical, Key, Edit, Ban, CheckCircle2, ShieldCheck, Mail, Phone, Calendar } from "lucide-react";
+import { Plus, Search, MoreVertical, Key, Edit, Ban, CheckCircle2, Mail, Phone, Calendar } from "lucide-react";
 import Button from "@/components/ui/Button";
+import DataTable, { Column } from "@/components/ui/DataTable";
 import { AdminApi } from "@/lib/api/admin-api";
 import { AdminUser, AdminRole } from "@/types/admin";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
+
+const teamUserSchema = z.object({
+  fullName: z.string().min(2, "F.I.SH kamida 2 harfdan iborat bo'lishi kerak"),
+  email: z.string().email("Yaroqli elektron pochta kiriting"),
+  phone: z.string().optional(),
+  role: z.enum(["SUPER_ADMIN", "MODERATOR", "FINANCE_ADMIN", "CONTENT_ADMIN"]),
+  password: z.string().optional(),
+});
+
+type TeamUserFormValues = z.infer<typeof teamUserSchema>;
 
 const ROLE_LABELS: Record<AdminRole, string> = {
   SUPER_ADMIN: "Super Admin",
@@ -26,54 +40,76 @@ const ROLE_COLORS: Record<AdminRole, string> = {
 export default function TeamPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const { user: currentUser } = useAuthStore();
-
+  const [error, setError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [formData, setFormData] = useState<{
-    fullName: string;
-    email: string;
-    phone: string;
-    role: AdminRole;
-    password?: string;
-  }>({
-    fullName: "",
-    email: "",
-    phone: "",
-    role: "MODERATOR",
-    password: "",
+  const [search, setSearch] = useState("");
+  const { user: currentUser } = useAuthStore();
+  
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<TeamUserFormValues>({
+    resolver: zodResolver(teamUserSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      phone: "",
+      role: "MODERATOR",
+      password: "",
+    },
   });
-  const [submitting, setSubmitting] = useState(false);
+
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
 
   const fetchUsers = async () => {
+    setLoading(true);
+    setError(false);
     try {
       const data = await AdminApi.getTeamUsers();
       setUsers(data);
     } catch (err) {
       toast.error("Xodimlarni yuklab bo'lmadi");
+      setError(true);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await AdminApi.getTeamUsers();
+        if (!cancelled) setUsers(data);
+      } catch {
+        if (!cancelled) {
+          toast.error("Xodimlarni yuklab bo'lmadi");
+          setError(true);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
+
 
   const openAddModal = () => {
     setEditingUser(null);
-    setFormData({ fullName: "", email: "", phone: "", role: "MODERATOR", password: "" });
+    reset({ fullName: "", email: "", phone: "", role: "MODERATOR", password: "" });
     setIsModalOpen(true);
   };
 
   const openEditModal = (u: AdminUser) => {
     setEditingUser(u);
-    setFormData({
+    reset({
       fullName: u.fullName,
       email: u.email,
-      phone: u.phone,
+      phone: u.phone || "",
       role: u.role,
       password: "",
     });
@@ -81,28 +117,20 @@ export default function TeamPage() {
     setDropdownOpen(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.fullName || !formData.email || !formData.role) {
-      return toast.error("Barcha majburiy maydonlarni to'ldiring");
-    }
-
-    setSubmitting(true);
+  const onSubmit = async (data: TeamUserFormValues) => {
     try {
       if (editingUser) {
-        await AdminApi.updateTeamUser(editingUser.id, formData);
+        await AdminApi.updateTeamUser(editingUser.id, data);
         toast.success("Xodim ma'lumotlari yangilandi");
       } else {
-        if (!formData.password) return toast.error("Parol kiritish majburiy");
-        await AdminApi.createTeamUser(formData);
+        if (!data.password) return toast.error("Parol kiritish majburiy");
+        await AdminApi.createTeamUser(data);
         toast.success("Yangi xodim qo'shildi");
       }
       setIsModalOpen(false);
       fetchUsers();
-    } catch (err: any) {
-      toast.error(err.message || "Xatolik yuz berdi");
-    } finally {
-      setSubmitting(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Xatolik yuz berdi");
     }
   };
 
@@ -111,7 +139,7 @@ export default function TeamPage() {
       await AdminApi.updateTeamUserStatus(id, !currentStatus);
       toast.success(currentStatus ? "Xodim bloklandi" : "Xodim faollashtirildi");
       setUsers(users.map(u => u.id === id ? { ...u, isActive: !currentStatus } : u));
-    } catch (err) {
+    } catch {
       toast.error("Holatni o'zgartirib bo'lmadi");
     }
     setDropdownOpen(null);
@@ -122,7 +150,7 @@ export default function TeamPage() {
     try {
       await AdminApi.resetTeamUser2FA(id);
       toast.success("2FA muvaffaqiyatli o'chirildi");
-    } catch (err) {
+    } catch {
       toast.error("2FA ni o'chirib bo'lmadi");
     }
     setDropdownOpen(null);
@@ -132,6 +160,124 @@ export default function TeamPage() {
     u.fullName.toLowerCase().includes(search.toLowerCase()) || 
     u.email.toLowerCase().includes(search.toLowerCase())
   );
+
+  const columns: Column<AdminUser>[] = [
+    {
+      key: "fullName",
+      label: "Xodim",
+      render: (u) => (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold shrink-0">
+            {u.fullName.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              {u.fullName}
+              {u.id === currentUser?.id && (
+                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">Siz</span>
+              )}
+            </div>
+            <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1 mt-0.5">
+              <Mail size={12} /> {u.email}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "role",
+      label: "Rol",
+      render: (u) => (
+        <span className={cn("px-2.5 py-1 rounded-md text-xs font-medium border", ROLE_COLORS[u.role] || "bg-slate-100 text-slate-700")}>
+          {ROLE_LABELS[u.role] || u.role}
+        </span>
+      ),
+    },
+    {
+      key: "phone",
+      label: "Telefon",
+      render: (u) => u.phone ? (
+        <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+          <Phone size={14} /> {u.phone}
+        </div>
+      ) : (
+        <span className="text-slate-400">—</span>
+      ),
+    },
+    {
+      key: "lastLogin",
+      label: "So'nggi faollik",
+      render: (u) => (
+        <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+          <Calendar size={14} />
+          {new Date(u.lastLogin).toLocaleString('uz-UZ', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        </div>
+      ),
+    },
+    {
+      key: "isActive",
+      label: "Holat",
+      render: (u) => (
+        <span className={cn(
+          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+          u.isActive ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+        )}>
+          <span className={cn("w-1.5 h-1.5 rounded-full", u.isActive ? "bg-emerald-500" : "bg-red-500")} />
+          {u.isActive ? "Faol" : "Bloklangan"}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (u) => (
+        <div className="flex justify-end relative">
+          <button
+            onClick={() => setDropdownOpen(dropdownOpen === u.id ? null : u.id)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            <MoreVertical size={18} />
+          </button>
+
+          {dropdownOpen === u.id && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />
+              <div className="absolute right-0 top-8 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-20 py-1 overflow-hidden">
+                <button
+                  onClick={() => openEditModal(u)}
+                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                >
+                  <Edit size={16} className="text-slate-400" /> Tahrirlash
+                </button>
+                
+                <button
+                  onClick={() => handleReset2FA(u.id)}
+                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                >
+                  <Key size={16} className="text-slate-400" /> 2FA ni o'chirish
+                </button>
+                
+                <div className="h-px bg-slate-100 my-1" />
+                
+                {u.id !== currentUser?.id && (
+                  <button
+                    onClick={() => handleToggleStatus(u.id, u.isActive)}
+                    className={cn(
+                      "w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors",
+                      u.isActive ? "text-red-600 hover:bg-red-50" : "text-emerald-600 hover:bg-emerald-50"
+                    )}
+                  >
+                    {u.isActive ? <Ban size={16} /> : <CheckCircle2 size={16} />}
+                    {u.isActive ? "Bloklash" : "Faollashtirish"}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="animate-fade-in flex flex-col h-full">
@@ -161,135 +307,16 @@ export default function TeamPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 bg-white border border-[var(--border)] rounded-xl shadow-sm overflow-hidden flex flex-col">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[var(--bg-secondary)] border-b border-[var(--border)] text-[var(--text-secondary)] font-medium">
-              <tr>
-                <th className="px-6 py-4">Xodim</th>
-                <th className="px-6 py-4">Rol</th>
-                <th className="px-6 py-4">Telefon</th>
-                <th className="px-6 py-4">So'nggi faollik</th>
-                <th className="px-6 py-4">Holat</th>
-                <th className="px-6 py-4 text-right">Amallar</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)]">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-[var(--text-secondary)]">
-                    <span className="inline-block w-6 h-6 border-2 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin" />
-                  </td>
-                </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-[var(--text-secondary)]">
-                    Hech narsa topilmadi
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-[var(--bg-secondary)] transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold shrink-0">
-                          {u.fullName.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                            {u.fullName}
-                            {u.id === currentUser?.id && (
-                              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">Siz</span>
-                            )}
-                          </div>
-                          <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1 mt-0.5">
-                            <Mail size={12} /> {u.email}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn("px-2.5 py-1 rounded-md text-xs font-medium border", ROLE_COLORS[u.role] || "bg-slate-100 text-slate-700")}>
-                        {ROLE_LABELS[u.role] || u.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {u.phone ? (
-                        <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                          <Phone size={14} /> {u.phone}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                        <Calendar size={14} />
-                        {new Date(u.lastLogin).toLocaleString('uz-UZ', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
-                        u.isActive ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                      )}>
-                        <span className={cn("w-1.5 h-1.5 rounded-full", u.isActive ? "bg-emerald-500" : "bg-red-500")} />
-                        {u.isActive ? "Faol" : "Bloklangan"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="relative inline-block text-left">
-                        <button
-                          onClick={() => setDropdownOpen(dropdownOpen === u.id ? null : u.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                        >
-                          <MoreVertical size={18} />
-                        </button>
-
-                        {dropdownOpen === u.id && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />
-                            <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-20 py-1 overflow-hidden">
-                              <button
-                                onClick={() => openEditModal(u)}
-                                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
-                              >
-                                <Edit size={16} className="text-slate-400" /> Tahrirlash
-                              </button>
-                              
-                              <button
-                                onClick={() => handleReset2FA(u.id)}
-                                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
-                              >
-                                <Key size={16} className="text-slate-400" /> 2FA ni o'chirish
-                              </button>
-                              
-                              <div className="h-px bg-slate-100 my-1" />
-                              
-                              {u.id !== currentUser?.id && (
-                                <button
-                                  onClick={() => handleToggleStatus(u.id, u.isActive)}
-                                  className={cn(
-                                    "w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors",
-                                    u.isActive ? "text-red-600 hover:bg-red-50" : "text-emerald-600 hover:bg-emerald-50"
-                                  )}
-                                >
-                                  {u.isActive ? <Ban size={16} /> : <CheckCircle2 size={16} />}
-                                  {u.isActive ? "Bloklash" : "Faollashtirish"}
-                                </button>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filteredUsers}
+        keyField="id"
+        emptyMessage="Xodimlar topilmadi"
+        isLoading={loading}
+        isError={error}
+        onRetry={fetchUsers}
+        className="flex-1"
+      />
 
       {/* Modal */}
       {isModalOpen && (
@@ -301,37 +328,34 @@ export default function TeamPage() {
               </h2>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">F.I.SH</label>
                 <input
                   type="text"
-                  required
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  {...register("fullName")}
                   className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
                   placeholder="Ism Familiya"
                 />
+                {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Email</label>
                 <input
                   type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  {...register("email")}
                   className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
                   placeholder="admin@safaar.uz"
                 />
+                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Telefon</label>
                 <input
                   type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  {...register("phone")}
                   className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
                   placeholder="+998..."
                 />
@@ -340,8 +364,7 @@ export default function TeamPage() {
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Rol</label>
                 <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as AdminRole })}
+                  {...register("role")}
                   className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
                 >
                   {Object.entries(ROLE_LABELS).map(([key, label]) => (
@@ -356,19 +379,18 @@ export default function TeamPage() {
                 </label>
                 <input
                   type="password"
-                  required={!editingUser}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  {...register("password")}
                   className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
                   placeholder="••••••••"
                 />
+                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
               </div>
 
               <div className="pt-4 flex gap-3">
                 <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsModalOpen(false)}>
                   Bekor qilish
                 </Button>
-                <Button type="submit" loading={submitting} className="flex-1">
+                <Button type="submit" loading={isSubmitting} className="flex-1">
                   Saqlash
                 </Button>
               </div>

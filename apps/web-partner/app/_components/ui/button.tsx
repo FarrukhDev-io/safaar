@@ -14,24 +14,24 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    "bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 disabled:bg-brand-300 disabled:text-white/80",
+    "bg-gradient-to-r from-brand-500 to-indigo-600 text-white shadow-md shadow-brand-500/20 hover:shadow-lg hover:shadow-brand-500/30 hover:brightness-110 active:brightness-95 disabled:bg-brand-300 disabled:from-brand-300 disabled:to-brand-300 disabled:shadow-none border border-white/10",
   secondary:
-    "bg-zinc-800 text-white hover:bg-zinc-900 active:bg-zinc-950 disabled:bg-zinc-400",
+    "bg-zinc-800 text-white hover:bg-zinc-900 shadow-sm border border-zinc-700 active:bg-zinc-950 disabled:bg-zinc-400 disabled:border-transparent dark:bg-white/10 dark:hover:bg-white/15 dark:border-white/5",
   outline:
-    "border border-[var(--border)] bg-transparent text-[var(--foreground)] hover:bg-[var(--surface-muted)] active:bg-[var(--surface-hover)]",
+    "border-2 border-[var(--border)] bg-transparent text-[var(--foreground)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-muted)] active:bg-[var(--surface-hover)]",
   ghost:
     "bg-transparent text-[var(--foreground)] hover:bg-[var(--surface-muted)] active:bg-[var(--surface-hover)]",
   subtle:
-    "bg-[var(--surface-muted)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]",
+    "bg-[var(--surface-muted)] text-[var(--foreground)] border border-transparent hover:border-[var(--border)] hover:bg-[var(--surface-hover)]",
   danger:
-    "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 disabled:bg-red-300",
+    "bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-md shadow-red-500/20 hover:shadow-lg hover:brightness-110 active:brightness-95 disabled:from-red-300 disabled:to-red-300",
 };
 
 const sizeClasses: Record<Size, string> = {
-  sm: "h-8 px-3 text-sm gap-1.5",
-  md: "h-9 px-3.5 text-sm gap-2",
-  lg: "h-11 px-5 text-base gap-2",
-  icon: "h-9 w-9",
+  sm: "h-9 px-4 text-xs gap-1.5 rounded-[var(--radius-button)]",
+  md: "h-10 px-5 text-sm gap-2 rounded-[var(--radius-button)]",
+  lg: "h-12 px-6 text-base gap-2.5 rounded-[var(--radius-button)]",
+  icon: "h-10 w-10 rounded-full",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -53,9 +53,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex items-center justify-center rounded-md font-medium transition-colors duration-150",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2",
+        "inline-flex items-center justify-center font-semibold transition-all duration-200 ease-out",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[var(--background)]",
         "disabled:cursor-not-allowed disabled:opacity-60",
+        "active:scale-[0.98]",
         variantClasses[variant],
         sizeClasses[size],
         className,

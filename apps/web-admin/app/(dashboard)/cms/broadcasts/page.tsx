@@ -60,7 +60,19 @@ export default function BroadcastsPage() {
   };
 
   useEffect(() => {
-    fetchBroadcasts();
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await AdminApi.getBroadcasts();
+        if (!cancelled) setBroadcasts(data);
+      } catch {
+        if (!cancelled) toast.error("Xabarnomalarni yuklab bo'lmadi");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,8 +88,8 @@ export default function BroadcastsPage() {
       setIsModalOpen(false);
       setFormData({ title: "", body: "", targetType: "all" });
       fetchBroadcasts();
-    } catch (err: any) {
-      toast.error(err.message || "Xatolik yuz berdi");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Xatolik yuz berdi");
     } finally {
       setSubmitting(false);
     }
@@ -88,7 +100,7 @@ export default function BroadcastsPage() {
       await AdminApi.broadcastAction(id, action);
       toast.success(action === 'send' ? "Yuborish boshlandi" : "Bekor qilindi");
       fetchBroadcasts();
-    } catch (err: any) {
+    } catch {
       toast.error("Amalni bajarib bo'lmadi");
     }
     setDropdownOpen(null);

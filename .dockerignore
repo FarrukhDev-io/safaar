@@ -1,0 +1,23 @@
+# Secrets — real env files must never enter the Docker build context
+**/.env
+**/.env.*
+!**/.env.example
+
+# VCS
+.git
+.gitignore
+
+# Dependencies & build artifacts (rebuilt inside the image)
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+apps/backend/prisma/generated
+
+# Local / CI junk
+e2e/test-results
+e2e/playwright-report
+*.log
+**/*.log
+.DS_Store

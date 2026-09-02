@@ -2,6 +2,7 @@
 
 import { CalendarDays, ChevronLeft, ChevronRight, Home, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BookingStatus } from "@safaar/types";
 import { Button } from "../../../_components/ui/button";
 import { EmptyState } from "../../../_components/ui/empty-state";
@@ -36,6 +37,7 @@ function daysInMonth(year: number, month: number): number {
 
 /** Dacha uchun oylik bandlik ko'rinishi */
 export function DachaAvailabilityView() {
+  const router = useRouter();
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const { data: rooms, isLoading } = useRooms();
@@ -102,7 +104,7 @@ export function DachaAvailabilityView() {
     if (bookedDays.has(iso)) {
       const res = activeReservations.find(r => r.checkIn <= iso && r.checkOut > iso);
       if (res) {
-        window.location.href = `/reservations/${res.id}`;
+        router.push(`/reservations/${res.id}`);
       }
       return;
     }

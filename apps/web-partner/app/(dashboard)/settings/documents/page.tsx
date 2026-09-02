@@ -13,21 +13,23 @@ export default function DocumentsSettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedType, setSelectedType] = useState("license");
 
-  const fetchDocs = async () => {
-    try {
-      setLoading(true);
-      const data = await listDocuments(null);
-      setDocuments(data);
-    } catch (e) {
-      toast.error("Hujjatlarni yuklab bo'lmadi");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchDocs();
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await listDocuments(null);
+        if (!cancelled) setDocuments(data);
+      } catch {
+        if (!cancelled) toast.error("Hujjatlarni yuklab bo'lmadi");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
+
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -40,8 +42,9 @@ export default function DocumentsSettingsPage() {
       const mockUrl = URL.createObjectURL(file);
       await uploadDocument({ name: file.name, type: selectedType, url: mockUrl }, null);
       toast.success("Hujjat yuklandi va tasdiqlash uchun yuborildi");
-      fetchDocs();
-    } catch (e) {
+      const data = await listDocuments(null);
+      setDocuments(data);
+    } catch {
       toast.error("Hujjat yuklashda xatolik");
     } finally {
       setUploading(false);
@@ -124,7 +127,7 @@ export default function DocumentsSettingsPage() {
 
         <div className="md:col-span-2">
           <div className="rounded-xl border border-[var(--border)] bg-white dark:bg-[var(--card)] overflow-hidden">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-[var(--muted)]/50 border-b border-[var(--border)]">
                 <tr>
                   <th className="px-5 py-3 font-medium text-[var(--muted-foreground)]">Hujjat nomi</th>

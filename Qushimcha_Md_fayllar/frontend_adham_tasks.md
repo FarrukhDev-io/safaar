@@ -229,6 +229,7 @@ Bronlar, xonalar/joylar CRUD, rasm yuklash, walk-in bron yaratish, check-in/xona
 - Bron sub-amallari: `board`/`complete`, `cash-collected`/`cash-reversal`
 - Backend: `partners.service.ts:2132-2434, 3058-3095`
 - Kerak: ro'yxatdan o'tishda "bus" turi tanlash mumkin, lekin unga mos butun dashboard (transport vositalari, yo'nalishlar, reyslar, o'rindiq xaritasi, naqd pul hisoboti) yo'q — bu alohida katta bo'lim sifatida rejalashtirilishi kerak.
+- **Jonli misolda tasdiqlandi (2026-08-11):** "transport" turi bilan ro'yxatdan o'tib, hozirgi umumiy "e'lon" oqimidan (Asosiy ma'lumot/Rasmlar/Joylashuv/Qoidalar — hotel'lar bilan bir xil ekran, faqat matnlar "Rent Car" deb almashtirilgan) foydalanib e'lon yaratilganda, u backend'dagi umumiy `hotels` jadvaliga yozilib qoladi (chunki `getPrimaryHotel()`/`createHotel` barcha hamkor turlari uchun bir xil). Natijada e'lon web-user'ning `/hotels` (mehmonxonalar) katalogida chiqib qolar edi, `/transport`da emas. **Backend tomondan tezkor tuzatish qilindi** — `GET /v1/hotels` (va `findOne`) endi faqat haqiqiy yashash-joyi turidagi tashkilotlarni (`hotel`/`hostel`/`guesthouse`/`motel`/`dacha`/`mixed`) qaytaradi, `bus`/`restaurant` chiqarib tashlandi (`hotels.service.ts`). Bu faqat **noto'g'ri joyda chiqib qolishning oldini oladi** — transport e'loni hali ham `/transport`da haqiqiy ravishda ko'RINMAYDI, chunki u yerdagi katalog hozircha statik/seed ma'lumot bilan ishlaydi va yuqoridagi B4 vazifasi (haqiqiy vehicles/routes/trips asosidagi dashboard va public transport katalogi) hali qurilmagan. Ya'ni bu B4'ning kattaroq ishini bekor qilmaydi, faqat simptomning zararli tomonini (noto'g'ri kategoriyada ko'rinish) yopadi.
 
 ### B5. Moliya/pul yechish — dashboard bor, asosiy vositalar yo'q
 - `GET /v1/partner/finance/overview|ledger|chart` — `partners.controller.ts:578-631`
@@ -248,5 +249,29 @@ Bronlar, xonalar/joylar CRUD, rasm yuklash, walk-in bron yaratish, check-in/xona
 - Hozir: kalendar sahifasi xonalarni faqat client-side hisoblaydi (`app/(dashboard)/calendar/calendar-view.tsx`). Xonani ma'lum kunlarga "yopish" (blackout) imkoni yo'q.
 
 ---
+---
+
+# BUG: "Joylashuv" tahrirlagichida "Manzil" inputiga yozib bo'lmayapti
+
+**Fayl:** `app/(dashboard)/listing/_editors/location-editor.tsx` — `id="listing-address"` input (~236-242 qatorlar), "Shahar" (disabled) inputidan keyingi, "Saqlash" tugmasi yonidagi maydon.
+
+Production'da (`web-partner-khaki.vercel.app`) shu inputga bosib matn kiritishga urinilganda, klaviatura kiritish qabul qilinmayapti/effektsiz. Skrinshotda: "Shahar" = "Jomboy" (disabled), "Manzil" fokusda (ko'k halqa bor — demak fokus to'g'ri tushayapti), lekin yozish ishlamayapti.
+
+## Nima tekshirdim (kod darajasida, brauzersiz)
+
+Bu muhitda brauzer avtomatlashtirish vositasi yo'q, shuning uchun jonli qayta hosil qila olmadim — faqat kodni o'qib tekshirdim:
+
+- Input to'g'ri controlled ko'rinadi: `value={address}` / `onChange={(e) => setAddressDraft(e.target.value)}`, `address = addressDraft ?? data.address` (64-qator). Qog'ozda birinchi harf kiritilgach `addressDraft` state'ga yozilib, shundan keyin controllik shu local state'da qolishi kerak.
+- `<LocationEditor>` render qilinayotgan joyda (`listing-overview.tsx:669`) beqaror `key` prop yo'q — demak parent re-render bo'lganda component qayta mount bo'lib, local state'ni (shu jumladan `addressDraft`ni) yo'qotmasligi kerak.
+- `Drawer` (`_components/ui/drawer.tsx`) faqat `Escape` tugmasini tinglaydi, boshqa klaviatura hodisalarini to'xtatmaydi.
+- Butun `web-partner`da global `keydown` tinglovchilarning barchasini tekshirdim (`command-palette.tsx`, `sidebar.tsx`, `notifications-button.tsx`, `user-menu.tsx`, `dialog.tsx`) — hammasi yo Cmd/Ctrl+K yoki Escape'ga bog'langan, oddiy harf bosishlarini to'xtatmaydi.
+
+Ya'ni kod **qog'ozda** to'g'ri yozilganga o'xshaydi — sabab ehtimol runtime/render darajasida (masalan `data.address`/`useListing()` query juda tez-tez qayta ishlab, biror joyda kutilmagan remount yasayotgan bo'lishi mumkin) yoki muhit-specifik (brauzer/qurilma) bo'lishi mumkin. Buni faqat brauzerda (DevTools React Profiler/"Highlight updates" bilan) tasdiqlash mumkin.
+
+## Sizdan nima kerak
+
+1. `web-partner-khaki.vercel.app` (yoki lokal dev'da) haqiqiy brauzerda qayta hosil qiling — qaysi harflar ishlamayapti (hech biri, yoki faqat ba'zilari), fokus yo'qolyaptimi yoki yo'qmi, React DevTools Profiler'da har bosishda `LocationEditor` qayta mount bo'layotganini tekshiring.
+2. Agar remount tasdiqlansa — sababini `useListing()`/`data-store`dagi yangilanish chastotasidan qidiring.
+3. Agar remount bo'lmasa — brauzer kengaytmasi (masalan parol menejer/autofill) yoki inputga xalaqit beradigan boshqa DOM elementi (masalan xarita ustidan chiqib turgan overlay) bo'lishi mumkinligini ham tekshiring.
 
 Savol chiqsa yozing — rahmat!

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Param,
   Post,
@@ -38,10 +39,12 @@ export class BookingsController {
   createHotel(
     @CurrentActor() actor: RequestActor | undefined,
     @Body() dto: CreateHotelBookingDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     return this.bookingsService.createHotel(
       actor,
       dto as unknown as Record<string, unknown>,
+      idempotencyKey,
     );
   }
 
@@ -50,10 +53,12 @@ export class BookingsController {
   createBus(
     @CurrentActor() actor: RequestActor | undefined,
     @Body() dto: CreateBusBookingDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     return this.bookingsService.createBus(
       actor,
       dto as unknown as Record<string, unknown>,
+      idempotencyKey,
     );
   }
 
@@ -64,10 +69,12 @@ export class BookingsController {
   createVehicleRental(
     @CurrentActor() actor: RequestActor | undefined,
     @Body() dto: CreateVehicleRentalDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     return this.bookingsService.createVehicleRental(
       actor,
       dto as unknown as Record<string, unknown>,
+      idempotencyKey,
     );
   }
 

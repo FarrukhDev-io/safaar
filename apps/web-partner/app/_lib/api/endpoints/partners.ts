@@ -247,6 +247,21 @@ export function listBookings(token?: string | null) {
   );
 }
 
+export function blackoutDates(
+  hotelId: string,
+  body: { roomNumber: string; startDate: string; endDate: string; reason?: string },
+  token?: string | null,
+) {
+  return request<{ ok: boolean }>(
+    `/partners/hotels/${encodeURIComponent(hotelId)}/blackout`,
+    {
+      method: 'POST',
+      body,
+      token,
+    },
+  );
+}
+
 export function createBooking(
   body: Record<string, unknown>,
   token?: string | null,

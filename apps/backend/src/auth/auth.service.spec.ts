@@ -19,6 +19,10 @@ import * as argon2 from 'argon2';
 
 jest.mock('argon2');
 
+type QueryCall = [sql: string, params?: readonly unknown[]];
+const queryCallsOf = (obj: { query: unknown }): QueryCall[] =>
+  (obj.query as jest.Mock).mock.calls as QueryCall[];
+
 describe('AuthService email and OAuth', () => {
   const originalEnv = { ...process.env };
   const originalFetch = global.fetch;
@@ -49,6 +53,8 @@ describe('AuthService email and OAuth', () => {
     delete process.env.FACEBOOK_APP_SECRET;
     process.env.FACEBOOK_CALLBACK_URL =
       'http://localhost:4000/v1/auth/facebook/callback';
+    delete process.env.WEB_USER_URL;
+    delete process.env.OAUTH_ALLOWED_ORIGINS;
     sentMessages.length = 0;
     email.send.mockImplementation((message: EmailMessage) => {
       sentMessages.push(message);
@@ -105,9 +111,105 @@ describe('AuthService email and OAuth', () => {
     );
     expect(cache.set).toHaveBeenCalledWith(
       expect.stringContaining('auth:oauth:state:'),
-      { provider: 'google', locale: 'ru', next: '/ru/account' },
+      {
+        provider: 'google',
+        locale: 'ru',
+        next: '/ru/account',
+        origin: 'http://localhost:3000',
+      },
       600,
     );
+  });
+
+  describe('multi-frontend OAuth return origin (open-redirect prevention)', () => {
+    it('accepts and stores a requested origin that is in OAUTH_ALLOWED_ORIGINS', async () => {
+      process.env.OAUTH_ALLOWED_ORIGINS =
+        'https://web-user-rho.vercel.app,https://safaar-uz.vercel.app';
+
+      const result = await service.oauthRedirect('google', {
+        locale: 'uz',
+        origin: 'https://safaar-uz.vercel.app',
+      });
+
+      expect(result.origin).toBe('https://safaar-uz.vercel.app');
+      expect(cache.set).toHaveBeenCalledWith(
+        expect.stringContaining('auth:oauth:state:'),
+        expect.objectContaining({ origin: 'https://safaar-uz.vercel.app' }),
+        600,
+      );
+    });
+
+    it('refuses an arbitrary/unlisted origin and falls back to the primary allowed origin instead of trusting it', async () => {
+      process.env.OAUTH_ALLOWED_ORIGINS =
+        'https://web-user-rho.vercel.app,https://safaar-uz.vercel.app';
+
+      const result = await service.oauthRedirect('google', {
+        locale: 'uz',
+        origin: 'https://evil-attacker.example.com',
+      });
+
+      expect(result.origin).toBe('https://web-user-rho.vercel.app');
+      expect(cache.set).toHaveBeenCalledWith(
+        expect.stringContaining('auth:oauth:state:'),
+        expect.objectContaining({ origin: 'https://web-user-rho.vercel.app' }),
+        600,
+      );
+    });
+
+    it('round-trips the validated origin end-to-end: redirect with the second allow-listed frontend -> callback returns that same origin', async () => {
+      process.env.OAUTH_ALLOWED_ORIGINS =
+        'https://web-user-rho.vercel.app,https://safaar-uz.vercel.app';
+      cache.take.mockResolvedValueOnce({
+        provider: 'google',
+        locale: 'uz',
+        next: '',
+        origin: 'https://safaar-uz.vercel.app',
+      });
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ access_token: 'provider-token' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              sub: 'google-second-frontend-user',
+              email: 'second-frontend@example.com',
+              email_verified: true,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      const transaction = {
+        query: jest.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]),
+      } as unknown as PostgresTransaction;
+      pg.transaction.mockImplementation(
+        (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+          operation(transaction),
+      );
+
+      const result = await service.oauthCallback(
+        'google',
+        { state: 'valid-state', code: 'provider-code' },
+        'valid-state',
+      );
+
+      expect(result.origin).toBe('https://safaar-uz.vercel.app');
+    });
+
+    it('when OAUTH_ALLOWED_ORIGINS is not configured, only WEB_USER_URL is accepted (backward-compatible single-frontend behavior)', async () => {
+      delete process.env.OAUTH_ALLOWED_ORIGINS;
+
+      const result = await service.oauthRedirect('google', {
+        locale: 'uz',
+        origin: 'https://safaar-uz.vercel.app', // not the configured WEB_USER_URL
+      });
+
+      expect(result.origin).toBe('http://localhost:3000');
+    });
   });
 
   it('rejects an OAuth callback with a mismatched state cookie', async () => {
@@ -184,7 +286,7 @@ describe('AuthService email and OAuth', () => {
     );
   });
 
-  it('rejects a Google callback when the email is not registered', async () => {
+  it('issues a registration exchange code (not an error) when no Safaar user matches the Google account', async () => {
     cache.take.mockResolvedValueOnce({
       provider: 'google',
       locale: 'uz',
@@ -204,6 +306,7 @@ describe('AuthService email and OAuth', () => {
             sub: 'google-new-user',
             email: 'new-user@example.com',
             email_verified: true,
+            given_name: 'Test',
           }),
           {
             status: 200,
@@ -219,18 +322,826 @@ describe('AuthService email and OAuth', () => {
         operation(transaction),
     );
 
+    const result = await service.oauthCallback(
+      'google',
+      { state: 'valid-state', code: 'provider-code' },
+      'valid-state',
+    );
+
+    expect(typeof result.code).toBe('string');
+    expect(cache.set).toHaveBeenLastCalledWith(
+      expect.stringContaining('auth:oauth:exchange:'),
+      {
+        provider: 'google',
+        profile: {
+          providerUserId: 'google-new-user',
+          email: 'new-user@example.com',
+          emailVerified: true,
+          firstName: 'Test',
+          lastName: undefined,
+        },
+      },
+      60,
+    );
+  });
+
+  it('upsertOAuthUser defensively refuses to auto-link an active account when the profile email is unverified', async () => {
+    // Both current providers' fetchOAuthProfile() already guarantee
+    // emailVerified===true upstream (Google rejects unverified emails
+    // outright, Facebook hardcodes true), so this exercises the private
+    // upsertOAuthUser() gate directly as a defense-in-depth backstop for
+    // any future provider that does not make the same guarantee.
+    const transaction = {
+      // 1) linked-by-provider lookup -> none, 2) email match -> active user found
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: '00000000-0000-4000-8000-000000000009', status: 'active' },
+        ]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    const result = await (
+      service as unknown as {
+        upsertOAuthUser: (
+          provider: string,
+          profile: {
+            providerUserId: string;
+            email: string;
+            emailVerified: boolean;
+          },
+        ) => Promise<{ kind: string }>;
+      }
+    ).upsertOAuthUser('google', {
+      providerUserId: 'google-unverified',
+      email: 'existing-active@example.com',
+      emailVerified: false,
+    });
+
+    // Registration branch (no login), and the matched active account was
+    // never touched (only the 2 lookup queries ran, no UPDATE/INSERT).
+    expect(result).toEqual({
+      kind: 'register',
+      profile: expect.objectContaining({ emailVerified: false }) as {
+        emailVerified: boolean;
+      },
+    });
+    expect(queryCallsOf(transaction).length).toBe(2);
+  });
+
+  it('still blocks a non-active user matched by email regardless of emailVerified', async () => {
+    cache.take.mockResolvedValueOnce({
+      provider: 'google',
+      locale: 'uz',
+      next: '',
+    });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: 'provider-token' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            sub: 'google-blocked',
+            email: 'blocked@example.com',
+            email_verified: true,
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    const transaction = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: '00000000-0000-4000-8000-000000000010', status: 'blocked' },
+        ]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
     await expect(
       service.oauthCallback(
         'google',
         { state: 'valid-state', code: 'provider-code' },
         'valid-state',
       ),
-    ).rejects.toMatchObject({
-      response: {
-        code: 'OAUTH_ACCOUNT_NOT_REGISTERED',
+    ).rejects.toMatchObject({ response: { code: 'USER_NOT_ACTIVE' } });
+    expect(cache.set).not.toHaveBeenCalled();
+  });
+
+  it('oauthExchange mints a one-time registration token when the exchange context has no matched user', async () => {
+    cache.take.mockResolvedValueOnce({
+      provider: 'google',
+      profile: {
+        providerUserId: 'google-new-user',
+        email: 'new-user@example.com',
+        emailVerified: true,
+        firstName: 'Test',
       },
     });
+
+    const result = await service.oauthExchange('some-code');
+
+    expect(result).toMatchObject({
+      requiresRegistration: true,
+      provider: 'google',
+      email: 'new-user@example.com',
+      firstName: 'Test',
+    });
+    expect((result as { registrationToken: string }).registrationToken).toEqual(
+      expect.any(String),
+    );
+    expect(cache.set).toHaveBeenCalledWith(
+      expect.stringContaining('auth:oauth:registration:'),
+      expect.objectContaining({
+        provider: 'google',
+        providerUserId: 'google-new-user',
+        email: 'new-user@example.com',
+        emailVerified: true,
+      }),
+      30 * 60,
+    );
+  });
+
+  it('completeOAuthRegistration creates/links the user via phone OTP without ever touching password_hash', async () => {
+    const registrationContext = {
+      provider: 'google',
+      providerUserId: 'google-new-user',
+      email: 'new-user@example.com',
+      emailVerified: true,
+      firstName: 'Test',
+    };
+    cache.get.mockResolvedValueOnce(registrationContext);
+    cache.take.mockResolvedValueOnce(registrationContext);
+    // verifyUserOtp: SELECT user by phone -> not found, INSERT new user
+    pg.query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      // final refetch after enrichment
+      .mockResolvedValueOnce([
+        {
+          id: '00000000-0000-4000-8000-000000000099',
+          phone: '+998901234567',
+          status: 'active',
+          email: 'new-user@example.com',
+          first_name: 'Test',
+          last_name: null,
+        },
+      ]);
+    jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
+
+    const linkTransaction = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([]) // conflict check -> none
+        .mockResolvedValueOnce([]) // existing link check -> none
+        .mockResolvedValueOnce([]) // insert user_social_accounts
+        .mockResolvedValueOnce([]), // update users
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(linkTransaction),
+    );
+
+    otpStore.resetForTests();
+    const challenge = otpStore.create('+998901234567', 'user_login');
+    const code = otpStore.getDeliveryCode(challenge.id)!;
+
+    const result = await service.completeOAuthRegistration({
+      provider: 'google',
+      registration_token: 'reg-token',
+      phone: '+998901234567',
+      code,
+      challenge_id: challenge.id,
+    });
+
+    expect(result.accessToken).toEqual(expect.any(String));
+    expect(result.refreshToken).toEqual(expect.any(String));
+    expect((result.user as { email: string }).email).toBe(
+      'new-user@example.com',
+    );
+    const insertCall = queryCallsOf(linkTransaction)[2];
+    expect(insertCall[0]).toContain('INSERT INTO user_social_accounts');
+    expect(insertCall[1]).toEqual(
+      expect.arrayContaining([
+        'google',
+        'google-new-user',
+        'new-user@example.com',
+        true,
+      ]),
+    );
+    const updateCall = queryCallsOf(linkTransaction)[3];
+    expect(updateCall[0]).not.toMatch(/password_hash/i);
+  });
+
+  it('completeOAuthRegistration rejects an expired/invalid registration token', async () => {
+    cache.get.mockResolvedValueOnce(undefined);
+
+    await expect(
+      service.completeOAuthRegistration({
+        provider: 'google',
+        registration_token: 'bad-token',
+        phone: '+998901234567',
+        code: '000000',
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'OAUTH_REGISTRATION_EXPIRED' },
+    });
+  });
+
+  it('a mistyped OTP code does not burn the one-time registration token (only peeked, not consumed)', async () => {
+    cache.get.mockResolvedValueOnce({
+      provider: 'google',
+      providerUserId: 'google-new-user',
+      email: 'new-user@example.com',
+      emailVerified: true,
+    });
+
+    otpStore.resetForTests();
+    otpStore.create('+998901234567', 'user_login');
+
+    await expect(
+      service.completeOAuthRegistration({
+        provider: 'google',
+        registration_token: 'reg-token',
+        phone: '+998901234567',
+        code: '000000', // wrong code
+      }),
+    ).rejects.toMatchObject({ response: { code: 'OTP_INVALID' } });
+
+    // The registration token was only peeked (cache.get), never consumed
+    // (cache.take) — the user can retry the code without redoing Google OAuth.
+    expect(cache.take).not.toHaveBeenCalled();
+  });
+
+  it('completeOAuthRegistration rejects when the Google identity got linked to a different user meanwhile', async () => {
+    const registrationContext = {
+      provider: 'google',
+      providerUserId: 'google-new-user',
+      email: 'new-user@example.com',
+      emailVerified: true,
+    };
+    cache.get.mockResolvedValueOnce(registrationContext);
+    cache.take.mockResolvedValueOnce(registrationContext);
+    pg.query.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
+
+    const conflictTransaction = {
+      query: jest.fn().mockResolvedValueOnce([{ '?column?': 1 }]), // conflict check -> already linked elsewhere
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(conflictTransaction),
+    );
+
+    otpStore.resetForTests();
+    const challenge = otpStore.create('+998901234568', 'user_login');
+    const code = otpStore.getDeliveryCode(challenge.id)!;
+
+    await expect(
+      service.completeOAuthRegistration({
+        provider: 'google',
+        registration_token: 'reg-token',
+        phone: '+998901234568',
+        code,
+        challenge_id: challenge.id,
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'OAUTH_ACCOUNT_ALREADY_LINKED' },
+    });
+  });
+
+  it('a second login for the same Google-registered account is instant (no phone/OTP re-prompt)', async () => {
+    cache.take.mockResolvedValueOnce({
+      provider: 'google',
+      locale: 'uz',
+      next: '/uz/account',
+    });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: 'provider-token' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            sub: 'google-new-user',
+            email: 'new-user@example.com',
+            email_verified: true,
+            given_name: 'Test',
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    const transaction = {
+      // Already linked from a prior completeOAuthRegistration -> active user found immediately.
+      query: jest.fn().mockResolvedValueOnce([
+        {
+          user_id: '00000000-0000-4000-8000-000000000099',
+          status: 'active',
+        },
+      ]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    const result = await service.oauthCallback(
+      'google',
+      { state: 'valid-state', code: 'provider-code' },
+      'valid-state',
+    );
+
+    expect(typeof result.code).toBe('string');
+    expect(cache.set).toHaveBeenLastCalledWith(
+      expect.stringContaining('auth:oauth:exchange:'),
+      { userId: '00000000-0000-4000-8000-000000000099' },
+      60,
+    );
+    // Only the linked-account lookup ran — no email-match/registration
+    // queries, confirming this is a single-step instant login.
+    expect((transaction.query as jest.Mock).mock.calls.length).toBe(3);
+  });
+
+  // Facebook OAuth reuses the exact same provider-parameterized functions as
+  // Google (oauthCallback/oauthExchange/completeOAuthRegistration/
+  // upsertOAuthUser) — these tests exist mainly to exercise the
+  // Facebook-specific branch of fetchOAuthProfile() (different token/profile
+  // response shapes than Google) that the Google tests above never touch,
+  // and to prove the shared login-or-registration architecture actually
+  // behaves identically for provider='facebook'.
+  function mockFacebookFetch(profile: Record<string, unknown>) {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: 'fb-provider-token' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(profile), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+  }
+
+  it('creates a state-bound Facebook authorization redirect', async () => {
+    process.env.FACEBOOK_APP_ID = 'facebook-app';
+    process.env.FACEBOOK_APP_SECRET = 'facebook-secret';
+
+    const result = await service.oauthRedirect('facebook', {
+      locale: 'uz',
+      next: '/uz/account',
+    });
+    const redirect = new URL(result.redirectUrl);
+
+    expect(redirect.origin).toBe('https://www.facebook.com');
+    expect(redirect.searchParams.get('scope')).toBe('email,public_profile');
+    expect(redirect.searchParams.get('redirect_uri')).toBe(
+      process.env.FACEBOOK_CALLBACK_URL,
+    );
+    expect(cache.set).toHaveBeenCalledWith(
+      expect.stringContaining('auth:oauth:state:'),
+      {
+        provider: 'facebook',
+        locale: 'uz',
+        next: '/uz/account',
+        origin: 'http://localhost:3000',
+      },
+      600,
+    );
+  });
+
+  it('[1] existing active Facebook-linked user gets an instant login (no registration form)', async () => {
+    process.env.FACEBOOK_APP_ID = 'facebook-app';
+    process.env.FACEBOOK_APP_SECRET = 'facebook-secret';
+    cache.take.mockResolvedValueOnce({
+      provider: 'facebook',
+      locale: 'uz',
+      next: '/uz/account',
+    });
+    mockFacebookFetch({
+      id: 'fb-existing-user',
+      email: 'fb-user@example.com',
+      first_name: 'Aziz',
+      last_name: 'Karimov',
+    });
+    const transaction = {
+      // linked-by-provider lookup finds an active user immediately.
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([
+          { user_id: '00000000-0000-4000-8000-000000000201', status: 'active' },
+        ]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    const result = await service.oauthCallback(
+      'facebook',
+      { state: 'valid-state', code: 'provider-code' },
+      'valid-state',
+    );
+
+    expect(typeof result.code).toBe('string');
+    expect(cache.set).toHaveBeenLastCalledWith(
+      expect.stringContaining('auth:oauth:exchange:'),
+      { userId: '00000000-0000-4000-8000-000000000201' },
+      60,
+    );
+    // No phone/OTP registration path was taken — single lookup, no
+    // registration-token minting.
+    expect((transaction.query as jest.Mock).mock.calls.length).toBe(3);
+  });
+
+  it('[2] brand-new Facebook identity is routed to registration, not an error and not a silent login', async () => {
+    process.env.FACEBOOK_APP_ID = 'facebook-app';
+    process.env.FACEBOOK_APP_SECRET = 'facebook-secret';
+    cache.take.mockResolvedValueOnce({
+      provider: 'facebook',
+      locale: 'uz',
+      next: '',
+    });
+    mockFacebookFetch({
+      id: 'fb-new-user',
+      email: 'fb-new@example.com',
+      first_name: 'Malika',
+      last_name: 'Yusupova',
+    });
+    const transaction = {
+      query: jest.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    const result = await service.oauthCallback(
+      'facebook',
+      { state: 'valid-state', code: 'provider-code' },
+      'valid-state',
+    );
+
+    expect(typeof result.code).toBe('string');
+    expect(cache.set).toHaveBeenLastCalledWith(
+      expect.stringContaining('auth:oauth:exchange:'),
+      {
+        provider: 'facebook',
+        profile: {
+          providerUserId: 'fb-new-user',
+          email: 'fb-new@example.com',
+          emailVerified: true,
+          firstName: 'Malika',
+          lastName: 'Yusupova',
+        },
+      },
+      60,
+    );
+
+    const exchangeResult = await (() => {
+      cache.take.mockResolvedValueOnce({
+        provider: 'facebook',
+        profile: {
+          providerUserId: 'fb-new-user',
+          email: 'fb-new@example.com',
+          emailVerified: true,
+          firstName: 'Malika',
+          lastName: 'Yusupova',
+        },
+      });
+      return service.oauthExchange('some-code');
+    })();
+    expect(exchangeResult).toMatchObject({
+      requiresRegistration: true,
+      provider: 'facebook',
+      email: 'fb-new@example.com',
+      firstName: 'Malika',
+      lastName: 'Yusupova',
+    });
+  });
+
+  it('[3] Facebook registration (phone + OTP) creates the user, links the Facebook identity, and issues a session — password_hash is never touched', async () => {
+    const registrationContext = {
+      provider: 'facebook',
+      providerUserId: 'fb-new-user',
+      email: 'fb-new@example.com',
+      emailVerified: true,
+      firstName: 'Malika',
+      lastName: 'Yusupova',
+    };
+    cache.get.mockResolvedValueOnce(registrationContext);
+    cache.take.mockResolvedValueOnce(registrationContext);
+    pg.query
+      .mockResolvedValueOnce([]) // verifyUserOtp: SELECT user by phone -> not found
+      .mockResolvedValueOnce([]) // INSERT new user
+      .mockResolvedValueOnce([
+        {
+          id: '00000000-0000-4000-8000-000000000202',
+          phone: '+998907654321',
+          status: 'active',
+          email: 'fb-new@example.com',
+          first_name: 'Malika',
+          last_name: 'Yusupova',
+        },
+      ]);
+    jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
+
+    const linkTransaction = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([]) // conflict check -> none
+        .mockResolvedValueOnce([]) // existing link check -> none
+        .mockResolvedValueOnce([]) // insert user_social_accounts
+        .mockResolvedValueOnce([]), // update users
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(linkTransaction),
+    );
+
+    otpStore.resetForTests();
+    const challenge = otpStore.create('+998907654321', 'user_login');
+    const code = otpStore.getDeliveryCode(challenge.id)!;
+
+    const result = await service.completeOAuthRegistration({
+      provider: 'facebook',
+      registration_token: 'reg-token',
+      phone: '+998907654321',
+      code,
+      challenge_id: challenge.id,
+    });
+
+    expect(result.accessToken).toEqual(expect.any(String));
+    expect(result.refreshToken).toEqual(expect.any(String));
+    expect((result.user as { email: string }).email).toBe('fb-new@example.com');
+    const insertCall = queryCallsOf(linkTransaction)[2];
+    expect(insertCall[0]).toContain('INSERT INTO user_social_accounts');
+    expect(insertCall[1]).toEqual(
+      expect.arrayContaining([
+        'facebook',
+        'fb-new-user',
+        'fb-new@example.com',
+        true,
+      ]),
+    );
+    const updateCall = queryCallsOf(linkTransaction)[3];
+    expect(updateCall[0]).not.toMatch(/password_hash/i);
+  });
+
+  it('[4] a second Facebook login for the same registered account is instant (no phone/OTP re-prompt)', async () => {
+    process.env.FACEBOOK_APP_ID = 'facebook-app';
+    process.env.FACEBOOK_APP_SECRET = 'facebook-secret';
+    cache.take.mockResolvedValueOnce({
+      provider: 'facebook',
+      locale: 'uz',
+      next: '/uz/account',
+    });
+    mockFacebookFetch({
+      id: 'fb-new-user',
+      email: 'fb-new@example.com',
+      first_name: 'Malika',
+    });
+    const transaction = {
+      query: jest.fn().mockResolvedValueOnce([
+        {
+          user_id: '00000000-0000-4000-8000-000000000202',
+          status: 'active',
+        },
+      ]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    const result = await service.oauthCallback(
+      'facebook',
+      { state: 'valid-state', code: 'provider-code' },
+      'valid-state',
+    );
+
+    expect(typeof result.code).toBe('string');
+    expect(cache.set).toHaveBeenLastCalledWith(
+      expect.stringContaining('auth:oauth:exchange:'),
+      { userId: '00000000-0000-4000-8000-000000000202' },
+      60,
+    );
+  });
+
+  it('[5] a non-active Facebook-linked user is rejected with USER_NOT_ACTIVE (not logged in, not re-registered)', async () => {
+    process.env.FACEBOOK_APP_ID = 'facebook-app';
+    process.env.FACEBOOK_APP_SECRET = 'facebook-secret';
+    cache.take.mockResolvedValueOnce({
+      provider: 'facebook',
+      locale: 'uz',
+      next: '',
+    });
+    mockFacebookFetch({
+      id: 'fb-blocked-user',
+      email: 'fb-blocked@example.com',
+    });
+    const transaction = {
+      // linked-by-provider lookup finds the user, but status is not active.
+      query: jest.fn().mockResolvedValueOnce([
+        {
+          user_id: '00000000-0000-4000-8000-000000000203',
+          status: 'blocked',
+        },
+      ]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    await expect(
+      service.oauthCallback(
+        'facebook',
+        { state: 'valid-state', code: 'provider-code' },
+        'valid-state',
+      ),
+    ).rejects.toMatchObject({ response: { code: 'USER_NOT_ACTIVE' } });
     expect(cache.set).not.toHaveBeenCalled();
+    // Only the read happened — no UPDATE to user_social_accounts/users.
+    expect((transaction.query as jest.Mock).mock.calls.length).toBe(1);
+  });
+
+  it('[6] completing Facebook registration when the identity got linked to a different user meanwhile fails with a clean OAUTH_ACCOUNT_ALREADY_LINKED error', async () => {
+    const registrationContext = {
+      provider: 'facebook',
+      providerUserId: 'fb-new-user',
+      email: 'fb-new@example.com',
+      emailVerified: true,
+    };
+    cache.get.mockResolvedValueOnce(registrationContext);
+    cache.take.mockResolvedValueOnce(registrationContext);
+    pg.query.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    jest.spyOn(authSessionStore, 'create').mockResolvedValue({} as never);
+
+    const conflictTransaction = {
+      query: jest.fn().mockResolvedValueOnce([{ '?column?': 1 }]), // conflict check -> already linked elsewhere
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(conflictTransaction),
+    );
+
+    otpStore.resetForTests();
+    const challenge = otpStore.create('+998907654322', 'user_login');
+    const code = otpStore.getDeliveryCode(challenge.id)!;
+
+    await expect(
+      service.completeOAuthRegistration({
+        provider: 'facebook',
+        registration_token: 'reg-token',
+        phone: '+998907654322',
+        code,
+        challenge_id: challenge.id,
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'OAUTH_ACCOUNT_ALREADY_LINKED' },
+    });
+  });
+
+  it('[7,8] an expired or invalid Facebook registration token is rejected with OAUTH_REGISTRATION_EXPIRED (401)', async () => {
+    cache.get.mockResolvedValueOnce(undefined);
+
+    await expect(
+      service.completeOAuthRegistration({
+        provider: 'facebook',
+        registration_token: 'expired-or-bogus-token',
+        phone: '+998907654323',
+        code: '000000',
+      }),
+    ).rejects.toMatchObject({
+      status: 401,
+      response: { code: 'OAUTH_REGISTRATION_EXPIRED' },
+    });
+  });
+
+  it('[9] a mistyped OTP during Facebook registration does not burn the one-time registration token', async () => {
+    cache.get.mockResolvedValueOnce({
+      provider: 'facebook',
+      providerUserId: 'fb-new-user',
+      email: 'fb-new@example.com',
+      emailVerified: true,
+    });
+    otpStore.resetForTests();
+    otpStore.create('+998907654324', 'user_login');
+
+    await expect(
+      service.completeOAuthRegistration({
+        provider: 'facebook',
+        registration_token: 'reg-token',
+        phone: '+998907654324',
+        code: '000000', // wrong code
+      }),
+    ).rejects.toMatchObject({ response: { code: 'OTP_INVALID' } });
+
+    expect(cache.take).not.toHaveBeenCalled();
+  });
+
+  it('[10] a Facebook profile with no email is rejected safely (OAUTH_EMAIL_REQUIRED) — no account is created and no exchange code is issued', async () => {
+    process.env.FACEBOOK_APP_ID = 'facebook-app';
+    process.env.FACEBOOK_APP_SECRET = 'facebook-secret';
+    cache.take.mockResolvedValueOnce({
+      provider: 'facebook',
+      locale: 'uz',
+      next: '',
+    });
+    // Facebook's Graph API omits `email` entirely when the user declines the
+    // email permission — fetchOAuthProfile() must refuse, not fall back to
+    // some placeholder identity.
+    mockFacebookFetch({ id: 'fb-no-email-user', first_name: 'NoEmail' });
+
+    await expect(
+      service.oauthCallback(
+        'facebook',
+        { state: 'valid-state', code: 'provider-code' },
+        'valid-state',
+      ),
+    ).rejects.toMatchObject({ response: { code: 'OAUTH_EMAIL_REQUIRED' } });
+    expect(pg.transaction).not.toHaveBeenCalled();
+    expect(cache.set).not.toHaveBeenCalled();
+  });
+
+  it("[11] Facebook emails are always treated as verified, matching Google's verified-email auto-link policy — an existing active Safaar user matched only by email (never linked before) gets logged in, not re-registered", async () => {
+    process.env.FACEBOOK_APP_ID = 'facebook-app';
+    process.env.FACEBOOK_APP_SECRET = 'facebook-secret';
+    cache.take.mockResolvedValueOnce({
+      provider: 'facebook',
+      locale: 'uz',
+      next: '',
+    });
+    mockFacebookFetch({
+      id: 'fb-first-link',
+      email: 'already-safaar-user@example.com',
+      first_name: 'Existing',
+    });
+    const transaction = {
+      query: jest
+        .fn()
+        // 1) linked-by-provider lookup -> none yet
+        .mockResolvedValueOnce([])
+        // 2) email match -> an existing active Safaar account
+        .mockResolvedValueOnce([
+          { id: '00000000-0000-4000-8000-000000000204', status: 'active' },
+        ])
+        // 3) provider-already-linked-to-this-user check -> none
+        .mockResolvedValueOnce([])
+        // 4) INSERT user_social_accounts
+        .mockResolvedValueOnce([])
+        // 5) UPDATE users
+        .mockResolvedValueOnce([]),
+    } as unknown as PostgresTransaction;
+    pg.transaction.mockImplementation(
+      (operation: (value: PostgresTransaction) => Promise<unknown>) =>
+        operation(transaction),
+    );
+
+    const result = await service.oauthCallback(
+      'facebook',
+      { state: 'valid-state', code: 'provider-code' },
+      'valid-state',
+    );
+
+    expect(typeof result.code).toBe('string');
+    expect(cache.set).toHaveBeenLastCalledWith(
+      expect.stringContaining('auth:oauth:exchange:'),
+      { userId: '00000000-0000-4000-8000-000000000204' },
+      60,
+    );
+    // Auto-linked via the INSERT — no phone/OTP registration was required.
+    const insertCall = queryCallsOf(transaction)[3];
+    expect(insertCall[0]).toContain('INSERT INTO user_social_accounts');
+    expect(insertCall[1]).toEqual(
+      expect.arrayContaining(['facebook', 'fb-first-link']),
+    );
   });
 });
 
@@ -276,7 +1187,7 @@ describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column 
 
     expect(result.setup_id).toBeDefined();
     expect(result.recovery_codes).toHaveLength(8);
-    const [sql] = pg.query.mock.calls[0]!;
+    const [sql] = queryCallsOf(pg)[0];
     expect(sql).not.toContain('recovery_code_hashes');
   });
 
@@ -294,14 +1205,14 @@ describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column 
     expect(result).toEqual({ enabled: true });
     expect(pg.transaction).toHaveBeenCalledTimes(1);
 
-    const calls = pg.query.mock.calls;
+    const calls = queryCallsOf(pg);
     // calls[0] = pre-check SELECT; calls[1..3] = tranzaksiya ichidagi so'rovlar.
-    expect(calls[1]![0]).toContain('UPDATE admin_users');
-    expect(calls[1]![0]).not.toContain('recovery_code_hashes');
-    expect(calls[2]![0]).toContain('DELETE FROM admin_recovery_codes');
-    expect(calls[3]![0]).toContain('INSERT INTO admin_recovery_codes');
+    expect(calls[1][0]).toContain('UPDATE admin_users');
+    expect(calls[1][0]).not.toContain('recovery_code_hashes');
+    expect(calls[2][0]).toContain('DELETE FROM admin_recovery_codes');
+    expect(calls[3][0]).toContain('INSERT INTO admin_recovery_codes');
     // 8 ta recovery kod, har biri (admin_id, code_hash) — 16 ta parametr.
-    expect((calls[3]![1] as unknown[]).length).toBe(16);
+    expect((calls[3][1] as unknown[]).length).toBe(16);
   });
 
   it('admin2faConfirm rejects an invalid TOTP code and writes nothing', async () => {
@@ -323,10 +1234,10 @@ describe('AuthService admin 2FA (regression: BUG-05 recovery_code_hashes column 
     const result = await service.admin2faDisable(adminActor);
 
     expect(result).toEqual({ disabled: true, sessions_revoked: true });
-    const calls = pg.query.mock.calls;
-    expect(calls[1]![0]).toContain('UPDATE admin_users');
-    expect(calls[1]![0]).not.toContain('recovery_code_hashes');
-    expect(calls[2]![0]).toContain('DELETE FROM admin_recovery_codes');
+    const calls = queryCallsOf(pg);
+    expect(calls[1][0]).toContain('UPDATE admin_users');
+    expect(calls[1][0]).not.toContain('recovery_code_hashes');
+    expect(calls[2][0]).toContain('DELETE FROM admin_recovery_codes');
   });
 });
 
@@ -386,7 +1297,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
         service.userLogin({ email: 'victim@safaar.uz', password: 'wrong' }),
       ).rejects.toMatchObject({
         status: 401,
-        response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+        response: expect.objectContaining({
+          code: 'AUTH_INVALID_CREDENTIALS',
+        }) as { code: string },
       });
     }
 
@@ -394,7 +1307,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
       service.userLogin({ email: 'victim@safaar.uz', password: 'wrong' }),
     ).rejects.toMatchObject({
       status: 401,
-      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }),
+      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }) as {
+        code: string;
+      },
     });
   });
 
@@ -451,7 +1366,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
         service.userLogin({ email: 'user@safaar.uz', password: 'wrong' }),
       ).rejects.toMatchObject({
         status: 401,
-        response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+        response: expect.objectContaining({
+          code: 'AUTH_INVALID_CREDENTIALS',
+        }) as { code: string },
       });
     }
   });
@@ -469,7 +1386,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
       service.partnerLogin({ email: 'partner@safaar.uz', password: 'wrong' }),
     ).rejects.toMatchObject({
       status: 401,
-      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }),
+      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }) as {
+        code: string;
+      },
     });
   });
 
@@ -486,7 +1405,9 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
       service.adminLogin({ username: 'admin', password: 'wrong' }),
     ).rejects.toMatchObject({
       status: 401,
-      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }),
+      response: expect.objectContaining({ code: 'AUTH_ACCOUNT_LOCKED' }) as {
+        code: string;
+      },
     });
   });
 
@@ -496,14 +1417,18 @@ describe('AuthService login lockout (HIGH: no minimum password length / no login
       await expect(
         service.userLogin({ email: 'shared@safaar.uz', password: 'wrong' }),
       ).rejects.toMatchObject({
-        response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+        response: expect.objectContaining({
+          code: 'AUTH_INVALID_CREDENTIALS',
+        }) as { code: string },
       });
     }
 
     await expect(
       service.partnerLogin({ email: 'shared@safaar.uz', password: 'wrong' }),
     ).rejects.toMatchObject({
-      response: expect.objectContaining({ code: 'AUTH_INVALID_CREDENTIALS' }),
+      response: expect.objectContaining({
+        code: 'AUTH_INVALID_CREDENTIALS',
+      }) as { code: string },
     });
   });
 });
@@ -686,11 +1611,14 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     expect(result.sent).toBe(true);
   });
 
-  it('completes the full user reset flow: request -> verify -> reset_token -> new password_hash written by phone', async () => {
+  it('completes the full user reset flow: request -> verify -> reset_token -> new password_hash written by phone, and revokes existing sessions (PHASE 14G security fix)', async () => {
     pg.query.mockResolvedValueOnce([
       { id: '00000000-0000-4000-8000-000000000001' },
     ]);
     process.env.ENABLE_DEMO_AUTH = 'true';
+    const revokeActorSpy = jest
+      .spyOn(authSessionStore, 'revokeActor')
+      .mockResolvedValue(1);
     const requested = (await service.userForgotPassword('+998901234567')) as {
       challenge_id: string;
       dev_code?: string;
@@ -712,7 +1640,12 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     };
     cache.take.mockResolvedValueOnce(storedContext);
 
-    pg.query.mockResolvedValueOnce([]);
+    // Haqiqiy DB'da `UPDATE ... RETURNING id::text` yangilangan qatorni
+    // qaytaradi — bo'sh massiv emas (bo'sh massiv `revokeActor()`
+    // chaqirilishini niqoblab qo'yardi, PHASE 14G test-review'da topildi).
+    pg.query.mockResolvedValueOnce([
+      { id: '00000000-0000-4000-8000-000000000001' },
+    ]);
     await service.userResetPassword({
       phone: '+998901234567',
       reset_token: verified.reset_token,
@@ -722,6 +1655,12 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     expect(pg.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE users'),
       expect.arrayContaining(['+998901234567']),
+    );
+    // PHASE 14G (HIGH fix): parol tiklangandan keyin foydalanuvchining
+    // mavjud sessiyalari (eski access/refresh tokenlari) bekor qilinishi
+    // SHART.
+    expect(revokeActorSpy).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-000000000001',
     );
   });
 
@@ -780,8 +1719,11 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     expect(pg.query).not.toHaveBeenCalled();
   });
 
-  it('completes the full partner reset flow: request -> confirm -> new password_hash written on partner_users', async () => {
+  it('completes the full partner reset flow: request -> confirm -> new password_hash written on partner_users, and revokes existing sessions (PHASE 14G security fix)', async () => {
     process.env.ENABLE_DEMO_AUTH = 'true';
+    const revokeActorSpy = jest
+      .spyOn(authSessionStore, 'revokeActor')
+      .mockResolvedValue(1);
     pg.query.mockResolvedValueOnce([
       { user_id: '00000000-0000-4000-8000-000000000010' },
     ]);
@@ -803,6 +1745,13 @@ describe('AuthService password reset via SMS (regression: user/reset-password wr
     expect(pg.query).toHaveBeenLastCalledWith(
       expect.stringContaining('update partner_users'),
       expect.arrayContaining(['00000000-0000-4000-8000-000000000010']),
+    );
+    // PHASE 14G (HIGH fix): parol tiklangandan keyin shu hamkor xodimining
+    // mavjud sessiyalari (eski access/refresh tokenlari) bekor qilinishi
+    // SHART — aks holda parol tiklashdan oldin tokenni o'g'irlagan
+    // hujumchi tiklashdan keyin ham ishlashda davom etardi.
+    expect(revokeActorSpy).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-000000000010',
     );
   });
 
