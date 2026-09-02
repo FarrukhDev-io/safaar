@@ -76,6 +76,7 @@ graphify-out/
 
 .vercel
 .env*
+!.env.example
 
 # Vaqtinchalik/debug skriptlar — repo root'ga tasodifan commit qilinib,
 # haqiqiy credential/connection string sizib chiqishiga sabab bo'lgan

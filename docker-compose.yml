@@ -1,0 +1,118 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: safaar-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-safaar}
+      POSTGRES_USER: ${POSTGRES_USER:-safaar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-safaar}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-safaar} -d ${POSTGRES_DB:-safaar}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - safaar-network
+
+  redis:
+    image: redis:8-alpine
+    container_name: safaar-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - safaar-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: safaar-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-safaar}:${POSTGRES_PASSWORD:-safaar}@postgres:5432/${POSTGRES_DB:-safaar}
+      REDIS_URL: redis://redis:6379/0
+      QUEUE_REDIS_URL: redis://redis:6379/1
+      PORT: 4000
+      API_PREFIX: v1
+      NODE_ENV: production
+    ports:
+      - '4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - safaar-network
+
+  web-user:
+    build:
+      context: .
+      dockerfile: apps/web-user/Dockerfile
+    container_name: safaar-web-user
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:4000/v1
+      PORT: 3000
+      NODE_ENV: production
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+    networks:
+      - safaar-network
+
+  web-partner:
+    build:
+      context: .
+      dockerfile: apps/web-partner/Dockerfile
+    container_name: safaar-web-partner
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:4000/v1
+      PORT: 3001
+      NODE_ENV: production
+    ports:
+      - '3001:3001'
+    depends_on:
+      - backend
+    networks:
+      - safaar-network
+
+  web-admin:
+    build:
+      context: .
+      dockerfile: apps/web-admin/Dockerfile
+    container_name: safaar-web-admin
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:4000/v1
+      PORT: 3002
+      NODE_ENV: production
+    ports:
+      - '3002:3002'
+    depends_on:
+      - backend
+    networks:
+      - safaar-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  safaar-network:
+    driver: bridge
