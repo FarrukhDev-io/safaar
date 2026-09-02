@@ -9,6 +9,7 @@ import { AppModule } from './app.module';
 import { ApiResponseInterceptor } from './common/api-response.interceptor';
 import { HttpErrorFilter } from './common/http-error.filter';
 import { corsOriginsFromEnv } from './config/cors';
+import { uzumJsonErrorMiddleware } from './payments/uzum-json-error.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -40,6 +41,11 @@ async function bootstrap() {
   app.use('/uploads', expressStatic(uploadRoot));
   app.use(json({ limit: '1mb' }));
   app.use(urlencoded({ extended: true, limit: '1mb' }));
+  // Uzum webhook: noto'g'ri JSON tanasi body-parser'da (route'gacha yetmasdan)
+  // throw bo'ladi — Uzum contract talabi bo'yicha HTTP 400 + errorCode "10002"
+  // qaytaramiz. FAQAT shu route va FAQAT parse xatosi uchun; qolgan barcha
+  // xatolar/route'lar o'zgarmasdan `HttpErrorFilter`ga o'tadi.
+  app.use(uzumJsonErrorMiddleware);
   app.use(
     (
       _request: unknown,

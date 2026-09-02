@@ -38,6 +38,9 @@ interface EnvironmentConfig {
   CLICK_SECRET_KEY?: string;
   PAYME_MERCHANT_ID?: string;
   PAYME_KEY?: string;
+  UZUM_SERVICE_ID?: string;
+  UZUM_USERNAME?: string;
+  UZUM_PASSWORD?: string;
   DB_CONNECTION_TIMEOUT_MS: number;
   DB_QUERY_TIMEOUT_MS: number;
   DB_QUERY_ATTEMPTS: number;
@@ -232,6 +235,15 @@ export function validateEnv(
       ? String(config.PAYME_MERCHANT_ID)
       : undefined,
     PAYME_KEY: config.PAYME_KEY ? String(config.PAYME_KEY) : undefined,
+    UZUM_SERVICE_ID: config.UZUM_SERVICE_ID
+      ? String(config.UZUM_SERVICE_ID)
+      : undefined,
+    UZUM_USERNAME: config.UZUM_USERNAME
+      ? String(config.UZUM_USERNAME)
+      : undefined,
+    UZUM_PASSWORD: config.UZUM_PASSWORD
+      ? String(config.UZUM_PASSWORD)
+      : undefined,
     DB_CONNECTION_TIMEOUT_MS: toNumber(
       config.DB_CONNECTION_TIMEOUT_MS,
       production ? 8000 : 5000,

@@ -87,6 +87,7 @@ enum PaymentMethod {
   uzcard
   humo
   cash
+  uzum
 }
 
 enum BookingStatus {
@@ -106,6 +107,7 @@ enum PaymentStatus {
   paid
   failed
   refunded
+  reversed
 }
 
 enum RefundStatus {
