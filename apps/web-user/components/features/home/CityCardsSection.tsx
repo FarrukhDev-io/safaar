@@ -3,7 +3,7 @@ import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
 import { AccordionGallery } from "@/components/ui/AccordionGalleryClient";
 import { CityCardsMobileCarousel } from "@/components/features/home/CityCardsMobileCarousel";
-import SoftBlurIn from "@/components/animata/text/soft-blur-in";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export async function CityCardsSection({
   locale,
@@ -18,7 +18,7 @@ export async function CityCardsSection({
     .slice(0, 5)
     .map((city) => ({
       name: city.name,
-      image: city.imageUrl,
+      image: city.imageUrl || "/Tashkent-skyline-night.jpeg", // Backendda rasm yo'q bo'lsa, fallback rasm qo'yamiz
       hotelCount: String(city.hotelCount),
       href: `/${locale}/hotels?city_id=${encodeURIComponent(city.slug)}`,
     }))
@@ -36,14 +36,10 @@ export async function CityCardsSection({
   return (
     <section aria-labelledby="city-cards-heading">
       <div className="mx-auto w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8">
-        <div className="mb-4 sm:mb-6">
-          <div className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-            <SoftBlurIn text={dict.title} className="h-8 sm:h-10" holdMs={999999} />
-          </div>
-          <p className="mt-0.5 text-xs font-semibold text-slate-600 sm:mt-1 sm:text-sm dark:text-slate-400">
-            {dict.subtitle}
-          </p>
-        </div>
+        <SectionHeader 
+          title={dict.title}
+          subtitle={dict.subtitle}
+        />
 
         {/* Desktop — Accordion Gallery */}
         <div className="hidden sm:block mt-6 sm:mt-8 w-full max-w-full overflow-hidden">

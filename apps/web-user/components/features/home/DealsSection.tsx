@@ -2,8 +2,8 @@ import { ArrowRight } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
 import { UniversalCard } from "@/components/ui/UniversalCard";
-import { ShinyText } from "@/components/ui/ShinyText";
 import { DealsMobileCarousel } from "./DealsMobileCarousel";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export interface DealItem {
   id: string;
@@ -77,14 +77,10 @@ export function DealsSection({
 
   return (
     <section className="mx-auto w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8">
-      <div className="mb-4 sm:mb-5">
-        <h2 className="text-xl font-black tracking-tight sm:text-2xl">
-          <ShinyText>{dict.title}</ShinyText>
-        </h2>
-        <p className="mt-0.5 text-xs font-semibold text-slate-600 sm:text-sm dark:text-slate-400">
-          {dict.subtitle}
-        </p>
-      </div>
+      <SectionHeader 
+        title={dict.title}
+        subtitle={dict.subtitle}
+      />
 
       {/* Mobile Carousel (Client wrapper for interaction, Server Children) */}
       <DealsMobileCarousel itemsCount={deals.length}>
