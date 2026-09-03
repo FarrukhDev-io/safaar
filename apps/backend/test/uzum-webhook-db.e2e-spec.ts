@@ -51,7 +51,9 @@ d('Uzum Merchant API — real Postgres E2E', () => {
     pg.query<T & Record<string, unknown>>(sql, p);
 
   beforeAll(async () => {
-    pg = new PostgresService(fakeConfig({ DATABASE_URL: DB_URL, DB_POOL_MAX: '4' }));
+    pg = new PostgresService(
+      fakeConfig({ DATABASE_URL: DB_URL, DB_POOL_MAX: '4' }),
+    );
     const uzum = new UzumProvider(fakeConfig(UZUM_CFG));
     service = new PaymentsService(
       pg,
@@ -62,14 +64,25 @@ d('Uzum Merchant API — real Postgres E2E', () => {
     );
 
     // Clean any prior run, then seed the FK chain: region → city → org → booking.
-    await q(`DELETE FROM payment_events WHERE event_key LIKE 'uzum:%' AND payload::text LIKE '%${BOOKING_NUMBER}%'`);
+    await q(
+      `DELETE FROM payment_events WHERE event_key LIKE 'uzum:%' AND payload::text LIKE '%${BOOKING_NUMBER}%'`,
+    );
     await q(
       `DELETE FROM partner_ledger_entries WHERE booking_id IN (SELECT id FROM bookings WHERE booking_number = $1)`,
       [BOOKING_NUMBER],
     );
-    await q(`DELETE FROM refunds WHERE booking_id IN (SELECT id FROM bookings WHERE booking_number = $1)`, [BOOKING_NUMBER]);
-    await q(`DELETE FROM booking_status_history WHERE booking_id IN (SELECT id FROM bookings WHERE booking_number = $1)`, [BOOKING_NUMBER]);
-    await q(`DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE booking_number = $1)`, [BOOKING_NUMBER]);
+    await q(
+      `DELETE FROM refunds WHERE booking_id IN (SELECT id FROM bookings WHERE booking_number = $1)`,
+      [BOOKING_NUMBER],
+    );
+    await q(
+      `DELETE FROM booking_status_history WHERE booking_id IN (SELECT id FROM bookings WHERE booking_number = $1)`,
+      [BOOKING_NUMBER],
+    );
+    await q(
+      `DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE booking_number = $1)`,
+      [BOOKING_NUMBER],
+    );
     await q(`DELETE FROM bookings WHERE booking_number = $1`, [BOOKING_NUMBER]);
 
     await q(
@@ -106,10 +119,17 @@ d('Uzum Merchant API — real Postgres E2E', () => {
 
   afterAll(async () => {
     if (!DB_URL) return;
-    await q(`DELETE FROM partner_ledger_entries WHERE booking_id = $1`, [ids.booking]);
+    await q(`DELETE FROM partner_ledger_entries WHERE booking_id = $1`, [
+      ids.booking,
+    ]);
     await q(`DELETE FROM refunds WHERE booking_id = $1`, [ids.booking]);
-    await q(`DELETE FROM booking_status_history WHERE booking_id = $1`, [ids.booking]);
-    await q(`DELETE FROM payment_events WHERE payment_id IN (SELECT id FROM payments WHERE booking_id = $1)`, [ids.booking]);
+    await q(`DELETE FROM booking_status_history WHERE booking_id = $1`, [
+      ids.booking,
+    ]);
+    await q(
+      `DELETE FROM payment_events WHERE payment_id IN (SELECT id FROM payments WHERE booking_id = $1)`,
+      [ids.booking],
+    );
     await q(`DELETE FROM payments WHERE booking_id = $1`, [ids.booking]);
     await q(`DELETE FROM bookings WHERE id = $1`, [ids.booking]);
     await q(`DELETE FROM partner_organizations WHERE id = $1`, [ids.org]);
@@ -126,16 +146,24 @@ d('Uzum Merchant API — real Postgres E2E', () => {
   });
 
   const paymentsCount = async () =>
-    Number((await q<{ n: string }>(`SELECT count(*) n FROM payments WHERE booking_id = $1`, [ids.booking]))[0].n);
+    Number(
+      (
+        await q<{ n: string }>(
+          `SELECT count(*) n FROM payments WHERE booking_id = $1`,
+          [ids.booking],
+        )
+      )[0].n,
+    );
   const ledgerRows = async () =>
     q<{ type: string; amount: string }>(
       `SELECT type, amount FROM partner_ledger_entries WHERE booking_id = $1 ORDER BY created_at`,
       [ids.booking],
     );
   const eventRows = async () =>
-    q<{ event_key: string }>(`SELECT event_key FROM payment_events WHERE event_key LIKE $1 ORDER BY event_key`, [
-      `uzum:%${transId}`,
-    ]);
+    q<{ event_key: string }>(
+      `SELECT event_key FROM payment_events WHERE event_key LIKE $1 ORDER BY event_key`,
+      [`uzum:%${transId}`],
+    );
 
   it('/check — status OK, data {}, no DB write', async () => {
     const before = await paymentsCount();
@@ -145,9 +173,25 @@ d('Uzum Merchant API — real Postgres E2E', () => {
     expect(await paymentsCount()).toBe(before);
   });
 
+  it('/check — Uzum Postman shape: params.order_id resolves the same booking', async () => {
+    const res = (await service.uzumCheck({
+      serviceId: 123123,
+      timestamp: Date.now(),
+      params: { order_id: BOOKING_NUMBER },
+    })) as Record<string, unknown>;
+    expect(res).toMatchObject({ serviceId: 123123, status: 'OK' });
+    expect(res.data).toEqual({});
+  });
+
   it('/create — CREATED; payment row (uzum/processing/refs) + create event + expires_at ≈ now+35m', async () => {
-    const res = (await service.uzumCreate(body({ transId, amount: 10_000_000 }))) as Record<string, unknown>;
-    expect(res).toMatchObject({ transId, status: 'CREATED', amount: 10_000_000 });
+    const res = (await service.uzumCreate(
+      body({ transId, amount: 10_000_000 }),
+    )) as Record<string, unknown>;
+    expect(res).toMatchObject({
+      transId,
+      status: 'CREATED',
+      amount: 10_000_000,
+    });
 
     const [p] = await q<{
       provider: string;
@@ -155,16 +199,19 @@ d('Uzum Merchant API — real Postgres E2E', () => {
       amount: string;
       provider_reference: string;
       idempotency_key: string;
-    }>(`SELECT provider, status, amount, provider_reference, idempotency_key FROM payments WHERE booking_id = $1`, [
-      ids.booking,
-    ]);
+    }>(
+      `SELECT provider, status, amount, provider_reference, idempotency_key FROM payments WHERE booking_id = $1`,
+      [ids.booking],
+    );
     expect(p.provider).toBe('uzum');
     expect(p.status).toBe('processing');
     expect(Number(p.amount)).toBe(100000);
     expect(p.provider_reference).toBe(transId);
     expect(p.idempotency_key).toBe(`uzum:${transId}`);
 
-    expect((await eventRows()).map((r) => r.event_key)).toContain(`uzum:create:${transId}`);
+    expect((await eventRows()).map((r) => r.event_key)).toContain(
+      `uzum:create:${transId}`,
+    );
 
     const [b] = await q<{ ms: string }>(
       `SELECT extract(epoch from (expires_at - now())) * 1000 ms FROM bookings WHERE id = $1`,
@@ -175,16 +222,25 @@ d('Uzum Merchant API — real Postgres E2E', () => {
   });
 
   it('duplicate /create — 10010, no second payment / event', async () => {
-    await expect(service.uzumCreate(body({ transId, amount: 10_000_000 }))).rejects.toMatchObject({
+    await expect(
+      service.uzumCreate(body({ transId, amount: 10_000_000 })),
+    ).rejects.toMatchObject({
       errorCode: '10010',
     });
     expect(await paymentsCount()).toBe(1);
-    expect((await eventRows()).filter((r) => r.event_key === `uzum:create:${transId}`)).toHaveLength(1);
+    expect(
+      (await eventRows()).filter(
+        (r) => r.event_key === `uzum:create:${transId}`,
+      ),
+    ).toHaveLength(1);
   });
 
   it('/status after create — CREATED, no DB write', async () => {
     const before = await paymentsCount();
-    const res = (await service.uzumStatus({ serviceId: 123123, transId })) as Record<string, unknown>;
+    const res = (await service.uzumStatus({
+      serviceId: 123123,
+      transId,
+    })) as Record<string, unknown>;
     expect(res).toMatchObject({ transId, status: 'CREATED' });
     expect(await paymentsCount()).toBe(before);
   });
@@ -196,9 +252,16 @@ d('Uzum Merchant API — real Postgres E2E', () => {
       paymentSource: 'LOCAL_TEST',
       phone: '998900000000',
     })) as Record<string, unknown>;
-    expect(res).toMatchObject({ transId, status: 'CONFIRMED', amount: 10_000_000 });
+    expect(res).toMatchObject({
+      transId,
+      status: 'CONFIRMED',
+      amount: 10_000_000,
+    });
 
-    const [p] = await q<{ status: string }>(`SELECT status FROM payments WHERE booking_id = $1`, [ids.booking]);
+    const [p] = await q<{ status: string }>(
+      `SELECT status FROM payments WHERE booking_id = $1`,
+      [ids.booking],
+    );
     expect(p.status).toBe('paid');
     const [b] = await q<{ status: string; expires_at: string | null }>(
       `SELECT status, expires_at FROM bookings WHERE id = $1`,
@@ -212,28 +275,51 @@ d('Uzum Merchant API — real Postgres E2E', () => {
     expect(ledger[0].type).toBe('booking_earned');
     expect(Number(ledger[0].amount)).toBe(90000);
 
-    expect((await eventRows()).map((r) => r.event_key)).toContain(`uzum:confirm:${transId}`);
+    expect((await eventRows()).map((r) => r.event_key)).toContain(
+      `uzum:confirm:${transId}`,
+    );
   });
 
   it('duplicate /confirm — 10016, ledger still exactly one credit', async () => {
     await expect(
-      service.uzumConfirm({ serviceId: 123123, transId, paymentSource: 'LOCAL_TEST', phone: '998900000000' }),
+      service.uzumConfirm({
+        serviceId: 123123,
+        transId,
+        paymentSource: 'LOCAL_TEST',
+        phone: '998900000000',
+      }),
     ).rejects.toMatchObject({ errorCode: '10016' });
     expect(await ledgerRows()).toHaveLength(1);
   });
 
   it('/status after confirm — CONFIRMED', async () => {
-    const res = (await service.uzumStatus({ serviceId: 123123, transId })) as Record<string, unknown>;
+    const res = (await service.uzumStatus({
+      serviceId: 123123,
+      transId,
+    })) as Record<string, unknown>;
     expect(res).toMatchObject({ transId, status: 'CONFIRMED' });
   });
 
   it('/reverse — REVERSED; payment reversed, booking cancelled, ledger -90000 once, NO refund row', async () => {
-    const res = (await service.uzumReverse({ serviceId: 123123, transId })) as Record<string, unknown>;
-    expect(res).toMatchObject({ transId, status: 'REVERSED', amount: 10_000_000 });
+    const res = (await service.uzumReverse({
+      serviceId: 123123,
+      transId,
+    })) as Record<string, unknown>;
+    expect(res).toMatchObject({
+      transId,
+      status: 'REVERSED',
+      amount: 10_000_000,
+    });
 
-    const [p] = await q<{ status: string }>(`SELECT status FROM payments WHERE booking_id = $1`, [ids.booking]);
+    const [p] = await q<{ status: string }>(
+      `SELECT status FROM payments WHERE booking_id = $1`,
+      [ids.booking],
+    );
     expect(p.status).toBe('reversed');
-    const [b] = await q<{ status: string }>(`SELECT status FROM bookings WHERE id = $1`, [ids.booking]);
+    const [b] = await q<{ status: string }>(
+      `SELECT status FROM bookings WHERE id = $1`,
+      [ids.booking],
+    );
     expect(b.status).toBe('cancelled');
 
     const ledger = await ledgerRows();
@@ -241,25 +327,39 @@ d('Uzum Merchant API — real Postgres E2E', () => {
     expect(ledger[1].type).toBe('booking_reversed');
     expect(Number(ledger[1].amount)).toBe(-90000);
 
-    const [{ n }] = await q<{ n: string }>(`SELECT count(*) n FROM refunds WHERE booking_id = $1`, [ids.booking]);
+    const [{ n }] = await q<{ n: string }>(
+      `SELECT count(*) n FROM refunds WHERE booking_id = $1`,
+      [ids.booking],
+    );
     expect(Number(n)).toBe(0);
 
-    expect((await eventRows()).map((r) => r.event_key)).toContain(`uzum:reverse:${transId}`);
+    expect((await eventRows()).map((r) => r.event_key)).toContain(
+      `uzum:reverse:${transId}`,
+    );
   });
 
   it('duplicate /reverse — 10018, no second compensation', async () => {
-    await expect(service.uzumReverse({ serviceId: 123123, transId })).rejects.toMatchObject({ errorCode: '10018' });
+    await expect(
+      service.uzumReverse({ serviceId: 123123, transId }),
+    ).rejects.toMatchObject({ errorCode: '10018' });
     expect(await ledgerRows()).toHaveLength(2);
   });
 
   it('/status after reverse — REVERSED', async () => {
-    const res = (await service.uzumStatus({ serviceId: 123123, transId })) as Record<string, unknown>;
+    const res = (await service.uzumStatus({
+      serviceId: 123123,
+      transId,
+    })) as Record<string, unknown>;
     expect(res).toMatchObject({ transId, status: 'REVERSED' });
   });
 
   it('negatives — 10006 / 10005 / 10007 / 10014', async () => {
-    await expect(service.uzumCheck(body({ serviceId: 999999 }))).rejects.toMatchObject({ errorCode: '10006' });
-    await expect(service.uzumCheck(body({ params: {} }))).rejects.toMatchObject({ errorCode: '10005' });
+    await expect(
+      service.uzumCheck(body({ serviceId: 999999 })),
+    ).rejects.toMatchObject({ errorCode: '10006' });
+    await expect(service.uzumCheck(body({ params: {} }))).rejects.toMatchObject(
+      { errorCode: '10005' },
+    );
     await expect(
       service.uzumCheck(body({ params: { account: 'UZUM-E2E-NOT-FOUND' } })),
     ).rejects.toMatchObject({ errorCode: '10007' });
