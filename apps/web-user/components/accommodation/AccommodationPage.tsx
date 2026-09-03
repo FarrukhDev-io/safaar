@@ -33,6 +33,7 @@ export interface AccommodationPageProps {
   searchParams: SearchParams;
   basePath: string;
   title: string;
+  type?: string;
 }
 
 export async function AccommodationPage({
@@ -40,6 +41,7 @@ export async function AccommodationPage({
   searchParams: sp,
   basePath,
   title,
+  type,
 }: AccommodationPageProps) {
   const cityId = one(sp.city_id);
   const search = one(sp.search);
@@ -67,6 +69,7 @@ export async function AccommodationPage({
       cityId,
       search,
       stars,
+      type,
       minPrice,
       maxPrice,
       sort,

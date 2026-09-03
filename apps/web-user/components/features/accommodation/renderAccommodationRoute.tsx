@@ -34,12 +34,24 @@ export async function renderAccommodationRoute(
     ? (await getDictionary(locale, "hotels")).title
     : (common.nav as Record<string, string>)[key] ?? key;
 
+  // Define the backend types expected
+  // 'hotels' shows everything by default (or specific hotel type if needed later)
+  const accommodationType =
+    key === "dachas"
+      ? "dacha"
+      : key === "sanatoriums"
+      ? "sanatorium"
+      : key === "resorts"
+      ? "resort"
+      : undefined;
+
   return (
     <AccommodationPage
       locale={locale}
       searchParams={searchParams}
       basePath={`/${locale}/${key}`}
       title={title}
+      type={accommodationType}
     />
   );
 }
