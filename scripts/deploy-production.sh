@@ -230,9 +230,18 @@ verify_no_auto_migration() {
     *migrate*|*"db push"*|*"db-push"*|*"db_push"*|*seed*)
       fail "Image CMD looks like it may invoke a migration/seed step (${cmd}). Refusing to deploy." ;;
   esac
+  # The container must start via `npm run start:prod -w @safaar/backend`
+  # (see apps/backend/Dockerfile CMD) — not a hand-rolled command that could
+  # bypass the start:prod script we verify below.
+  case "$cmd" in
+    *start:prod*@safaar/backend*) : ;;
+    *) fail "Image CMD is ${cmd}, expected an 'npm run start:prod -w @safaar/backend' start. Refusing to deploy." ;;
+  esac
 
-  docker run --rm "$NEW_IMAGE" sh -c "grep -q '\"start:prod\"' package.json" \
-    || fail "Could not confirm start:prod script exists as expected."
+  # `npm run start:prod -w @safaar/backend` resolves the script from the
+  # BACKEND workspace manifest — the repo-root package.json has no start:prod.
+  docker run --rm "$NEW_IMAGE" sh -c "grep -q '\"start:prod\"' apps/backend/package.json" \
+    || fail "Could not confirm the @safaar/backend start:prod script exists as expected."
   docker run --rm "$NEW_IMAGE" sh -c "grep -q '\"start:prod\": \"[^\"]*node dist/src/main.js\"' apps/backend/package.json" \
     || fail "start:prod does not resolve to a plain 'node dist/src/main.js' invocation — refusing to deploy without manual review."
 
