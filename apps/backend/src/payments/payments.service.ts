@@ -807,14 +807,28 @@ export class PaymentsService {
   //  qayta ishlatadi — uning semantikasi o'zgartirilmagan.
   // ==========================================================================
 
-  /** Uzum `params.account` = SAFAAR `bookings.booking_number` (SAFAAR qarori). */
+  /**
+   * Uzum buyurtma identifikatori = SAFAAR `bookings.booking_number`.
+   * Uzum Postman kolleksiyasi buni `params.order_id` sifatida yuboradi;
+   * rasmiy contract namunasi esa `params.account` deb ataydi — ikkalasini
+   * (va zaxira sifatida top-level `order_id`ni) ham qabul qilamiz.
+   * Summa (tiyin) va uni tekshirish `readUzumAmountTiyin` / `toTiyin`da
+   * qoladi — bu yerda FAQAT buyurtma raqami o'qiladi, summa semantikasi
+   * o'zgarmaydi.
+   */
   private readUzumAccount(body: Record<string, unknown>): string {
     const params = body.params;
     if (!params || typeof params !== 'object' || Array.isArray(params)) {
       throw new UzumWebhookError(UZUM_ERROR.BAD_JSON, body.serviceId);
     }
-    const account = (params as Record<string, unknown>).account;
-    const value = typeof account === 'string' ? account.trim() : '';
+    const p = params as Record<string, unknown>;
+    const raw = p.order_id ?? p.account ?? p.orderId ?? body.order_id;
+    const value =
+      typeof raw === 'string'
+        ? raw.trim()
+        : typeof raw === 'number' && Number.isFinite(raw)
+          ? String(raw)
+          : '';
     if (!value) {
       throw new UzumWebhookError(UZUM_ERROR.MISSING_PARAMS, body.serviceId);
     }

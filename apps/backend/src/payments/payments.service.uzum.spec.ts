@@ -94,10 +94,22 @@ describe('PaymentsService — Uzum Merchant API', () => {
       ).rejects.toMatchObject({ errorCode: '10006' });
     });
 
-    it('params.account yo‘q — 10005', async () => {
+    it('params.account/order_id yo‘q — 10005', async () => {
       await expect(
         service.uzumCheck(body({ params: {} })),
       ).rejects.toMatchObject({ errorCode: '10005' });
+    });
+
+    it('Uzum Postman shakli — params.order_id ham qabul qilinadi', async () => {
+      pg.query
+        .mockResolvedValueOnce([openBooking]) // find by booking_number
+        .mockResolvedValueOnce([]); // no paid payment
+      const res = (await service.uzumCheck(
+        body({ params: { order_id: 'SAF-000123' } }),
+      )) as Record<string, unknown>;
+      expect(res).toMatchObject({ serviceId: 101202, status: 'OK' });
+      const find = findCall(pg.query, 'FROM bookings WHERE booking_number');
+      expect(find?.[1]).toEqual(['SAF-000123']);
     });
 
     it('bron topilmadi — 10007', async () => {
