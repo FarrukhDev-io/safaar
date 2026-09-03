@@ -28,13 +28,27 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
   try {
     const result = await api.auth.exchangeOAuthCode(code);
+
+    if ("requiresRegistration" in result && result.requiresRegistration) {
+      const registerUrl = new URL(`/${locale}/register`, request.nextUrl.origin);
+      registerUrl.searchParams.set("registrationToken", result.registrationToken);
+      registerUrl.searchParams.set("provider", result.provider);
+      if (result.email) registerUrl.searchParams.set("email", result.email);
+      if (result.firstName) registerUrl.searchParams.set("firstName", result.firstName);
+      if (result.lastName) registerUrl.searchParams.set("lastName", result.lastName);
+      if (next) registerUrl.searchParams.set("next", next);
+      
+      return NextResponse.redirect(registerUrl);
+    }
+
+    const authResult = result as any;
     const response = NextResponse.redirect(new URL(next, request.nextUrl.origin));
     response.cookies.set(COOKIE_NAME, JSON.stringify({
-      userId: result.user.id,
+      userId: authResult.user.id,
       role: Role.USER,
-      email: result.user.email,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
+      email: authResult.user.email,
+      accessToken: authResult.accessToken,
+      refreshToken: authResult.refreshToken,
     }), {
       httpOnly: true,
       sameSite: "lax",
