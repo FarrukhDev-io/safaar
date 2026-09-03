@@ -33,14 +33,18 @@ export function SiteFooter({
             </p>
             <div className="mt-1 flex items-center gap-3">
               <a
-                href="#"
+                href="https://www.instagram.com/safaar.uz"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-primary-500 transition-colors hover:bg-primary-500 hover:text-white"
                 aria-label="Instagram"
               >
                 <Camera className="h-5 w-5" />
               </a>
               <a
-                href="#"
+                href="https://t.me/safaar_uz"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-primary-500 transition-colors hover:bg-primary-500 hover:text-white"
                 aria-label="Telegram"
               >

@@ -20,7 +20,7 @@ export async function generateMetadata({
     getDictionary(lang as Locale, "attractions"),
   ]);
   return {
-    title: `${commonDict.nav.attractions} — Safaar`,
+    title: commonDict.nav.attractions,
     description: attractionsDict.subtitle,
   };
 }

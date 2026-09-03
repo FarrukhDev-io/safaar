@@ -5,9 +5,19 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { RegisterForm } from "../_components/RegisterForm";
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await params;
+  if (!isLocale(lang)) return {};
+  const dict = await getDictionary(lang as Locale, "auth");
+  return {
+    title: dict.registerTitle ?? "Ro'yxatdan o'tish",
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function RegisterPage({
   params,

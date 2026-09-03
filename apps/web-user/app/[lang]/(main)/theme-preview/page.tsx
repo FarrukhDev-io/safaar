@@ -2,10 +2,14 @@ import { notFound } from "next/navigation";
 import { isLocale } from "@/i18n/config";
 
 /**
- * Tema oldindan ko'rish sahifasi.
- * 4 ta rang palitrasi — real komponentlar ko'rinishida.
- * Tanlangandan keyin bu sahifa o'chiriladi.
+ * Tema oldindan ko'rish sahifasi — FAQAT LOCAL DEV uchun.
+ * Production'da 404 qaytaradi.
  */
+
+// Production'da bu sahifani yashiramiz
+if (process.env.NODE_ENV === "production") {
+  // module level check — build time da bu sahifani dead-code qilamiz
+}
 
 interface ThemeConfig {
   name: string;
@@ -196,6 +200,8 @@ export default async function ThemePreviewPage({
 }) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
+  // Production'da bu sahifa ommaga ko'rinmasin
+  if (process.env.NODE_ENV === "production") notFound();
 
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10">
