@@ -33,7 +33,11 @@ export default async function RegisterPage({
   ]);
 
   if (session) {
-    redirect(next || `/${locale}`);
+    let safeNext = next || `/${locale}`;
+    if (safeNext.includes("/login") || safeNext.includes("/register") || safeNext.includes("/auth/")) {
+      safeNext = `/${locale}`;
+    }
+    redirect(safeNext);
   }
 
   return <RegisterForm locale={locale} next={next} dict={dict} />;

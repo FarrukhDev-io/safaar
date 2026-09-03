@@ -18,10 +18,12 @@ export function OfflineRetryControl({
 
   useEffect(() => {
     const handleOnline = () => {
+      // Faqatgina haqiqatdan offline holatiga tushgan bo'lsa qayta yuklasin.
+      // Aks holda ba'zi brauzerlar ishga tushishi bilan "online" berib cheksiz refresh qilib tashlaydi.
+      if (!navigator.onLine) return; // if it's not actually online, ignore
+      
       setOnline(true);
-      setTimeout(() => {
-        window.location.href = `/${locale}`;
-      }, 1000);
+      // Biz endi avtomatik reload qilmaymiz, yoki shunchaki state ni o'zgartiramiz
     };
 
     window.addEventListener("online", handleOnline);
