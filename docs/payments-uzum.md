@@ -47,8 +47,10 @@ Konvertatsiya faqat `UzumProvider` chegarasida.
 
 ## Mapping (SAFAAR qarorlari)
 
-- `params.account` = **`bookings.booking_number`** (foydalanuvchi Uzum ilovasida
-  shu raqamni kiritadi). UUID `booking.id` ishlatilmaydi.
+- **`params.order_id`** (Uzum Postman kolleksiyasidagi nom; `params.account` ham
+  qabul qilinadi — bir xil ma'no) = **`bookings.booking_number`** (foydalanuvchi
+  Uzum ilovasida shu raqamni kiritadi). UUID `booking.id` ishlatilmaydi.
+  Zaxira: top-level `order_id` ham o'qiladi.
 - `params.user_id` (agar Uzum yuborsa) — mehmon bronlarida `NULL` bo'lgani uchun
   **majburiy shart emas** (contract mandatory demagan).
 - Payment `provider = 'uzum'`, `provider_reference = transId`,

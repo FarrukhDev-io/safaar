@@ -12,9 +12,16 @@
  * hujjatlash uchun.
  */
 
-/** `params` ichidagi kalitlar onboarding'da Uzum bilan kelishiladi. */
+/**
+ * `params` ichidagi kalitlar onboarding'da Uzum bilan kelishiladi.
+ * Uzum Postman kolleksiyasi buyurtma raqamini `params.order_id` sifatida
+ * yuboradi; rasmiy namuna `params.account` deb ataydi — SAFAAR ikkalasini
+ * ham qabul qiladi (`readUzumAccount`). Har ikkisi = `bookings.booking_number`.
+ */
 export interface UzumParams {
-  /** SAFAAR qarori: `account` = `bookings.booking_number`. */
+  /** Uzum Postman shakli — buyurtma raqami. */
+  order_id?: string;
+  /** Rasmiy contract namunasidagi nom — `order_id` bilan bir xil ma'no. */
   account?: string;
   [key: string]: unknown;
 }
