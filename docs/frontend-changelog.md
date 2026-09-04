@@ -9,6 +9,89 @@ o'chirilmaydi yoki o'zgartirilmaydi.
 
 ---
 
+# 2026-09-04 — (web-admin) Production login tuzatildi: Server Action → backend `fetch failed`
+
+## Manba
+Real Browser Production QA (Playwright + Chromium, `web-admin-phi-beige.vercel.app`)
+paytida topilgan CRITICAL muammo: `/login` sahifasidagi "Boshqaruv Paneliga
+Kirish" tugmasi bosilганда "fetch failed" chiqardi va panelga kirib bo'lmasdi.
+
+## Muammo (kuzatilgan)
+- Brauzer login formasi → `adminLoginAction()` (Next.js Server Action) →
+  `fetch("https://api.safaar.uz/v1/auth/admin/login")` → **`fetch failed`**
+  (~10–12 s socket timeout dan keyin).
+- **Intermittent**: bir "warm" oynada 9/9 urinish fail; keyin (funksiya "cold"
+  bo'lgach) yana ishlaydi. `44adad94` (oldingi frontend fix) BILAN BOG'LIQ EMAS —
+  `lib/auth/actions.ts` o'sha commitда o'zgармаган.
+- Bir vaqtning o'zida:
+  - `/api/proxy/auth/admin/login` (Route Handler, SHU backend endpoint) → 8/8 PASS
+  - `curl https://api.safaar.uz/v1/auth/admin/login` (to'g'ridан) → 6/6 PASS
+  - backend `/v1/health` → 200, sog'lom.
+
+## Root cause (isbotlangan)
+Node'ning global `fetch`i (undici) HTTP keep-alive ulanишларини **pool** qiladi.
+`/login` Server Action past-trafikli serverless funksiyada ishlaydi: funksiya
+"warm" tursa ham, backendga boradigan **tunnel orqali o'tган yo'l** (Vercel →
+YC Caddy → Tailscale tunnel → uy NAT → konteйner) uzoq turган idle TCP
+ulanишни jimgina yopadi. Keyingi login o'sha **o'lик socket**ни pool'dan olib
+so'rov yozadi, javob kelmaydi va `fetch` ~socket-timeout dan keyin bare
+`TypeError: fetch failed` bilan rad etадi.
+
+Yuqori-trafikli `/api/proxy` Route Handler funksiyasi bu holatga tushmaydi —
+uning pool'i uzлуксиз ishlатилиб turadi (har 30 s notification polling +
+har bir admin API chaqiruvи), o'лик socketlar tez almashtiriladi.
+
+Belgилар: (a) intermittent, idle vaqtga bog'liq; (b) cold/fresh invocation'da
+ishlaydi; (c) warm holатда ketма-ket fail; (d) bir xil chaqiruvни qilган Route
+Handler hech qачон fail bo'lмайди; (e) ~12 s = socket-timeout imzosi (DNS bo'lса
+darhol, conn-refused bo'lса darhol RST).
+
+## Eski behavior
+`backendPost()` bir marta `fetch` qiladi, timeout yo'q, retry yo'q. O'лик
+pooled socket = doimiy "fetch failed", foydalanuvchi panelga kira olmaydi.
+
+## Yangi behavior
+`apps/web-admin/lib/auth/actions.ts` → `backendPost()`:
+- **Faqat transport xatосида** (HTTP javob umuman kelмаса) 3 martagacha retry.
+  undici birinchi urinишда o'лик socketни pool'dан chiqаради → 2-urinиш yangi
+  ulanишга tushади. Backoff 300/600 ms.
+- Har urinишга `AbortSignal.timeout(8000)` — o'лик socket 8 s'да tashlanади
+  (undici default'ига umид qilmaймиз).
+- **HTTP javob kelса (401 va boshqалар) — retry YO'Q**: noto'g'ri parol
+  `AUTH_INVALID_CREDENTIALS` bo'либ o'згаришсиз o'тади, lockout counter'га
+  ta'sir qilмайди.
+- Yakuniy transport xato bo'лса, o'ша xato o'згаришсиз throw qилинади (UI
+  avvалгидек generic xabar ko'рсатади).
+- Har transport-fail Vercel runtime log'ига `console.error` bo'либ yozилади
+  (`cause` kodи bilan) — kelajакда diagnostика uchun. Sirlar yo'q, host public.
+- `adminVerify2FAAction` ham shu `backendPost`ni ishlатади → avtоmatик foyda.
+
+Arxитектура o'zгармаган: login hali ham Server Action, httpOnly `admin_token`
+cookie hali ham serverда yozилади, JWT brauzерга chiqмайди, `/api/proxy` oqими
+teginилмаган.
+
+## Fayllar
+| Fayl | O'zgarиш |
+|---|---|
+| `apps/web-admin/lib/auth/actions.ts` | `backendPost()` — transport-only retry (3×) + `AbortSignal.timeout(8s)` + diagnostic `console.error`. `adminLoginAction`/`adminVerify2FAAction`/cookie/response-mapping — o'zgармаган. |
+
+## Security
+- Parol hech qаерда log qилинмади (retry faqat `path` + xato nomини logлайди).
+- JWT/refresh token brauzерга chiqмайди — avvалгидек httpOnly cookie.
+- Cookie flag'лари o'zгармаган (`httpOnly`, `sameSite=lax`, `secure` prod'да).
+- Generic invalid-credential xatти-harакати saqlanди (retry qилинмайди).
+- CORS/session semantикаси o'zгармаган.
+
+## Test
+- `tsc --noEmit` = PASS, `eslint` = PASS, `next build` = PASS.
+- Production deploy + real Chromium `web-admin-phi-beige.vercel.app`:
+  UI login ×N ketма-кет PASS, dashboard yuklanди, negative login = generic,
+  logout/session = PASS, BUG-B01 / BUG-B02 regressiya = PASS.
+- Vercel runtime log'да `[adminAuth] ... transport failure ... (cause ...)` —
+  root-cause tasдиqи.
+
+---
+
 # 2026-09-04 — (web-admin) Real Browser QA fix: Approve/Reject confirmation + mobil layout + P3
 
 ## Manba

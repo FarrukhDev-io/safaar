@@ -20,13 +20,56 @@ interface BackendEnvelope<T> {
   error?: { code?: string; message?: string };
 }
 
+/** Per-attempt ceiling: a healthy connect+response is ~1–2 s, so 8 s only ever
+ *  trips on a black-holed (dead-keep-alive) socket, which we then retry. */
+const BACKEND_ATTEMPT_TIMEOUT_MS = 8_000;
+const BACKEND_MAX_ATTEMPTS = 3;
+
 async function backendPost<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  const url = `${API_BASE_URL}${path}`;
+  const payload = JSON.stringify(body);
+
+  // This runs inside the low-traffic `/login` Server Action function. Node's
+  // global fetch (undici) pools keep-alive sockets; the backend sits behind a
+  // tunnelled path that silently drops idle connections, so between infrequent
+  // logins the pooled socket goes dead and the next login reuses it — the
+  // request black-holes and fetch rejects with a bare "fetch failed" once the
+  // socket times out. undici evicts the broken socket on that failure, so an
+  // immediate retry lands on a fresh connection. Retry ONLY transport failures
+  // (never a received HTTP response — a 401 for bad credentials must pass
+  // straight through and must not be re-sent).
+  let response: Response | undefined;
+  let transportError: unknown;
+  for (let attempt = 1; attempt <= BACKEND_MAX_ATTEMPTS && !response; attempt += 1) {
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        cache: "no-store",
+        signal: AbortSignal.timeout(BACKEND_ATTEMPT_TIMEOUT_MS),
+      });
+    } catch (err) {
+      transportError = err;
+      const causeCode = (err as { cause?: { code?: string } })?.cause?.code;
+      // Server-side only (Vercel runtime logs) — no secrets, host is public.
+      console.error(
+        `[adminAuth] POST ${path} transport failure ${attempt}/${BACKEND_MAX_ATTEMPTS}: ` +
+          `${(err as Error)?.name}: ${(err as Error)?.message}` +
+          (causeCode ? ` (cause ${causeCode})` : ""),
+      );
+      if (attempt < BACKEND_MAX_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+      }
+    }
+  }
+
+  if (!response) {
+    throw transportError instanceof Error
+      ? transportError
+      : new Error("fetch failed");
+  }
+
   const envelope = (await response.json()) as BackendEnvelope<T>;
   if (!response.ok || !envelope.success) {
     throw new Error(envelope.error?.message ?? "Tizimga kirishda xatolik");
