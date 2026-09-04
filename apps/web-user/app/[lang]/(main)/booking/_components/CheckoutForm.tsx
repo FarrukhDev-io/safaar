@@ -51,6 +51,7 @@ export function CheckoutForm({
 
   const getErrorMessage = (error: string) => {
     if (error === "ERROR") return dict.error;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const errorsDict = (dict as any).errors as Record<string, string> | undefined;
     return errorsDict?.[error] ?? error;
   };

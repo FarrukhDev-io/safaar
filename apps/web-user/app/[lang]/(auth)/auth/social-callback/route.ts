@@ -41,6 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       return NextResponse.redirect(registerUrl);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const authResult = result as any;
     const response = NextResponse.redirect(new URL(next, request.nextUrl.origin));
     response.cookies.set(COOKIE_NAME, JSON.stringify({

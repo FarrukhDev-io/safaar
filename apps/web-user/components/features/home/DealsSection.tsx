@@ -73,6 +73,7 @@ export function DealsSection({
   if (deals.length === 0) return null;
 
   // RSC rendering evaluates `now` on the server during request time
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
 
   return (
