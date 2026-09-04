@@ -84,7 +84,6 @@ export default async function HomePage({
             hotels={hotels}
             dict={dict.featured}
             locale={locale}
-            commonDict={common}
           />
         </Suspense>
 
