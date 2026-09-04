@@ -9,21 +9,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { locales, defaultLocale, isLocale } from "@/i18n/config";
 
 function pickLocale(request: NextRequest): string {
-  const header = request.headers.get("accept-language");
-  if (!header) return defaultLocale;
-
-  // "ru-RU,ru;q=0.9,en;q=0.8" → eng yuqori q bo'yicha tartiblangan tillar.
-  const ordered = header
-    .split(",")
-    .map((part) => {
-      const [tag, q] = part.trim().split(";q=");
-      return { tag: tag.split("-")[0].toLowerCase(), q: q ? Number(q) : 1 };
-    })
-    .sort((a, b) => b.q - a.q);
-
-  for (const { tag } of ordered) {
-    if (isLocale(tag)) return tag;
-  }
+  // Always default to Uzbek (defaultLocale) as requested by the user,
+  // ignoring browser's accept-language header.
   return defaultLocale;
 }
 
