@@ -29,6 +29,12 @@ import {
 } from './providers/click.provider';
 import { PaymeProvider } from './providers/payme.provider';
 import {
+  UzumCheckoutError,
+  UzumCheckoutProvider,
+  type NormalizedCheckoutCallback,
+  type RegisterCheckoutResult,
+} from './providers/uzum-checkout.provider';
+import {
   UZUM_ERROR,
   UZUM_STATUS,
   UzumProvider,
@@ -67,10 +73,13 @@ const TERMINAL_PAYMENT_STATUSES = ['paid', 'reversed', 'refunded', 'failed'];
 
 interface BookingVisibilityRow {
   id: string;
+  booking_number: string;
   user_id: string | null;
   partner_organization_id: string;
   total_amount: string | number;
   currency: string;
+  status?: string;
+  expires_at?: string | null;
 }
 
 interface BookingRow {
@@ -114,6 +123,7 @@ export class PaymentsService {
     private readonly click: ClickProvider,
     private readonly payme: PaymeProvider,
     private readonly uzum: UzumProvider,
+    private readonly checkout: UzumCheckoutProvider,
   ) {}
 
   async payment(actor: RequestActor | undefined, bookingId: string) {
@@ -155,6 +165,15 @@ export class PaymentsService {
     }
 
     const provider = this.provider(body.provider);
+
+    // Uzum Checkout — ALOHIDA oqim: to'lov URL'i faqat Uzum `/payment/register`
+    // javobidan keyin ma'lum bo'ladi (Click/Payme kabi lokal URL qurish EMAS).
+    // Bu shart mavjud sinxron yo'lni (click/payme/uzcard/humo/cash/uzum)
+    // umuman o'zgartirmaydi — faqat erta `return`.
+    if (provider === 'uzum_checkout') {
+      return this.createUzumCheckoutPayment(booking);
+    }
+
     const id = randomUUID();
     const now = new Date().toISOString();
     const amount = Number(booking.total_amount);
@@ -210,6 +229,21 @@ export class PaymentsService {
       return null;
     }
 
+    // Uzum CHECKOUT — redirect URL faqat `/payment/register` javobidan keladi,
+    // shuning uchun `createPayment()` uni `createUzumCheckoutPayment()` orqali
+    // ALOHIDA hal qiladi. Bu sinxron yordamchi Checkout uchun ishlatilmaydi;
+    // agar shu yerga yetib kelinsa (masalan `bookings.service.createPayment`
+    // sinxron `buildCheckoutUrl` chaqirsa) — hali ulanmagani uchun aniq 503,
+    // jim `null` emas.
+    if (provider === 'uzum_checkout') {
+      throw new ServiceUnavailableException({
+        code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+        message:
+          'Uzum Checkout to‘lov provayderi hali ulanmagan ' +
+          '(UZUM_CHECKOUT_* + rasmiy /payment/register spec kutilmoqda)',
+      });
+    }
+
     const returnUrl = `${this.webUserUrl()}/booking/${bookingId}`;
 
     if (provider === 'click') {
@@ -245,6 +279,95 @@ export class PaymentsService {
     return (
       this.config.get<string>('WEB_USER_URL') ?? 'http://localhost:3000'
     ).replace(/\/$/, '');
+  }
+
+  /**
+   * Uzum Checkout to'lovini yaratadi — Merchant (`provider='uzum'`) oqimidan
+   * MUTLAQO ALOHIDA. Mavjud ochiq (`pending`/`processing`) payment bo'lsa
+   * uni qaytaradi (idempotent); aks holda Uzum `/payment/register` chaqiriladi
+   * va javobdagi `orderId` + to'lov URL'i bilan yangi `payments` qatori
+   * (`provider = 'uzum_checkout'`) yoziladi.
+   *
+   * Mapping:
+   *   bookings.booking_number      -> Uzum `orderNumber`
+   *   payments.id                  -> Uzum `merchantOperationId`
+   *   Uzum javob `orderId`         -> payments.provider_reference
+   *   payments.idempotency_key      = `uzum_checkout:<orderId>`
+   *
+   * Rasmiy Uzum Checkout wire-format olinmaguncha `checkout.register()`
+   * FAIL-CLOSED (`NOT_CONFIGURED` / `SPEC_REQUIRED`) — bu yerda u aniq 503'ga
+   * aylantiriladi (uzcard/humo bilan bir xil UX) va HECH QANDAY qator
+   * yozilmaydi.
+   */
+  private async createUzumCheckoutPayment(booking: BookingVisibilityRow) {
+    const [existing] = await this.pg.query<PaymentRow>(
+      `SELECT * FROM payments
+       WHERE booking_id = $1 AND status IN ('pending', 'processing')
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [booking.id],
+    );
+    if (existing) {
+      return existing;
+    }
+
+    const paymentId = randomUUID();
+    let reg: RegisterCheckoutResult;
+    try {
+      reg = await this.checkout.register({
+        bookingId: booking.id,
+        orderNumber: booking.booking_number,
+        merchantOperationId: paymentId,
+        amountSom: Number(booking.total_amount),
+        currency: booking.currency,
+        successUrl: `${this.webUserUrl()}/booking/${booking.id}?payment=success`,
+        failureUrl: `${this.webUserUrl()}/booking/${booking.id}?payment=failed`,
+      });
+    } catch (err) {
+      if (err instanceof UzumCheckoutError) {
+        // Secret/URL/imzo LOG QILINMAYDI — faqat code + booking id.
+        this.logger.warn(
+          `uzum-checkout register bloklandi: ${err.code} booking=${booking.id}`,
+        );
+        throw new ServiceUnavailableException({
+          code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+          message:
+            'Uzum Checkout to‘lov provayderi hali ulanmagan ' +
+            '(UZUM_CHECKOUT_* + rasmiy /payment/register spec kutilmoqda)',
+        });
+      }
+      throw err;
+    }
+
+    const now = new Date().toISOString();
+    await this.pg.query(
+      `INSERT INTO payments
+         (id, booking_id, provider, status, amount, currency, payment_url,
+          provider_reference, idempotency_key, created_at, updated_at)
+       VALUES ($1, $2, 'uzum_checkout', 'processing', $3, $4, $5, $6, $7, $8, $8)`,
+      [
+        paymentId,
+        booking.id,
+        booking.total_amount,
+        booking.currency,
+        reg.paymentUrl,
+        reg.orderId,
+        `uzum_checkout:${reg.orderId}`,
+        now,
+      ],
+    );
+
+    return {
+      id: paymentId,
+      booking_id: booking.id,
+      provider: 'uzum_checkout',
+      status: 'processing',
+      payment_url: reg.paymentUrl,
+      amount: Number(booking.total_amount),
+      currency: booking.currency,
+      created_at: now,
+      updated_at: now,
+    };
   }
 
   /**
@@ -792,9 +915,15 @@ export class PaymentsService {
 
   private provider(value: unknown): string {
     const provider = String(value ?? 'click');
-    return ['click', 'payme', 'uzcard', 'humo', 'cash', 'uzum'].includes(
-      provider,
-    )
+    return [
+      'click',
+      'payme',
+      'uzcard',
+      'humo',
+      'cash',
+      'uzum',
+      'uzum_checkout',
+    ].includes(provider)
       ? provider
       : 'click';
   }
@@ -1311,6 +1440,147 @@ export class PaymentsService {
     );
   }
 
+  // ==========================================================================
+  //  UZUM CHECKOUT — to'lov callback (Merchant API'dan MUTLAQO ALOHIDA).
+  //  `/v1/uzum/checkout/callback` -> shu metod. Mavjud `processPaymentEvent()`
+  //  (idempotentlik, amount/currency tekshiruvi, booking->confirmed, ledger)
+  //  QAYTA ISHLATILADI — yangi parallel to'lov-processing mexanizmi YO'Q.
+  //
+  //  MUHIM: Uzum Checkout'ning rasmiy callback payload + imzo spec'i hali
+  //  bizda YO'Q. Imzo controllerda `UzumCheckoutProvider.verifyCallback` orqali
+  //  FAIL-CLOSED tekshiriladi; xom->ichki holat mapping bo'sh — spec kelmaguncha
+  //  hech bir callback to'lovni PAID qilmaydi (`input.state !== 'PAID'`).
+  // ==========================================================================
+
+  /**
+   * Normallashtirilgan Uzum Checkout callbackini idempotent qayta ishlaydi.
+   *
+   * Qaytish:
+   *   - `{ code }` bo'lsa — rad etildi, to'lov TEGILMAYDI (`unknown_order` /
+   *     `amount_mismatch` / `currency_mismatch`); controller mos 4xx qaytaradi.
+   *   - aks holda — qabul qilindi: `duplicate` (takroriy callback),
+   *     `applied` (haqiqatan holat o'zgardimi).
+   */
+  async uzumCheckoutCallback(input: NormalizedCheckoutCallback): Promise<{
+    received: true;
+    duplicate: boolean;
+    applied: boolean;
+    code?: 'unknown_order' | 'amount_mismatch' | 'currency_mismatch';
+  }> {
+    // 1) To'lovni topamiz — FAQAT Checkout to'lovi (`idempotency_key` prefiksi
+    //    yoki `provider`). Merchant (`provider='uzum'`) to'lovi bilan
+    //    aralashmaymiz.
+    const idemKey = `uzum_checkout:${input.orderId}`;
+    const [payment] = await this.pg.query<PaymentRow>(
+      `SELECT * FROM payments
+       WHERE idempotency_key = $1
+          OR provider_reference = $2
+          OR id::text = $3
+          OR booking_id IN (SELECT id FROM bookings WHERE booking_number = $4)
+       ORDER BY (status IN ('pending', 'processing')) DESC, created_at DESC
+       LIMIT 1`,
+      [
+        idemKey,
+        input.orderId || ' ',
+        input.merchantOperationId || '00000000-0000-0000-0000-000000000000',
+        input.orderNumber || ' ',
+      ],
+    );
+
+    const isCheckoutPayment =
+      payment != null &&
+      (String((payment as Record<string, unknown>).provider ?? '') ===
+        'uzum_checkout' ||
+        String(
+          (payment as Record<string, unknown>).idempotency_key ?? '',
+        ).startsWith('uzum_checkout:'));
+
+    if (!payment || !isCheckoutPayment) {
+      return {
+        received: true,
+        duplicate: false,
+        applied: false,
+        code: 'unknown_order',
+      };
+    }
+
+    // 2) Faqat ichki `PAID` holati to'lovni tasdiqlaydi. `STATE_MAP` bo'sh
+    //    ekan (spec yo'q) — bu yerga hech qachon yetib kelinmaydi.
+    if (input.state !== 'PAID') {
+      await this.pg.query(
+        `INSERT INTO payment_events
+           (id, provider, event_type, event_key, payload, payload_hash, processed_at)
+         VALUES ($1, 'uzum_checkout', $2, $3, $4::jsonb, $5, $6)
+         ON CONFLICT (event_key) DO NOTHING`,
+        [
+          randomUUID(),
+          `callback:${input.state.toLowerCase()}`,
+          `uzum_checkout:${input.orderId}:${input.state}`,
+          JSON.stringify(input.raw),
+          createHash('sha256')
+            .update(this.stableStringify(input.raw))
+            .digest('hex'),
+          new Date().toISOString(),
+        ],
+      );
+      return { received: true, duplicate: false, applied: false };
+    }
+
+    // 3) PAID -> mavjud `processPaymentEvent()`ni qayta ishlatamiz:
+    //    idempotentlik (`event_key` UNIQUE), amount/currency tekshiruvi,
+    //    terminal-holat qo'riqchi, booking -> confirmed + `expires_at=NULL`
+    //    + `booking_status_history` + partner ledger krediti.
+    try {
+      const result = (await this.processPaymentEvent(
+        'uzum_checkout',
+        'confirm',
+        `uzum_checkout:confirm:${input.orderId}`,
+        {
+          booking_id: payment.booking_id,
+          transaction_id: input.orderId,
+          amount: Number.isFinite(input.amountSom)
+            ? input.amountSom
+            : undefined,
+          currency: input.currency,
+        },
+      )) as { duplicate?: boolean };
+      return {
+        received: true,
+        duplicate: Boolean(result.duplicate),
+        applied: !result.duplicate,
+      };
+    } catch (err) {
+      const code =
+        (err as { response?: { code?: string } })?.response?.code ??
+        (err as { code?: string })?.code;
+      if (code === 'PAYMENT_AMOUNT_MISMATCH') {
+        return {
+          received: true,
+          duplicate: false,
+          applied: false,
+          code: 'amount_mismatch',
+        };
+      }
+      if (code === 'PAYMENT_CURRENCY_MISMATCH') {
+        return {
+          received: true,
+          duplicate: false,
+          applied: false,
+          code: 'currency_mismatch',
+        };
+      }
+      if (code === 'PAYMENT_NOT_FOUND') {
+        return {
+          received: true,
+          duplicate: false,
+          applied: false,
+          code: 'unknown_order',
+        };
+      }
+      throw err;
+    }
+  }
+
   /**
    * Uzum contract: `/create`dan 30 daqiqa ichida `/confirm` kelmasa —
    * tranzaksiya muvaffaqiyatsiz hisoblanadi, uni `FAILED`ga o'tkazamiz.
@@ -1340,5 +1610,80 @@ export class PaymentsService {
         }`,
       );
     }
+  }
+
+  /**
+   * Uzum Checkout to'lovlarini rekonsiliatsiya qiladi — `pending`/`processing`
+   * holatida qotib qolgan `provider = 'uzum_checkout'` to'lovlar uchun Uzum
+   * `/payment/getOrderStatus` so'raladi va natijaga qarab:
+   *   - normallashtirilgan `PAID`   -> mavjud `uzumCheckoutCallback()` oqimi
+   *     (idempotentlik, booking -> confirmed, partner ledger — hammasi bir joyda);
+   *   - normallashtirilgan `FAILED` -> payment `failed`.
+   * Boshqa holatlar (`PENDING` / `UNKNOWN`) TEGILMAYDI.
+   *
+   * FAIL-CLOSED, hozircha ataylab `@Cron`SIZ:
+   *   - `checkout.isConfigured()` FALSE -> darhol no-op;
+   *   - `STATE_MAP` bo'sh (Uzum status enum spec'i YO'Q) -> har qanday holat
+   *     `UNKNOWN` va hech narsa o'zgarmaydi;
+   *   - `getOrderStatus()` spec kelmaguncha `SPEC_REQUIRED` bilan rad etadi.
+   * Uzum status enum'i tasdiqlangach shu metodga `@Cron(EVERY_5_MINUTES)`
+   * qo'shiladi.
+   */
+  async reconcileUzumCheckoutPayments(
+    olderThanMinutes = 15,
+  ): Promise<{ scanned: number; updated: number }> {
+    if (!this.checkout.isConfigured()) {
+      return { scanned: 0, updated: 0 };
+    }
+
+    const rows = await this.pg.query<PaymentRow>(
+      `SELECT * FROM payments
+       WHERE provider = 'uzum_checkout'
+         AND status IN ('pending', 'processing')
+         AND created_at < now() - make_interval(mins => $1::int)
+       ORDER BY created_at ASC
+       LIMIT 100`,
+      [Math.max(1, Math.floor(olderThanMinutes))],
+    );
+
+    let updated = 0;
+    for (const payment of rows) {
+      const orderId = String(payment.provider_reference ?? '');
+      if (!orderId) {
+        continue;
+      }
+      try {
+        const status = await this.checkout.getOrderStatus(orderId);
+        if (status.state === 'PAID') {
+          await this.uzumCheckoutCallback({
+            orderId,
+            orderNumber: '',
+            merchantOperationId: String(payment.id),
+            amountSom: status.amountSom ?? Number(payment.amount),
+            currency: String(payment.currency),
+            state: 'PAID',
+            raw: status.raw,
+          });
+          updated += 1;
+        } else if (status.state === 'FAILED') {
+          await this.pg.query(
+            `UPDATE payments SET status = 'failed', updated_at = now()
+             WHERE id = $1 AND status IN ('pending', 'processing')`,
+            [payment.id],
+          );
+          updated += 1;
+        }
+      } catch (err) {
+        // `getOrderStatus` fail-closed (`SPEC_REQUIRED`) bo'lsa — jim o'tamiz,
+        // secret log qilinmaydi (faqat orderId + xabar).
+        this.logger.warn(
+          `uzum-checkout reconcile order=${orderId} o'tkazib yuborildi: ${
+            err instanceof Error ? err.message : 'nomaʼlum'
+          }`,
+        );
+      }
+    }
+
+    return { scanned: rows.length, updated };
   }
 }

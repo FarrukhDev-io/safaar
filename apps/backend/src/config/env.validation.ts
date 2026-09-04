@@ -41,6 +41,16 @@ interface EnvironmentConfig {
   UZUM_SERVICE_ID?: string;
   UZUM_USERNAME?: string;
   UZUM_PASSWORD?: string;
+  // Uzum CHECKOUT (Merchant API'dan alohida). Qiymatlar Uzum Checkout
+  // onboarding'dan keladi; hech biri hozircha production'da majburiy emas.
+  // `..._SIGNATURE_SCHEME` unset/`none` bo'lsa callback fail-closed rad etiladi.
+  UZUM_CHECKOUT_BASE_URL?: string;
+  UZUM_CHECKOUT_MERCHANT_ID?: string;
+  UZUM_CHECKOUT_TERMINAL_ID?: string;
+  UZUM_CHECKOUT_API_KEY?: string;
+  UZUM_CHECKOUT_CALLBACK_SIGN_KEY?: string;
+  UZUM_CHECKOUT_SIGNATURE_HEADER?: string;
+  UZUM_CHECKOUT_SIGNATURE_SCHEME?: string;
   DB_CONNECTION_TIMEOUT_MS: number;
   DB_QUERY_TIMEOUT_MS: number;
   DB_QUERY_ATTEMPTS: number;
@@ -243,6 +253,27 @@ export function validateEnv(
       : undefined,
     UZUM_PASSWORD: config.UZUM_PASSWORD
       ? String(config.UZUM_PASSWORD)
+      : undefined,
+    UZUM_CHECKOUT_BASE_URL: config.UZUM_CHECKOUT_BASE_URL
+      ? String(config.UZUM_CHECKOUT_BASE_URL)
+      : undefined,
+    UZUM_CHECKOUT_MERCHANT_ID: config.UZUM_CHECKOUT_MERCHANT_ID
+      ? String(config.UZUM_CHECKOUT_MERCHANT_ID)
+      : undefined,
+    UZUM_CHECKOUT_TERMINAL_ID: config.UZUM_CHECKOUT_TERMINAL_ID
+      ? String(config.UZUM_CHECKOUT_TERMINAL_ID)
+      : undefined,
+    UZUM_CHECKOUT_API_KEY: config.UZUM_CHECKOUT_API_KEY
+      ? String(config.UZUM_CHECKOUT_API_KEY)
+      : undefined,
+    UZUM_CHECKOUT_CALLBACK_SIGN_KEY: config.UZUM_CHECKOUT_CALLBACK_SIGN_KEY
+      ? String(config.UZUM_CHECKOUT_CALLBACK_SIGN_KEY)
+      : undefined,
+    UZUM_CHECKOUT_SIGNATURE_HEADER: config.UZUM_CHECKOUT_SIGNATURE_HEADER
+      ? String(config.UZUM_CHECKOUT_SIGNATURE_HEADER)
+      : undefined,
+    UZUM_CHECKOUT_SIGNATURE_SCHEME: config.UZUM_CHECKOUT_SIGNATURE_SCHEME
+      ? String(config.UZUM_CHECKOUT_SIGNATURE_SCHEME)
       : undefined,
     DB_CONNECTION_TIMEOUT_MS: toNumber(
       config.DB_CONNECTION_TIMEOUT_MS,

@@ -79,6 +79,7 @@ describe('Security regression tests', () => {
       { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
     );
     const body = {
       booking_id: 'booking-1',

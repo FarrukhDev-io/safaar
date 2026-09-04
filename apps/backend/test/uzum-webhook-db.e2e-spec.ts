@@ -61,6 +61,7 @@ d('Uzum Merchant API — real Postgres E2E', () => {
       { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
       uzum,
+      { isConfigured: () => false } as never,
     );
 
     // Clean any prior run, then seed the FK chain: region → city → org → booking.

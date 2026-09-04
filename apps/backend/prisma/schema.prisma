@@ -88,6 +88,7 @@ enum PaymentMethod {
   humo
   cash
   uzum
+  uzum_checkout
 }
 
 enum BookingStatus {
