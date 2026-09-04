@@ -35,7 +35,9 @@ export function SplitRevealRoot({
   const bootstrappedRef = useRef(false);
   const controlledProgressRef = useRef(controlledProgress);
   const controlledReadyRef = useRef(controlledReady);
+  // eslint-disable-next-line react-hooks/refs
   controlledProgressRef.current = controlledProgress;
+  // eslint-disable-next-line react-hooks/refs
   controlledReadyRef.current = controlledReady;
   const maybeRevealRef = useRef<(() => void) | null>(null);
   const [bootstrapEpoch, setBootstrapEpoch] = useState(0);
@@ -81,6 +83,7 @@ export function SplitRevealRoot({
   });
   const { phase, loaded, total } = preload;
 
+  // eslint-disable-next-line react-hooks/refs
   phaseRef.current = phase;
 
   const progressPercent = total === 0 ? 100 : Math.round((loaded / total) * 100);

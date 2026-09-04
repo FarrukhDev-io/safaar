@@ -1,68 +1,82 @@
-# SAFAAR.uz — Monorepo
+<div align="center">
+  <h1>🏨 SAFAAR.uz Platform</h1>
+  <p><b>O'zbekiston milliy turar joy va bron qilish ekotizimi (Monorepo)</b></p>
 
-> **Bron qil, yo'lga chiq!** — O'zbekiston milliy turar joy va bron platformasi.
+  <!-- Badges -->
+  <a href="https://github.com/FarrukhDev-io/safaar"><img src="https://img.shields.io/badge/Monorepo-Turborepo-EF4444?style=for-the-badge&logo=vercel" alt="Turborepo" /></a>
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=next.js" alt="Next.js" /></a>
+  <a href="https://nestjs.com/"><img src="https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS" /></a>
+  <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" /></a>
+</div>
 
-|                     |                       |
-| ------------------- | --------------------- |
-| 🏨 Mehmonxona       | 🏡 Dacha              |
-| 🛖 Gostinka         | 🏥 Sanatoriy          |
-| ⛰️ Tog' oromgohlari | 🚌 Avtobus chiptalari |
+<br>
 
-## Arxitektura
+**SAFAAR.uz** — O'zbekistonning shahar mehmonxonalaridan tortib tog' bag'ridagi eng chekka oromgohlargacha bo'lgan barcha dam olish joylarini bitta platformada birlashtiruvchi milliy bron ekotizimi.
 
-```
-apps/
-├── backend/      NestJS API                  → :4000
-├── web-user/     Mijozlar sayti — safaar.uz   → :3000
-├── web-partner/  Hamkor kabineti              → :3001
-└── web-admin/    Super Admin dashboard        → :3002
-packages/
-└── types/        Umumiy TypeScript turlari (API shartnomasi)
-```
-
-## Texnologiyalar
-
-| Qatlam   | Texnologiya                                                |
-| -------- | ---------------------------------------------------------- |
-| Frontend | Next.js 16, React 19, Tailwind CSS v4, TypeScript (strict) |
-| Backend  | NestJS, PostgreSQL 14 (Yandex Cloud VM), Redis, Cloudflare R2 |
-| Auth     | JWT + Refresh Token, SMS OTP                               |
-| To'lov   | Click, Payme, Uzcard, Humo                                 |
-
-## Boshlash
-
-```bash
-npm install
-npm run build:types         # types paketini build qilish (birinchi)
-npm run dev:user            # web-user → localhost:3000
-npm run dev:backend         # backend  → localhost:4000
-```
-
-Backend Docker stack:
-
-```bash
-docker compose -f docker-compose.backend.yml up --build
-```
-
-Bu stack PostgreSQL, Redis va API'ni ishga tushiradi. Fayl storage Cloudflare
-R2 orqali ishlaydi va qiymatlar `apps/backend/.env` ichidagi `STORAGE_*`
-o'zgaruvchilardan olinadi.
-
-## Buyruqlar
-
-```bash
-npm run dev:user            # web-user
-npm run dev:partner         # web-partner
-npm run dev:admin           # web-admin
-npm run dev:backend         # backend
-npm run build               # barchasini build
-npm run test                # testlar
-```
-
-## Loyiha haqida
-
-**SAFAAR.uz** — O'zbekistonning shahar mehmonxonalaridan tortib tog' bag'ridagi eng chekka oromgohlargacha bo'lgan barcha dam olish joylarini bitta platformada birlashtiruvchi milliy bron ekotizimi. To'liq texnik topshiriq: [`TZ_Safaar_Platform.md`](./TZ_Safaar_Platform.md).
+## ✨ Imkoniyatlar (Features)
+- **🏨 Mehmonxonalar & 🏡 Dachalar** (Keng qamrovli qidiruv va filtrlash)
+- **🚌 Avtobus & Transport chiptalari**
+- **🔐 Rollarga asoslangan tizim:** (Mijoz, Hamkor, Admin, Super Admin)
+- **💳 Onlayn to'lovlar integratsiyasi:** (Click, Payme, Uzcard, Humo)
+- **⚡ Real-time xabarnomalar va SMS OTP**
 
 ---
 
-_SAFAAR Development Team_
+## 🏗️ Arxitektura (Turborepo)
+
+Loyiha to'liq **Monorepo** uslubida yozilgan va quyidagi qismlardan iborat:
+
+```text
+safaar/
+├── apps/
+│   ├── backend/      (NestJS API)                → :4000
+│   ├── web-user/     (Mijozlar sayti - Next.js)  → :3000
+│   ├── web-partner/  (Hamkor kabineti - Next.js) → :3001
+│   └── web-admin/    (Super Admin - Next.js)     → :3002
+├── packages/
+│   └── types/        (Umumiy TypeScript turlari)
+```
+
+## 🛠️ Texnologiyalar (Tech Stack)
+
+| Qatlam | Texnologiyalar |
+|---|---|
+| **Frontend** | `Next.js 15`, `React 19`, `Tailwind CSS v4`, `TypeScript (strict)` |
+| **Backend** | `NestJS`, `PostgreSQL 14`, `Prisma ORM`, `Redis` |
+| **Infratuzilma** | `Docker`, `Yandex Cloud VM`, `Cloudflare R2` (Storage), `GitHub Actions` |
+| **Xavfsizlik** | `JWT`, `Refresh Tokens`, `Rate Limiting`, `RBAC` |
+
+---
+
+## 🚀 Ishga tushirish (Getting Started)
+
+Loyiha kompyuteringizda ishlashi uchun `Node.js` (v20+) va `Docker` o'rnatilgan bo'lishi kerak.
+
+**1. Kutubxonalarni o'rnatish:**
+```bash
+npm install
+```
+
+**2. Tiplarni (Types) generatsiya qilish:**
+```bash
+npm run build:types
+```
+
+**3. Ilovalarni ishga tushirish:**
+Siz o'zingizga kerakli qismni alohida yoki hammasini bittada yurgizishingiz mumkin:
+```bash
+npm run dev:user      # Faqat Mijozlar sayti (localhost:3000)
+npm run dev:partner   # Faqat Hamkorlar kabineti (localhost:3001)
+npm run dev:admin     # Faqat Admin panel (localhost:3002)
+npm run dev:backend   # Faqat Backend API (localhost:4000)
+```
+
+**4. Backend Infra (Docker):**
+Ma'lumotlar bazasi (PostgreSQL) va Redis'ni ko'tarish uchun:
+```bash
+docker compose -f docker-compose.backend.yml up -d
+```
+
+---
+
+*© 2026 SAFAAR Development Team — Barcha huquqlar himoyalangan.*

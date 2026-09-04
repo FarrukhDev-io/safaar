@@ -5,31 +5,39 @@ import { resolveImage } from "@/lib/images";
 import type { HotelListItem } from "@/types/view";
 import { UniversalCard } from "@/components/ui/UniversalCard";
 
+// labels ixtiyoriy (optional) — bosh sahifa karuseli uchun
+// uzatilmasa, til bo'yicha default qiymat ishlatiladi
 export interface HotelCardLabels {
-  perNight: string;
-  reviews: string;
+  perNight?: string;
+  reviews?: string;
 }
+
+const DEFAULT_PER_NIGHT: Record<string, string> = {
+  uz: "kecha",
+  ru: "ночь",
+  en: "night",
+};
 
 export function HotelCard({
   hotel,
   locale,
-  labels,
+  labels = {},
 }: {
   hotel: HotelListItem;
   locale: Locale;
-  labels: HotelCardLabels;
+  labels?: HotelCardLabels;
 }) {
   const imageUrl = resolveImage(hotel.imageUrl);
 
-  // Amenity Pill Badges (Wi-Fi, Nonushta, Spa / Parking / Restoran)
   const amenityPills = hotel.name.toLowerCase().includes("chimgan")
     ? ["Wi-Fi", "Nonushta", "Parking"]
     : hotel.name.toLowerCase().includes("buxoro")
     ? ["Wi-Fi", "Nonushta", "Restoran"]
     : ["Wi-Fi", "Nonushta", "Spa"];
 
-  const price = hotel.minPriceSum > 0 ? hotel.minPriceSum : 980000;
-  const viewDetailsLabel = locale === "ru" ? "Подробнее" : locale === "en" ? "Details" : "Batafsil";
+  const perNight = labels.perNight ?? DEFAULT_PER_NIGHT[locale] ?? "kecha";
+  const price = hotel.minPriceSum > 0 ? hotel.minPriceSum : undefined;
+  const actionLabel = locale === "ru" ? "Подробнее" : locale === "en" ? "Details" : "Batafsil";
 
   return (
     <UniversalCard
@@ -40,11 +48,8 @@ export function HotelCard({
       location={hotel.cityName}
       tags={amenityPills}
       href={`/${locale}/hotels/${hotel.slug}`}
-      price={{
-        amount: price,
-        period: `1 ${labels.perNight}`,
-      }}
-      actionLabel={viewDetailsLabel}
+      price={price ? { amount: price, period: `1 ${perNight}` } : undefined}
+      actionLabel={actionLabel}
     />
   );
 }

@@ -5,9 +5,19 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { LoginForm } from "../_components/LoginForm";
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await params;
+  if (!isLocale(lang)) return {};
+  const dict = await getDictionary(lang as Locale, "auth");
+  return {
+    title: dict.title ?? "Kirish",
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function LoginPage({
   params,
@@ -36,7 +46,11 @@ export default async function LoginPage({
   ]);
 
   if (session) {
-    redirect(next || `/${locale}`);
+    let safeNext = next || `/${locale}`;
+    if (safeNext.includes("/login") || safeNext.includes("/register") || safeNext.includes("/auth/")) {
+      safeNext = `/${locale}`;
+    }
+    redirect(safeNext);
   }
 
   return (

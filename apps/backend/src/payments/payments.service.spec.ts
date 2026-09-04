@@ -32,6 +32,8 @@ describe('PaymentsService — authorization (regression: unauthenticated IDOR)',
       { get: jest.fn() } as never,
       { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
     );
   });
 
@@ -114,6 +116,8 @@ describe('PaymentsService.providerWebhook (regression: C-3 paid-vs-expiry race, 
     service = new PaymentsService(
       pg as unknown as PostgresService,
       { get: jest.fn() } as never,
+      { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
     );
@@ -341,6 +345,8 @@ describe('PaymentsService.createPayment (regression: payment_url was always null
       { get: jest.fn() } as never,
       click as never,
       payme,
+      { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
     );
   });
 
@@ -438,6 +444,8 @@ describe('PaymentsService.clickPrepare / clickComplete (real Click protocol)', (
       pg as unknown as PostgresService,
       { get: jest.fn() } as never,
       click as never,
+      { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
     );
   });

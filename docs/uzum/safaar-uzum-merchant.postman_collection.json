@@ -1,0 +1,415 @@
+{
+  "info": {
+    "name": "SAFAAR — Uzum Bank Merchant API",
+    "description": "Webhooks that Uzum Bank calls on the SAFAAR side (api.safaar.uz).\n\nSAFAAR's equivalent of the sample 'anyoung' collection. Fill the collection variables before running: username, password (both issued by SAFAAR out-of-band), orderId and amount (SAFAAR gives you a live pending booking number and its exact amount in tiyin right before the run). serviceId is fixed at 783774 for the test period. transId is generated per /create run by the pre-request script.\n\nManual test order — Payment: Check -> Create -> Confirm -> Status. Cancellation: Check -> Create -> Reverse -> Status.\n\nSAFAAR route: POST https://api.safaar.uz/v1/uzum/webhook/{check|create|confirm|reverse|status}. Success = HTTP 200. Business error = HTTP 400 with body { serviceId, status: \"FAILED\", errorCode } (string errorCode, no errorMessage). amount is in tiyin (so'm x 100). The order reference is sent as params.order_id and maps to bookings.booking_number.\n\nSpec: https://developer.uzumbank.uz/merchant",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      { "key": "username", "value": "{{username}}", "type": "string" },
+      { "key": "password", "value": "{{password}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.safaar.uz/v1/uzum/webhook",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "",
+      "type": "string",
+      "description": "Issued by SAFAAR, delivered out-of-band. Do not commit."
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string",
+      "description": "Issued by SAFAAR, delivered out-of-band. Do not commit."
+    },
+    {
+      "key": "serviceId",
+      "value": "783774",
+      "type": "string",
+      "description": "Fixed for the test period."
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string",
+      "description": "A live SAFAAR booking_number that is currently pending / unpaid. Ask the SAFAAR team for a fresh one right before the run (a pending booking expires in ~15 min; /create extends it to +35 min)."
+    },
+    {
+      "key": "amount",
+      "value": "",
+      "type": "string",
+      "description": "That booking's total_amount x 100 (tiyin). SAFAAR provides this value together with orderId. /create rejects a mismatch with 10011."
+    },
+    { "key": "transId", "value": "", "type": "string" },
+    { "key": "timestamp", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Check — can this order be paid",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.collectionVariables.set('timestamp', Date.now());"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('status = OK', () => pm.expect(body.status).to.eql('OK'));",
+              "pm.test('serviceId echoed', () => pm.expect(String(body.serviceId)).to.eql(pm.collectionVariables.get('serviceId')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"serviceId\": {{serviceId}},\n  \"timestamp\": {{timestamp}},\n  \"params\": {\n    \"order_id\": \"{{orderId}}\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/check",
+          "host": ["{{baseUrl}}"],
+          "path": ["check"]
+        },
+        "description": "Verifies the order exists, is not cancelled/expired and is not already paid. No DB write. SAFAAR returns data: {} (empty object) — the amount is supplied to you separately as the `amount` variable."
+      }
+    },
+    {
+      "name": "2. Create — register the transaction",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('timestamp', Date.now());",
+              "// New transId per run (re-sending the same transId returns 10010).",
+              "const uuid = require('uuid');",
+              "pm.collectionVariables.set('transId', uuid.v4());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('status = CREATED', () => pm.expect(body.status).to.eql('CREATED'));",
+              "pm.test('transId echoed', () => pm.expect(body.transId).to.eql(pm.collectionVariables.get('transId')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"serviceId\": {{serviceId}},\n  \"timestamp\": {{timestamp}},\n  \"transId\": \"{{transId}}\",\n  \"params\": {\n    \"order_id\": \"{{orderId}}\"\n  },\n  \"amount\": {{amount}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/create",
+          "host": ["{{baseUrl}}"],
+          "path": ["create"]
+        },
+        "description": "amount is in tiyin and must equal the order total in so'm x 100, otherwise 10011. Set the `amount` collection variable to the value SAFAAR gave you with the booking number. A transaction not confirmed within 30 minutes is treated as failed."
+      }
+    },
+    {
+      "name": "3. Confirm — settle the payment",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.collectionVariables.set('timestamp', Date.now());"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('status = CONFIRMED', () => pm.expect(body.status).to.eql('CONFIRMED'));",
+              "pm.test('confirmTime is a number', () => pm.expect(body.confirmTime).to.be.a('number'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"serviceId\": {{serviceId}},\n  \"timestamp\": {{timestamp}},\n  \"transId\": \"{{transId}}\",\n  \"paymentSource\": \"UZCARD\",\n  \"tariff\": null,\n  \"processingReferenceNumber\": \"000\",\n  \"phone\": \"998901234567\",\n  \"cardType\": 2\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/confirm",
+          "host": ["{{baseUrl}}"],
+          "path": ["confirm"]
+        },
+        "description": "paymentSource and phone are required (missing -> 10005). On success the booking becomes confirmed (or awaiting_partner_confirmation). A repeat call returns 10016; a call on a reversed/failed transaction returns 10015."
+      }
+    },
+    {
+      "name": "4. Reverse — cancel the transaction",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.collectionVariables.set('timestamp', Date.now());"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('status = REVERSED', () => pm.expect(body.status).to.eql('REVERSED'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"serviceId\": {{serviceId}},\n  \"timestamp\": {{timestamp}},\n  \"transId\": \"{{transId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reverse",
+          "host": ["{{baseUrl}}"],
+          "path": ["reverse"]
+        },
+        "description": "Marks the payment reversed and cancels the booking (partner ledger compensation is posted once; no SAFAAR-side refund row is created — Uzum returns the funds). A repeat call returns 10018; a call in a non-reversible state returns 10017."
+      }
+    },
+    {
+      "name": "5. Status — transaction status",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.collectionVariables.set('timestamp', Date.now());"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('status is known', () => pm.expect(['CREATED', 'CONFIRMED', 'REVERSED']).to.include(body.status));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"serviceId\": {{serviceId}},\n  \"timestamp\": {{timestamp}},\n  \"transId\": \"{{transId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["status"]
+        },
+        "description": "Read-only. Called if /confirm timed out or errored server-side. A transaction that timed out after 30 minutes reports status FAILED — confirm with the SAFAAR team whether your consumer accepts FAILED here."
+      }
+    },
+    {
+      "name": "Negative scenarios",
+      "item": [
+        {
+          "name": "10001 — wrong password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('errorCode 10001', () => pm.expect(pm.response.json().errorCode).to.eql('10001'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{username}}", "type": "string" },
+                {
+                  "key": "password",
+                  "value": "wrong-password",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": {{serviceId}},\n  \"timestamp\": 1698361456728,\n  \"params\": {\n    \"order_id\": \"{{orderId}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/check",
+              "host": ["{{baseUrl}}"],
+              "path": ["check"]
+            }
+          }
+        },
+        {
+          "name": "10006 — unknown serviceId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('errorCode 10006', () => pm.expect(pm.response.json().errorCode).to.eql('10006'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": 999999,\n  \"timestamp\": 1698361456728,\n  \"params\": {\n    \"order_id\": \"{{orderId}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/check",
+              "host": ["{{baseUrl}}"],
+              "path": ["check"]
+            }
+          }
+        },
+        {
+          "name": "10007 — non-existent order_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('errorCode 10007', () => pm.expect(pm.response.json().errorCode).to.eql('10007'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": {{serviceId}},\n  \"timestamp\": 1698361456728,\n  \"params\": {\n    \"order_id\": \"0000000000000000\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/check",
+              "host": ["{{baseUrl}}"],
+              "path": ["check"]
+            }
+          }
+        },
+        {
+          "name": "10011 — wrong amount",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const uuid = require('uuid');",
+                  "pm.collectionVariables.set('badTransId', uuid.v4());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('errorCode 10011', () => pm.expect(pm.response.json().errorCode).to.eql('10011'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": {{serviceId}},\n  \"timestamp\": 1698361456728,\n  \"transId\": \"{{badTransId}}\",\n  \"params\": {\n    \"order_id\": \"{{orderId}}\"\n  },\n  \"amount\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["create"]
+            },
+            "description": "Needs orderId to be a real pending booking; amount 100 tiyin will not match its total, so 10011."
+          }
+        },
+        {
+          "name": "10014 — unknown transId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('errorCode 10014', () => pm.expect(pm.response.json().errorCode).to.eql('10014'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": {{serviceId}},\n  \"timestamp\": 1698361456728,\n  \"transId\": \"00000000-0000-0000-0000-000000000000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["status"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

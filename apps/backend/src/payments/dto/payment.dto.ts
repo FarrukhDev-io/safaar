@@ -2,8 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsIn } from 'class-validator';
 
 export class CreatePaymentDto {
-  @ApiProperty({ enum: ['click', 'payme', 'uzcard', 'humo', 'cash'] })
-  @IsIn(['click', 'payme', 'uzcard', 'humo', 'cash'])
+  @ApiProperty({
+    enum: ['click', 'payme', 'uzcard', 'humo', 'cash', 'uzum', 'uzum_checkout'],
+  })
+  @IsIn(['click', 'payme', 'uzcard', 'humo', 'cash', 'uzum', 'uzum_checkout'])
   provider!: string;
 }
 

@@ -19,7 +19,7 @@ export async function generateMetadata({
   ]);
   const transportTitle = (commonDict.nav as typeof commonDict.nav & { transport?: string }).transport ?? "Transport";
   return {
-    title: `${transportTitle} — Safaar`,
+    title: transportTitle,
     description: transportDict.subtitle,
   };
 }
