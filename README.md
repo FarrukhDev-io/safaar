@@ -7,6 +7,10 @@
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=next.js" alt="Next.js" /></a>
   <a href="https://nestjs.com/"><img src="https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS" /></a>
   <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" /></a>
+  
+  <br>
+  <br>
+  🚀 **Live (Foydalanuvchi sayti):** <a href="https://safaar-uz.vercel.app">https://safaar-uz.vercel.app</a>
 </div>
 
 <br>
