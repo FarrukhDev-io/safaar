@@ -48,22 +48,6 @@ export default async function HomePage({
 
   const hotels = [...featuredResult.items];
 
-  // UI'da qanday ko'rinishini bilish uchun vaqtinchalik 4-kartani qo'shamiz
-  if (hotels.length === 3) {
-    hotels.push({
-      id: "dummy-hotel-4",
-      slug: "hyatt-regency-tashkent",
-      name: "Hyatt Regency Tashkent",
-      cityName: "Toshkent",
-      stars: 5,
-      rating: 4.8,
-      reviewsCount: 342,
-      minPriceSum: 1800000,
-      imageUrl: "/Samarkand-Registan-cinematic.jpeg",
-      latitude: 41.3131,
-      longitude: 69.2797,
-    });
-  }
   const deals: DealItem[] = rawDeals.map((d) => ({
     id: d.id,
     slug: d.slug,
@@ -76,19 +60,6 @@ export default async function HomePage({
     endsAt: d.endsAt,
   }));
 
-  if (deals.length === 3) {
-    deals.push({
-      id: "dummy-deal-4",
-      slug: "amirsoy-resort-deal",
-      name: "Amirsoy Resort (Maxsus Taklif)",
-      cityName: "Bo'stonliq",
-      imageUrl: "/Tashkent-skyline-night.jpeg",
-      oldPriceSum: 3000000,
-      newPriceSum: 2100000,
-      discountPercent: 30,
-      endsAt: new Date(Date.now() + 86400000 * 3).toISOString(), // 3 kundan keyin tugaydi
-    });
-  }
 
   return (
     <main className="relative flex flex-1 flex-col">
