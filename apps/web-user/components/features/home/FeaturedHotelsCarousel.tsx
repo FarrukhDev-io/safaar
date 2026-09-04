@@ -7,6 +7,9 @@ import type { HomeDict } from "@/i18n/dictionaries";
 
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
+import { EmptyState } from "@/components/ui/EmptyState";
+import { BedDouble } from "lucide-react";
+
 export function FeaturedHotelsCarousel({
   hotels,
   dict,
@@ -17,8 +20,6 @@ export function FeaturedHotelsCarousel({
   locale: Locale;
 }) {
   const cards = hotels;
-
-  if (cards.length === 0) return null;
 
   return (
     <section aria-label={dict.title} className="mx-auto mt-6 w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8 relative sm:mt-8">
@@ -37,24 +38,36 @@ export function FeaturedHotelsCarousel({
         }
       />
       
-      {/* Mobile: horizontal scroll with client wrapper for buttons and scroll logic */}
-      <FeaturedHotelsMobileCarousel itemsCount={cards.length}>
-        {cards.map((hotel) => (
-          <div
-            key={hotel.id}
-            className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
-          >
-            <HotelCard hotel={hotel} locale={locale} />
-          </div>
-        ))}
-      </FeaturedHotelsMobileCarousel>
+      {cards.length === 0 ? (
+        <div className="mt-6">
+          <EmptyState 
+            icon={<BedDouble className="h-10 w-10 text-slate-400 dark:text-slate-500" />}
+            title={(dict as any).empty || "Hozircha bo'sh"} 
+            description="Ayni paytda tavsiya etilgan joylar mavjud emas. Tez orada yangilanadi." 
+          />
+        </div>
+      ) : (
+        <>
+          {/* Mobile: horizontal scroll with client wrapper for buttons and scroll logic */}
+          <FeaturedHotelsMobileCarousel itemsCount={cards.length}>
+            {cards.map((hotel) => (
+              <div
+                key={hotel.id}
+                className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
+              >
+                <HotelCard hotel={hotel} locale={locale} />
+              </div>
+            ))}
+          </FeaturedHotelsMobileCarousel>
 
-      {/* Desktop: 4 cards grid */}
-      <div className="hidden gap-4 md:grid md:grid-cols-4">
-        {cards.map((hotel) => (
-          <HotelCard key={hotel.id} hotel={hotel} locale={locale} />
-        ))}
-      </div>
+          {/* Desktop: 4 cards grid */}
+          <div className="hidden gap-4 md:grid md:grid-cols-4 mt-6">
+            {cards.map((hotel) => (
+              <HotelCard key={hotel.id} hotel={hotel} locale={locale} />
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }

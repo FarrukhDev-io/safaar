@@ -79,15 +79,14 @@ export default async function HomePage({
           )}
         </div>
 
-        {hotels.length > 0 && (
-          <Suspense fallback={<Skeleton className="h-48 w-full" />}>
-            <FeaturedHotelsCarousel
-              hotels={hotels}
-              dict={dict.featured}
-              locale={locale}
-            />
-          </Suspense>
-        )}
+        <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+          <FeaturedHotelsCarousel
+            hotels={hotels}
+            dict={dict.featured}
+            locale={locale}
+            commonDict={common}
+          />
+        </Suspense>
 
       </div>
 

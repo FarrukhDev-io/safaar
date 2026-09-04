@@ -61,6 +61,9 @@ function DealCard({
   );
 }
 
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Tag } from "lucide-react";
+
 export function DealsSection({
   deals,
   dict,
@@ -70,8 +73,6 @@ export function DealsSection({
   dict: HomeDict["deals"];
   locale: Locale;
 }) {
-  if (deals.length === 0) return null;
-
   // RSC rendering evaluates `now` on the server during request time
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
@@ -83,24 +84,35 @@ export function DealsSection({
         subtitle={dict.subtitle}
       />
 
-      {/* Mobile Carousel (Client wrapper for interaction, Server Children) */}
-      <DealsMobileCarousel itemsCount={deals.length}>
-        {deals.map((deal) => (
-          <div
-            key={deal.id}
-            className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
-          >
-            <DealCard deal={deal} locale={locale} dict={dict} now={now} />
-          </div>
-        ))}
-      </DealsMobileCarousel>
+      {deals.length === 0 ? (
+        <EmptyState 
+          icon={<Tag className="h-10 w-10 text-slate-400 dark:text-slate-500" />}
+          title={(dict as any).empty || "Hozircha bo'sh"} 
+          description="Ushbu sahifada tez orada foydali chegirmalar paydo bo'ladi." 
+          className="mt-6"
+        />
+      ) : (
+        <>
+          {/* Mobile Carousel (Client wrapper for interaction, Server Children) */}
+          <DealsMobileCarousel itemsCount={deals.length}>
+            {deals.map((deal) => (
+              <div
+                key={deal.id}
+                className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
+              >
+                <DealCard deal={deal} locale={locale} dict={dict} now={now} />
+              </div>
+            ))}
+          </DealsMobileCarousel>
 
-      {/* Desktop Grid */}
-      <div className="hidden sm:grid sm:grid-cols-4 sm:gap-4">
-        {deals.slice(0, 4).map((deal) => (
-          <DealCard key={deal.id} deal={deal} locale={locale} dict={dict} now={now} />
-        ))}
-      </div>
+          {/* Desktop Grid */}
+          <div className="hidden sm:grid sm:grid-cols-4 sm:gap-4 mt-6">
+            {deals.slice(0, 4).map((deal) => (
+              <DealCard key={deal.id} deal={deal} locale={locale} dict={dict} now={now} />
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }
