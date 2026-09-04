@@ -59,6 +59,7 @@ describe('PaymentsService — Uzum Merchant API', () => {
       { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
       new UzumProvider({ get: (k: string) => UZUM_CFG[k] } as never),
+      { isConfigured: () => false } as never,
     );
   });
 
