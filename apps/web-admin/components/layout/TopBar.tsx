@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LogOut, User, Check } from "lucide-react";
+import { Bell, LogOut, User, Check, Menu } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { adminLogoutAction } from "@/lib/auth/actions";
@@ -10,7 +10,7 @@ import { AdminApi } from "@/lib/api/admin-api";
 import { formatDistanceToNow } from "date-fns";
 import { uz } from "date-fns/locale";
 
-export default function TopBar() {
+export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { items: notifications, unreadCount, setNotifications, markAsRead, markAllAsRead } = useNotificationsStore();
@@ -107,11 +107,20 @@ export default function TopBar() {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-[var(--border)] flex items-center justify-between px-6 shrink-0 sticky top-0 z-20">
-      {/* Left section: Page Title */}
-      <div className="flex flex-col">
-        {pageInfo.title && <h1 className="text-lg font-bold text-[var(--text-primary)] leading-tight tracking-tight">{pageInfo.title}</h1>}
-        {pageInfo.desc && <p className="text-xs text-[var(--text-muted)] mt-0.5">{pageInfo.desc}</p>}
+    <header className="h-16 bg-white border-b border-[var(--border)] flex items-center justify-between px-4 sm:px-6 shrink-0 sticky top-0 z-20">
+      {/* Left section: mobile menu button + Page Title */}
+      <div className="flex items-center gap-2 min-w-0">
+        <button
+          onClick={onMenuClick}
+          aria-label="Menyuni ochish"
+          className="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors shrink-0 cursor-pointer"
+        >
+          <Menu size={20} />
+        </button>
+        <div className="flex flex-col min-w-0">
+          {pageInfo.title && <h1 className="text-base sm:text-lg font-bold text-[var(--text-primary)] leading-tight tracking-tight truncate">{pageInfo.title}</h1>}
+          {pageInfo.desc && <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate hidden sm:block">{pageInfo.desc}</p>}
+        </div>
       </div>
 
       {/* Right section */}

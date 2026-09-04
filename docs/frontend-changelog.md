@@ -4,7 +4,164 @@ Ushbu fayl faqat `apps/web-user` frontendidagi o'zgarishlarni hujjatlashtiradi.
 Har bir frontend task tugagach yangi entry tepaga qo'shiladi — eski entrylar
 o'chirilmaydi yoki o'zgartirilmaydi.
 
+> Eslatma: 2026-09-04 dan boshlab bu faylga `web-admin` QA-fix entrylari ham
+> `(web-admin)` belgisi bilan qo'shiladi (alohida duplicate doc yaratilmadi).
+
 ---
+
+# 2026-09-04 — (web-admin) Real Browser QA fix: Approve/Reject confirmation + mobil layout + P3
+
+## Manba
+So'nggi REAL BROWSER Production QA reporti (Playwright + Chromium,
+`web-admin-phi-beige.vercel.app`).
+
+## BUG-B01 (P2) — Hamkor arizasini Approve/Reject tasdiqsiz bajarilardi
+
+### Asl bug
+`Hamkorlar → Arizalar` → ariza detali modalidagi **"Tasdiqlash"** va
+**"Rad etish"** tugmalari bosilishi bilanoq API chaqiruvini bajarardi —
+hech qanday tasdiqlash oynasi yo'q, "Rad etish" uchun sabab kiritish
+imkoniyati yo'q. Tasodifiy bir marta bosish real hamkor arizasini
+qaytarib bo'lmaydigan holatga o'tkazardi (QA vaqtida 2 ta QA arizasi
+shu tarzda tasodifan mutatsiyaga uchradi va tiklandi).
+
+### Root cause
+`apps/web-admin/app/(dashboard)/partners/requests/page.tsx` —
+"Tasdiqlash"/"Rad etish" tugmalari to'g'ridan-to'g'ri
+`handleDecision(id, 'approve'|'reject')` → `AdminApi.approvePartner` /
+`AdminApi.rejectPartner` ni chaqirardi. `rejectPartner(id, reason?)` allaqachon
+sababni qabul qiladi, lekin sahifa uni hech qachon yig'ib bermas edi.
+
+### Eski behavior
+Bir marta bosish = darhol mutatsiya. Tasdiqlash yo'q. Sabab yo'q.
+
+### Yangi behavior
+- "Tasdiqlash"/"Rad etish" tugmalari faqat `confirmKind` state'ini o'rnatadi
+  (mutatsiya YO'Q).
+- Alohida tasdiqlash `Modal`i ochiladi:
+  - Approve: aniq matn + "Bekor qilish" / "Tasdiqlash".
+  - Reject: **majburiy sabab `textarea`si** + "Bekor qilish" / "Rad etish".
+    Tasdiq tugmasi sabab bo'sh bo'lsa `disabled`.
+- "Bekor qilish", overlay bosish, Escape — API chaqirilmaydi, holat
+  o'zgarmaydi.
+- Yuborilayotganda tasdiq tugmasi `loading` + `disabled` (double-click
+  himoyasi), submit paytida modal yopilmaydi.
+- Muvaffaqiyat/xato `toast` bilan ko'rsatiladi (avvalgidek).
+
+### Fayllar
+| Fayl | O'zgarish |
+|---|---|
+| `apps/web-admin/app/(dashboard)/partners/requests/page.tsx` | `confirmKind` + `rejectReason` state; tugmalar endi tasdiqlash modalini ochadi; yangi tasdiqlash `Modal`i; `handleDecision(id, decision, reason?)` → `rejectPartner`ga sabab uzatiladi. |
+
+## BUG-B02 (P2) — Mobil (390px) layout gorizontal overflow
+
+### Asl bug
+390×844 da har bir sahifada gorizontal skroll (`scrollWidth` ~547–593 vs
+390). Sidebar telefon kengligiga moslashmagan, hamburger tugmasi yo'q.
+
+### Root cause
+- `apps/web-admin/app/(dashboard)/layout.tsx` — asosiy kontent `div`i
+  BARCHA ekranlarda qattiq `ml-[var(--sidebar-width)]` (280px) ishlatardi.
+- `Sidebar.tsx` — `fixed w-280px`, doim ko'rinadi, mobil holat yo'q.
+- `TopBar.tsx` — hamburger/mobil menyu tugmasi yo'q.
+
+### Yangi behavior
+- Asosiy kontent: `ml-0`, faqat `lg:` da `lg:ml-[var(--sidebar-width)]` /
+  `lg:ml-[var(--sidebar-collapsed)]`. `min-w-0 overflow-x-hidden`.
+- `Sidebar`: `< lg` da off-canvas drawer (`-translate-x-full` →
+  `translate-x-0` ochilganda), backdrop bilan; `lg:translate-x-0` doim
+  ko'rinadi. `mobileOpen` / `onMobileClose` propslari. Drawer ichida biror
+  linkni bosganda mobil holatida yopiladi.
+- `TopBar`: `< lg` da hamburger tugmasi (`aria-label="Menyuni ochish"`) →
+  drawer ochiladi. Sarlavha `truncate`, tavsif `sm:` da ko'rinadi.
+
+### Fayllar
+| Fayl | O'zgarish |
+|---|---|
+| `apps/web-admin/app/(dashboard)/layout.tsx` | `mobileOpen` state; responsive `ml`; `min-w-0 overflow-x-hidden`; propslar uzatildi. |
+| `apps/web-admin/components/layout/Sidebar.tsx` | off-canvas drawer + backdrop + `mobileOpen`/`onMobileClose` propslari. |
+| `apps/web-admin/components/layout/TopBar.tsx` | hamburger tugmasi (`< lg`), `onMenuClick` prop, responsive padding/typografiya. |
+
+## P3 — Login form accessibility
+
+### Asl bug
+Login inputlarida `id`/`<label for>` bog'lanishi yo'q; `autocomplete` yo'q
+(screen-reader label ↔ input bog'lay olmaydi).
+
+### Yangi behavior
+`#admin-username` + `#admin-password` idlari, `<label htmlFor>`,
+`aria-label`, `autoComplete="username"` / `"current-password"` qo'shildi.
+(Bo'sh maydon validatsiyasi — "Login va parolni kiriting" — allaqachon
+bor edi; QA reportidagi B03 shu jihatdan false-positive edi.)
+
+### Fayllar
+| Fayl | O'zgarish |
+|---|---|
+| `apps/web-admin/app/(auth)/login/page.tsx` | inputlarga `id`/`name`/`autoComplete`/`aria-label`, labellarga `htmlFor`. |
+
+## Build unblock (P2, bu bug emas — deploy blokerini olib tashlash)
+
+`apps/web-admin/app/(dashboard)/promos/page.tsx` da `discountType` uchun
+lokal Zod sxemasi `"percentage"` ishlatardi, ammo ilovaning kanonik turi
+(`types/admin.ts`, `admin-api.ts` `PromoCode`) `"percent"`. Bu drift
+`next build` type-check bosqichini **buzardi** (mening o'zgarishlarimdan
+oldin, `origin/develop` da ham bor edi). `promos/page.tsx` dagi 7 ta
+`"percentage"` → `"percent"` ga tekislandi (API client allaqachon
+`'percent'` → wire `'percentage'` konvertatsiyasini qiladi). Boshqa
+promos mantig'i o'zgarmadi.
+
+## API / Backend
+- Backend o'zgardimi: **NO**
+- Yangi API kerak bo'ldimi: **NO**
+- Mavjud API: `POST /admin/partners/:id/approve`, `POST /admin/partners/:id/reject`
+  (`{ reason }` — backend allaqachon qo'llab-quvvatlaydi).
+
+## Test
+- `tsc --noEmit` (`apps/web-admin`): **PASS** — 0 xato (promos fix bilan;
+  fix'dan oldin 4 ta pre-existing xato bor edi).
+- `eslint` (o'zgartirilgan 6 fayl): **0 error** (3 warning — hammasi
+  pre-existing: `catch (error: any)`, `form.watch()` incompatible-library).
+- `next build` (`apps/web-admin`): **PASS** — exit 0, barcha 30 route.
+- REAL BROWSER regression (Chromium + Playwright, lokal `next dev` build →
+  **haqiqiy production API** `https://api.safaar.uz/v1`):
+  - **BUG-B01**: "Rad etish" → tasdiq oynasi chiqadi, confirm'gacha 0 ta
+    API mutatsiyasi; sabab bo'sh bo'lsa confirm `disabled`; "Bekor qilish"
+    → 0 mutatsiya, holat o'zgarmaydi; sabab bilan confirm → aynan 1 ta
+    `POST /reject`, ariza `rejected`. "Tasdiqlash" → tasdiq oynasi;
+    "Bekor qilish" → 0 mutatsiya; confirm → aynan 1 ta `POST /approve`,
+    ariza `approved`. QA arizasi har safar `submitted` ga tiklandi.
+  - **BUG-B02**: 1440/1280/1024/768/390 — barcha viewportda
+    `scrollWidth <= innerWidth` (390 da endi aynan 390, avval 547–593);
+    `< lg` da hamburger ko'rinadi; bosilganda drawer ochiladi
+    (`transform: none` = `translate-x-0`).
+  - **A11y**: `#admin-username` / `#admin-password` + `label[for]` mos;
+    login ishlaydi.
+- Muhim regressionlar: topilmadi. Boshqa sahifalar (dashboard, catalog,
+  promos, finance, cms, users, audit, settings, developer) 0
+  console/pageerror bilan yuklandi.
+
+## Deploy
+- **LOKAL** — o'zgarishlar `temp/save-all-work` branchida commit qilindi.
+- Vercel `web-admin` production deploy'i **BLOKLANGAN**: bu ish muhitida
+  `web-admin` Vercel project link/credential mavjud emas (`.vercel` root
+  `web-partner` ga bog'langan). Deploy `web-admin` Vercel loyihasiga
+  kirish huquqi bo'lgan kishi tomonidan qilinishi kerak
+  (`npx vercel --prod` yoki git-connected branch). Fixlar haqiqiy
+  production API'ga qarab real brauzerda tasdiqlangan; faqat
+  Vercel-hosted URL verifikatsiyasi deploy'dan keyin qoladi.
+
+## Git
+- Branch: `temp/save-all-work`
+- Frontend `develop` ga CHIQARILMADI (loyiha qoidasi: frontend fayllar
+  `develop` ga push qilinmaydi).
+
+## Muhim eslatmalar
+- QA-fix vaqtida QA arizalari `39e682d2` (QA TEST PARTNER 2026-09-04) va
+  `6923851e` (QA TEST PARTNER 2026-09-03) test mutatsiyalariga uchradi —
+  ikkalasi ham `submitted` holatiga tiklandi. Real hamkor/hotel/user/pul
+  ma'lumotlari o'zgartirilmadi.
+- Qolgan BLOCKED test hududlari (Hotels/Rooms CRUD, deep form validation,
+  money-action modal UX, `/cms/*` chuqur test) — ular alohida QA taskda.
 
 # 2026-08-29 — `/uz/dachas`, `/uz/resorts`, `/uz/sanatoriums` kategoriya filtri (P2 bug)
 

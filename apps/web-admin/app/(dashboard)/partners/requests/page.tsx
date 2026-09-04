@@ -39,6 +39,11 @@ export default function PartnerRequestsPage() {
   const [notesError, setNotesError] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteSubmitting, setNoteSubmitting] = useState(false);
+  // BUG-B01: destructive moderation now requires an explicit confirmation step.
+  const [confirmKind, setConfirmKind] = useState<"approve" | "reject" | null>(
+    null,
+  );
+  const [rejectReason, setRejectReason] = useState("");
 
   const fetchNotes = async (id: string) => {
     try {
@@ -84,18 +89,24 @@ export default function PartnerRequestsPage() {
 
   const requests = storeRequests.filter(isActiveRequest);
 
-  const handleDecision = async (id: string, decision: 'approve' | 'reject') => {
+  const handleDecision = async (
+    id: string,
+    decision: 'approve' | 'reject',
+    reason?: string,
+  ) => {
     setDecisionId(`${decision}:${id}`);
     try {
       if (decision === 'approve') {
         await AdminApi.approvePartner(id);
         toast.success('Ariza muvaffaqiyatli tasdiqlandi!');
       } else {
-        await AdminApi.rejectPartner(id);
+        await AdminApi.rejectPartner(id, reason);
         toast.success('Ariza rad etildi!');
       }
       const data = await AdminApi.getPartnerRequests();
       setPartnerRequests(data);
+      setConfirmKind(null);
+      setRejectReason('');
       setSelectedRequest(null);
     } catch {
       toast.error("Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.");
@@ -359,9 +370,11 @@ export default function PartnerRequestsPage() {
                     variant="danger"
                     size="sm"
                     icon={<XCircle size={14} />}
-                    loading={decisionId === `reject:${selectedRequest.id}`}
                     disabled={decisionId !== null}
-                    onClick={() => handleDecision(selectedRequest.id, 'reject')}
+                    onClick={() => {
+                      setRejectReason('');
+                      setConfirmKind('reject');
+                    }}
                   >
                     Rad etish
                   </Button>
@@ -369,16 +382,101 @@ export default function PartnerRequestsPage() {
                     variant="accent"
                     size="sm"
                     icon={<CheckCircle size={14} />}
-                    loading={decisionId === `approve:${selectedRequest.id}`}
                     disabled={decisionId !== null}
-                    onClick={() =>
-                      handleDecision(selectedRequest.id, 'approve')
-                    }
+                    onClick={() => setConfirmKind('approve')}
                   >
                     Tasdiqlash
                   </Button>
                 </div>
               ) : null}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* BUG-B01: confirmation step — approve needs an explicit confirm,
+          reject needs a written reason. An accidental click never mutates. */}
+      <Modal
+        open={confirmKind !== null && !!selectedRequest}
+        onClose={() => {
+          if (decisionId === null) {
+            setConfirmKind(null);
+            setRejectReason('');
+          }
+        }}
+        title={
+          confirmKind === 'approve'
+            ? 'Arizani tasdiqlash'
+            : 'Arizani rad etish'
+        }
+        size="sm"
+      >
+        {selectedRequest && confirmKind && (
+          <div className="flex flex-col gap-4">
+            {confirmKind === 'approve' ? (
+              <p className="text-sm text-[var(--text-secondary)]">
+                <span className="font-medium text-[var(--text-primary)]">
+                  {selectedRequest.companyName}
+                </span>{' '}
+                arizasini tasdiqlaysizmi? Hamkor faollashtiriladi.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-[var(--text-secondary)]">
+                  <span className="font-medium text-[var(--text-primary)]">
+                    {selectedRequest.companyName}
+                  </span>{' '}
+                  arizasini rad etish sababini kiriting.
+                </p>
+                <label
+                  htmlFor="reject-reason"
+                  className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider"
+                >
+                  Rad etish sababi
+                </label>
+                <textarea
+                  id="reject-reason"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  rows={3}
+                  autoFocus
+                  placeholder="Masalan: hujjatlar to'liq emas..."
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none"
+                />
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={decisionId !== null}
+                onClick={() => {
+                  setConfirmKind(null);
+                  setRejectReason('');
+                }}
+              >
+                Bekor qilish
+              </Button>
+              <Button
+                variant={confirmKind === 'approve' ? 'accent' : 'danger'}
+                size="sm"
+                loading={decisionId !== null}
+                disabled={
+                  decisionId !== null ||
+                  (confirmKind === 'reject' && !rejectReason.trim())
+                }
+                onClick={() =>
+                  handleDecision(
+                    selectedRequest.id,
+                    confirmKind,
+                    confirmKind === 'reject'
+                      ? rejectReason.trim()
+                      : undefined,
+                  )
+                }
+              >
+                {confirmKind === 'approve' ? 'Tasdiqlash' : 'Rad etish'}
+              </Button>
             </div>
           </div>
         )}

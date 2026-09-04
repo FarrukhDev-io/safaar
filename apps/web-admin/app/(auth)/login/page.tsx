@@ -92,11 +92,15 @@ export default function LoginPage() {
         {!challengeId ? (
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Admin Logini</label>
+              <label htmlFor="admin-username" className="text-xs font-bold text-slate-700">Admin Logini</label>
               <div className="relative">
                 <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
+                  id="admin-username"
+                  name="username"
                   type="text"
+                  autoComplete="username"
+                  aria-label="Admin logini"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="admin"
@@ -106,11 +110,15 @@ export default function LoginPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Maxfiy Parol</label>
+              <label htmlFor="admin-password" className="text-xs font-bold text-slate-700">Maxfiy Parol</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
+                  id="admin-password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  aria-label="Maxfiy parol"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
