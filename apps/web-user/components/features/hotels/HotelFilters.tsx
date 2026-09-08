@@ -124,6 +124,7 @@ export function HotelFilters({
               step={50000}
               value={priceRange}
               onChange={(e) => setPriceRange(Number(e.target.value))}
+              aria-label="Narx (1 kechalik)"
               className="h-2 w-full accent-blue-600 bg-slate-200 rounded-lg cursor-pointer dark:bg-slate-700"
             />
           </div>
@@ -157,7 +158,7 @@ export function HotelFilters({
                     </span>
                   </span>
                 </span>
-                <span className="text-slate-400 text-[11px] font-semibold">
+                <span className="text-slate-600 dark:text-slate-400 text-[11px] font-semibold">
                   ({item.count})
                 </span>
               </label>
@@ -187,7 +188,7 @@ export function HotelFilters({
                   />
                   <span>{cat.name}</span>
                 </span>
-                <span className="text-slate-400 text-[11px] font-semibold">
+                <span className="text-slate-600 dark:text-slate-400 text-[11px] font-semibold">
                   ({cat.count})
                 </span>
               </label>

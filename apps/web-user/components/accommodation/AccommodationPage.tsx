@@ -328,7 +328,7 @@ export async function AccommodationPage({
                 <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
                   {title}
                 </h1>
-                <span aria-live="polite" className="text-xs font-bold text-slate-400 sm:text-sm">
+                <span aria-live="polite" className="text-xs font-bold text-slate-600 dark:text-slate-400 sm:text-sm">
                   {dict.resultsCount.replace("{count}", String(total))}
                 </span>
               </div>
@@ -384,7 +384,7 @@ export async function AccommodationPage({
               <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
                 {title}
               </h1>
-              <span aria-live="polite" className="text-xs font-bold text-slate-400 sm:text-sm">
+              <span aria-live="polite" className="text-xs font-bold text-slate-600 dark:text-slate-400 sm:text-sm">
                 {dict.resultsCount.replace("{count}", String(total))}
               </span>
             </div>

@@ -206,10 +206,10 @@ export function TransportView({
             <div className="mt-0.5 flex items-center justify-between text-[15px] font-bold text-[#0f172a] dark:text-white">
               <span>{passengers} yo'lovchi</span>
               <div className="flex items-center gap-2">
-                <button onClick={() => setPassengers(Math.max(1, passengers - 1))} className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">
+                <button onClick={() => setPassengers(Math.max(1, passengers - 1))} aria-label="Yo'lovchilar sonini kamaytirish" className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">
                   <Minus className="h-3.5 w-3.5" />
                 </button>
-                <button onClick={() => setPassengers(passengers + 1)} className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">
+                <button onClick={() => setPassengers(passengers + 1)} aria-label="Yo'lovchilar sonini oshirish" className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">
                   <Plus className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -276,7 +276,7 @@ export function TransportView({
           <h2 className="text-base sm:text-xl font-black tracking-tight text-slate-900 dark:text-white">
             12 ta transport topildi
           </h2>
-          <p className="mt-0.5 sm:mt-1 hidden sm:flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+          <p className="mt-0.5 sm:mt-1 hidden sm:flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400">
             <span>{fromCity} &rarr; {toCity}</span>
             <span className="h-1 w-1 rounded-full bg-slate-300"></span>
             <span>18 May - 20 May</span>
@@ -287,7 +287,7 @@ export function TransportView({
 
         {/* Sort select */}
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Saralash:
           </span>
           <Select
