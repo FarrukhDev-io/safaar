@@ -129,10 +129,10 @@ export function UniversalCard({
   const actionNode = actionLabel ? (
     <span
       onClick={onActionClick ? (e) => { e.stopPropagation(); onActionClick(); } : undefined}
-      className="inline-flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50/80 px-2.5 py-1 sm:px-3 sm:py-1.5 text-[11px] sm:text-xs font-extrabold text-blue-600 transition-all duration-200 group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-400 dark:group-hover:bg-blue-600 dark:group-hover:text-white select-none"
+      className="inline-flex items-center gap-1 rounded-xl bg-primary-600 px-3 py-1.5 text-[11px] sm:text-xs font-extrabold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-500 hover:shadow-md active:translate-y-0 active:shadow-none select-none"
     >
       <span>{actionLabel}</span>
-      {actionIcon ?? <ChevronRight className="h-3.5 w-3.5 stroke-[2.5]" />}
+      {actionIcon ?? <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />}
     </span>
   ) : null;
 

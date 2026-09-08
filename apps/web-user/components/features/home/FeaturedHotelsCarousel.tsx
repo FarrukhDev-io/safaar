@@ -28,7 +28,7 @@ export function FeaturedHotelsCarousel({
         action={
           <Link
             href={`/${locale}/hotels`}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200 sm:text-sm dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,1),0_2px_0_0_#e4eae7] transition-all hover:border-slate-300 hover:bg-[#F8FAF9] hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_rgba(255,255,255,1),0_3px_0_0_#cbd5d0] sm:text-sm dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
           >
             {dict.all}
             <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden>

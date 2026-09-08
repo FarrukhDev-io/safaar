@@ -62,7 +62,7 @@ export default async function HomePage({
 
 
   return (
-    <main className="relative flex flex-1 flex-col">
+    <main className="relative flex flex-1 flex-col bg-[#F8FAF9] dark:bg-[#080E0D]">
       {/* EKRAN 1: Hero + SearchBar + Featured Hotels */}
       <div className="flex min-h-svh flex-col justify-between">
         <Hero dict={dict.hero} />

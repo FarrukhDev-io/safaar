@@ -25,11 +25,16 @@ const isRedirectError = (e: unknown): boolean =>
  * ApiRequestError'dan error string'ni chiqaradi.
  * `error.code` ustunlik qiladi (backend enum kodi), bo'lmasa `error.message`.
  */
-export function resolveApiError(error: unknown): string {
+export type FieldErrors = Record<string, string[] | string>;
+
+export function resolveApiError(error: unknown): { error: string; fields?: FieldErrors } {
   if (error instanceof ApiRequestError) {
-    return error.code || error.message || "ERROR";
+    return {
+      error: error.code || error.message || "ERROR",
+      fields: error.fields as FieldErrors | undefined,
+    };
   }
-  return "ERROR";
+  return { error: "ERROR" };
 }
 
 /**
@@ -38,7 +43,7 @@ export function resolveApiError(error: unknown): string {
  * @param fn  - asinxron operatsiya
  * @param onError - xato holat (API xatosi kodiga `error` field inject qilinadi)
  */
-export async function safeAction<T extends { error?: string }>(
+export async function safeAction<T extends { error?: string; fields?: FieldErrors }>(
   fn: () => Promise<T>,
   onError: T,
 ): Promise<T> {
@@ -46,7 +51,8 @@ export async function safeAction<T extends { error?: string }>(
     return await fn();
   } catch (error) {
     if (isRedirectError(error)) throw error; // redirect() – qayta tashlash
-    return { ...onError, error: resolveApiError(error) };
+    const resolved = resolveApiError(error);
+    return { ...onError, error: resolved.error, fields: resolved.fields };
   }
 }
 
@@ -59,9 +65,9 @@ export async function safeAction<T extends { error?: string }>(
  * @param onUnauth    - autentifikatsiya yo'q holat
  * @param onError     - boshqa xato holat
  */
-export async function safeAuthAction<S, T extends { error?: string }>(
+export async function safeAuthAction<S, T extends { error?: string; fields?: FieldErrors }>(
   getSessionFn: () => Promise<S | null>,
-  fn: (session: S) => Promise<T | Omit<T, "error">>,
+  fn: (session: S) => Promise<T | Omit<T, "error" | "fields">>,
   onUnauth: T,
   onError: T,
 ): Promise<T> {
