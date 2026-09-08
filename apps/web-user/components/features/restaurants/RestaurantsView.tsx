@@ -85,7 +85,6 @@ export function RestaurantsView({
   return (
     <main className="mx-auto w-full md:w-[96%] max-w-[1536px] flex-1 px-4 md:px-8 py-8 sm:px-6">
       <CatalogHeader
-        icon={<Utensils className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />}
         title={dict.title}
         subtitle={dict.subtitle}
         searchControls={
