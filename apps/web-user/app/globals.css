@@ -8,20 +8,20 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* ── Brand Primary (Jade Green - Silk Road Modernism) ── */
-  --brand-50: #ecfdf5;
-  --brand-100: #d1fae5;
-  --brand-200: #a7f3d0;
-  --brand-300: #6ee7b7;
-  --brand-400: #34d399;
-  --brand-500: #10b981; /* Asosiy Jade yashil rang */
-  --brand-600: #059669; /* Hover uchun */
-  --brand-700: #047857;
-  --brand-800: #065f46;
-  --brand-900: #064e3b;
-  --brand-950: #022c22;
+  /* ── Brand Primary (Safaar Blue - Functional Minimalism) ── */
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #3b82f6;
+  --brand-500: #2563eb; /* Asosiy Safaar Blue rang */
+  --brand-600: #1d4ed8; /* Hover uchun */
+  --brand-700: #1e40af;
+  --brand-800: #1e3a8a;
+  --brand-900: #172554;
+  --brand-950: #081528;
 
-  /* ── Brand Accent (Ark Amber) ── */
+  /* ── Brand Accent (Safaar Orange/Amber) ── */
   --brand-accent-50: #fffbeb;
   --brand-accent-100: #fef3c7;
   --brand-accent-400: #fbbf24;
