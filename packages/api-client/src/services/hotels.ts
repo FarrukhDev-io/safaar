@@ -41,6 +41,30 @@ interface RawListResponse {
   totalPages?: number;
 }
 
+/**
+ * Xarita "shu hududda qidirish" chegaralarini backend kutgan yagona
+ * `bounds` parametriga aylantiradi — format: `sw_lat,sw_lng,ne_lat,ne_lng`
+ * (backenddagi `parseGeoBounds`).
+ *
+ * Leaflet `map.getBounds()` uzoqlashtirilganda yoki dunyo bo'ylab
+ * aylantirilganda `lat` ni ±90, `lng` ni ±180 dan tashqarida qaytarishi
+ * mumkin — bunday qiymatlar backend tomonidan `GEO_BOUNDS_*` (HTTP 400)
+ * bilan rad etiladi. Shu sabab bu yerda ruxsat etilgan oraliqqa siqamiz
+ * va `sw_lat <= ne_lat` tartibini kafolatlaymiz.
+ */
+function toBoundsParam(params: HotelListParams): string | undefined {
+  const { swLat, swLng, neLat, neLng } = params;
+  const coords = [swLat, swLng, neLat, neLng];
+  if (coords.some((n) => typeof n !== "number" || !Number.isFinite(n))) {
+    return undefined;
+  }
+  const clampLat = (n: number) => Math.min(90, Math.max(-90, n));
+  const clampLng = (n: number) => Math.min(180, Math.max(-180, n));
+  const south = Math.min(clampLat(swLat!), clampLat(neLat!));
+  const north = Math.max(clampLat(swLat!), clampLat(neLat!));
+  return `${south},${clampLng(swLng!)},${north},${clampLng(neLng!)}`;
+}
+
 export const hotelsService = {
   /** `GET /hotels` — e'lon qilingan mehmonxonalar ro'yxati. */
   async getHotels(
@@ -59,10 +83,7 @@ export const hotelsService = {
         sort: params.sort,
         min_price: params.minPrice,
         max_price: params.maxPrice,
-        ne_lat: params.neLat,
-        ne_lng: params.neLng,
-        sw_lat: params.swLat,
-        sw_lng: params.swLng,
+        bounds: toBoundsParam(params),
       },
       next: { revalidate: 60 },
     } as any);
