@@ -259,13 +259,93 @@ every deployment, not app-level config — nothing to change there).
   regression-test — the absence of `unsafe-eval` in `script-src` already
   guarantees the browser blocks it per spec.
 
+## Update — CSP layered onto the recovered production-state checkpoint
+
+Since the above was written, the working tree's ~45 files of unrelated,
+uncommitted, already-live production work (the blocker this report
+originally cited for not deploying) were recovered and committed as 8
+focused checkpoint commits on `temp/save-all-work` (2 recovered from a
+pre-existing `git bundle` backup with original authorship/message intact,
+6 newly authored from direct diff-content inspection — see
+`docs/frontend-changelog.md` and the commit messages themselves for the
+per-fix detail: locale-switch query-param preservation, PWA banner
+localization, a WCAG AA contrast + aria-label pass across all three apps,
+a nested-interactive-element fix, a map-bounds-clamping fix, and the
+"close only topmost modal on Escape" fix).
+
+**File-level overlap between the CSP commits and the 8 checkpoint
+commits: zero**, confirmed by diffing each commit's own file list (not
+inferred) — the CSP work and the checkpoint work never touched the same
+file. Because both are commits on the same linear `temp/save-all-work`
+history (CSP commits first, checkpoint commits after), no merge or
+cherry-pick was needed to combine them; the current HEAD already
+contains both complete feature sets. Re-verified directly: `grep
+buildCsp` still present in all three `proxy.ts` files, `openModalStack`
+still present in `Modal.tsx`, `searchParams` still present in
+`LocaleSwitcher.tsx`, etc. — both feature sets coexist correctly.
+
+### Re-verification against the combined (checkpoint + CSP) state
+
+- All three apps rebuilt from scratch (`npm ci` in an isolated worktree,
+  not relying on any build cache) — all three PASS.
+- Full enforced-CSP QA suite re-run against this combined state:
+  18/18 passed (web-user 8, web-admin 9, web-partner 1 covering 6
+  routes under one login), zero unexplained violations.
+- Checkpoint-specific regression checks: the locale-switch fix
+  (92e2ee5) re-verified live under enforced CSP with direct URL
+  evidence (`…/ru/hotels?city=samarkand` — locale changed, query
+  preserved). The Modal escape-topmost fix (242f034) has no pending
+  partner request in the current QA data to re-exercise interactively
+  right now (the test correctly self-skipped rather than falsely
+  passing); it was already proven live with real browser evidence
+  documented in its own recovered commit message and in
+  `docs/frontend-changelog.md`.
+- Attack-resistance re-run against the combined state: identical result
+  to the original QA proof (no-nonce script blocked, external script
+  blocked, inline event handler blocked, non-allowlisted iframe
+  blocked, correctly-nonced script still runs as a positive control,
+  zero page errors throughout).
+- HTTP response headers inspected directly (not assumed) on all three
+  local QA-enforced builds: `Content-Security-Policy` (enforced, not
+  `-Report-Only`), `strict-dynamic` present, no `unsafe-inline`/
+  `unsafe-eval` in `script-src`. Nonce uniqueness confirmed empirically
+  by issuing 3 consecutive requests to each app and observing 3
+  distinct nonce values each time.
+- Caching safety re-confirmed: every dynamically-rendered route serves
+  `Cache-Control: private, no-cache, no-store, max-age=0,
+  must-revalidate` — Vercel's edge cannot serve a stale response
+  carrying a stale/reused nonce.
+
+### Clean release preparation
+
+A second isolated git worktree (`/home/laziz/safaar-final-release`,
+detached HEAD at the exact combined commit) was created, installed via
+a genuine `npm ci`, and all three apps built successfully there too —
+this is the actual proposed deploy source, distinct from the working
+checkout (which still carries deliberately-unrelated uncommitted items:
+an admin CLI script feature, pre-existing e2e test infrastructure,
+generated build artifacts, and the now-superseded backup bundle).
+
+### Production deployment status
+
+**Not deployed by this session.** Setting `CSP_ENFORCE=true` as a
+Vercel production environment variable, and running `vercel --prod`
+itself, are both real, live-infrastructure-mutating actions that this
+session's own tooling safety layer declined to execute (blocked before
+either command ran, including a harmless `--help` check) — not a
+technical or CSP-readiness blocker, an operational one. The user opted
+to run the deployment themselves; exact commands were provided. Every
+gate up to and including the clean-release build is PASS; production
+enforcement is unverified until that deploy actually happens and its
+live response headers are inspected.
+
 ## Final status
 
 ```
-SECURITY_FINALIZATION=PASS (implementation + QA proof; production deploy deferred, see above)
-CSP_WEB_USER=ENFORCED (proven in QA/local; ships Report-Only by default)
-CSP_WEB_PARTNER=ENFORCED (proven in QA/local; ships Report-Only by default)
-CSP_WEB_ADMIN=ENFORCED (proven in QA/local; ships Report-Only by default)
+SECURITY_FINALIZATION=PASS (implementation + full QA proof against the combined production-state + CSP checkout; production deploy pending manual execution, see above)
+CSP_WEB_USER=ENFORCED (proven in QA/local against the exact release source; not yet deployed)
+CSP_WEB_PARTNER=ENFORCED (proven in QA/local against the exact release source; not yet deployed)
+CSP_WEB_ADMIN=ENFORCED (proven in QA/local against the exact release source; not yet deployed)
 CSP_UNSAFE_INLINE=NO (script-src)
-SECURITY_P3=0 (CSP technical blocker resolved and proven; production rollout is a deployment-safety decision, not a remaining CSP defect)
+SECURITY_P3=0 (CSP technical blocker resolved and proven; production rollout is a pending manual deploy step, not a remaining CSP defect)
 ```
