@@ -9,6 +9,81 @@ o'chirilmaydi yoki o'zgartirilmaydi.
 
 ---
 
+# 2026-09-06 — (web-admin) P3: Escape reject tasdiqlash oynasini emas, butun ariza drawerini yopardi
+
+## Manba
+QA regressiya testi (Playwright + Chromium, izolyatsiya qilingan QA muhiti)
+paytida topilgan: `/partners/requests` sahifasida "Rad etish" tugmasi
+bosilib tasdiqlash oynasi ochilgach, `Escape` tugmasi bosilsa — kutilganidek
+faqat o'sha tasdiqlash oynasi emas, balki uning ORQASIDAGI ariza detali
+drawer'i HAM birga yopilib ketardi. Mutatsiya sodir bo'lmasdi (xavfsizlik
+nuqtai nazaridan zararsiz), lekin admin arizani ko'rib turgan joyini
+yo'qotib qo'yardi.
+
+## Root cause (isbotlangan)
+`components/ui/Modal.tsx` har bir instansiyasi o'zining `Escape` tugmasini
+kuzatuvchi listenerini to'g'ridan-to'g'ri `document`ga ulardi:
+
+```ts
+useEffect(() => {
+  function handleEscape(e) { if (e.key === "Escape") onClose(); }
+  if (open) document.addEventListener("keydown", handleEscape);
+  return () => document.removeEventListener("keydown", handleEscape);
+}, [open, onClose]);
+```
+
+`/partners/requests` sahifasida IKKITA `<Modal>` bir vaqtning o'zida DOM'da
+ochiq turadi — ariza detali drawer'i (`open={!!selectedRequest}`) va uning
+USTIDA "Rad etish"/"Tasdiqlash" tasdiqlash oynasi (`open={confirmKind !==
+null}`). Ikkalasi ham `document`ga mustaqil ravishda o'zining listenerini
+ulagani uchun, bitta `Escape` bosilganda IKKALASI HAM o'z `onClose()`ini
+chaqirardi — natijada drawer ham, tasdiqlash oynasi ham birga yopilib
+ketardi.
+
+## Fix
+`Modal.tsx`ga modul darajasidagi umumiy `openModalStack` (hozir ochiq
+turgan Modal instansiyalari, ochilish tartibida) qo'shildi. Har bir
+instansiya `useId()` orqali o'z barqaror identifikatorini oladi va ochilganda
+shu stackka qo'shiladi (yopilganda/unmount bo'lganda olib tashlanadi — bu
+alohida `useEffect`da, `onClose` identifikatori har render'da o'zgarishi
+sababli stackning tasodifan qayta tuzilib ketmasligi uchun). `Escape`
+handler endi `onClose()`ni FAQAT shu instansiya stackning ENG TEPASIDA
+(eng oxirgi ochilgan, ya'ni eng ustki) bo'lsagina chaqiradi — aks holda
+hech narsa qilmaydi. Bitta Modal ochiq bo'lgan oddiy holatda xatti-harakat
+o'zgarmaydi (stackda faqat bitta element — u doim "eng tepada").
+
+## Fayllar
+| Fayl | O'zgarish |
+|---|---|
+| `apps/web-admin/components/ui/Modal.tsx` | umumiy `openModalStack` + `useId()` — `Escape` faqat eng ustki (oxirgi ochilgan) Modal instansiyasida ishlaydi. |
+
+## Test
+- `tsc --noEmit` (`apps/web-admin`): PASS.
+- `eslint` (`Modal.tsx`): 0 error.
+- REAL BROWSER regression (Chromium + Playwright, izolyatsiya qilingan QA
+  muhiti, fresh locatorlar bilan): "Rad etish" → tasdiqlash oynasi ochiladi
+  → `Escape` → FAQAT tasdiqlash oynasi yopiladi, ariza detali drawer'i OCHIQ
+  qoladi, 0 ta mutatsiya; qayta ochib "Bekor qilish" → 0 ta mutatsiya, drawer
+  ochiq qoladi; qayta ochib sabab kiritib "Rad etish" (tasdiqlash) → aynan 1
+  ta `POST /reject`, ariza holati `rejected`ga o'tadi, `rejection_reason`
+  yozib qo'yiladi.
+- Boshqa Modal ishlatuvchi sahifalar (`users`, `bookings/[id]`, `catalog`,
+  `promos`, `partners/[id]`, `users/[id]`, `cms/banners`,
+  `cms/_components/cms-article-manager`) — bitta-Modal holatida xatti-harakat
+  o'zgarmaydi (umumiy komponentga tuzatish, boshqa fayllarga tegilmadi).
+
+## Deploy
+- **LOKAL** — o'zgarishlar `temp/save-all-work` branchida commit qilinishi
+  kutilmoqda (hali commit qilinmagan, faqat QA'da tekshirilgan).
+- Production deploy'i kutilmoqda — alohida tasdiqlash talab qilinadi.
+
+## Git
+- Branch: `temp/save-all-work`
+- Frontend `develop`ga CHIQARILMAYDI (loyiha qoidasi: frontend fayllar
+  `develop`ga push qilinmaydi).
+
+---
+
 # 2026-09-04 — (web-admin) Production login tuzatildi: Server Action → backend `fetch failed`
 
 ## Manba
