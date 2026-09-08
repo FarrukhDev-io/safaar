@@ -1,7 +1,6 @@
 import { type ReactNode } from "react";
 
 export interface CatalogHeaderProps {
-  icon: ReactNode;
   title: string;
   subtitle: string;
   searchControls?: ReactNode;
