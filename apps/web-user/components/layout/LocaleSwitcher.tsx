@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Globe } from "lucide-react";
 import { locales, localeNames, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
@@ -18,6 +18,7 @@ export function LocaleSwitcher({
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -49,7 +50,16 @@ export function LocaleSwitcher({
     } else {
       segments.unshift(nextLocale);
     }
-    const nextPath = `/${segments.join("/")}`;
+    // P2-4 FIX: locale segment path o'zgarganda ham joriy sahifadagi
+    // filtr/qidiruv query-parametrlari (masalan ?city=samarkand&stars=3)
+    // saqlanib qolishi kerak — avval bu yerda butunlay tashlab
+    // ketilardi, mijoz tilni almashtirsa qo'llagan filtrlari jimgina
+    // yo'qolardi. Faqat JORIY URL'da ALLAQACHON mavjud bo'lgan
+    // parametrlar ko'chiriladi (hech narsa yangidan ixtiro qilinmaydi
+    // yoki boshqa manbadan olinmaydi) va til segmenti query-qatorida
+    // ALOHIDA takrorlanmaydi (u faqat path segmentida ifodalanadi).
+    const qs = searchParams.toString();
+    const nextPath = `/${segments.join("/")}${qs ? `?${qs}` : ""}`;
     setOpen(false);
     router.push(nextPath);
   }
