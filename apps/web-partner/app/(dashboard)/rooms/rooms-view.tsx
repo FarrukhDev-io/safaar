@@ -335,9 +335,10 @@ function RoomCard({
           Sotuvda ko'rsatish
         </span>
         <label className="relative inline-flex items-center cursor-pointer">
-          <input 
-            type="checkbox" 
-            className="sr-only peer" 
+          <input
+            type="checkbox"
+            aria-label="Sotuvda ko'rsatish"
+            className="sr-only peer"
             checked={room.isListed}
             disabled={isUpdating}
             onChange={(e) => {

@@ -527,19 +527,30 @@ function ReservationCard({
   return (
     <Card interactive>
       <CardBody className="p-0">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={onOpen}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onOpen();
-            }
-          }}
-          className="grid w-full cursor-pointer gap-0 text-left lg:grid-cols-[minmax(0,1fr)_220px]"
-        >
-          <div className="flex min-w-0 flex-col gap-4 p-4">
+        {/* A12 FIX: butun qatorni role="button" qilish, uning ICHIDA esa
+            haqiqiy <Button> (Rad/Tasdiqlash/Check-in) elementlarini
+            joylashtirish ARIA jihatidan yaroqsiz edi ("nested interactive")
+            -- ko'plab screen reader/klaviatura birikmalarida ichki
+            tugmalar butunlay Tab bilan yetib bo'lmas edi (faqat butun qator
+            "button" sifatida e'lon qilinardi). Endi role="button"/tabIndex/
+            onClick/onKeyDown FAQAT chap ustundagi (haqiqatan ham interaktiv
+            bo'lmagan, faqat ko'rsatuvchi) ustunga qo'yiladi; o'ng ustundagi
+            haqiqiy amal tugmalari endi shu "button"ning tashqarisida,
+            aka-uka (sibling) sifatida joylashadi -- mustaqil fokuslanadigan
+            va bosiladigan bo'lib qoladi. */}
+        <div className="grid w-full gap-0 text-left lg:grid-cols-[minmax(0,1fr)_220px]">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={onOpen}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onOpen();
+              }
+            }}
+            className="flex min-w-0 cursor-pointer flex-col gap-4 p-4"
+          >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">

@@ -561,7 +561,7 @@ function TaskCard({
       {/* Actions */}
       <div className="flex items-center gap-2 pt-4 border-t border-zinc-100 dark:border-zinc-800/60 md:pt-0 md:border-t-0 md:pl-4 md:border-l">
         <Tooltip content={`${labels.guestLabel}ga qo'ng'iroq`} side="top">
-          <a href={`tel:+${reservation.guest.phone}`} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 hover:text-brand-600 hover:bg-brand-50 transition-colors">
+          <a href={`tel:+${reservation.guest.phone}`} aria-label={`${labels.guestLabel}ga qo'ng'iroq`} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 hover:text-brand-600 hover:bg-brand-50 transition-colors">
             <Phone className="h-4 w-4" />
           </a>
         </Tooltip>
