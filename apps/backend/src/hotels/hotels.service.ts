@@ -206,27 +206,7 @@ export class HotelsService {
 
     const h = rows[0] as Record<string, unknown>;
     const listingData = await this.loadListingData([String(h.id)]);
-    const roomRows = await this.pg.query(
-      `SELECT hr.id::text, hr.hotel_id::text, hr.room_type_id::text, hr.code,
-        hr.base_occupancy, hr.max_adults, hr.max_children,
-        hr.total_inventory, hr.base_price::float8, hr.status::text
-      FROM hotel_rooms hr
-      WHERE hr.hotel_id = $1 AND hr.status = 'active'`,
-      [h.id],
-    );
-    const rooms = roomRows.map((r: Record<string, unknown>) => ({
-      id: r.id,
-      hotel_id: r.hotel_id,
-      room_type_id: r.room_type_id,
-      code: r.code,
-      base_occupancy: Number(r.base_occupancy),
-      max_adults: Number(r.max_adults),
-      max_children: Number(r.max_children),
-      total_inventory: Number(r.total_inventory),
-      base_price: Number(r.base_price),
-      status: r.status,
-      available: Number(r.total_inventory),
-    }));
+    const rooms = await this.loadHotelRooms(String(h.id));
 
     return {
       id: h.id,
@@ -255,28 +235,95 @@ export class HotelsService {
   }
 
   async rooms(id: string) {
-    const rows = await this.pg.query(
+    return this.loadHotelRooms(id);
+  }
+
+  /**
+   * Bitta mehmonxonaning faol xonalarini, HAR BIR xona nomi bilan birga
+   * yuklaydi — `findOne()` va `rooms()` ikkalasi ham shu yerdan foydalanadi.
+   *
+   * Nom manbasi ikkita, aniq ustuvorlik bilan (P2 bug fix):
+   *   1) `hotel_room_translations` — hamkor shu ANIQ xona uchun kiritgan,
+   *      moslashtirilgan nom (bor bo'lsa eng aniq manba).
+   *   2) `room_types.name` — umumiy xona turi nomi ("Standart"/"Deluxe"),
+   *      hamkor moslashtirilgan nom kiritmagan bo'lsa fallback sifatida.
+   * `room_type_id` `hotel_rooms`da NOT NULL + FK bilan cheklangan, shuning
+   * uchun (2) doim mavjud — ikkalasi ham bo'lmagan holat yo'q.
+   *
+   * Ikkita so'rov (xona+tur INNER JOIN, keyin tarjimalar uchun bitta
+   * batched `= ANY($1)`) — xonalar soniga qarab N+1 bo'lmaydi, `hotel_id`
+   * bo'yicha bittadan.
+   */
+  private async loadHotelRooms(hotelId: string) {
+    const roomRows = await this.pg.query(
       `SELECT hr.id::text, hr.hotel_id::text, hr.room_type_id::text, hr.code,
         hr.base_occupancy, hr.max_adults, hr.max_children,
-        hr.total_inventory, hr.base_price::float8, hr.status::text
+        hr.total_inventory, hr.base_price::float8, hr.status::text,
+        rt.name AS room_type_name
       FROM hotel_rooms hr
+      JOIN room_types rt ON rt.id = hr.room_type_id
       WHERE hr.hotel_id = $1 AND hr.status = 'active'`,
-      [id],
+      [hotelId],
     );
 
-    return rows.map((r: Record<string, unknown>) => ({
-      id: r.id,
-      hotel_id: r.hotel_id,
-      room_type_id: r.room_type_id,
-      code: r.code,
-      base_occupancy: Number(r.base_occupancy),
-      max_adults: Number(r.max_adults),
-      max_children: Number(r.max_children),
-      total_inventory: Number(r.total_inventory),
-      base_price: Number(r.base_price),
-      status: r.status,
-      available: Number(r.total_inventory),
-    }));
+    const roomNames = await this.loadRoomNames(
+      roomRows.map((r: Record<string, unknown>) => String(r.id)),
+    );
+
+    return roomRows.map((r: Record<string, unknown>) => {
+      const roomTypeName = localized(r.room_type_name);
+      const translation = roomNames.get(String(r.id));
+      return {
+        id: r.id,
+        hotel_id: r.hotel_id,
+        room_type_id: r.room_type_id,
+        code: r.code,
+        name: {
+          uz: translation?.uz ?? roomTypeName.uz,
+          ru: translation?.ru ?? roomTypeName.ru,
+          en: translation?.en ?? roomTypeName.en,
+        },
+        base_occupancy: Number(r.base_occupancy),
+        max_adults: Number(r.max_adults),
+        max_children: Number(r.max_children),
+        total_inventory: Number(r.total_inventory),
+        base_price: Number(r.base_price),
+        status: r.status,
+        available: Number(r.total_inventory),
+      };
+    });
+  }
+
+  /**
+   * `hotel_room_translations`ni berilgan xona id'lari uchun bitta batched
+   * so'rovda yuklaydi (`loadListingData()`dagi bilan bir xil naqsh) —
+   * xonalar soniga qarab N+1 so'rov bo'lmasligi uchun.
+   */
+  private async loadRoomNames(
+    ids: string[],
+  ): Promise<Map<string, Record<string, string | null>>> {
+    const names = new Map<string, Record<string, string | null>>();
+    if (ids.length === 0) {
+      return names;
+    }
+
+    const rows = await this.pg.query<{
+      room_id: string;
+      language: string;
+      name: string | null;
+    }>(
+      `SELECT room_id::text, language::text, name
+       FROM hotel_room_translations
+       WHERE room_id = ANY($1::uuid[])`,
+      [ids],
+    );
+
+    for (const row of rows) {
+      const name = names.get(row.room_id) ?? { uz: null, ru: null, en: null };
+      if (row.language in name) name[row.language] = row.name;
+      names.set(row.room_id, name);
+    }
+    return names;
   }
 
   async quote(id: string, body: Record<string, unknown>) {
