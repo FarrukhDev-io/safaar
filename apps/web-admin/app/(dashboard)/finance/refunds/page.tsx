@@ -138,6 +138,7 @@ export default function RefundsPage() {
         <div className="flex justify-end relative">
           <button
             onClick={() => setDropdownOpen(dropdownOpen === r.id ? null : r.id)}
+            aria-label="Qo'shimcha amallar"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             {actionLoading?.startsWith(r.id) ? (

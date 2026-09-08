@@ -12,11 +12,19 @@ import { Check, X, Download, CheckCircle2 } from "lucide-react";
 import { exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
 
+// NEW-1 FIX: `var(--warning)`/`var(--success)`/`var(--danger)` o'zining
+// tegishli shaffof `bg`si ustida matn sifatida ~2-4:1 kontrast berardi
+// (WCAG AA'ni o'tmaydi). Bu umumiy CSS o'zgaruvchilarning O'ZI 20+ boshqa
+// joyda (tugmalar va h.k., boshqa fonlarda) ishlatilgani uchun ULARGA
+// TEGILMADI -- shu o'rniga, xuddi `lib/constants.ts`dagi status-badge
+// xaritalarida qilingani kabi, FAQAT shu yerdagi lokal xaritaning matn
+// rangi to'g'ridan-to'g'ri (shaffof `bg` bilan mos, ancha to'qroq) literal
+// qiymatga almashtirildi.
 const STATUS_MAP = {
-  pending: { label: "Kutilmoqda", color: "var(--warning)", bg: "rgba(243, 156, 18, 0.1)" },
-  approved: { label: "Tasdiqlangan", color: "var(--success)", bg: "rgba(46, 204, 113, 0.1)" },
-  rejected: { label: "Rad etilgan", color: "var(--danger)", bg: "rgba(231, 76, 60, 0.1)" },
-  paid: { label: "To'landi", color: "#3498DB", bg: "rgba(52, 152, 219, 0.1)" },
+  pending: { label: "Kutilmoqda", color: "#885607", bg: "rgba(243, 156, 18, 0.1)" },
+  approved: { label: "Tasdiqlangan", color: "#19703E", bg: "rgba(46, 204, 113, 0.1)" },
+  rejected: { label: "Rad etilgan", color: "#B62516", bg: "rgba(231, 76, 60, 0.1)" },
+  paid: { label: "To'landi", color: "#1B6496", bg: "rgba(52, 152, 219, 0.1)" },
 };
 
 export default function WithdrawalsPage() {

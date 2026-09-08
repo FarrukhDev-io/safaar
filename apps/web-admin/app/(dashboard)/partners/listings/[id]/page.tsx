@@ -29,10 +29,12 @@ function missingFieldLabel(field: string, isRestaurant: boolean) {
   return MISSING_FIELD_LABELS[field] ?? field;
 }
 
+// NEW-1 FIX: qarang apps/web-admin/lib/constants.ts'dagi izoh (bir xil
+// sabab/tuzatish).
 const LISTING_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  under_review: { label: "Ko'rib chiqilmoqda", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
-  published: { label: "Nashr qilingan", color: "#2ECC71", bg: "rgba(46,204,113,0.12)" },
-  rejected: { label: "Rad etilgan", color: "#E74C3C", bg: "rgba(231,76,60,0.12)" },
+  under_review: { label: "Ko'rib chiqilmoqda", color: "#885607", bg: "rgba(243,156,18,0.12)" },
+  published: { label: "Nashr qilingan", color: "#19703E", bg: "rgba(46,204,113,0.12)" },
+  rejected: { label: "Rad etilgan", color: "#B62516", bg: "rgba(231,76,60,0.12)" },
 };
 
 const AMENITY_ICONS: Record<string, LucideIcon> = {

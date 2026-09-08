@@ -179,9 +179,13 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between p-4 rounded-xl border border-[var(--border)] bg-slate-50">
             <div>
               <h3 className="text-sm font-semibold text-[var(--text-primary)]">Ikki bosqichli tasdiqlash (2FA)</h3>
+              {/* NEW-1 FIX (widened investigation): `text-red-500` (#fb2c36)
+                  bu yerdagi ochiq fonda ~3.6:1 berardi -- `text-red-700`ga
+                  (6.1-6.4:1) almashtirildi, xuddi shu fayldagi barcha
+                  boshqa `text-red-500` xato-xabar matnlarida ham (pastda). */}
               <p className="text-xs text-slate-600 mt-1 max-w-lg">
                 Google Authenticator yoki Authy yordamida hisobingiz xavfsizligini oshiring.
-                Hozirgi holat: <span className={`font-semibold ${user?.has2FA ? 'text-emerald-600' : 'text-red-500'}`}>{user?.has2FA ? "Yoqilgan" : "O'chirilgan"}</span>
+                Hozirgi holat: <span className={`font-semibold ${user?.has2FA ? 'text-emerald-600' : 'text-red-700'}`}>{user?.has2FA ? "Yoqilgan" : "O'chirilgan"}</span>
               </p>
             </div>
             
@@ -207,22 +211,24 @@ export default function SettingsPage() {
           </h2>
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Mehmonxonalar komissiyasi (%)</label>
+              <label htmlFor="commissionRate" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Mehmonxonalar komissiyasi (%)</label>
               <input
+                id="commissionRate"
                 type="number"
                 {...register("commissionRate", { valueAsNumber: true })}
                 className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
               />
-              {errors.commissionRate && <p className="text-red-500 text-xs mt-1">{errors.commissionRate.message}</p>}
+              {errors.commissionRate && <p className="text-red-700 text-xs mt-1">{errors.commissionRate.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Avtobuslar komissiyasi (%)</label>
+              <label htmlFor="busCommissionRate" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Avtobuslar komissiyasi (%)</label>
               <input
+                id="busCommissionRate"
                 type="number"
                 {...register("busCommissionRate", { valueAsNumber: true })}
                 className="w-full px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
               />
-              {errors.busCommissionRate && <p className="text-red-500 text-xs mt-1">{errors.busCommissionRate.message}</p>}
+              {errors.busCommissionRate && <p className="text-red-700 text-xs mt-1">{errors.busCommissionRate.message}</p>}
             </div>
           </div>
         </div>
@@ -237,13 +243,14 @@ export default function SettingsPage() {
           </h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Yordam elektron pochtasi</label>
+              <label htmlFor="contactEmail" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Yordam elektron pochtasi</label>
               <input
+                id="contactEmail"
                 type="email"
                 {...register("contactEmail")}
                 className="w-full max-w-md px-4 py-2 text-sm rounded-lg border border-[var(--border)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none transition-all"
               />
-              {errors.contactEmail && <p className="text-red-500 text-xs mt-1">{errors.contactEmail.message}</p>}
+              {errors.contactEmail && <p className="text-red-700 text-xs mt-1">{errors.contactEmail.message}</p>}
             </div>
             
             <div className="p-4 rounded-xl border border-[var(--danger)]/20 bg-[var(--danger)]/5 flex items-start gap-4">
@@ -251,7 +258,7 @@ export default function SettingsPage() {
                 <AlertTriangle size={20} />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-[var(--danger)]">Texnik Xizmat Rejimi (Maintenance Mode)</h3>
+                <h3 className="text-sm font-semibold text-[#B62516]">Texnik Xizmat Rejimi (Maintenance Mode)</h3>
                 <p className="text-xs text-slate-600 mt-1 mb-3">
                   Agar buni yoqsangiz, asosiy sayt barcha foydalanuvchilar va hamkorlar uchun vaqtinchalik o'chiriladi.
                 </p>

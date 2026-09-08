@@ -127,8 +127,9 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
       <div className="flex items-center gap-2">
         {/* Notifications */}
         <div className="relative" ref={notifsRef}>
-          <button 
+          <button
             onClick={() => { setShowNotifs(!showNotifs); setShowProfile(false); }}
+            aria-label="Bildirishnomalar"
             className="relative w-9 h-9 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
           >
             <Bell size={18} />

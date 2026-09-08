@@ -298,10 +298,14 @@ export function CmsArticleManager({
           type="button"
           onClick={() => toggleStatus(row)}
           disabled={pendingId === row.id}
+          // NEW-1 FIX (widened investigation): `--success`/`--warning`
+          // matn sifatida o'zining shaffof foni ustida ~1.9-2.0:1 berardi.
+          // Fon (`/10`, `/20` hover) o'zgarishsiz -- faqat matn rangi
+          // to'qroq literal qiymatga almashtirildi.
           className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
             row.status === "published"
-              ? "bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20"
-              : "bg-[var(--warning)]/10 text-[var(--warning)] hover:bg-[var(--warning)]/20"
+              ? "bg-[var(--success)]/10 text-[#19703E] hover:bg-[var(--success)]/20"
+              : "bg-[var(--warning)]/10 text-[#885607] hover:bg-[var(--warning)]/20"
           } disabled:opacity-60 disabled:cursor-wait`}
         >
           {row.status === "published" ? "Chop etilgan" : "Qoralama"}

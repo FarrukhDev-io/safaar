@@ -177,7 +177,12 @@ export default function PartnerRequestsPage() {
                   {formatDate(req.createdAt)}
                 </td>
                 <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1 text-sm text-[var(--info)]">
+                  {/* NEW-1 FIX (widened investigation): `--info` (#3498DB)
+                      matn sifatida oq fonda ~3.15:1 berardi -- token o'ziga
+                      tegilmadi (boshqa joyda ham ishlatiladi, masalan
+                      yuqoridagi ikonka), faqat shu matnning rangi literal
+                      to'qroq qiymatga almashtirildi. */}
+                  <span className="inline-flex items-center gap-1 text-sm text-[#1B6496]">
                     <FileText size={14} /> {req.documents.length} ta
                   </span>
                 </td>

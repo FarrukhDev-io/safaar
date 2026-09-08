@@ -84,7 +84,10 @@ export default function AuditLogsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Badge color="#F39C12" bg="rgba(243,156,18,0.12)" className="flex items-center gap-1">
+          {/* NEW-1 FIX (widened investigation): to'qroq matn rangi, `bg`
+              o'zgarishsiz -- qarang apps/web-admin/lib/constants.ts'dagi
+              izoh (bir xil sabab/tuzatish). */}
+          <Badge color="#885607" bg="rgba(243,156,18,0.12)" className="flex items-center gap-1">
             <History size={14} /> Xavfsizlik jurnali
           </Badge>
         </div>

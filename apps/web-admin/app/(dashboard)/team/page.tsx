@@ -255,6 +255,7 @@ export default function TeamPage() {
         <div className="flex justify-end relative">
           <button
             onClick={() => setDropdownOpen(dropdownOpen === u.id ? null : u.id)}
+            aria-label="Qo'shimcha amallar"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <MoreVertical size={18} />
