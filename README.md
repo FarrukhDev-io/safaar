@@ -84,3 +84,4 @@ docker compose -f docker-compose.backend.yml up -d
 ---
 
 *© 2026 SAFAAR Development Team — Barcha huquqlar himoyalangan.*
+
