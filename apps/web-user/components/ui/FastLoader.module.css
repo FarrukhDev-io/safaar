@@ -1,0 +1,79 @@
+/*
+ * SECURITY-P3 (A12-4): moved out of an inline <style dangerouslySetInnerHTML>
+ * tag in FastLoader.tsx (CompassLoader) so it ships as a real stylesheet
+ * instead of an inline style element -- one less thing that would otherwise
+ * need 'unsafe-inline' or a nonce on style-src. Content is unchanged.
+ */
+
+.wrapper .pl {
+  display: block;
+  width: 9.375em;
+  height: 9.375em;
+}
+
+.wrapper .pl__arrows,
+.wrapper .pl__ring-rotate,
+.wrapper .pl__ring-stroke,
+.wrapper .pl__tick {
+  animation-duration: 2s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.wrapper .pl__arrows {
+  animation-name: arrows42;
+  transform: rotate(45deg);
+  transform-origin: 16px 52px;
+}
+
+.wrapper .pl__ring-rotate,
+.wrapper .pl__ring-stroke {
+  transform-origin: 80px 80px;
+}
+
+.wrapper .pl__ring-rotate {
+  animation-name: ringRotate42;
+}
+
+.wrapper .pl__ring-stroke {
+  animation-name: ringStroke42;
+  transform: rotate(-45deg);
+}
+
+.wrapper .pl__tick {
+  animation-name: tick42;
+}
+
+.wrapper .pl__tick:nth-child(2) { animation-delay: -1.75s; }
+.wrapper .pl__tick:nth-child(3) { animation-delay: -1.5s; }
+.wrapper .pl__tick:nth-child(4) { animation-delay: -1.25s; }
+.wrapper .pl__tick:nth-child(5) { animation-delay: -1s; }
+.wrapper .pl__tick:nth-child(6) { animation-delay: -0.75s; }
+.wrapper .pl__tick:nth-child(7) { animation-delay: -0.5s; }
+.wrapper .pl__tick:nth-child(8) { animation-delay: -0.25s; }
+
+@keyframes arrows42 {
+  from { transform: rotate(45deg); }
+  to { transform: rotate(405deg); }
+}
+
+@keyframes ringRotate42 {
+  from { transform: rotate(0); }
+  to { transform: rotate(720deg); }
+}
+
+@keyframes ringStroke42 {
+  from, to {
+    stroke-dashoffset: 452;
+    transform: rotate(-45deg);
+  }
+  50% {
+    stroke-dashoffset: 169.5;
+    transform: rotate(-180deg);
+  }
+}
+
+@keyframes tick42 {
+  from, 3%, 47%, to { stroke-dashoffset: -12; }
+  14%, 36% { stroke-dashoffset: 0; }
+}

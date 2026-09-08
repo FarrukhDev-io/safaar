@@ -29,6 +29,11 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    // SECURITY-P3 (A12-4, docs/product/security-product-readiness-report.md):
+    // the Content-Security-Policy itself now lives in middleware.ts, because
+    // it needs a fresh per-request nonce that this static headers() function
+    // cannot generate (it is evaluated once, not per request). The headers
+    // below have no per-request component, so they stay here.
     return [
       {
         source: '/:path*',

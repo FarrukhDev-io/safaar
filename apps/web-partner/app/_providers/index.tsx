@@ -11,9 +11,15 @@ import { ThemeProvider } from './theme-provider';
  * Barcha global provider'lar shu yerda birlashtiriladi.
  * Root layout uchun yagona kirish nuqtasi.
  */
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+  nonce,
+}: {
+  children: ReactNode;
+  nonce?: string;
+}) {
   return (
-    <ThemeProvider>
+    <ThemeProvider nonce={nonce}>
       <QueryProvider>
         <SessionExpiryHandler />
         <RealtimeListener />
