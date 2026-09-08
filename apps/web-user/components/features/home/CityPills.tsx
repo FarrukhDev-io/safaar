@@ -52,7 +52,7 @@ export function CityPills({ cities, locale }: CityPillsProps) {
           canScrollLeft ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="h-full w-20 bg-gradient-to-r from-slate-50 via-slate-50/80 to-transparent dark:from-slate-950 dark:via-slate-950/80" />
+        <div className="h-full w-20 bg-gradient-to-r from-white via-white/80 to-transparent dark:from-slate-950 dark:via-slate-950/80" />
       </div>
       <button
         onClick={() => scroll("left")}
@@ -86,7 +86,7 @@ export function CityPills({ cities, locale }: CityPillsProps) {
           canScrollRight ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="h-full w-20 bg-gradient-to-l from-slate-50 via-slate-50/80 to-transparent dark:from-slate-950 dark:via-slate-950/80" />
+        <div className="h-full w-20 bg-gradient-to-l from-white via-white/80 to-transparent dark:from-slate-950 dark:via-slate-950/80" />
       </div>
       <button
         onClick={() => scroll("right")}

@@ -5,44 +5,41 @@ export type Size = "sm" | "md" | "lg";
 export type Rounded = "full" | "2xl" | "xl" | "lg" | "md" | "sm";
 
 export const variantClasses: Record<Variant, string> = {
-  // ── Jade (Primary CTA) ─────────────────────────────
+  // ── Safaar Blue (Primary CTA) ─────────────────────────────
   primary:
     "bg-primary-600 text-white font-bold " +
     "shadow-sm hover:shadow-md " +
-    "hover:bg-primary-500 hover:-translate-y-0.5 " +
-    "active:translate-y-0 active:shadow-none " +
+    "hover:bg-primary-700 hover:-translate-y-[1px] " +
+    "active:translate-y-0 active:shadow-sm " +
     "transition-all duration-200 ease-out " +
     "disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
 
-  // ── Ark Amber (Secondary CTA — Premium, Deals) ─────────────────────────────
+  // ── Safaar Amber (Secondary CTA — Premium, Deals) ─────────────────────────────
   accent:
-    "bg-amber-500 text-amber-950 font-extrabold " +
+    "bg-accent-500 text-accent-950 font-extrabold " +
     "shadow-sm hover:shadow-md " +
-    "hover:bg-amber-400 hover:-translate-y-0.5 " +
-    "active:translate-y-0 active:shadow-none " +
+    "hover:bg-accent-600 hover:-translate-y-[1px] text-white " +
+    "active:translate-y-0 active:shadow-sm " +
     "transition-all duration-200 ease-out " +
     "disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
 
-  // ── Warm Neutral (Secondary — Outlined) ────────────────────────────────────
+  // ── White Outlined (Secondary) ────────────────────────────────────
   secondary:
     "bg-white text-slate-800 border border-slate-200 " +
-    "shadow-[inset_0_1px_0_rgba(255,255,255,1),0_2px_0_0_#e4eae7,0_4px_12px_rgba(0,0,0,0.06)] " +
-    "hover:bg-[#F8FAF9] hover:border-slate-300 hover:-translate-y-0.5 " +
-    "hover:shadow-[inset_0_1px_0_rgba(255,255,255,1),0_3px_0_0_#cbd5d0,0_6px_16px_rgba(0,0,0,0.08)] " +
-    "active:translate-y-0.5 active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_0_#e4eae7] " +
+    "shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-[1px] hover:shadow-md " +
+    "active:translate-y-0 active:shadow-sm " +
     "dark:bg-slate-900 dark:text-white dark:border-slate-700 " +
-    "dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_2px_0_0_#1a2b28,0_4px_12px_rgba(0,0,0,0.3)] " +
-    "dark:hover:bg-slate-800 transition-all duration-150 ease-out " +
-    "disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0",
+    "dark:hover:bg-slate-800 transition-all duration-200 ease-out " +
+    "disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:border-slate-100 disabled:translate-y-0",
 
   ghost:
-    "text-slate-700 hover:bg-slate-100 hover:text-slate-900 active:scale-[0.97] " +
+    "text-slate-700 hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98] " +
     "dark:text-slate-300 dark:hover:bg-slate-800 " +
     "transition-all duration-150 disabled:bg-transparent disabled:text-slate-300",
 };
 
 export const sizeClasses: Record<Size, string> = {
-  sm: "min-h-[44px] h-9 px-3.5 text-xs font-bold sm:min-h-[36px] sm:h-9",
+  sm: "min-h-[40px] h-10 px-3.5 text-xs font-bold",
   md: "min-h-[44px] h-11 px-4.5 text-sm font-bold",
   lg: "min-h-[48px] h-12 px-6 text-base font-extrabold",
 };
@@ -62,7 +59,7 @@ export const baseButtonClasses =
 export function buttonVariants({
   variant = "primary",
   size = "md",
-  rounded = "xl",
+  rounded = "lg",
   className,
 }: {
   variant?: Variant;
