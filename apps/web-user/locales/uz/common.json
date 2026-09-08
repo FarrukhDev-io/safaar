@@ -1,5 +1,10 @@
 {
   "brand": "Safaar",
+  "pwa": {
+    "title": "Safaar ilovasini o'rnating",
+    "subtitle": "Tezkor kirish va offlayn rejim",
+    "install": "O'rnatish"
+  },
   "promo": "🔥 Yozgi chegirma! Birinchi bron uchun 20% — SAFAAR20 promokodi bilan",
   "nav": {
     "home": "Bosh",
