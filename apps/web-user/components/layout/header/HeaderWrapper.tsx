@@ -28,7 +28,7 @@ export function HeaderWrapper(props: HeaderProps) {
       )}
     >
       <div className="mx-auto w-full max-w-[1536px] px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 sm:h-20 items-center justify-between">
+        <div className="flex h-14 md:h-16 items-center justify-between">
           
           {/* Mobile View */}
           <div className="flex w-full md:hidden flex-col justify-center">
