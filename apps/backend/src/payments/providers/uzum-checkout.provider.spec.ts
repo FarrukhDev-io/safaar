@@ -7,6 +7,12 @@ import {
   pickDebugHeaders,
   stableStringify,
 } from './uzum-checkout.provider';
+import {
+  REAL_UZUM_CHECKOUT_COMPLETE_SUCCESS_FIXTURE,
+  REAL_UZUM_CHECKOUT_FAIL_FIXTURE,
+  REAL_UZUM_CHECKOUT_REFUND_FIXTURE,
+  REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE,
+} from './uzum-checkout.real-fixtures';
 
 /**
  * Uzum'ning RASMIY Checkout imzo algoritmi bizda YO'Q. Bu testlar faqat
@@ -246,6 +252,44 @@ describe('normalizeCheckoutCallback — audit-only qo‘shimcha maydonlar (opera
     };
     const n = normalizeCheckoutCallback(raw);
     expect(n.raw).toEqual(raw);
+  });
+});
+
+describe('normalizeCheckoutCallback — REAL (uchinchi-tomon manba orqali topilgan) Uzum Checkout callback shakli', () => {
+  it('AUTHORIZE:SUCCESS -> PAID (bir bosqichli to‘lov muvaffaqiyatli)', () => {
+    const n = normalizeCheckoutCallback(REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE);
+    expect(n.state).toBe('PAID');
+    expect(n.orderId).toBe(REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE.orderId);
+    expect(n.orderNumber).toBe(REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE.orderNumber);
+    expect(n.operationType).toBe('AUTHORIZE');
+    expect(n.rrn).toBe('123456789012');
+    // Real shaklda amount/currency umuman yo'q -> NaN / default UZS.
+    expect(Number.isNaN(n.amountSom)).toBe(true);
+    expect(n.currency).toBe('UZS');
+  });
+
+  it('AUTHORIZE:FAIL -> FAILED', () => {
+    const n = normalizeCheckoutCallback(REAL_UZUM_CHECKOUT_FAIL_FIXTURE);
+    expect(n.state).toBe('FAILED');
+  });
+
+  it('COMPLETE:SUCCESS -> PAID (ikki bosqichli to‘lovning tasdiqlash bosqichi)', () => {
+    const n = normalizeCheckoutCallback(
+      REAL_UZUM_CHECKOUT_COMPLETE_SUCCESS_FIXTURE,
+    );
+    expect(n.state).toBe('PAID');
+    expect(n.bindingId).toBe('binding-qa-fixture-04');
+  });
+
+  it('REFUND:SUCCESS -> UNKNOWN (ATAYLAB PAID EMAS — pul CHIQISHI, booking holatiga ta‘sir qilmasligi kerak)', () => {
+    const n = normalizeCheckoutCallback(REAL_UZUM_CHECKOUT_REFUND_FIXTURE);
+    expect(n.state).toBe('UNKNOWN');
+    expect(n.operationType).toBe('REFUND');
+  });
+
+  it('to‘liq xom payload hech narsa yo‘qotmasdan saqlanadi (real fixture uchun ham)', () => {
+    const n = normalizeCheckoutCallback(REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE);
+    expect(n.raw).toEqual(REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE);
   });
 });
 

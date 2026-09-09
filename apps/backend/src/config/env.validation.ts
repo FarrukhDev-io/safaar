@@ -51,6 +51,14 @@ interface EnvironmentConfig {
   UZUM_CHECKOUT_CALLBACK_SIGN_KEY?: string;
   UZUM_CHECKOUT_SIGNATURE_HEADER?: string;
   UZUM_CHECKOUT_SIGNATURE_SCHEME?: string;
+  // QA/test-only: haqiqiy imzo sxemasi sozlanmagan bo'lsa (hozirgi holat —
+  // rasmiy spec yo'q) callback signature tekshiruvini o'tkazib yuborishga
+  // ruxsat beradi — FAQAT production BO'LMAGANDA (`NODE_ENV==='production'`
+  // bo'lsa har doim e'tiborga olinmaydi, qiymatidan qat'i nazar). Boshqa
+  // hech qanday himoya (order lookup/amount/currency/idempotency/terminal-
+  // holat) bu bilan o'chirilmaydi. `ENABLE_DEMO_AUTH`dan MUSTAQIL — bu OTP
+  // emas, to'lov callback'i uchun.
+  UZUM_CHECKOUT_TEST_MODE: string;
   DB_CONNECTION_TIMEOUT_MS: number;
   DB_QUERY_TIMEOUT_MS: number;
   DB_QUERY_ATTEMPTS: number;
@@ -146,6 +154,23 @@ export function validateEnv(
     if (String(config.CORS_ORIGINS).includes('*')) {
       throw new Error(
         'CORS_ORIGINS production muhitida * bo‘lishi mumkin emas',
+      );
+    }
+
+    if (
+      String(config.UZUM_CHECKOUT_TEST_MODE ?? 'false').toLowerCase() === 'true'
+    ) {
+      // QATTIQ rad etamiz (ogohlantirish EMAS) — bu ENABLE_DEMO_AUTH'dan
+      // farqli, chunki bu yerda gap OTP kodini ochiq qoldirishda emas,
+      // to'lov tasdiqlash (payment confirmation)ni signature'siz o'tkazib
+      // yuborishda — production'da bunga hech qanday holatda yo'l qo'yib
+      // bo'lmaydi. `UzumCheckoutProvider.isTestModeEnabled()` o'zi ham
+      // mustaqil ravishda `NODE_ENV==='production'`ni tekshiradi (ikkinchi
+      // himoya qatlami), lekin bu yerda ilova UMUMAN ISHGA TUSHMASLIGI
+      // kerak — noto'g'ri sozlangan production deploy jim ravishda xavfli
+      // rejimda ishga tushib qolmasligi uchun.
+      throw new Error(
+        'UZUM_CHECKOUT_TEST_MODE=true production muhitida bo‘lishi mumkin emas',
       );
     }
 
@@ -275,6 +300,7 @@ export function validateEnv(
     UZUM_CHECKOUT_SIGNATURE_SCHEME: config.UZUM_CHECKOUT_SIGNATURE_SCHEME
       ? String(config.UZUM_CHECKOUT_SIGNATURE_SCHEME)
       : undefined,
+    UZUM_CHECKOUT_TEST_MODE: String(config.UZUM_CHECKOUT_TEST_MODE ?? 'false'),
     DB_CONNECTION_TIMEOUT_MS: toNumber(
       config.DB_CONNECTION_TIMEOUT_MS,
       production ? 8000 : 5000,

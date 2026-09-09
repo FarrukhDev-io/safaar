@@ -11,6 +11,11 @@ import {
   normalizeCheckoutCallback,
   type NormalizedCheckoutCallback,
 } from './providers/uzum-checkout.provider';
+import {
+  REAL_UZUM_CHECKOUT_FAIL_FIXTURE,
+  REAL_UZUM_CHECKOUT_REFUND_FIXTURE,
+  REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE,
+} from './providers/uzum-checkout.real-fixtures';
 
 /**
  * PaymentsService.uzumCheckoutCallback() — SAFAAR ICHKI, normallashtirilgan
@@ -410,5 +415,130 @@ describe('PaymentsService.reconcileUzumCheckoutPayments (fail-closed)', () => {
     const res = await service.reconcileUzumCheckoutPayments();
     expect(res).toEqual({ scanned: 0, updated: 0 });
     expect(pg.query).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * FULL end-to-end: REAL (uchinchi-tomon manba orqali topilgan) Uzum
+ * Checkout callback shakli -> `normalizeCheckoutCallback()` -> haqiqiy
+ * `PaymentsService.uzumCheckoutCallback()`. Yuqoridagi testlardan farqi:
+ * bu yerda `normalized()` qo'lda qurilmaydi — chinakam parser ishlatiladi.
+ */
+describe('PaymentsService.uzumCheckoutCallback — REAL Uzum Checkout fixture orqali E2E', () => {
+  const REAL_ORDER_ID = String(REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE.orderId);
+  const REAL_ORDER_NUMBER = String(
+    REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE.orderNumber,
+  );
+
+  const realBooking = {
+    ...openBooking,
+    id: 'booking-real-1',
+    booking_number: REAL_ORDER_NUMBER,
+  };
+  const realPayment = {
+    ...checkoutPayment,
+    id: 'payment-real-1',
+    booking_id: 'booking-real-1',
+    provider_reference: REAL_ORDER_ID,
+    idempotency_key: `uzum_checkout:${REAL_ORDER_ID}`,
+  };
+
+  let pg: { query: jest.Mock; transaction: jest.Mock };
+  let service: PaymentsService;
+
+  beforeEach(() => {
+    pg = { query: jest.fn(), transaction: jest.fn() };
+    pg.transaction.mockImplementation(
+      (op: (tx: PostgresTransaction) => unknown) => op({ query: pg.query }),
+    );
+    service = new PaymentsService(
+      pg as unknown as PostgresService,
+      { get: jest.fn() } as never,
+      { isConfigured: () => false } as never,
+      { isConfigured: () => false } as never,
+      new UzumProvider({ get: jest.fn() } as never),
+      new UzumCheckoutProvider({ get: () => undefined } as never),
+    );
+  });
+
+  it('REAL SUCCESS (AUTHORIZE:SUCCESS) fixture -> parser PAID deb aniqlaydi -> to‘lov/booking tasdiqlanadi', async () => {
+    pg.query
+      .mockResolvedValueOnce([realPayment]) // locate checkout payment
+      .mockResolvedValueOnce([{ id: 'evt-real-1', payment_id: null }]) // claim event
+      .mockResolvedValueOnce([realBooking]) // booking FOR UPDATE
+      .mockResolvedValueOnce([realPayment]) // payment FOR UPDATE
+      .mockResolvedValueOnce([]) // UPDATE payments -> paid
+      .mockResolvedValueOnce([]) // UPDATE payment_events
+      .mockResolvedValueOnce([]) // UPDATE bookings -> confirmed
+      .mockResolvedValueOnce([]) // INSERT booking_status_history
+      .mockResolvedValueOnce([]); // INSERT partner_ledger_entries
+
+    const normalized = normalizeCheckoutCallback(
+      REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE,
+    );
+    expect(normalized.state).toBe('PAID'); // sanity: haqiqatan real parser orqali
+
+    const res = await service.uzumCheckoutCallback(normalized);
+    expect(res).toEqual({ received: true, duplicate: false, applied: true });
+
+    const paidUpd = findCall(pg.query, 'SET status = $1, provider_reference');
+    expect(paidUpd?.[1]?.[0]).toBe('paid');
+    // Audit uchun to'liq xom Uzum payload ham saqlanadi (nafaqat ichki summary).
+    const claim = findCall(pg.query, 'INSERT INTO payment_events');
+    const payload = JSON.parse(String(claim?.[1]?.[4])) as {
+      uzum_raw?: unknown;
+    };
+    expect(payload.uzum_raw).toEqual(REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE);
+  });
+
+  it('REAL FAIL (AUTHORIZE:FAIL) fixture -> parser FAILED deb aniqlaydi -> hech narsa PAID bo‘lmaydi, faqat audit', async () => {
+    pg.query
+      .mockResolvedValueOnce([realPayment]) // locate payment (orderId farq qiladi, lekin shu test uchun bir xil payment ishlatamiz)
+      .mockResolvedValueOnce([]); // audit INSERT
+
+    const normalized = normalizeCheckoutCallback(
+      REAL_UZUM_CHECKOUT_FAIL_FIXTURE,
+    );
+    expect(normalized.state).toBe('FAILED');
+
+    const res = await service.uzumCheckoutCallback(normalized);
+    expect(res).toEqual({ received: true, duplicate: false, applied: false });
+    expect(
+      findCall(pg.query, 'SET status = $1, provider_reference'),
+    ).toBeUndefined();
+  });
+
+  it('REAL REFUND (REFUND:SUCCESS) fixture -> parser UNKNOWN deb aniqlaydi (ATAYLAB) -> hech narsa PAID bo‘lmaydi', async () => {
+    pg.query
+      .mockResolvedValueOnce([realPayment]) // locate payment
+      .mockResolvedValueOnce([]); // audit INSERT (non-PAID branch)
+
+    const normalized = normalizeCheckoutCallback(
+      REAL_UZUM_CHECKOUT_REFUND_FIXTURE,
+    );
+    expect(normalized.state).toBe('UNKNOWN');
+
+    const res = await service.uzumCheckoutCallback(normalized);
+    expect(res).toEqual({ received: true, duplicate: false, applied: false });
+    expect(
+      findCall(pg.query, 'SET status = $1, provider_reference'),
+    ).toBeUndefined();
+  });
+
+  it('REAL SUCCESS fixture ikkinchi marta (duplicate) -> applied:false, duplicate:true, ledger ikkinchi marta kredit qilinmaydi', async () => {
+    pg.query
+      .mockResolvedValueOnce([realPayment]) // locate payment
+      .mockResolvedValueOnce([]) // claim -> ON CONFLICT DO NOTHING (0 rows, already claimed)
+      .mockResolvedValueOnce([
+        { id: 'evt-real-1', payment_id: 'payment-real-1' },
+      ]) // existing event
+      .mockResolvedValueOnce([{ ...realPayment, status: 'paid' }]); // existing payment already paid
+
+    const normalized = normalizeCheckoutCallback(
+      REAL_UZUM_CHECKOUT_SUCCESS_FIXTURE,
+    );
+    const res = await service.uzumCheckoutCallback(normalized);
+    expect(res).toEqual({ received: true, duplicate: true, applied: false });
+    expect(countCalls(pg.query, 'INSERT INTO partner_ledger_entries')).toBe(0);
   });
 });

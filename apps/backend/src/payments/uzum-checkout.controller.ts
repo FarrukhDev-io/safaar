@@ -41,11 +41,15 @@ import {
  * "Callback qabul qilindi" bilan "to'lov tasdiqlandi" ANIQ ajratilgan:
  *   - imzo tasdiqlanmagan callback — HECH QANDAY DB yozuvi yo'q, faqat
  *     xavfsiz (tipizatsiya qilingan, xom EMAS) preview logga yoziladi;
- *   - imzo tasdiqlangan, lekin order topilmasa — `payment_events`ga
- *     audit sifatida yoziladi (payment/booking holati O'ZGARMAYDI);
- *   - faqat ichki `state === 'PAID'` (hozircha `STATE_MAP` bo'shligi
- *     sababli hech qachon) mavjud ishonchli pipeline orqali holatni
- *     o'zgartiradi.
+ *   - imzo tasdiqlangan (haqiqiy sxema ORQALI YOKI `UZUM_CHECKOUT_TEST_MODE`
+ *     orqali — faqat QA, production'da bu yo'l HECH QACHON), lekin order
+ *     topilmasa — `payment_events`ga audit sifatida yoziladi (payment/
+ *     booking holati O'ZGARMAYDI);
+ *   - faqat ichki `state === 'PAID'` (`STATE_MAP`dagi AUTHORIZE:SUCCESS /
+ *     COMPLETE:SUCCESS orqali) mavjud ishonchli pipeline orqali holatni
+ *     o'zgartiradi — amount/currency/idempotency/terminal-holat
+ *     tekshiruvlari test mode YOKI production'dan qat'i nazar BIR XIL
+ *     ishlaydi (test mode FAQAT signature bosqichiga ta'sir qiladi).
  */
 @ApiTags('payments')
 @Controller()
@@ -91,7 +95,22 @@ export class UzumCheckoutController {
       //    tasdiqlanmagani uchun bu yerdan keyin HECH QANDAY DB yozuvi
       //    yoki holat o'zgarishi bo'lmaydi — faqat quyidagi catch blokida
       //    xavfsiz (tipizatsiya qilingan, xom EMAS) preview log qilinadi.
+      //    QA-only: `UZUM_CHECKOUT_TEST_MODE=true` bo'lsa (production'da
+      //    HECH QACHON), sxema sozlanmagan holatda ham throw qilmaydi —
+      //    shu holatni QA log'larda aniq ko'rinishi uchun alohida qayd
+      //    etamiz (o'zgartirmasdan davom etadi, faqat log uchun).
+      const wasTestModeBypass =
+        !this.checkout.isCallbackVerificationConfigured() &&
+        this.checkout.isTestModeEnabled();
       this.checkout.verifyCallback(body, req.headers);
+      if (wasTestModeBypass) {
+        this.logger.log(
+          `uzum-checkout callback: TEST MODE orqali imzo tekshiruvi ` +
+            `o'tkazib yuborildi (order=${normalized.orderId || '?'}) — ` +
+            `boshqa barcha tekshiruvlar (order/amount/currency/idempotency) ` +
+            `hamon amal qiladi`,
+        );
+      }
 
       // Debug/audit uchun — imzo sarlavhasi (va authorization/cookie) hech
       // qachon shu ro'yxatga kirmaydi, faqat kichik "xavfsiz" allowlist.

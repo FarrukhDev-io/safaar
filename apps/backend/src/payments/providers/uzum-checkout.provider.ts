@@ -9,25 +9,58 @@ import { hmacSha256, timingSafeEqualString } from '../../auth/security';
  * `UzumWebhookController`) bu yerga umuman aloqador emas va o'zgartirilmaydi.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * MUHIM CHEKLOV — RASMIY SPEC OLINMAGAN
+ * SPEC HOLATI — UZUM'NING O'Z PORTALIDAN TO'G'RIDAN-TO'G'RI OLINMAGAN
  * ─────────────────────────────────────────────────────────────────────────────
  * `developer.uzumbank.uz/en/checkout/` — client-side (JS) render qiluvchi
  * portal; OpenAPI sxemasi runtime'da yuklanadi va oddiy HTTP fetch bilan
- * olib bo'lmadi. Shu sabab Uzum Checkout'ning quyidagilari BIZDA TASDIQLANGAN
- * HOLDA YO'Q:
- *   - `/payment/register` so'rov/javob maydonlari va auth sxemasi;
- *   - callback payload maydonlari, `operationState` qiymatlari, imzo algoritmi;
- *   - `/payment/getOrderStatus`, `/payment/getOperationState`, `/acquiring/refund`.
+ * olib bo'lmaydi (Merchant sahifasi ham xuddi shunday — bu portal darajasidagi
+ * cheklov, faqat Checkout'ga xos emas).
+ *
+ * `AcquiringCallbackData`/`CallbackOperationState` pastdagi mapping —
+ * `github.com/vsevalid/uzum-payments` (`checkout_openapi.yaml`, "Uzum
+ * Checkout" v1.10.3) UCHINCHI TOMON ombori orqali topilgan. Bu Uzum'ning
+ * o'zidan TO'G'RIDAN-TO'G'RI olinmagan — shuning uchun KUCHLI DALIL, lekin
+ * RASMIY TASDIQLANGAN EMAS deb belgilanadi. Ichki izchillik yuqori (bizning
+ * repo'dagi mustaqil o'rganilgan bir/ikki bosqichli to'lov terminologiyasi —
+ * hold/complete/reverse/refund/3ds/autofiskalizatsiya — bilan to'liq mos
+ * keladi), lekin Uzum'dan rasmiy tasdiq (yoki hujjatning o'zi) ALINMAGUNCHA
+ * production'da signature tekshiruvi hali ham FAIL-CLOSED qoladi.
+ *
+ * Shu manbadan TOPILGAN narsalar (callback yo'nalishi uchun):
+ *   - `AcquiringCallbackData`: {orderId, operationState, operationType,
+ *     orderNumber, merchantOperationId?, rrn?, bindingId?} — AMOUNT/CURRENCY
+ *     YO'Q (buyurtma summasi faqat register/getOrderStatus orqali ma'lum).
+ *   - `CallbackOperationState` enum: FAQAT `SUCCESS` | `FAIL`.
+ *   - `operationType` enum: `AUTHORIZE | COMPLETE | REFUND | REVERSE | TOP_UP_COMPLETED`.
+ *   - Callback POST operatsiyasining o'zida (OpenAPI `callbacks:` bloki)
+ *     HECH QANDAY sarlavha/imzo talabi HUJJATLASHTIRILMAGAN — topilgan
+ *     yagona imzo eslatmasi (`X-Signature`, xato 1000) umumiy xato jadvalida,
+ *     merchant->Uzum yo'nalishiga tegishli bo'lishi ehtimoli yuqori, callback
+ *     (Uzum->merchant)ga emas. Shuning uchun callback'ning haqiqiy
+ *     autentifikatsiya mexanizmi HALI HAM NOMA'LUM — bu QASDDAN
+ *     production'da fail-closed qolishning asosiy sababi.
+ *   - Sandbox/test muhiti (alohida base URL, IP diapazoni, retry siyosati)
+ *     HAQIDA HECH NARSA topilmadi — bu spec'da `servers:` bo'limi umuman yo'q.
  *
  * Shuning uchun:
  *   - callback imzo tekshiruvi **fail-closed** — sxema aniq sozlanmaguncha
  *     HAR QANDAY callback rad etiladi (`verifyCallback` throw qiladi);
- *   - `operationState` -> internal state mapping'i BO'SH (`STATE_MAP`) —
- *     spec kelmaguncha hech bir callback to'lovni PAID qilmaydi;
+ *   - `UZUM_CHECKOUT_TEST_MODE=true` — FAQAT production BO'LMAGANDA — imzo
+ *     sozlanmagan holatda callback'ni QA/test uchun o'tkazishga ruxsat beradi
+ *     (order lookup/amount/currency/idempotency/terminal-holat HAMMASI
+ *     ishlayveradi — faqat imzo tekshiruvi o'tkazib yuboriladi);
+ *   - `operationType:operationState` -> internal state mapping'i (`STATE_MAP`)
+ *     yuqoridagi uchinchi-tomon manbadan, lekin FAQAT AUTHORIZE/COMPLETE
+ *     SUCCESS/FAIL uchun to'ldirilgan — REFUND/REVERSE/TOP_UP_COMPLETED
+ *     ATAYLAB xaritalanmagan (pul CHIQISHI/PAID EMAS bilan aralashtirmaslik
+ *     uchun), shuning uchun ular hamon `UNKNOWN` bo'lib qoladi;
  *   - chiquvchi metodlar (`register` / `getOrderStatus` / `getOperationState`
  *     / `refund`) **fail-closed** — konfiguratsiya bo'lmasa `NOT_CONFIGURED`,
  *     konfiguratsiya bo'lsa ham rasmiy wire-format tasdiqlanmagani uchun
- *     `SPEC_REQUIRED` throw qiladi (TAXMINIY so'rov YUBORILMAYDI).
+ *     `SPEC_REQUIRED` throw qiladi (TAXMINIY so'rov YUBORILMAYDI) — bu
+ *     o'zgarmadi, chunki uchinchi-tomon spec'da ularning request/response
+ *     shakli ham bor, lekin BIZ hali TASDIQLAMAGANMIZ va real pul harakati
+ *     bilan bog'liq (register/refund) — bu yerda xato narxi yuqori.
  *
  * Barcha sirlar faqat env orqali (`UZUM_CHECKOUT_*`). Kodga hardcode YO'Q,
  * logga chiqarilmaydi.
@@ -68,7 +101,9 @@ export class UzumCheckoutError extends Error {
 /**
  * SAFAAR ichki, normallashtirilgan callback shakli.
  * `state` — BIZNING ichki enum'imiz, Uzum'ning xom `operationState` qiymati
- * EMAS (uni bilmaymiz). Xom -> ichki mapping `STATE_MAP`da (hozircha bo'sh).
+ * EMAS. Xom -> ichki mapping `STATE_MAP`da (`operationType:operationState`
+ * kaliti bilan — pastdagi izohga qarang; manba UCHINCHI TOMON, rasmiy
+ * tasdiqlanmagan).
  */
 export interface NormalizedCheckoutCallback {
   /** Uzum tomonidagi to'lov/operatsiya identifikatori. */
@@ -84,13 +119,18 @@ export interface NormalizedCheckoutCallback {
   /** ICHKI normallashtirilgan holat (Uzum'ning xom holati emas). */
   state: 'PAID' | 'FAILED' | 'PENDING' | 'UNKNOWN';
   /**
-   * Quyidagi maydonlar FAQAT audit/debug uchun best-effort o'qiladi — hech
-   * biri biznes holatini (`state`) belgilamaydi va hech biri talab
-   * qilinmaydi. Uzum'ning haqiqiy `operationType`/`rrn`/`bindingId`
-   * semantikasi spec'siz noma'lum, shuning uchun xom qiymat qandayligicha
-   * saqlanadi — hech qanday tarjima/interpretatsiya qilinmaydi.
+   * `rrn`/`bindingId` FAQAT audit/debug uchun best-effort o'qiladi — hech
+   * biri talab qilinmaydi. `operationType` esa `state`ni HISOBLASH uchun
+   * ISHLATILADI (`STATE_MAP` orqali, `operationState` bilan birga) — lekin
+   * bu maydonning o'zi hech qachon to'g'ridan-to'g'ri talab qilinmaydi;
+   * yo'q bo'lsa xaritalash shunchaki `UNKNOWN`ga tushadi (xavfsiz default).
    */
-  /** Xom operatsiya turi (masalan "PAYMENT"/"REFUND") — spec'siz, faqat audit. */
+  /**
+   * Xom operatsiya turi. Uchinchi-tomon manba (yuqoridagi fayl izohi)
+   * bo'yicha mumkin bo'lgan qiymatlar: `AUTHORIZE | COMPLETE | REFUND |
+   * REVERSE | TOP_UP_COMPLETED` — lekin bu ro'yxat RASMIY TASDIQLANMAGAN,
+   * shuning uchun bu yerda `string` (qattiq enum emas).
+   */
   operationType?: string;
   /** Karta operatsiyasi retrieval reference number — faqat audit. */
   rrn?: string;
@@ -101,14 +141,36 @@ export interface NormalizedCheckoutCallback {
 }
 
 /**
- * Uzum'ning HAQIQIY `operationState` qiymatlari MA'LUM EMAS — shu sabab bo'sh.
- * Rasmiy spec kelganda shu yerga (masalan) yoziladi:
- *   `{ COMPLETED: 'PAID', SUCCESS: 'PAID', DECLINED: 'FAILED', ... }`
- * Toki bo'sh ekan — har qanday callback `UNKNOWN` bo'ladi va PAID qilinmaydi.
+ * `operationType:operationState` (KATTA harf, ikkalasi ham) -> ICHKI holat.
+ *
+ * NEGA ikkita maydon birga (faqat `operationState` emas): `operationState`
+ * yolg'iz o'zi ikkiyuzlamachi — `SUCCESS` bir xilda muvaffaqiyatli TO'LOV
+ * (AUTHORIZE/COMPLETE) yoki muvaffaqiyatli QAYTARISH (REFUND/REVERSE)ni ham
+ * anglatishi mumkin. Faqat `operationState`ga qarab xaritalasak, muvaffaqiyatli
+ * REFUND callback'i xatolik bilan booking'ni "to'landi" deb belgilab qo'yishi
+ * mumkin edi — bu jiddiy xato bo'lardi.
+ *
+ * Manba: `github.com/vsevalid/uzum-payments` (`checkout_openapi.yaml`,
+ * "Uzum Checkout" v1.10.3) — UCHINCHI TOMON, Uzum'dan to'g'ridan-to'g'ri
+ * olinmagan (yuqoridagi fayl izohiga qarang). Shu sabab bu yerda FAQAT eng
+ * ishonchli, bir ma'noli holatlar xaritalangan:
+ *   - AUTHORIZE:SUCCESS / COMPLETE:SUCCESS -> PAID (bir bosqichli to'lovda
+ *     AUTHORIZE = pul yechish bilan bir vaqtda sodir bo'ladi, spec matniga
+ *     ko'ra)
+ *   - AUTHORIZE:FAIL / COMPLETE:FAIL -> FAILED
+ * REFUND/REVERSE/TOP_UP_COMPLETED ATAYLAB YO'Q — pul CHIQISHI yoki mutlaqo
+ * boshqa mahsulot (mobil balans to'ldirish) hodisalarini hech qachon PAID
+ * bilan aralashtirmaslik uchun; ular `UNKNOWN` bo'lib qoladi (audit-only,
+ * hech qanday holat o'zgarmaydi).
  */
 export const STATE_MAP: Readonly<
   Record<string, NormalizedCheckoutCallback['state']>
-> = Object.freeze({});
+> = Object.freeze({
+  'AUTHORIZE:SUCCESS': 'PAID',
+  'COMPLETE:SUCCESS': 'PAID',
+  'AUTHORIZE:FAIL': 'FAILED',
+  'COMPLETE:FAIL': 'FAILED',
+});
 
 /**
  * SAFAAR -> Uzum `/payment/register` uchun kirish (BIZNING domen maydonlarimiz).
@@ -193,9 +255,19 @@ export function normalizeCheckoutCallback(
   const amountSom =
     amountRaw === undefined || amountRaw === null ? NaN : Number(amountRaw);
 
-  const rawState = str(
+  // Uzum'ning haqiqiy (uchinchi-tomon manba orqali topilgan) callback
+  // maydoni — `operationState`. Eski keng-tarqalgan aliaslar (`state`/
+  // `status`) orqaga moslik uchun hamon o'qiladi (agar Uzum kelajakda
+  // boshqacha nomlasa yoki boshqa test payload kelsa).
+  const rawOperationState = str(
     raw.operationState ?? raw.operation_state ?? raw.state ?? raw.status,
   ).toUpperCase();
+  const rawOperationType = str(
+    raw.operationType ?? raw.operation_type,
+  ).toUpperCase();
+  // `operationType` yo'q bo'lsa kalit hech qachon STATE_MAP'ga mos
+  // kelmaydi (masalan `":SUCCESS"`) -> xavfsiz `UNKNOWN` default.
+  const stateKey = `${rawOperationType}:${rawOperationState}`;
 
   return {
     orderId: str(
@@ -215,7 +287,7 @@ export function normalizeCheckoutCallback(
     ),
     amountSom,
     currency: str(raw.currency ?? 'UZS').toUpperCase() || 'UZS',
-    state: STATE_MAP[rawState] ?? 'UNKNOWN',
+    state: STATE_MAP[stateKey] ?? 'UNKNOWN',
     operationType: optionalStr(raw.operationType ?? raw.operation_type),
     rrn: optionalStr(raw.rrn ?? raw.RRN),
     bindingId: optionalStr(raw.bindingId ?? raw.binding_id),
@@ -274,6 +346,14 @@ export class UzumCheckoutProvider {
   private readonly signatureHeader: string;
   /** 'none' (default, fail-closed) | 'hmac-sha256' (joy-egallovchi sxema). */
   private readonly signatureScheme: string;
+  /**
+   * QA/test-only. `isTestModeEnabled()` orqali o'qiladi — u yerda
+   * `NODE_ENV==='production'` bo'lsa BU MAYDONDAN QAT'I NAZAR har doim
+   * `false` qaytariladi (ikkinchi himoya qatlami; birinchisi —
+   * `env.validation.ts`'dagi qattiq throw, production'da ilova umuman
+   * ishga tushmaydi).
+   */
+  private readonly testModeRaw: string;
 
   constructor(config: ConfigService) {
     const baseUrl = (
@@ -297,6 +377,11 @@ export class UzumCheckoutProvider {
     )
       .trim()
       .toLowerCase();
+    this.testModeRaw = (
+      config.get<string>('UZUM_CHECKOUT_TEST_MODE') || 'false'
+    )
+      .trim()
+      .toLowerCase();
   }
 
   /** `payment/register` (chiquvchi) uchun konfiguratsiya to'liqmi. */
@@ -307,6 +392,21 @@ export class UzumCheckoutProvider {
   /** Callback imzo tekshiruvi ishga tushirilishi mumkinmi. */
   isCallbackVerificationConfigured(): boolean {
     return Boolean(this.callbackSignKey) && this.signatureScheme !== 'none';
+  }
+
+  /**
+   * QA/test-only signature-bypass yoqilganmi. `NODE_ENV==='production'`
+   * bo'lsa har doim `false` — `UZUM_CHECKOUT_TEST_MODE` qiymatidan qat'i
+   * nazar (birinchi himoya qatlami — `env.validation.ts`'dagi qattiq throw
+   * — allaqachon buni production'da ilova ishga tushmasligi bilan
+   * ta'minlaydi; bu YERDAGI tekshiruv shunga QARAMASDAN mustaqil ikkinchi
+   * qatlam).
+   */
+  isTestModeEnabled(): boolean {
+    if (process.env.NODE_ENV === 'production') {
+      return false;
+    }
+    return this.testModeRaw === 'true';
   }
 
   /**
@@ -328,13 +428,25 @@ export class UzumCheckoutProvider {
 
   /**
    * Callback imzosini FAIL-CLOSED tekshiradi.
-   *  - sxema sozlanmagan (default) => throw (endpoint xavfsiz "deny-all").
-   *  - imzo yo'q / noto'g'ri => throw.
+   *  - sxema sozlanmagan (default) => throw (endpoint xavfsiz "deny-all"),
+   *    FAQAT `isTestModeEnabled()` bo'lsa BUNDAN MUSTASNO (QA-only, pastga
+   *    qarang — production'da bu yo'l HECH QACHON tanlanmaydi).
+   *  - imzo yo'q / noto'g'ri => throw (test mode bunga TA'SIR QILMAYDI —
+   *    haqiqiy sxema sozlangan bo'lsa u har doim TO'LIQ ishlaydi).
    *  - hech qachon "o'tdi" deb qaytmaydi, imzo mos kelmasa.
    * Secret / imzo / Authorization LOG QILINMAYDI.
    */
   verifyCallback(body: Record<string, unknown>, headers: HeaderMap): void {
     if (!this.isCallbackVerificationConfigured()) {
+      if (this.isTestModeEnabled()) {
+        // QA-only: haqiqiy Uzum imzo sxemasi hali sozlanmagan (rasmiy spec
+        // yo'q), shuning uchun QA integratsion testlarini bloklamaslik
+        // uchun signature bosqichi shu yerda o'tkazib yuboriladi. Boshqa
+        // HECH QANDAY himoya (order lookup/amount/currency/idempotency/
+        // terminal-holat) bilan ALOQASI YO'Q — ular chaqiruvchida
+        // (`PaymentsService.uzumCheckoutCallback`) o'zgarishsiz ishlayveradi.
+        return;
+      }
       throw new UzumCheckoutError(
         UZUM_CHECKOUT_ERROR.VERIFICATION_NOT_CONFIGURED,
         'Uzum Checkout callback imzo sxemasi sozlanmagan — rasmiy spec ' +
