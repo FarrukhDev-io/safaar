@@ -1,10 +1,13 @@
+import { getGlobalDispatcher } from 'undici';
 import { hmacSha256 } from '../../auth/security';
 import {
   UZUM_CHECKOUT_ERROR,
   UzumCheckoutError,
   UzumCheckoutProvider,
+  buildUzumCheckoutProxyDispatcher,
   normalizeCheckoutCallback,
   pickDebugHeaders,
+  redactProxyUrl,
   stableStringify,
 } from './uzum-checkout.provider';
 import {
@@ -144,6 +147,75 @@ describe('UzumCheckoutProvider.isConfigured (outbound /payment/register)', () =>
         }),
       ).isConfigured(),
     ).toBe(true);
+  });
+});
+
+describe('UzumCheckoutProvider — chiquvchi forward-proxy (statik IP)', () => {
+  const PROXY = 'http://safaar:s3cr3t@100.105.86.75:3128';
+
+  it('UZUM_CHECKOUT_HTTPS_PROXY unset => proxy sozlanmagan, dispatcher undefined', () => {
+    const p = new UzumCheckoutProvider(mkConfig({}));
+    expect(p.isOutboundProxyConfigured()).toBe(false);
+    expect(p.outboundDispatcher()).toBeUndefined();
+    expect(p.outboundProxyUrlForLog()).toBeUndefined();
+  });
+
+  it('UZUM_CHECKOUT_HTTPS_PROXY set => dispatcher qaytadi va KESHLANADI', () => {
+    const p = new UzumCheckoutProvider(
+      mkConfig({ UZUM_CHECKOUT_HTTPS_PROXY: PROXY }),
+    );
+    expect(p.isOutboundProxyConfigured()).toBe(true);
+    const d1 = p.outboundDispatcher();
+    const d2 = p.outboundDispatcher();
+    expect(d1).toBeDefined();
+    expect(d1).toBe(d2); // aynan bir instance (har chaqiruvda qayta qurilmaydi)
+    expect(typeof (d1 as { dispatch?: unknown }).dispatch).toBe('function');
+  });
+
+  it('outboundProxyUrlForLog() — credential (userinfo) YASHIRILADI', () => {
+    const p = new UzumCheckoutProvider(
+      mkConfig({ UZUM_CHECKOUT_HTTPS_PROXY: PROXY }),
+    );
+    const shown = p.outboundProxyUrlForLog();
+    expect(shown).toBeDefined();
+    expect(shown).not.toContain('s3cr3t');
+    expect(shown).not.toContain('safaar:s3cr3t');
+    expect(shown).toContain('100.105.86.75:3128');
+  });
+
+  it('proxy — global fetch dispatcher ALMASHTIRILMAYDI (faqat per-request)', () => {
+    const before = getGlobalDispatcher();
+    const p = new UzumCheckoutProvider(
+      mkConfig({ UZUM_CHECKOUT_HTTPS_PROXY: PROXY }),
+    );
+    p.outboundDispatcher();
+    expect(getGlobalDispatcher()).toBe(before);
+  });
+
+  it('yaroqsiz proxy URL => PROXY_MISCONFIGURED (xom qiymat log qilinmaydi)', () => {
+    const p = new UzumCheckoutProvider(
+      mkConfig({ UZUM_CHECKOUT_HTTPS_PROXY: 'not a url' }),
+    );
+    expect(() => p.outboundDispatcher()).toThrow(UzumCheckoutError);
+    try {
+      p.outboundDispatcher();
+    } catch (e) {
+      expect((e as UzumCheckoutError).code).toBe(
+        UZUM_CHECKOUT_ERROR.PROXY_MISCONFIGURED,
+      );
+    }
+  });
+
+  it('buildUzumCheckoutProxyDispatcher — http/https bo‘lmagan sxema rad etiladi', () => {
+    expect(() =>
+      buildUzumCheckoutProxyDispatcher('socks5://100.105.86.75:1080'),
+    ).toThrow(UzumCheckoutError);
+  });
+
+  it('redactProxyUrl — parol chiqmaydi; yaroqsiz URL xom qaytmaydi', () => {
+    expect(redactProxyUrl(PROXY)).not.toContain('s3cr3t');
+    expect(redactProxyUrl(PROXY)).toContain('100.105.86.75:3128');
+    expect(redactProxyUrl('%%%bogus')).toBe('<invalid-proxy-url>');
   });
 });
 

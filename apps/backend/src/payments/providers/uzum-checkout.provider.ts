@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ProxyAgent, type Dispatcher } from 'undici';
 import { hmacSha256, timingSafeEqualString } from '../../auth/security';
 
 /**
@@ -83,6 +84,12 @@ export const UZUM_CHECKOUT_ERROR = {
   REGISTER_FAILED: 'register_failed',
   STATUS_FAILED: 'status_failed',
   REFUND_FAILED: 'refund_failed',
+  /**
+   * `UZUM_CHECKOUT_HTTPS_PROXY` sozlangan, LEKIN URL sifatida yaroqsiz —
+   * `outboundDispatcher()` chaqirilganda throw qiladi. (Odatda `env.validation.ts`
+   * buni ilova ishga tushishidayoq ushlaydi; bu — ikkinchi himoya qatlami.)
+   */
+  PROXY_MISCONFIGURED: 'proxy_misconfigured',
 } as const;
 
 export type UzumCheckoutErrorCode =
@@ -336,6 +343,65 @@ export function pickDebugHeaders(
 
 type HeaderMap = Record<string, string | string[] | undefined>;
 
+/**
+ * `http://user:parol@host:port` -> `http://***@host:port` (userinfo yashiriladi).
+ * FAQAT debug/audit log uchun — proxy credential HECH QACHON to'liq log qilinmaydi.
+ * Yaroqsiz URL bo'lsa `<invalid-proxy-url>` qaytaradi (xom qiymatni chiqarmaydi).
+ */
+export function redactProxyUrl(proxyUrl: string): string {
+  try {
+    const u = new URL(proxyUrl);
+    if (u.username || u.password) {
+      u.username = '***';
+      u.password = '';
+    }
+    return u.toString();
+  } catch {
+    return '<invalid-proxy-url>';
+  }
+}
+
+/**
+ * Uzum Checkout CHIQUVCHI so'rovlari uchun undici `ProxyAgent` quradi.
+ *
+ * Bu — `fetch(url, { dispatcher })` uchun PER-REQUEST dispatcher. U
+ * `setGlobalDispatcher()` CHAQIRMAYDI — shuning uchun jarayondagi boshqa
+ * HECH BIR `fetch()` (SMS/email/CBU kurs/webhook/OAuth/...) ta'sirlanmaydi.
+ * Faqat `UzumCheckoutProvider`ning chiquvchi metodlari uni ishlatadi.
+ *
+ * @throws {UzumCheckoutError} `PROXY_MISCONFIGURED` — `proxyUrl` yaroqsiz bo'lsa.
+ */
+export function buildUzumCheckoutProxyDispatcher(proxyUrl: string): ProxyAgent {
+  let parsed: URL;
+  try {
+    parsed = new URL(proxyUrl);
+  } catch {
+    throw new UzumCheckoutError(
+      UZUM_CHECKOUT_ERROR.PROXY_MISCONFIGURED,
+      `UZUM_CHECKOUT_HTTPS_PROXY yaroqli URL emas: ${redactProxyUrl(proxyUrl)}`,
+    );
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new UzumCheckoutError(
+      UZUM_CHECKOUT_ERROR.PROXY_MISCONFIGURED,
+      `UZUM_CHECKOUT_HTTPS_PROXY faqat http/https bo'lishi mumkin: ${parsed.protocol}`,
+    );
+  }
+  // `token` — proxy'ga yuboriladigan `Proxy-Authorization` sarlavhasi
+  // (userinfo'dan). undici URL userinfo'ni avtomatik olmaydi, shuning uchun
+  // aniq beramiz. TLS (Uzum sertifikati) tekshiruvi DEFAULT — o'chirilmaydi.
+  const token =
+    parsed.username || parsed.password
+      ? `Basic ${Buffer.from(
+          `${decodeURIComponent(parsed.username)}:${decodeURIComponent(
+            parsed.password,
+          )}`,
+        ).toString('base64')}`
+      : undefined;
+  const uri = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  return token ? new ProxyAgent({ uri, token }) : new ProxyAgent({ uri });
+}
+
 @Injectable()
 export class UzumCheckoutProvider {
   private readonly baseUrl?: string;
@@ -354,6 +420,17 @@ export class UzumCheckoutProvider {
    * ishga tushmaydi).
    */
   private readonly testModeRaw: string;
+  /**
+   * IXTIYORIY chiquvchi forward-proxy URL (`UZUM_CHECKOUT_HTTPS_PROXY`).
+   * Sozlangan bo'lsa — Uzum Checkout `register`/`getOrderStatus`/
+   * `getOperationState`/`refund` so'rovlari SHU proxy orqali chiqadi
+   * (statik chiquvchi IP kafolati uchun). Bo'sh bo'lsa — o'sha so'rovlar
+   * ham odatdagi to'g'ridan-to'g'ri marshrut bilan boradi. Boshqa hech bir
+   * `fetch()` ta'sirlanmaydi (`setGlobalDispatcher` ISHLATILMAYDI).
+   */
+  private readonly outboundProxyUrl?: string;
+  /** Lazily qurilgan + keshlangan `ProxyAgent` (har chaqiruvda qayta emas). */
+  private outboundDispatcherInstance?: Dispatcher;
 
   constructor(config: ConfigService) {
     const baseUrl = (
@@ -382,11 +459,52 @@ export class UzumCheckoutProvider {
     )
       .trim()
       .toLowerCase();
+    this.outboundProxyUrl =
+      (config.get<string>('UZUM_CHECKOUT_HTTPS_PROXY') || '').trim() ||
+      undefined;
   }
 
   /** `payment/register` (chiquvchi) uchun konfiguratsiya to'liqmi. */
   isConfigured(): boolean {
     return Boolean(this.baseUrl && this.merchantId && this.apiKey);
+  }
+
+  /** Chiquvchi Uzum Checkout so'rovlari uchun forward-proxy sozlanganmi. */
+  isOutboundProxyConfigured(): boolean {
+    return Boolean(this.outboundProxyUrl);
+  }
+
+  /**
+   * Sozlangan chiquvchi proxy URL'i — userinfo (credential) YASHIRILGAN
+   * holda (faqat debug/audit log uchun). Sozlanmagan bo'lsa `undefined`.
+   */
+  outboundProxyUrlForLog(): string | undefined {
+    return this.outboundProxyUrl
+      ? redactProxyUrl(this.outboundProxyUrl)
+      : undefined;
+  }
+
+  /**
+   * Uzum Checkout CHIQUVCHI `fetch()` uchun per-request `dispatcher`.
+   *
+   *   fetch(url, { dispatcher: this.outboundDispatcher(), signal: ... })
+   *
+   *  - `UZUM_CHECKOUT_HTTPS_PROXY` BO'SH  -> `undefined` qaytaradi; `fetch`
+   *    odatdagi (to'g'ridan-to'g'ri) marshrutdan foydalanadi.
+   *  - Sozlangan bo'lsa -> keshlangan `ProxyAgent` (birinchi chaqiruvda
+   *    quriladi). Bu dispatcher FAQAT shu yerdan uzatiladi — global
+   *    `fetch` xatti-harakati (SMS/email/kurs/webhook/OAuth/...) o'zgarmaydi.
+   *
+   * @throws {UzumCheckoutError} `PROXY_MISCONFIGURED` — URL yaroqsiz bo'lsa.
+   */
+  outboundDispatcher(): Dispatcher | undefined {
+    if (!this.outboundProxyUrl) return undefined;
+    if (!this.outboundDispatcherInstance) {
+      this.outboundDispatcherInstance = buildUzumCheckoutProxyDispatcher(
+        this.outboundProxyUrl,
+      );
+    }
+    return this.outboundDispatcherInstance;
   }
 
   /** Callback imzo tekshiruvi ishga tushirilishi mumkinmi. */
@@ -479,6 +597,14 @@ export class UzumCheckoutProvider {
 
   // ==========================================================================
   //  CHIQUVCHI (outbound) — FAIL-CLOSED, rasmiy wire-format kutilmoqda.
+  //
+  //  STATIK CHIQUVCHI IP: agar `UZUM_CHECKOUT_HTTPS_PROXY` sozlangan bo'lsa,
+  //  har bir `fetch()` chaqiruvi `dispatcher: this.outboundDispatcher()` bilan
+  //  amalga oshirilishi SHART — shunda so'rov safaar-gateway'dagi forward
+  //  proxy orqali chiqadi (Yandex Cloud statik IP). Boshqa hech qanday
+  //  `fetch()` (bu klassdan tashqarida) o'zgartirilmaydi; `setGlobalDispatcher`
+  //  ISHLATILMAYDI. `outboundDispatcher()` proxy sozlanmagan bo'lsa `undefined`
+  //  qaytaradi va `fetch` odatdagi marshrutga tushadi.
   // ==========================================================================
 
   /**
@@ -524,6 +650,9 @@ export class UzumCheckoutProvider {
    *   const res = await fetch(`${this.baseUrl}/payment/register`, {
    *     method: 'POST',
    *     signal: AbortSignal.timeout(15_000),
+   *     // STATIK CHIQUVCHI IP: proxy sozlangan bo'lsa so'rov safaar-gateway
+   *     // orqali chiqadi; sozlanmagan bo'lsa `undefined` -> to'g'ridan-to'g'ri.
+   *     dispatcher: this.outboundDispatcher(),
    *     headers: {
    *       'Content-Type': 'application/json',
    *       // auth sarlavhasi nomi/sxemasi — SPEC (masalan 'Authorization: Bearer'

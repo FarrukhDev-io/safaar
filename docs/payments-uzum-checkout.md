@@ -168,6 +168,7 @@ UZUM_CHECKOUT_API_KEY
 UZUM_CHECKOUT_CALLBACK_SIGN_KEY     # callback imzo kaliti (faqat spec tasdiqlasa)
 UZUM_CHECKOUT_SIGNATURE_SCHEME      # 'none' (default, fail-closed) | 'hmac-sha256'
 UZUM_CHECKOUT_SIGNATURE_HEADER      # default 'x-signature'
+UZUM_CHECKOUT_HTTPS_PROXY           # IXTIYORIY chiquvchi forward-proxy (statik IP)
 ```
 
 `isConfigured()` = `BASE_URL && MERCHANT_ID && API_KEY` (chiquvchi metodlar
@@ -178,13 +179,60 @@ o'zgartirilmadi).
 Secret/imzo/Authorization **log qilinmaydi** (faqat `orderId`/state — non-secret
 korrelyatsiya).
 
+## Statik chiquvchi IP (`UZUM_CHECKOUT_HTTPS_PROXY`)
+
+Uzum Checkout merchant tomonda chiquvchi so'rovlar uchun **barqaror manba
+IP** talab qilishi mumkin (allowlist). SAFAAR production backend'i uy/ofis
+ISP'i orqali chiqadi (`188.113.198.155`) — bu IP ISP tomonidan o'zgarishi
+mumkin. Yechim: **faqat Uzum Checkout so'rovlarini** `safaar-gateway`
+(Yandex Cloud) dagi forward-proxy orqali chiqarish → Yandex statik IP.
+
+**Arxitektura**
+
+```
+safaar-backend konteyner (baito hostida)
+     │  faqat Uzum Checkout HTTP so'rovlari (register/getOrderStatus/
+     │  getOperationState/refund) — dispatcher: outboundDispatcher()
+     ▼
+Tailscale (backend 100.109.46.108  →  gateway 100.105.86.75)
+     ▼
+tinyproxy @ safaar-gateway  (100.105.86.75:3128, FAQAT tailscale0'ga bind)
+     │  CONNECT :443, faqat Uzum domenlariga (Filter allowlist)
+     ▼
+eth0 → Yandex Cloud 1:1 NAT → <statik IP>   ← Uzum'ga shu IP beriladi
+```
+
+**Backend tomoni (kod)**
+
+- `UzumCheckoutProvider.outboundDispatcher()` — `UZUM_CHECKOUT_HTTPS_PROXY`
+  bo'sh bo'lsa `undefined` (so'rov to'g'ridan-to'g'ri), sozlangan bo'lsa
+  **keshlangan** undici `ProxyAgent`. Chiquvchi metodlar `fetch(url, {
+  dispatcher: this.outboundDispatcher(), signal: … })` bilan chaqiradi.
+- **`setGlobalDispatcher` ISHLATILMAYDI** — jarayondagi boshqa har qanday
+  `fetch()` (SMS, email, CBU kurs, webhook yetkazish, OAuth) va boshqa
+  host'dagi Baito trafigi **umuman o'zgarmaydi**.
+- Proxy URL yaroqsiz bo'lsa: `env.validation.ts` ilovani ishga tushirmaydi
+  (birlamchi), `outboundDispatcher()` `PROXY_MISCONFIGURED` throw qiladi
+  (ikkilamchi). Credential logga **userinfo yashirilgan** holda chiqadi
+  (`redactProxyUrl` / `outboundProxyUrlForLog`).
+
+**Infra tomoni** (repo'dan tashqarida — sirlar Git'da emas): tinyproxy
+konfiguratsiyasi, Tailscale bind, `Allow 100.109.46.108`, `Filter`
+allowlist, nft qoidasi va statik-IP tekshiruvi
+`docs/infra/uzum-checkout-egress-proxy.md` da (yoki infra runbook'da)
+hujjatlashtiriladi. `backend.env` ga faqat `UZUM_CHECKOUT_HTTPS_PROXY=…`
+qatori qo'shiladi.
+
 ## Fayllar
 
 - `src/payments/providers/uzum-checkout.provider.ts` — provider: fail-closed imzo
   abstraction, `normalizeCheckoutCallback`, `NormalizedCheckoutCallback`,
   `UzumCheckoutError`, `stableStringify`, hamda chiquvchi seam'lar (`register` /
   `getOrderStatus` / `getOperationState` / `refund` — hammasi `NOT_CONFIGURED` /
-  `SPEC_REQUIRED` bilan fail-closed, `@example` mapping bilan).
+  `SPEC_REQUIRED` bilan fail-closed, `@example` mapping bilan). **Statik-IP
+  seam**: `outboundDispatcher()` / `isOutboundProxyConfigured()` /
+  `outboundProxyUrlForLog()` + `buildUzumCheckoutProxyDispatcher()` /
+  `redactProxyUrl()` (`UZUM_CHECKOUT_HTTPS_PROXY`).
 - `src/payments/uzum-checkout.controller.ts` — `POST /v1/uzum/checkout/callback`.
 - `src/payments/payments.service.ts` — `uzumCheckoutCallback()` +
   `createUzumCheckoutPayment()` (register seam) + `buildCheckoutUrl` branch +

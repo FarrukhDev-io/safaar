@@ -51,6 +51,15 @@ interface EnvironmentConfig {
   UZUM_CHECKOUT_CALLBACK_SIGN_KEY?: string;
   UZUM_CHECKOUT_SIGNATURE_HEADER?: string;
   UZUM_CHECKOUT_SIGNATURE_SCHEME?: string;
+  // Uzum Checkout CHIQUVCHI (outbound) so'rovlari uchun IXTIYORIY forward-proxy
+  // URL (`http://user:pass@host:port`). FAQAT `UzumCheckoutProvider`ning
+  // chiquvchi metodlari (`register` / `getOrderStatus` / `getOperationState`
+  // / `refund`) shu proxy orqali chiqadi — statik chiquvchi IP kafolati uchun
+  // (Uzum merchant allowlist). Bo'sh bo'lsa — Uzum Checkout so'rovlari ham
+  // odatdagi to'g'ridan-to'g'ri marshrut bilan boradi. Boshqa HECH BIR
+  // `fetch()` (SMS, email, CBU kurs, webhook yetkazish, OAuth, ...) bunga
+  // ta'sir qilmaydi — `setGlobalDispatcher` ISHLATILMAYDI.
+  UZUM_CHECKOUT_HTTPS_PROXY?: string;
   // QA/test-only: haqiqiy imzo sxemasi sozlanmagan bo'lsa (hozirgi holat —
   // rasmiy spec yo'q) callback signature tekshiruvini o'tkazib yuborishga
   // ruxsat beradi — FAQAT production BO'LMAGANDA (`NODE_ENV==='production'`
@@ -194,6 +203,30 @@ export function validateEnv(
     }
   }
 
+  // Uzum Checkout chiquvchi proxy URL'i (ixtiyoriy) — sozlangan bo'lsa
+  // sintaktik jihatdan to'g'ri http/https URL bo'lishi SHART, aks holda
+  // ilova ishga tushmaydi (noto'g'ri sozlangan proxy jim ravishda e'tiborsiz
+  // qoldirilib, to'lov so'rovlari kutilmagan IP'dan chiqib ketmasligi uchun).
+  const uzumCheckoutHttpsProxy = config.UZUM_CHECKOUT_HTTPS_PROXY
+    ? String(config.UZUM_CHECKOUT_HTTPS_PROXY).trim()
+    : undefined;
+  if (uzumCheckoutHttpsProxy) {
+    let parsedProxy: URL;
+    try {
+      parsedProxy = new URL(uzumCheckoutHttpsProxy);
+    } catch {
+      throw new Error(
+        'UZUM_CHECKOUT_HTTPS_PROXY yaroqli URL bo‘lishi kerak ' +
+          '(masalan http://user:parol@host:3128)',
+      );
+    }
+    if (parsedProxy.protocol !== 'http:' && parsedProxy.protocol !== 'https:') {
+      throw new Error(
+        'UZUM_CHECKOUT_HTTPS_PROXY faqat http:// yoki https:// sxemasida bo‘lishi mumkin',
+      );
+    }
+  }
+
   return {
     NODE_ENV: nodeEnv,
     APP_NAME: String(config.APP_NAME ?? 'safaar-api'),
@@ -300,6 +333,7 @@ export function validateEnv(
     UZUM_CHECKOUT_SIGNATURE_SCHEME: config.UZUM_CHECKOUT_SIGNATURE_SCHEME
       ? String(config.UZUM_CHECKOUT_SIGNATURE_SCHEME)
       : undefined,
+    UZUM_CHECKOUT_HTTPS_PROXY: uzumCheckoutHttpsProxy,
     UZUM_CHECKOUT_TEST_MODE: String(config.UZUM_CHECKOUT_TEST_MODE ?? 'false'),
     DB_CONNECTION_TIMEOUT_MS: toNumber(
       config.DB_CONNECTION_TIMEOUT_MS,
