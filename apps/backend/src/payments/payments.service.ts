@@ -886,6 +886,23 @@ export class PaymentsService {
     }
   }
 
+  /**
+   * Uzum Checkout audit-only `payment_events.payload` yozuvlari uchun
+   * umumiy shakl: TO'LIQ xom callback + (mavjud bo'lsa) debug-safe
+   * sarlavhalar. Faqat `uzumCheckoutCallback()`ning audit yo'llarida
+   * (unknown_order va non-PAID) ishlatiladi — PAID/confirm yo'li o'z
+   * ichiga (booking_id/transaction_id kabi) qo'shimcha maydonlarni ham
+   * olgani uchun bu helper'ni ishlatmaydi.
+   */
+  private buildCheckoutAuditPayload(
+    input: NormalizedCheckoutCallback,
+    debugHeaders?: Record<string, string>,
+  ): Record<string, unknown> {
+    return debugHeaders && Object.keys(debugHeaders).length > 0
+      ? { raw: input.raw, debug_headers: debugHeaders }
+      : { raw: input.raw };
+  }
+
   private stableStringify(value: unknown): string {
     if (Array.isArray(value)) {
       return `[${value.map((item) => this.stableStringify(item)).join(',')}]`;
@@ -1461,7 +1478,10 @@ export class PaymentsService {
    *   - aks holda — qabul qilindi: `duplicate` (takroriy callback),
    *     `applied` (haqiqatan holat o'zgardimi).
    */
-  async uzumCheckoutCallback(input: NormalizedCheckoutCallback): Promise<{
+  async uzumCheckoutCallback(
+    input: NormalizedCheckoutCallback,
+    debugHeaders?: Record<string, string>,
+  ): Promise<{
     received: true;
     duplicate: boolean;
     applied: boolean;
@@ -1502,6 +1522,34 @@ export class PaymentsService {
         ).startsWith('uzum_checkout:'));
 
     if (!payment || !isCheckoutPayment) {
+      // "Callback qabul qilindi" bilan "to'lov tasdiqlandi"ni ANIQ ajratamiz:
+      // order topilmasa ham xom payload yo'qolib ketmasligi kerak (QA/
+      // tekshiruv uchun) — lekin hech qanday payment/booking holati
+      // O'ZGARTIRILMAYDI. Bir xil noma'lum callback qayta-qayta kelsa ham
+      // (Uzum retry) `event_key` UNIQUE + ON CONFLICT DO NOTHING orqali
+      // faqat bitta audit qatori saqlanadi.
+      const unknownKey =
+        input.orderId ||
+        input.orderNumber ||
+        createHash('sha256')
+          .update(this.stableStringify(input.raw))
+          .digest('hex');
+      await this.pg.query(
+        `INSERT INTO payment_events
+           (id, provider, event_type, event_key, payload, payload_hash, processed_at)
+         VALUES ($1, 'uzum_checkout', $2, $3, $4::jsonb, $5, $6)
+         ON CONFLICT (event_key) DO NOTHING`,
+        [
+          randomUUID(),
+          'callback:unknown_order',
+          `uzum_checkout:unknown:${unknownKey}`,
+          JSON.stringify(this.buildCheckoutAuditPayload(input, debugHeaders)),
+          createHash('sha256')
+            .update(this.stableStringify(input.raw))
+            .digest('hex'),
+          new Date().toISOString(),
+        ],
+      );
       return {
         received: true,
         duplicate: false,
@@ -1522,7 +1570,7 @@ export class PaymentsService {
           randomUUID(),
           `callback:${input.state.toLowerCase()}`,
           `uzum_checkout:${input.orderId}:${input.state}`,
-          JSON.stringify(input.raw),
+          JSON.stringify(this.buildCheckoutAuditPayload(input, debugHeaders)),
           createHash('sha256')
             .update(this.stableStringify(input.raw))
             .digest('hex'),
@@ -1536,6 +1584,13 @@ export class PaymentsService {
     //    idempotentlik (`event_key` UNIQUE), amount/currency tekshiruvi,
     //    terminal-holat qo'riqchi, booking -> confirmed + `expires_at=NULL`
     //    + `booking_status_history` + partner ledger krediti.
+    //
+    //    MUHIM: `input.state === 'PAID'` bo'lishi FAQAT `STATE_MAP` orqali
+    //    (hozircha bo'sh, ya'ni HECH QACHON) mumkin — demak bu yo'lga xom,
+    //    tekshirilmagan "SUCCESS" qiymati bilan hech qachon yetib
+    //    bo'lmaydi. Haqiqiy holat o'zgarishi baribir shu yerdan — mavjud
+    //    ishonchli `processPaymentEvent()` pipeline'idan (amount/currency/
+    //    terminal-holat tekshiruvlari) — o'tadi.
     try {
       const result = (await this.processPaymentEvent(
         'uzum_checkout',
@@ -1548,6 +1603,14 @@ export class PaymentsService {
             ? input.amountSom
             : undefined,
           currency: input.currency,
+          // To'liq xom Uzum payload + debug-safe sarlavhalar — faqat audit
+          // uchun qo'shiladi, `processPaymentEvent()`ning o'z mantig'i
+          // (booking_id/transaction_id/amount/currency) bu qo'shimcha
+          // kalitlarni o'qimaydi/e'tiborga olmaydi.
+          uzum_raw: input.raw,
+          ...(debugHeaders && Object.keys(debugHeaders).length > 0
+            ? { uzum_debug_headers: debugHeaders }
+            : {}),
         },
       )) as { duplicate?: boolean };
       return {

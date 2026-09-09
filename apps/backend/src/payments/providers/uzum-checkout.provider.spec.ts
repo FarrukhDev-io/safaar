@@ -3,6 +3,8 @@ import {
   UZUM_CHECKOUT_ERROR,
   UzumCheckoutError,
   UzumCheckoutProvider,
+  normalizeCheckoutCallback,
+  pickDebugHeaders,
   stableStringify,
 } from './uzum-checkout.provider';
 
@@ -186,6 +188,110 @@ describe('UzumCheckoutProvider outbound (register/getOrderStatus/refund) — FAI
     ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.SPEC_REQUIRED });
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+});
+
+describe('UzumCheckoutProvider.signatureHeaderName', () => {
+  it('default => x-signature', () => {
+    expect(new UzumCheckoutProvider(mkConfig({})).signatureHeaderName()).toBe(
+      'x-signature',
+    );
+  });
+  it('custom sozlangan bo‘lsa — kichik harfga normallashtirilgan holda qaytadi', () => {
+    expect(
+      new UzumCheckoutProvider(
+        mkConfig({ UZUM_CHECKOUT_SIGNATURE_HEADER: 'X-Uzum-Signature' }),
+      ).signatureHeaderName(),
+    ).toBe('x-uzum-signature');
+  });
+});
+
+describe('normalizeCheckoutCallback — audit-only qo‘shimcha maydonlar (operationType/rrn/bindingId)', () => {
+  it('mavjud bo‘lsa o‘qiladi (camelCase)', () => {
+    const n = normalizeCheckoutCallback({
+      orderId: 'A1',
+      operationType: 'PAYMENT',
+      rrn: '123456789012',
+      bindingId: 'bind-1',
+    });
+    expect(n.operationType).toBe('PAYMENT');
+    expect(n.rrn).toBe('123456789012');
+    expect(n.bindingId).toBe('bind-1');
+  });
+
+  it('mavjud bo‘lsa o‘qiladi (snake_case / RRN)', () => {
+    const n = normalizeCheckoutCallback({
+      order_id: 'A1',
+      operation_type: 'REFUND',
+      RRN: '000000000001',
+      binding_id: 'bind-2',
+    });
+    expect(n.operationType).toBe('REFUND');
+    expect(n.rrn).toBe('000000000001');
+    expect(n.bindingId).toBe('bind-2');
+  });
+
+  it('yo‘q bo‘lsa undefined (talab qilinmaydi)', () => {
+    const n = normalizeCheckoutCallback({ orderId: 'A1' });
+    expect(n.operationType).toBeUndefined();
+    expect(n.rrn).toBeUndefined();
+    expect(n.bindingId).toBeUndefined();
+  });
+
+  it('hech bir maydon xom payloaddan (`raw`) tashlab yuborilmaydi — noma‘lum/kelajakdagi maydonlar ham', () => {
+    const raw = {
+      orderId: 'A1',
+      totallyUnknownFutureField: { nested: [1, 2, 3] },
+      anotherOne: 42,
+    };
+    const n = normalizeCheckoutCallback(raw);
+    expect(n.raw).toEqual(raw);
+  });
+});
+
+describe('pickDebugHeaders — faqat kichik xavfsiz allowlist, imzo/authorization/cookie hech qachon', () => {
+  it('allowlist’dagi sarlavhalarni oladi', () => {
+    const picked = pickDebugHeaders({
+      'content-type': 'application/json',
+      'user-agent': 'UzumBot/1.0',
+      'x-request-id': 'req-1',
+      'x-forwarded-for': '1.2.3.4',
+      'x-real-ip': '1.2.3.4',
+    });
+    expect(picked).toEqual({
+      'content-type': 'application/json',
+      'user-agent': 'UzumBot/1.0',
+      'x-request-id': 'req-1',
+      'x-forwarded-for': '1.2.3.4',
+      'x-real-ip': '1.2.3.4',
+    });
+  });
+
+  it('authorization/cookie hech qachon qaytarilmaydi, ular allowlist’da bo‘lmasa ham', () => {
+    const picked = pickDebugHeaders({
+      authorization: 'Bearer secret',
+      cookie: 'session=secret',
+      'content-type': 'application/json',
+    });
+    expect(picked).toEqual({ 'content-type': 'application/json' });
+  });
+
+  it('qo‘shimcha istisno ro‘yxati (imzo sarlavhasi) ham chetlab o‘tiladi', () => {
+    const picked = pickDebugHeaders(
+      { 'x-signature': 'abc123', 'content-type': 'application/json' },
+      ['x-signature'],
+    );
+    expect(picked).toEqual({ 'content-type': 'application/json' });
+  });
+
+  it('array qiymatli sarlavha bo‘lsa birinchisini oladi', () => {
+    const picked = pickDebugHeaders({ 'x-request-id': ['a', 'b'] });
+    expect(picked['x-request-id']).toBe('a');
+  });
+
+  it('mavjud bo‘lmagan/bo‘sh sarlavhalar chiqarilmaydi', () => {
+    const picked = pickDebugHeaders({ 'x-request-id': '' });
+    expect(picked).toEqual({});
   });
 });
 

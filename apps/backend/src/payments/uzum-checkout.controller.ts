@@ -15,6 +15,8 @@ import {
   UzumCheckoutError,
   UzumCheckoutProvider,
   normalizeCheckoutCallback,
+  pickDebugHeaders,
+  type NormalizedCheckoutCallback,
 } from './providers/uzum-checkout.provider';
 
 /**
@@ -35,6 +37,15 @@ import {
  * Xavfsizlik: imzo `UzumCheckoutProvider.verifyCallback` orqali FAIL-CLOSED
  * tekshiriladi (sxema sozlanmaguncha har qanday callback rad etiladi).
  * Secret / imzo / Authorization LOG QILINMAYDI.
+ *
+ * "Callback qabul qilindi" bilan "to'lov tasdiqlandi" ANIQ ajratilgan:
+ *   - imzo tasdiqlanmagan callback — HECH QANDAY DB yozuvi yo'q, faqat
+ *     xavfsiz (tipizatsiya qilingan, xom EMAS) preview logga yoziladi;
+ *   - imzo tasdiqlangan, lekin order topilmasa — `payment_events`ga
+ *     audit sifatida yoziladi (payment/booking holati O'ZGARMAYDI);
+ *   - faqat ichki `state === 'PAID'` (hozircha `STATE_MAP` bo'shligi
+ *     sababli hech qachon) mavjud ishonchli pipeline orqali holatni
+ *     o'zgartiradi.
  */
 @ApiTags('payments')
 @Controller()
@@ -52,6 +63,9 @@ export class UzumCheckoutController {
     @Res() res: Response,
     @Body() raw: unknown,
   ): Promise<void> {
+    // Faqat catch blokidagi XAVFSIZ (tipizatsiya qilingan, xom EMAS) preview
+    // log uchun — hech qanday sir/imzo/authorization saqlamaydi.
+    let normalized: NormalizedCheckoutCallback | undefined;
     try {
       // G) noto'g'ri/bo'sh payload -> rad etamiz, hech narsani PAID qilmaymiz.
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -64,12 +78,30 @@ export class UzumCheckoutController {
       }
       const body = raw as Record<string, unknown>;
 
+      // Normalizatsiya — TOZA funksiya (DB'ga yozmaydi, holat o'zgartirmaydi),
+      // shuning uchun imzo tekshiruvidan OLDIN xavfsiz chaqirish mumkin. Bu
+      // imzo rad etilganda ham QA/tekshiruv uchun xavfsiz (faqat TIPIZATSIYA
+      // QILINGAN maydonlar — xom, tasdiqlanmagan payload EMAS) preview
+      // logga yozishga imkon beradi — "callback qabul qilindi" bilan
+      // "to'lov tasdiqlandi"ni aniq ajratib turadi.
+      normalized = normalizeCheckoutCallback(body);
+
       // F) imzo tekshiruvi — FAIL-CLOSED (throw qiladi, agar sxema
-      //    sozlanmagan bo'lsa yoki imzo mos kelmasa).
+      //    sozlanmagan bo'lsa yoki imzo mos kelmasa). MUHIM: imzo hali
+      //    tasdiqlanmagani uchun bu yerdan keyin HECH QANDAY DB yozuvi
+      //    yoki holat o'zgarishi bo'lmaydi — faqat quyidagi catch blokida
+      //    xavfsiz (tipizatsiya qilingan, xom EMAS) preview log qilinadi.
       this.checkout.verifyCallback(body, req.headers);
 
-      const normalized = normalizeCheckoutCallback(body);
-      const result = await this.payments.uzumCheckoutCallback(normalized);
+      // Debug/audit uchun — imzo sarlavhasi (va authorization/cookie) hech
+      // qachon shu ro'yxatga kirmaydi, faqat kichik "xavfsiz" allowlist.
+      const debugHeaders = pickDebugHeaders(req.headers, [
+        this.checkout.signatureHeaderName(),
+      ]);
+      const result = await this.payments.uzumCheckoutCallback(
+        normalized,
+        debugHeaders,
+      );
 
       // C/D/E) mapping/amount/currency muammosi -> reject, PAID qilinmaydi.
       if (result.code) {
@@ -93,7 +125,21 @@ export class UzumCheckoutController {
       });
     } catch (err) {
       if (err instanceof UzumCheckoutError) {
-        this.logger.warn(`uzum-checkout callback rejected: ${err.code}`);
+        // "callback qabul qilindi" bilan "to'lov tasdiqlandi"ni aniq
+        // ajratish: imzo tasdiqlanmagani uchun HECH QANDAY DB yozuvi
+        // qilinmaydi (xavfsizlik — tasdiqlanmagan yozuvchi bizning
+        // bazamizga cheksiz yozib tashlay olmasligi kerak), lekin QA/
+        // tekshiruv uchun XAVFSIZ (faqat tipizatsiya qilingan maydonlar —
+        // xom payload/sarlavhalar EMAS) preview logga yoziladi.
+        const preview = normalized
+          ? ` preview[orderId=${normalized.orderId || '?'} ` +
+            `orderNumber=${normalized.orderNumber || '?'} ` +
+            `state=${normalized.state} ` +
+            `operationType=${normalized.operationType ?? '?'}]`
+          : '';
+        this.logger.warn(
+          `uzum-checkout callback rejected: ${err.code}${preview}`,
+        );
         this.reject(res, HttpStatus.UNAUTHORIZED, err.code);
         return;
       }

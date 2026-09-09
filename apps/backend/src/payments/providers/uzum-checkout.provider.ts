@@ -83,7 +83,20 @@ export interface NormalizedCheckoutCallback {
   currency: string;
   /** ICHKI normallashtirilgan holat (Uzum'ning xom holati emas). */
   state: 'PAID' | 'FAILED' | 'PENDING' | 'UNKNOWN';
-  /** Auditga saqlanadigan xom payload. */
+  /**
+   * Quyidagi maydonlar FAQAT audit/debug uchun best-effort o'qiladi — hech
+   * biri biznes holatini (`state`) belgilamaydi va hech biri talab
+   * qilinmaydi. Uzum'ning haqiqiy `operationType`/`rrn`/`bindingId`
+   * semantikasi spec'siz noma'lum, shuning uchun xom qiymat qandayligicha
+   * saqlanadi — hech qanday tarjima/interpretatsiya qilinmaydi.
+   */
+  /** Xom operatsiya turi (masalan "PAYMENT"/"REFUND") — spec'siz, faqat audit. */
+  operationType?: string;
+  /** Karta operatsiyasi retrieval reference number — faqat audit. */
+  rrn?: string;
+  /** Saqlangan karta/tokenizatsiya identifikatori — faqat audit. */
+  bindingId?: string;
+  /** Auditga saqlanadigan TO'LIQ xom payload — hech bir maydon tashlab yuborilmaydi. */
   raw: Record<string, unknown>;
 }
 
@@ -203,8 +216,50 @@ export function normalizeCheckoutCallback(
     amountSom,
     currency: str(raw.currency ?? 'UZS').toUpperCase() || 'UZS',
     state: STATE_MAP[rawState] ?? 'UNKNOWN',
+    operationType: optionalStr(raw.operationType ?? raw.operation_type),
+    rrn: optionalStr(raw.rrn ?? raw.RRN),
+    bindingId: optionalStr(raw.bindingId ?? raw.binding_id),
     raw,
   };
+}
+
+function optionalStr(value: unknown): string | undefined {
+  const s = str(value);
+  return s === '' ? undefined : s;
+}
+
+/**
+ * Callback so'rov sarlavhalaridan FAQAT debug/audit uchun xavfsiz bo'lgan
+ * kichik ro'yxatni ajratib oladi. Imzo sarlavhasi (`excludeHeaderNames`
+ * orqali beriladi) va `authorization`/`cookie` HECH QACHON qaytarilmaydi —
+ * bu himoya ikki marta ta'minlangan: (1) allowlist o'zi tor, (2) yana
+ * qo'shimcha aniq istisno ro'yxati.
+ */
+const DEBUG_SAFE_HEADER_NAMES = [
+  'content-type',
+  'user-agent',
+  'x-request-id',
+  'x-forwarded-for',
+  'x-real-ip',
+] as const;
+const ALWAYS_EXCLUDED_HEADER_NAMES = ['authorization', 'cookie'];
+
+export function pickDebugHeaders(
+  headers: HeaderMap,
+  excludeHeaderNames: readonly string[] = [],
+): Record<string, string> {
+  const excluded = new Set(
+    [...ALWAYS_EXCLUDED_HEADER_NAMES, ...excludeHeaderNames].map((n) =>
+      n.toLowerCase(),
+    ),
+  );
+  const picked: Record<string, string> = {};
+  for (const name of DEBUG_SAFE_HEADER_NAMES) {
+    if (excluded.has(name)) continue;
+    const value = firstHeader(headers[name]);
+    if (value) picked[name] = value;
+  }
+  return picked;
 }
 
 type HeaderMap = Record<string, string | string[] | undefined>;
@@ -252,6 +307,14 @@ export class UzumCheckoutProvider {
   /** Callback imzo tekshiruvi ishga tushirilishi mumkinmi. */
   isCallbackVerificationConfigured(): boolean {
     return Boolean(this.callbackSignKey) && this.signatureScheme !== 'none';
+  }
+
+  /**
+   * Sozlangan imzo sarlavhasi nomi (masalan `x-signature`). Faqat audit/debug
+   * log'lardan uni chetlab o'tish uchun ochilgan — hech qanday sir qaytarmaydi.
+   */
+  signatureHeaderName(): string {
+    return this.signatureHeader;
   }
 
   /**

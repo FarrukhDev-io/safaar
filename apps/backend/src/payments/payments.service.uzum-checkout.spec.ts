@@ -128,19 +128,64 @@ describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () =>
     ).toBeUndefined();
   });
 
-  it('3) unknown order — hech narsa yozilmaydi, code=unknown_order', async () => {
-    pg.query.mockResolvedValueOnce([]); // no payment
+  it("3) unknown order — payment/booking holati o'zgarmaydi, lekin xom payload audit uchun saqlanadi, code=unknown_order", async () => {
+    pg.query
+      .mockResolvedValueOnce([]) // no payment
+      .mockResolvedValueOnce([]); // audit INSERT INTO payment_events
     const res = await service.uzumCheckoutCallback(normalized());
     expect(res).toMatchObject({ applied: false, code: 'unknown_order' });
-    expect(pg.query).toHaveBeenCalledTimes(1);
+    expect(pg.query).toHaveBeenCalledTimes(2);
+
+    // Hech qanday payment/booking UPDATE bo'lmaydi — faqat audit INSERT.
+    expect(
+      findCall(pg.query, 'SET status = $1, provider_reference'),
+    ).toBeUndefined();
+    expect(findCall(pg.query, 'UPDATE bookings')).toBeUndefined();
+
+    const audit = findCall(pg.query, 'INSERT INTO payment_events');
+    expect(String(audit?.[1]?.[1])).toBe('callback:unknown_order');
+    expect(String(audit?.[1]?.[2])).toBe(`uzum_checkout:unknown:${ORDER_ID}`);
+    const payload = JSON.parse(String(audit?.[1]?.[3])) as {
+      raw: unknown;
+    };
+    expect(payload.raw).toEqual(normalized().raw);
   });
 
-  it('3b) matched payment is NOT a checkout payment — treated as unknown_order', async () => {
-    pg.query.mockResolvedValueOnce([
-      { ...checkoutPayment, provider: 'click', idempotency_key: 'click:x' },
-    ]);
+  it('3b) matched payment is NOT a checkout payment — treated as unknown_order, still audited', async () => {
+    pg.query
+      .mockResolvedValueOnce([
+        { ...checkoutPayment, provider: 'click', idempotency_key: 'click:x' },
+      ])
+      .mockResolvedValueOnce([]); // audit INSERT
     const res = await service.uzumCheckoutCallback(normalized());
     expect(res).toMatchObject({ applied: false, code: 'unknown_order' });
+    expect(findCall(pg.query, 'INSERT INTO payment_events')).toBeDefined();
+  });
+
+  it('3c-debug) unknown order with debug headers — headers preserved alongside raw payload, never overwrite raw fields', async () => {
+    pg.query.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    const debugHeaders = { 'content-type': 'application/json' };
+    await service.uzumCheckoutCallback(normalized(), debugHeaders);
+    const audit = findCall(pg.query, 'INSERT INTO payment_events');
+    const payload = JSON.parse(String(audit?.[1]?.[3])) as {
+      raw: unknown;
+      debug_headers?: Record<string, string>;
+    };
+    expect(payload.debug_headers).toEqual(debugHeaders);
+    expect(payload.raw).toEqual(normalized().raw);
+  });
+
+  it('3d-debug) unknown order without debug headers — no debug_headers key added', async () => {
+    pg.query.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    await service.uzumCheckoutCallback(normalized());
+    const audit = findCall(pg.query, 'INSERT INTO payment_events');
+    const payload = JSON.parse(String(audit?.[1]?.[3])) as Record<
+      string,
+      unknown
+    >;
+    expect(Object.prototype.hasOwnProperty.call(payload, 'debug_headers')).toBe(
+      false,
+    );
   });
 
   it('3c) missing orderId/orderNumber (malformed callback) — no NUL byte reaches SQL params, graceful unknown_order (regression: raw \\x00 fallback used to be sent as a Postgres query param and would throw a driver-level error instead of resolving cleanly)', async () => {
