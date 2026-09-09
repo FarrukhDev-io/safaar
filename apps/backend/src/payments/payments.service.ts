@@ -1481,9 +1481,15 @@ export class PaymentsService {
        LIMIT 1`,
       [
         idemKey,
-        input.orderId || ' ',
+        // Bo'sh bo'lsa hech qachon mos kelmaydigan placeholder ishlatamiz.
+        // Ilgari bu yerda xom NUL bayt (`'\x00'`) bo'lgan, lekin Postgres
+        // matn ustunlari o'rnatilgan NUL baytni rad etadi (driver darajasida
+        // xato) — bo'sh `orderId`/`orderNumber` bilan kelgan callback butun
+        // so'rovni ag'darib yuborardi. Haqiqiy `provider_reference`/
+        // `booking_number` qiymatlari hech qachon shu formatga mos kelmaydi.
+        input.orderId || '__uzum_checkout_no_order_id__',
         input.merchantOperationId || '00000000-0000-0000-0000-000000000000',
-        input.orderNumber || ' ',
+        input.orderNumber || '__uzum_checkout_no_order_number__',
       ],
     );
 

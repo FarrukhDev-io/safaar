@@ -143,6 +143,23 @@ describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () =>
     expect(res).toMatchObject({ applied: false, code: 'unknown_order' });
   });
 
+  it('3c) missing orderId/orderNumber (malformed callback) — no NUL byte reaches SQL params, graceful unknown_order (regression: raw \\x00 fallback used to be sent as a Postgres query param and would throw a driver-level error instead of resolving cleanly)', async () => {
+    pg.query.mockResolvedValueOnce([]); // no payment matches the placeholder sentinels
+    const res = await service.uzumCheckoutCallback(
+      normalized({ orderId: '', orderNumber: '' }),
+    );
+    expect(res).toMatchObject({ applied: false, code: 'unknown_order' });
+
+    const lookup = pg.query.mock.calls[0] as [string, unknown[]];
+    const params = lookup[1];
+    // Hech bir parametrda xom NUL bayt bo'lmasligi kerak.
+    for (const p of params) {
+      expect(String(p)).not.toContain(String.fromCharCode(0)); // NUL bayt
+    }
+    expect(params[1]).toBe('__uzum_checkout_no_order_id__');
+    expect(params[3]).toBe('__uzum_checkout_no_order_number__');
+  });
+
   it('4) amount mismatch — reject, PAID qilinmaydi', async () => {
     pg.query
       .mockResolvedValueOnce([checkoutPayment])
