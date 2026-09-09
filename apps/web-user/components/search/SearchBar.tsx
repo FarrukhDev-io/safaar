@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/Button";
 
 export type { PropertyType, SearchDefaults };
 
-const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl bg-slate-50/80 px-4 py-3 transition-all duration-200 hover:bg-slate-50 md:rounded-2xl md:bg-transparent md:px-6 md:py-4 md:hover:bg-slate-100 cursor-pointer";
+const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-[24px] bg-slate-50 px-4 py-3 transition-all duration-300 hover:bg-slate-100 md:rounded-[32px] md:bg-transparent md:px-5 md:py-3 md:hover:bg-slate-50 cursor-pointer dark:bg-slate-800 dark:hover:bg-slate-700";
 
 export function SearchBar({
   locale,
@@ -80,10 +80,10 @@ export function SearchBar({
   }
 
   return (
-    <div className="mx-auto w-full">
+    <div className="mx-auto w-full relative z-50">
       <form
         onSubmit={handleSubmit}
-        className="relative flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-lg transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-0 md:rounded-3xl md:p-2.5 sm:p-4"
+        className="relative flex flex-col gap-3 rounded-[32px] border border-slate-200 bg-white p-3 shadow-2xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-1 md:rounded-[40px] md:p-2 sm:p-4"
       >
         {/* 1. Shahar / Destinatsiya */}
         <div className={fieldWrapperClass}>
@@ -98,7 +98,7 @@ export function SearchBar({
           </div>
         </div>
 
-        <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
+        <div className="hidden h-10 w-px shrink-0 bg-slate-200 dark:bg-slate-700 md:block" aria-hidden />
 
         {/* 2. Kirish sanasi */}
         <div className={fieldWrapperClass}>
@@ -120,7 +120,7 @@ export function SearchBar({
           </div>
         </div>
 
-        <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
+        <div className="hidden h-10 w-px shrink-0 bg-slate-200 dark:bg-slate-700 md:block" aria-hidden />
 
         {/* 3. Chiqish sanasi */}
         <div className={fieldWrapperClass}>

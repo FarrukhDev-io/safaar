@@ -7,6 +7,16 @@ import { AccordionGallery } from "@/components/ui/AccordionGalleryClient";
 import { CityCardsMobileCarousel } from "@/components/features/home/CityCardsMobileCarousel";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
+import { resolveImage } from "@/lib/images";
+
+const FALLBACK_CITY_IMAGES: Record<string, string> = {
+  tashkent: "/Tashkent-skyline-night.jpeg",
+  samarqand: "/Samarkand-Registan-cinematic.jpeg",
+  buxoro: "/Bukhara-old-city-golden-hour.jpeg",
+  xiva: "/Khiva-Ichan-Kala-aerial.jpeg",
+  chimgan: "/Chimgan-mountains-landscape.jpeg",
+};
+
 export async function CityCardsSection({
   locale,
   dict,
@@ -18,12 +28,20 @@ export async function CityCardsSection({
   const cities = raw
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .slice(0, 5)
-    .map((city) => ({
-      name: city.name,
-      image: city.imageUrl || "/Tashkent-skyline-night.jpeg", // Backendda rasm yo'q bo'lsa, fallback rasm qo'yamiz
-      hotelCount: String(city.hotelCount),
-      href: `/${locale}/hotels?city_id=${encodeURIComponent(city.slug)}`,
-    }))
+    .map((city) => {
+      // 1. Backenddan rasm olishga urinish (resolveImage orqali)
+      const backendImage = resolveImage(city.imageUrl);
+      
+      // 2. Agar backend null bersa, shahar nomiga qarab fallback rasmni topish
+      const fallbackImage = FALLBACK_CITY_IMAGES[city.slug] || "/Uzbekistan-travel.jpeg";
+
+      return {
+        name: city.name,
+        image: backendImage || fallbackImage,
+        hotelCount: String(city.hotelCount),
+        href: `/${locale}/hotels?city_id=${encodeURIComponent(city.slug)}`,
+      };
+    })
     .filter((city) => city.name && city.image);
 
   const galleryItems = cities.map((city) => ({

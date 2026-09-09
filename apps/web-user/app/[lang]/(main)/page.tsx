@@ -62,22 +62,22 @@ export default async function HomePage({
 
 
   return (
-    <main className="relative flex flex-1 flex-col bg-[#F8FAF9] dark:bg-[#080E0D]">
+    <main className="relative flex flex-1 flex-col bg-background text-foreground">
       {/* EKRAN 1: Hero + SearchBar + Featured Hotels */}
       <div className="flex min-h-svh flex-col justify-between">
-        <Hero dict={dict.hero} />
+        <Hero dict={dict.hero}>
+          <div className="w-full">
+            <section id="search-section" className="bg-transparent pb-4 sm:pb-6">
+              <div className="mx-auto max-w-5xl px-4 sm:px-6">
+                <SearchBar locale={locale} dict={common.search} cities={cities} />
+              </div>
+            </section>
 
-        <div className="relative z-40 -mt-10 sm:-mt-12 lg:-mt-14">
-          <section id="search-section" className="bg-transparent pb-4 sm:pb-6">
-            <div className="mx-auto max-w-5xl px-4 sm:px-6">
-              <SearchBar locale={locale} dict={common.search} cities={cities} />
-            </div>
-          </section>
-
-          {cities.length > 0 && (
-            <CityPills cities={cities} locale={locale} />
-          )}
-        </div>
+            {cities.length > 0 && (
+              <CityPills cities={cities} locale={locale} />
+            )}
+          </div>
+        </Hero>
 
         <Suspense fallback={<Skeleton className="h-48 w-full" />}>
           <FeaturedHotelsCarousel

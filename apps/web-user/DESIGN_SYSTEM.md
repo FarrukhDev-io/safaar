@@ -4,6 +4,7 @@ Ushbu hujjat Safaar platformasi uchun tasdiqlangan asosiy dizayn qoidalari va yo
 
 ## 1. Uslub / Referens
 * **Dizayn yo'nalishi:** Functional Minimalism (Funksional Minimalizm) va Content-First (Kontent eng muhimi). Hech qanday 3D effektlar, qalin soyalar yoki ortiqcha vizual shovqinlar ishlatilmaydi. 
+* **Taqiqlangan stillar (ANTI-PATTERN):** ⛔ **Glassmorphism**, `backdrop-blur`, shaffof oynali effektlar va yaltiroq "pill-shaped badge"lar umuman ishlatilmaydi. Hamma elementlar yassi (flat) va qat'iy fonga (solid bg) ega bo'lishi shart.
 * **Referens:** Airbnb va Booking.com platformalarining eng yaxshi jihatlari (Premium, xavfsiz va ishonchli). Interfeys imkon qadar "ko'rinmas" bo'lishi va foydalanuvchi diqqatini faqat mahsulotga (rasm va narxlarga) qaratishi lozim.
 
 ## 2. Ranglar

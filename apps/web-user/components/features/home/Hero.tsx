@@ -1,30 +1,29 @@
 import Image from "next/image";
 import type { HomeDict } from "@/i18n/dictionaries";
 
-export function Hero({ dict }: { dict: HomeDict["hero"] }) {
+export function Hero({ dict, children }: { dict: HomeDict["hero"], children?: React.ReactNode }) {
   return (
-    <section className="relative flex min-h-[42vh] min-h-[420px] w-full flex-col items-center justify-center overflow-hidden -mt-16 md:-mt-[72px]">
-      {/* Background image */}
-      <Image
-        src="/samarqans.jpg"
-        alt="Safaar — Samarqand"
-        fill
-        priority
-        className="object-cover object-top"
-        sizes="100vw"
-        quality={85}
-      />
+    <section className="relative flex min-h-[70vh] md:min-h-[80vh] w-full flex-col items-center justify-center pb-10">
+      {/* Background image with slow zoom animation for premium feel */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <Image
+          src="/samarqans.jpg"
+          alt="Safaar — Samarqand"
+          fill
+          priority
+          className="object-cover object-center animate-image-zoom"
+          sizes="100vw"
+          quality={90}
+        />
+        {/* Modern dark gradient overlay for text readability, blending smoothly into background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/25 to-background" />
+      </div>
 
-      {/* Gradient overlay — from design system (from-black/65 via-black/20 to-transparent) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-black/10" />
-
-      {/* Content */}
-      <div className="relative z-10 mx-auto max-w-4xl px-4 pt-[128px] pb-28 text-center sm:px-6 lg:pt-[172px] lg:pb-36">
+      {/* Hero Text */}
+      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center px-4 pt-28 pb-12 text-center sm:px-6 lg:pt-36 lg:pb-16 flex-1 justify-center">
         {/* H1 — Display scale: Manrope 900, tracking tight */}
         <h1
-          className="text-4xl font-black tracking-tight text-white sm:text-5xl md:text-6xl
-            drop-shadow-md
-            animate-in fade-in zoom-in-95 duration-700"
+          className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl drop-shadow-lg animate-in fade-in zoom-in-95 duration-700 delay-100"
           style={{ fontFamily: "var(--font-manrope, sans-serif)" }}
         >
           {dict.title}
@@ -32,13 +31,18 @@ export function Hero({ dict }: { dict: HomeDict["hero"] }) {
 
         {/* Subtitle — Body LG: Inter 400 */}
         <p
-          className="mx-auto mt-5 max-w-xl text-base font-medium leading-relaxed text-white/85 sm:text-lg
-            animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150 fill-mode-both
-            drop-shadow-sm"
+          className="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-white/90 sm:text-lg md:text-xl animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both drop-shadow-md"
         >
           {dict.subtitle}
         </p>
       </div>
+
+      {/* Render SearchBar and CityPills exactly here inside the hero background */}
+      {children && (
+        <div className="relative z-20 w-full animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+          {children}
+        </div>
+      )}
     </section>
   );
 }
