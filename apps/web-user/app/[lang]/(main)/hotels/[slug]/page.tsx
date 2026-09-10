@@ -8,6 +8,7 @@ import { getSession } from '@/lib/auth/session';
 import { formatSum } from '@/lib/money';
 import { HotelGallery } from '@/components/hotels/HotelGallery';
 import { RoomList } from '@/components/hotels/RoomList';
+import { HotelMobileCtaBar } from '@/components/hotels/HotelMobileCtaBar';
 import { ReviewsList } from '@/components/reviews/ReviewsList';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { BackButton } from '@/components/ui/BackButton';
@@ -144,7 +145,7 @@ export default async function Page({
         <BackButton />
       </div>
 
-      <main className="mx-auto flex w-full md:w-[96%] max-w-[1536px] flex-1 flex-col gap-6 px-3 sm:px-4 md:px-8 py-4 sm:py-6">
+      <main className="mx-auto flex w-full md:w-[96%] max-w-[1536px] flex-1 flex-col gap-6 px-3 sm:px-4 md:px-8 py-4 sm:py-6 pb-28 md:pb-6">
         {/* Back Button — mobil va tablet uchun (xl'dan kichik ekranlar) */}
         <div className="xl:hidden">
           <BackButton />
@@ -318,7 +319,7 @@ export default async function Page({
             </div>
           )}
 
-          <a href="#rooms" className="w-full">
+          <a href="#rooms" id="hotel-original-cta" className="w-full">
             <Button
               variant="accent"
               size="lg"
@@ -329,6 +330,13 @@ export default async function Page({
           </a>
         </aside>
       </div>
+
+      <HotelMobileCtaBar
+        price={hotel.minPriceSum}
+        perNightText={dict.perNight}
+        buttonText={dict.book || "Bron qilish"}
+        targetId="hotel-original-cta"
+      />
     </main>
     </>
   );

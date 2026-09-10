@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { PaymentSelector } from "@/components/features/checkout/PaymentSelector";
 import { trackBookingStarted } from "@/lib/services/analytics/tracker";
+import { CheckoutMobileCtaBar } from "./CheckoutMobileCtaBar";
 
 
 function nightsBetween(checkIn: string, checkOut: string): number {
@@ -197,16 +198,28 @@ export function CheckoutForm({
           </p>
         )}
 
-        <Button
-          type="submit"
-          variant="accent"
-          size="lg"
-          loading={pending}
-          disabled={nights < 1}
-        >
-          {dict.confirm}
-        </Button>
+        <div id="checkout-original-cta" className="w-full">
+          <Button
+            type="submit"
+            variant="accent"
+            size="lg"
+            className="w-full"
+            loading={pending}
+            disabled={nights < 1}
+          >
+            {dict.confirm}
+          </Button>
+        </div>
       </aside>
+
+      <CheckoutMobileCtaBar
+        total={total}
+        totalLabel={dict.total || "Jami"}
+        buttonText="To'lash"
+        pending={pending}
+        disabled={nights < 1}
+        targetId="checkout-original-cta"
+      />
     </form>
   );
 }
