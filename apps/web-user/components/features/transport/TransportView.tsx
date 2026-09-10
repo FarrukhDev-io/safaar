@@ -119,7 +119,7 @@ export function TransportView({
     <main className="mx-auto w-full md:w-[96%] max-w-[1536px] flex-1 px-3 sm:px-4 md:px-8 py-4 sm:py-6 md:py-8">
       
       {/* ═══ Header Banner ═══ */}
-      <div className="relative mb-5 sm:mb-8 flex h-[150px] sm:h-[200px] w-full flex-col justify-center overflow-hidden rounded-[24px] sm:rounded-[32px] bg-gradient-to-br from-primary-900 via-primary-800 to-[#022C22] px-5 sm:px-8 md:px-12 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+      <div className="relative mb-5 sm:mb-8 flex h-[150px] sm:h-[200px] w-full flex-col justify-center overflow-hidden rounded-[24px] sm:rounded-[32px] bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950 px-5 sm:px-8 md:px-12 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
         <div className="relative z-10 w-full sm:max-w-[65%]">
           <h1 className="mb-2 sm:mb-3 text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-white leading-tight" style={{ fontFamily: "var(--font-manrope, sans-serif)", letterSpacing: "-0.02em" }}>
             Avto Ijarasi va Transfer Xizmatlari
@@ -136,15 +136,8 @@ export function TransportView({
         ></div>
         
         {/* Floating Car Image */}
-        <div className="absolute -bottom-2 right-4 sm:right-12 z-10 w-[180px] sm:w-[280px] lg:w-[400px] opacity-80 sm:opacity-100">
-          <img 
-            src="https://freepngimg.com/thumb/car/3-2-car-free-download-png.png" 
-            alt="Safaar Transport" 
-            className="w-full object-contain drop-shadow-2xl brightness-110 contrast-125" 
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://img.icons8.com/?size=512&id=QJzM9r5R1y3L&format=png";
-            }}
-          />
+        <div className="absolute -bottom-2 right-4 sm:right-12 z-10 w-[180px] sm:w-[280px] lg:w-[400px] opacity-80 sm:opacity-100 flex items-center justify-center">
+          <Car className="h-32 w-32 sm:h-48 sm:w-48 text-white/30 drop-shadow-2xl" />
         </div>
       </div>
 
@@ -164,7 +157,7 @@ export function TransportView({
             </div>
           </div>
 
-          <div className="group flex h-[60px] sm:h-[68px] cursor-pointer flex-col justify-center rounded-[16px] bg-[#F8FAF9] px-5 transition-all hover:bg-slate-50 border border-transparent hover:border-primary-200 dark:bg-slate-800 dark:hover:border-primary-500">
+          <div className="group flex h-[60px] sm:h-[68px] cursor-pointer flex-col justify-center rounded-[16px] bg-slate-50 px-5 transition-all hover:bg-slate-50 border border-transparent hover:border-primary-200 dark:bg-slate-800 dark:hover:border-primary-500">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
               <MapPin className="h-3.5 w-3.5 text-primary-500" />
               <span>Qayerga</span>
@@ -175,7 +168,7 @@ export function TransportView({
             </div>
           </div>
 
-          <div className="flex h-[60px] sm:h-[68px] flex-col justify-center rounded-[16px] bg-[#F8FAF9] px-5 border border-transparent dark:bg-slate-800 sm:col-span-2 md:col-span-1">
+          <div className="flex h-[60px] sm:h-[68px] flex-col justify-center rounded-[16px] bg-slate-50 px-5 border border-transparent dark:bg-slate-800 sm:col-span-2 md:col-span-1">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
               <Users className="h-3.5 w-3.5 text-primary-500" />
               <span>Yo'lovchilar soni</span>
@@ -194,7 +187,7 @@ export function TransportView({
           </div>
 
           {/* Bottom Row */}
-          <div className="group flex h-[60px] sm:h-[68px] cursor-pointer flex-col justify-center rounded-[16px] bg-[#F8FAF9] px-5 transition-all hover:bg-slate-50 border border-transparent hover:border-primary-200 dark:bg-slate-800 dark:hover:border-primary-500">
+          <div className="group flex h-[60px] sm:h-[68px] cursor-pointer flex-col justify-center rounded-[16px] bg-slate-50 px-5 transition-all hover:bg-slate-50 border border-transparent hover:border-primary-200 dark:bg-slate-800 dark:hover:border-primary-500">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
               <Calendar className="h-3.5 w-3.5 text-primary-500" />
               <span>Olib ketish sanasi</span>
@@ -205,7 +198,7 @@ export function TransportView({
             </div>
           </div>
 
-          <div className="group flex h-[60px] sm:h-[68px] cursor-pointer flex-col justify-center rounded-[16px] bg-[#F8FAF9] px-5 transition-all hover:bg-slate-50 border border-transparent hover:border-primary-200 dark:bg-slate-800 dark:hover:border-primary-500">
+          <div className="group flex h-[60px] sm:h-[68px] cursor-pointer flex-col justify-center rounded-[16px] bg-slate-50 px-5 transition-all hover:bg-slate-50 border border-transparent hover:border-primary-200 dark:bg-slate-800 dark:hover:border-primary-500">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
               <Calendar className="h-3.5 w-3.5 text-primary-500" />
               <span>Qaytarish sanasi</span>
@@ -242,7 +235,7 @@ export function TransportView({
                 className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-all duration-200 ${
                   isActive
                     ? "bg-primary-600 text-white shadow-sm"
-                    : "bg-white text-slate-600 hover:bg-[#F8FAF9] border border-slate-200 shadow-sm hover:border-primary-300 hover:text-primary-700 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800"
+                    : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 shadow-sm hover:border-primary-300 hover:text-primary-700 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800"
                 }`}
               >
                 {cat.icon && (
@@ -312,7 +305,7 @@ export function TransportView({
         </div>
 
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#3B55C8]/10 text-[#3B55C8] dark:bg-[#3B55C8]/20">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-600/10 text-primary-600 dark:bg-primary-600/20">
             <Clock className="h-6 w-6" />
           </div>
           <div className="pt-1">
