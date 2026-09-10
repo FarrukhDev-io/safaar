@@ -19,8 +19,7 @@ TypeScript strict, `any` ishlatma.
 
 VAZIFA: Quyidagi 4 ta texnik qarzni tuzat:
 
-1. components/layout/header/MobileNav.tsx → `backdrop-blur-sm` ni olib tashla,
-   o'rniga `bg-slate-900/60` qo'y (DESIGN_SYSTEM bo'yicha glassmorphism taqiqlangan).
+1. components/layout/header/MobileNav.tsx → `backdrop-blur-sm` joyida qoladi, unga tegmang (overlay uchun ruxsat bor).
 
 2. components/features/transport/TransportView.tsx → tashqi rasm URL larini
    (freepngimg.com, img.icons8.com) olib tashla. O'rniga /public/images/transport/

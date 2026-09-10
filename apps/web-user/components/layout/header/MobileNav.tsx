@@ -54,7 +54,7 @@ export function MobileNav({ brand, brandHref, items, localeSwitcher, authActions
       {menuOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-slate-900/60 transition-opacity animate-in fade-in duration-200"
+            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
             onClick={() => setMenuOpen(false)}
             aria-hidden
           />

@@ -9,7 +9,7 @@
 ## ⛔ TAQIQLANGAN NARSALAR (har doim tekshir)
 
 Quyidagilar **hech qachon** ishlatilmaydi:
-- `backdrop-blur` yoki `backdrop-filter` (glassmorphism)
+- `backdrop-blur` komponentlar (karta, tugma, fon) uchun taqiqlangan! (Faqat modal va drawer orqasidagi qora fon/overlay uchun ruxsat beriladi)
 - `bg-gradient` fonda shaffoflik bilan (masalan `bg-white/80 backdrop-blur`)
 - 3D transformlar (`perspective`, `rotateX/Y/Z`)
 - `animate-bounce`, `animate-pulse` (faqat skeleton uchun ruxsat)
