@@ -44,7 +44,7 @@ function TrustStats({ dict, publicStats }: { dict: any; publicStats: any }) {
   ];
 
   return (
-    <section className="bg-white border-y border-slate-100 py-10 sm:py-14">
+    <section className="bg-white border-y border-slate-100 py-10 sm:py-14 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: "300ms" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 sm:gap-8">
           {stats.map((stat, i) => (
@@ -68,7 +68,7 @@ function Testimonials({ dict }: { dict: any }) {
   const reviews = dict.items || [];
   
   return (
-    <section className="py-10 sm:py-14 max-w-7xl mx-auto px-4 sm:px-6">
+    <section className="py-10 sm:py-14 max-w-7xl mx-auto px-4 sm:px-6 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: "750ms" }}>
       <SectionHeader title={dict.title} />
       
       {/* Mobile: horizontal scroll */}
@@ -154,34 +154,37 @@ export default async function HomePage({
     <main className="relative flex flex-1 flex-col bg-background text-foreground">
       {/* EKRAN 1: Hero + SearchBar + Featured Hotels */}
       <div className="flex min-h-svh flex-col justify-between">
-        <Hero dict={dict.hero}>
-          <div className="w-full">
-            <section id="search-section" className="bg-transparent pb-4 sm:pb-6">
-              <div className="mx-auto max-w-5xl px-4 sm:px-6">
-                <SearchBar locale={locale} dict={common.search} cities={cities} />
-              </div>
-            </section>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both w-full" style={{ animationDelay: "0ms" }}>
+          <Hero dict={dict.hero}>
+            <div className="w-full">
+              <section id="search-section" className="bg-transparent pb-4 sm:pb-6">
+                <div className="mx-auto max-w-5xl px-4 sm:px-6">
+                  <SearchBar locale={locale} dict={common.search} cities={cities} />
+                </div>
+              </section>
 
-            {cities.length > 0 && (
-              <CityPills cities={cities} locale={locale} />
-            )}
-          </div>
-        </Hero>
+              {cities.length > 0 && (
+                <CityPills cities={cities} locale={locale} />
+              )}
+            </div>
+          </Hero>
+        </div>
 
-        <Suspense fallback={<Skeleton className="h-48 w-full" />}>
-          <FeaturedHotelsCarousel
-            hotels={hotels}
-            dict={dict.featured}
-            locale={locale}
-          />
-        </Suspense>
-
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both w-full" style={{ animationDelay: "150ms" }}>
+          <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+            <FeaturedHotelsCarousel
+              hotels={hotels}
+              dict={dict.featured}
+              locale={locale}
+            />
+          </Suspense>
+        </div>
       </div>
 
       <TrustStats dict={dict.trust} publicStats={publicStats} />
 
       {/* EKRAN 2: Chegirmadagi takliflar */}
-      <div className="py-10 sm:py-14">
+      <div className="py-10 sm:py-14 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: "450ms" }}>
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <DealsSection deals={deals} dict={dict.deals} locale={locale} />
         </Suspense>
@@ -190,7 +193,7 @@ export default async function HomePage({
 
 
       {/* EKRAN 4: City Cards */}
-      <div className="py-10 sm:py-16 md:py-20">
+      <div className="py-10 sm:py-16 md:py-20 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: "600ms" }}>
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <CityCardsSection locale={locale} dict={dict.popularCities} />
         </Suspense>

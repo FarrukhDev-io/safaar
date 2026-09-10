@@ -197,7 +197,9 @@ export function ReviewsList({
 
       {/* Reviews List */}
       {reviewsList.length === 0 ? (
-        <p className="text-sm text-slate-500">{dict.empty}</p>
+        <div className="py-12 text-center text-slate-500 rounded-2xl border border-dashed border-slate-200">
+          {dict.empty}
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           {reviewsList.map((review) => {
