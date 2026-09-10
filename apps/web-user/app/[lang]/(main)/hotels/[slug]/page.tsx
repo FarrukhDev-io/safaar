@@ -334,7 +334,7 @@ export default async function Page({
       <HotelMobileCtaBar
         price={hotel.minPriceSum}
         perNightText={dict.perNight}
-        buttonText={dict.book || "Bron qilish"}
+        buttonText={dict.book}
         targetId="hotel-original-cta"
       />
     </main>

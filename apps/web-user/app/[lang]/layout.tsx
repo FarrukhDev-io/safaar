@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { notFound } from "next/navigation";
 import "../globals.css";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import {
   defaultLocale,
   isLocale,
@@ -99,13 +100,15 @@ export default async function LangLayout({
       <body className="flex min-h-full flex-col overflow-x-hidden bg-slate-100/60 text-slate-900 subpixel-antialiased dark:bg-slate-950 dark:text-slate-100">
         <NextTopLoader color="linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899)" showSpinner={false} shadow="0 0 10px #8b5cf6,0 0 5px #ec4899" />
         <AnalyticsProvider>
-          <ClickSpark global />
-          <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
-            {children}
-            <Toaster position="top-right" richColors />
-            <ServiceWorkerRegister />
-            <PwaInstallBanner />
-          </div>
+          <NuqsAdapter>
+            <ClickSpark global />
+            <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+              {children}
+              <Toaster position="top-right" richColors />
+              <ServiceWorkerRegister />
+              <PwaInstallBanner />
+            </div>
+          </NuqsAdapter>
         </AnalyticsProvider>
       </body>
     </html>

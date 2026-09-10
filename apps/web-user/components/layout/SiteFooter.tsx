@@ -158,7 +158,7 @@ export function SiteFooter({
         {/* Xavfsiz to'lov usullari */}
         <div className="mt-12 py-6 border-t border-slate-200 text-center">
           <h4 className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-4">
-            Xavfsiz to'lov usullari
+            {(dict.footer as any).securePayments}
           </h4>
           <div className="flex items-center justify-center flex-wrap gap-6 sm:gap-8">
             {paymentMethods.some((m) => m.logo) ? (

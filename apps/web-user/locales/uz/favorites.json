@@ -3,5 +3,6 @@
   "added": "Sevimlilarda",
   "remove": "Sevimlilardan olib tashlash",
   "loginRequired": "Sevimliga qo'shish uchun tizimga kiring",
-  "pending": "Saqlanmoqda…"
+  "pending": "Saqlanmoqda…",
+  "perNight": "kecha"
 }

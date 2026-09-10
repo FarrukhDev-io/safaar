@@ -15,7 +15,11 @@
     "vipTaxi": "VIP Taxi",
     "about": "About us",
     "help": "Help",
-    "terms": "Terms"
+    "terms": "Terms",
+    "search": "Search",
+    "favorites": "Favorites",
+    "bookings": "Bookings",
+    "profile": "Profile"
   },
   "actions": {
     "login": "Sign in",
@@ -48,6 +52,7 @@
     "email": "info@safaar.uz",
     "supportLabel": "(Support)",
     "secureBooking": "Secure and guaranteed booking",
+    "securePayments": "Secure payment methods",
     "partner": "Partners"
   }
 }

@@ -4,5 +4,8 @@
   "subtitle": "O'zbekistonning eng saralangan restoranlari, milliy oshxonalar va shinam choyxonalari.",
   "searchPlaceholder": "Restoran nomi yoki taom turi bo'yicha qidiruv...",
   "allCities": "Barcha shaharlar",
-  "avgCheck": "Chek"
+  "avgCheck": "Chek",
+  "empty": {
+    "title": "Ma'lumot topilmadi"
+  }
 }

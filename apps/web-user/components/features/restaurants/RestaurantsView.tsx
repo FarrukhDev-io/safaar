@@ -126,7 +126,7 @@ export function RestaurantsView({
       {filtered.length === 0 ? (
         <EmptyState
           icon={<Utensils className="h-6 w-6" />}
-          title="Ma'lumot topilmadi"
+          title={(dict as any).empty?.title || "Ma'lumot topilmadi"}
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">

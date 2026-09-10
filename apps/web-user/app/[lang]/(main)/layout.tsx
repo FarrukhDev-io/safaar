@@ -40,7 +40,7 @@ export default async function MainLayout({
       <PromoBarLive initialConfig={promoConfig} locale={locale} />
       <SiteHeader locale={locale} dict={common} authed={!!session} />
       <div className="flex flex-1 flex-col bg-slate-100/60 dark:bg-slate-950 pb-20 md:pb-0">{children}</div>
-      <BottomNav locale={locale} />
+      <BottomNav locale={locale} dict={common} />
       <SiteFooter locale={locale} dict={common} />
       <LiveSupportWidget />
     </RealtimeProvider>

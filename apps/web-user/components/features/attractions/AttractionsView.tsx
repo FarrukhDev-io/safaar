@@ -31,6 +31,7 @@ function FilterHeader({
   categories,
   onOpenFilters,
   totalCount,
+  dict,
 }: {
   query: string;
   onQueryChange: (v: string) => void;
@@ -39,6 +40,7 @@ function FilterHeader({
   categories: { id: string; label: string }[];
   onOpenFilters: () => void;
   totalCount: number;
+  dict: CatalogDict["attractions"];
 }) {
   return (
     <div className="sticky top-0 z-20 border-b border-white/40 bg-white/72 backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-950/72 transition-all duration-500">
@@ -48,7 +50,7 @@ function FilterHeader({
           <Compass className="h-4 w-4 text-primary-600 transition-colors duration-500" />
           <div>
             <span className="text-sm font-black text-slate-900 dark:text-white" style={{ fontFamily: "var(--font-manrope, sans-serif)" }}>
-              Ko&apos;ngilochar joylar
+              {dict.title}
             </span>
             {/* Live count — Lapis Blue accent (Design System info color) */}
             <span className="ml-2 rounded-full bg-[#3B55C8]/10 px-2 py-0.5 text-[10px] font-bold text-[#3B55C8] dark:bg-[#3B55C8]/20 dark:text-[#7F96E8]">
@@ -106,7 +108,7 @@ function FilterHeader({
 }
 
 // ─── MAP PLACEHOLDER (Warm Neutral tints from design system) ─────────────────
-function MapPlaceholder() {
+function MapPlaceholder({ dict }: { dict: CatalogDict["attractions"] }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 m-4 rounded-3xl border-2 border-dashed border-slate-200/80 bg-[#F8FAF9] dark:border-slate-700/60 dark:bg-slate-900/40">
       {/* Jade soft glow behind icon */}
@@ -114,10 +116,10 @@ function MapPlaceholder() {
         <Map className="h-9 w-9 text-primary-600 dark:text-primary-400" />
       </div>
       <div className="text-center">
-        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Interaktiv xarita</p>
+        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{(dict as any).map?.title || "Interaktiv xarita"}</p>
         <p className="mt-1 flex items-center justify-center gap-1 text-xs text-slate-400">
           <MapPin className="h-3 w-3" />
-          Tez orada ulanadi
+          {(dict as any).map?.soon || "Tez orada ulanadi"}
         </p>
       </div>
     </div>
@@ -236,11 +238,10 @@ export function AttractionsView({
   }, [items, query, selectedCategory]);
 
   return (
-    // Warm Neutral background (#F8FAF9) — not pure white, not slate
-    <div className="flex h-[calc(100svh-56px)] bg-[#F8FAF9] dark:bg-[#080E0D] md:h-[calc(100svh-72px)]">
+    <div className="mx-auto flex h-[calc(100svh-56px)] w-full max-w-7xl bg-slate-50 px-4 sm:px-6 dark:bg-[#080E0D] md:h-[calc(100svh-72px)]">
 
       {/* ── LEFT: Scrollable List Panel ────────────────────────── */}
-      <div className="flex w-full flex-col overflow-hidden md:w-1/2">
+      <div className="flex w-full flex-col overflow-hidden md:w-1/2 md:pr-4">
         <FilterHeader
           query={query}
           onQueryChange={setQuery}
@@ -249,6 +250,7 @@ export function AttractionsView({
           categories={categories}
           onOpenFilters={() => setFiltersOpen(true)}
           totalCount={filtered.length}
+          dict={dict}
         />
 
         {/* Card Grid */}
@@ -256,7 +258,7 @@ export function AttractionsView({
           {filtered.length === 0 ? (
             <EmptyState
               icon={<Compass className="h-6 w-6" />}
-              title="Ma'lumot topilmadi"
+              title={(dict as any).empty?.title || "Ma'lumot topilmadi"}
             />
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -276,7 +278,7 @@ export function AttractionsView({
       {/* ── RIGHT: Sticky Map Panel (Desktop) ──────────────────── */}
       <div className="hidden w-1/2 overflow-hidden border-l border-slate-200/70 dark:border-slate-800 md:flex md:flex-col">
         <div className="sticky top-0 h-full">
-          <MapPlaceholder />
+          <MapPlaceholder dict={dict} />
         </div>
       </div>
 
@@ -294,11 +296,11 @@ export function AttractionsView({
           md:hidden"
       >
         <Map className="h-4 w-4" />
-        Xaritada ko&apos;rish
+        {(dict as any).map?.show || "Xaritada ko'rish"}
       </button>
 
       {/* ── MOBILE BOTTOM SHEET: Filters ──────────────────────── */}
-      <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filtrlar">
+      <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title={(dict as any).filters?.title || "Filtrlar"}>
         <div className="flex flex-wrap gap-2">
           {categories.map((cat) => (
             <button
@@ -318,12 +320,12 @@ export function AttractionsView({
       </BottomSheet>
 
       {/* ── MOBILE BOTTOM SHEET: Map ──────────────────────────── */}
-      <BottomSheet open={mapOpen} onClose={() => setMapOpen(false)} title="Xarita">
+      <BottomSheet open={mapOpen} onClose={() => setMapOpen(false)} title={(dict as any).map?.title || "Xarita"}>
         <div className="flex h-[42vh] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-[#F8FAF9]">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50">
             <Map className="h-7 w-7 text-primary-600" />
           </div>
-          <p className="text-sm font-bold text-slate-600">Xarita tez orada ulanadi</p>
+          <p className="text-sm font-bold text-slate-600">{(dict as any).map?.soon || "Xarita tez orada ulanadi"}</p>
         </div>
       </BottomSheet>
     </div>

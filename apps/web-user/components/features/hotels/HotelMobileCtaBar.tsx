@@ -16,8 +16,8 @@ export interface HotelMobileCtaBarProps {
 
 export function HotelMobileCtaBar({
   price,
-  perNightText = "kecha",
-  buttonText = "Bron qilish",
+  perNightText,
+  buttonText,
   targetId = "hotel-original-cta",
   roomsTargetId = "rooms",
   className,

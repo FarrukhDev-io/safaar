@@ -7,30 +7,31 @@ import { cn } from "@/lib/cn";
 
 export interface BottomNavProps {
   locale: string;
+  dict: any;
 }
 
-export function BottomNav({ locale }: BottomNavProps) {
+export function BottomNav({ locale, dict }: BottomNavProps) {
   const pathname = usePathname();
 
   const tabs = [
     {
-      name: "Qidirish",
+      name: dict.nav.search,
       icon: Search,
       href: `/${locale}`,
       exact: true,
     },
     {
-      name: "Saqlanganlar",
+      name: dict.nav.favorites,
       icon: Heart,
       href: `/${locale}/account/favorites`,
     },
     {
-      name: "Bronlarim",
+      name: dict.nav.bookings,
       icon: CalendarCheck,
       href: `/${locale}/account/bookings`,
     },
     {
-      name: "Profil",
+      name: dict.nav.profile,
       icon: UserRound,
       href: `/${locale}/account`,
     },

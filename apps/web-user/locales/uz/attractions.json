@@ -11,5 +11,16 @@
     "nature": "Tabiat & Hordiq"
   },
   "bestTime": "Ziyorat:",
-  "viewDetails": "Batafsil"
+  "viewDetails": "Batafsil",
+  "empty": {
+    "title": "Ma'lumot topilmadi"
+  },
+  "map": {
+    "title": "Interaktiv xarita",
+    "soon": "Tez orada ulanadi",
+    "show": "Xaritada ko'rish"
+  },
+  "filters": {
+    "title": "Filtrlar"
+  }
 }
