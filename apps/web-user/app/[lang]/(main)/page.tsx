@@ -154,7 +154,7 @@ export default async function HomePage({
     <main className="relative flex flex-1 flex-col bg-background text-foreground">
       {/* EKRAN 1: Hero + SearchBar + Featured Hotels */}
       <div className="flex min-h-svh flex-col justify-between">
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both w-full" style={{ animationDelay: "0ms" }}>
+        <div className="relative z-30 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both w-full" style={{ animationDelay: "0ms" }}>
           <Hero dict={dict.hero}>
             <div className="w-full">
               <section id="search-section" className="bg-transparent pb-4 sm:pb-6">
@@ -170,7 +170,7 @@ export default async function HomePage({
           </Hero>
         </div>
 
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both w-full" style={{ animationDelay: "150ms" }}>
+        <div className="relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both w-full" style={{ animationDelay: "150ms" }}>
           <Suspense fallback={<Skeleton className="h-48 w-full" />}>
             <FeaturedHotelsCarousel
               hotels={hotels}
@@ -181,8 +181,6 @@ export default async function HomePage({
         </div>
       </div>
 
-      <TrustStats dict={dict.trust} publicStats={publicStats} />
-
       {/* EKRAN 2: Chegirmadagi takliflar */}
       <div className="py-10 sm:py-14 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: "450ms" }}>
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
@@ -190,17 +188,12 @@ export default async function HomePage({
         </Suspense>
       </div>
 
-
-
       {/* EKRAN 4: City Cards */}
       <div className="py-10 sm:py-16 md:py-20 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: "600ms" }}>
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <CityCardsSection locale={locale} dict={dict.popularCities} />
         </Suspense>
       </div>
-
-      <Testimonials dict={dict.reviews} />
-
     </main>
   );
 }
