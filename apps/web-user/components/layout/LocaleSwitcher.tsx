@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Globe } from "lucide-react";
+import { Globe, Loader2 } from "lucide-react";
 import { locales, localeNames, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -15,6 +15,7 @@ export function LocaleSwitcher({
   light?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -51,7 +52,11 @@ export function LocaleSwitcher({
     }
     const nextPath = `/${segments.join("/")}`;
     setOpen(false);
-    router.push(nextPath);
+    
+    // UI "oq bo'lib qolmasligi" (loading.tsx ga o'tib ketmasligi) uchun startTransition ishlatamiz.
+    startTransition(() => {
+      router.push(nextPath);
+    });
   }
 
   return (
@@ -59,16 +64,21 @@ export function LocaleSwitcher({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        disabled={isPending}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Tilni tanlash"
         className={buttonVariants({
           variant: "secondary",
           rounded: "lg",
-          className: "!h-10 min-h-[40px] px-3.5 text-[14px] font-bold gap-1.5 cursor-pointer",
+          className: cn("!h-10 min-h-[40px] px-3.5 text-[14px] font-bold gap-1.5 cursor-pointer", isPending && "opacity-70 cursor-not-allowed"),
         })}
       >
-        <Globe className="h-[18px] w-[18px] opacity-80" aria-hidden />
+        {isPending ? (
+          <Loader2 className="h-[18px] w-[18px] animate-spin text-primary-600" aria-hidden />
+        ) : (
+          <Globe className="h-[18px] w-[18px] opacity-80" aria-hidden />
+        )}
         <span className="font-bold uppercase tracking-wide">
           {current}
         </span>
