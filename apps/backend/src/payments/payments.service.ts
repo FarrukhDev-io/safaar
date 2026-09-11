@@ -340,6 +340,15 @@ export class PaymentsService {
     }
 
     const now = new Date().toISOString();
+    // TODO(uzum-checkout-commission): `register()` yuqorida fail-closed
+    // bo'lgani uchun bu qator HOZIRDA HECH QACHON bajarilmaydi. Rasmiy
+    // wire-format tasdiqlanib shu guard olib tashlanganda, INSERT'ga
+    // `provider_fee_rate/provider_fee_amount/net_settlement_amount`
+    // qo'shish kerak — `calculateUzumCheckoutCommission(booking.total_amount)`
+    // orqali (qarang `uzum-checkout-commission.ts` +
+    // `docs/payments-uzum-checkout.md` "Uzum Checkout komissiyasi").
+    // Migratsiya (`20260911000000_uzum_checkout_commission_fields`) allaqachon
+    // DIZAYN QILINGAN, lekin ATAYLAB productionga qo'llanilmagan.
     await this.pg.query(
       `INSERT INTO payments
          (id, booking_id, provider, status, amount, currency, payment_url,

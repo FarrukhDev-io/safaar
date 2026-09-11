@@ -223,6 +223,52 @@ allowlist, nft qoidasi va statik-IP tekshiruvi
 hujjatlashtiriladi. `backend.env` ga faqat `UZUM_CHECKOUT_HTTPS_PROXY=…`
 qatori qo'shiladi.
 
+## Uzum Checkout komissiyasi (1.5%) — SAFAAR ICHKI accounting
+
+Biznes kelishuv: Uzum Checkout komissiyasi = to'lov summasining **1.5%i**
+(`UZUM_CHECKOUT_COMMISSION_RATE = 0.015`,
+`src/payments/providers/uzum-checkout-commission.ts`). Bu **Uzum API
+maydoni EMAS** — bizga ma'lum (uchinchi-tomon, rasmiy tasdiqlanmagan)
+OpenAPI sxemasida commission/fee degan hech qanday maydon yo'q (na
+callback'da, na register so'rovida). Shuning uchun bu hisob-kitob Uzum'ga
+HECH NARSA YUBORMAYDI — faqat SAFAAR'ning o'z hisobotlari (admin/export)
+uchun `gross` / `commission` / `net` ni ajratib beradi.
+
+```
+calculateUzumCheckoutCommission(grossAmountSom) -> {
+  grossAmountSom, commissionRate, commissionAmountSom, netSettlementAmountSom
+}
+```
+Butun-tiyin arifmetikasi (`UzumProvider.toTiyin()` bilan bir xil `Math.round`
+yaxlitlash siyosati) — suzuvchi nuqta xatosiz. Nol/manfiy/NaN/Infinity ->
+`RangeError`.
+
+**`REQUIRES_UZUM_CONFIRMATION`** (`UZUM_CHECKOUT_SETTLEMENT_MODEL`,
+kodda taxmin qilinmagan, rasmiy shartnoma/spec kelganda tasdiqlanishi
+SHART):
+- Uzum settlement'dan 1.5%ni **avtomatik ushlab qoladimi** (bankka NET
+  keladi) yoki **to'liq GROSS'ni o'tkazib**, komissiyani alohida
+  invoice bilan so'raydimi.
+- Refund'da Uzum o'z komissiyasini **qaytaradimi yoki ushlab qoladimi**.
+- Uzum'ning o'zi yaxlitlashda qanday qoida ishlatishi (bu yerdagi
+  round-half-up — FAQAT SAFAAR'ning ICHKI konventsiyasi).
+
+**DB**: `payments.provider_fee_rate` / `provider_fee_amount` /
+`net_settlement_amount` (uchtasi ham NULLABLE, `Payment` modeliga
+qo'shildi) — migratsiya **`20260911000000_uzum_checkout_commission_fields`
+DIZAYN QILINGAN, LEKIN productionga QO'LLANILMAGAN** (avvalgi Uzum Checkout
+migratsiyalari bilan bir xil siyosat — `register()` hali fail-closed stub,
+haqiqiy to'lov yo'q, to'ldiriladigan kod yo'q). Ular to'ldirilishi kerak
+bo'lgan joy: `register()` spec bilan tasdiqlangach, `createUzumCheckoutPayment()`
+ichidagi `payments` INSERT'i `calculateUzumCheckoutCommission(amountSom)`
+natijasini shu uchta ustunga yozadi.
+
+**Mijozga ko'rsatish**: hech qanday customer-facing summa/UI
+o'zgartirilmadi — `web-user`/`web-partner`da komissiya/fee ko'rsatuvchi
+joy avvaldan ham yo'q edi. Komissiyani mijozga qo'shish yoki merchant
+o'zi ko'tarishi — BIZNES qaror, tasdiqlanmaguncha kod hech narsani
+o'zgartirmaydi.
+
 ## Fayllar
 
 - `src/payments/providers/uzum-checkout.provider.ts` — provider: fail-closed imzo
@@ -233,6 +279,13 @@ qatori qo'shiladi.
   seam**: `outboundDispatcher()` / `isOutboundProxyConfigured()` /
   `outboundProxyUrlForLog()` + `buildUzumCheckoutProxyDispatcher()` /
   `redactProxyUrl()` (`UZUM_CHECKOUT_HTTPS_PROXY`).
+- `src/payments/providers/uzum-checkout-commission.ts` — 1.5% komissiya
+  hisob-kitobi (`calculateUzumCheckoutCommission`), SAFAAR ICHKI accounting,
+  Uzum API'ga bog'liq emas. `UZUM_CHECKOUT_SETTLEMENT_MODEL =
+  'REQUIRES_UZUM_CONFIRMATION'`.
+- `prisma/migrations/20260911000000_uzum_checkout_commission_fields/` —
+  `payments.provider_fee_rate/provider_fee_amount/net_settlement_amount`
+  (nullable) — **qo'llanilmagan**.
 - `src/payments/uzum-checkout.controller.ts` — `POST /v1/uzum/checkout/callback`.
 - `src/payments/payments.service.ts` — `uzumCheckoutCallback()` +
   `createUzumCheckoutPayment()` (register seam) + `buildCheckoutUrl` branch +
