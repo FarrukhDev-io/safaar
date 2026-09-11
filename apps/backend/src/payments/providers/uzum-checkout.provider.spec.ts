@@ -128,13 +128,13 @@ describe('UzumCheckoutProvider.verifyCallback — FAIL-CLOSED', () => {
 });
 
 describe('UzumCheckoutProvider.isConfigured (outbound /payment/register)', () => {
-  it('base+merchant+apiKey barchasi kerak', () => {
+  it('base+terminalId+apiKey barchasi kerak (2026-09-11 sandboxda tasdiqlangan haqiqiy auth — merchantId ISHLATILMAYDI)', () => {
     expect(new UzumCheckoutProvider(mkConfig({})).isConfigured()).toBe(false);
     expect(
       new UzumCheckoutProvider(
         mkConfig({
           UZUM_CHECKOUT_BASE_URL: 'https://x',
-          UZUM_CHECKOUT_MERCHANT_ID: 'm',
+          UZUM_CHECKOUT_TERMINAL_ID: 't',
         }),
       ).isConfigured(),
     ).toBe(false);
@@ -143,6 +143,16 @@ describe('UzumCheckoutProvider.isConfigured (outbound /payment/register)', () =>
         mkConfig({
           UZUM_CHECKOUT_BASE_URL: 'https://x',
           UZUM_CHECKOUT_MERCHANT_ID: 'm',
+          UZUM_CHECKOUT_API_KEY: 'k',
+        }),
+      ).isConfigured(),
+      // merchantId + apiKey, lekin terminalId YO'Q -> hamon false
+    ).toBe(false);
+    expect(
+      new UzumCheckoutProvider(
+        mkConfig({
+          UZUM_CHECKOUT_BASE_URL: 'https://x',
+          UZUM_CHECKOUT_TERMINAL_ID: 't',
           UZUM_CHECKOUT_API_KEY: 'k',
         }),
       ).isConfigured(),
@@ -219,7 +229,7 @@ describe('UzumCheckoutProvider — chiquvchi forward-proxy (statik IP)', () => {
   });
 });
 
-describe('UzumCheckoutProvider outbound (register/getOrderStatus/refund) — FAIL-CLOSED', () => {
+describe('UzumCheckoutProvider outbound — config gating (NOT_CONFIGURED, tashqi so‘rov yo‘q)', () => {
   const registerInput = {
     bookingId: 'booking-1',
     orderNumber: 'UZB-1',
@@ -230,7 +240,8 @@ describe('UzumCheckoutProvider outbound (register/getOrderStatus/refund) — FAI
     failureUrl: 'https://safaar.uz/booking/booking-1?payment=failed',
   };
 
-  it('env sozlanmagan => NOT_CONFIGURED (tashqi so‘rov yo‘q)', async () => {
+  it('env umuman sozlanmagan => NOT_CONFIGURED', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
     const p = new UzumCheckoutProvider(mkConfig({}));
     await expect(p.register(registerInput)).rejects.toMatchObject({
       code: UZUM_CHECKOUT_ERROR.NOT_CONFIGURED,
@@ -238,34 +249,318 @@ describe('UzumCheckoutProvider outbound (register/getOrderStatus/refund) — FAI
     await expect(p.getOrderStatus('order-1')).rejects.toMatchObject({
       code: UZUM_CHECKOUT_ERROR.NOT_CONFIGURED,
     });
-    await expect(p.getOperationState('order-1')).rejects.toMatchObject({
+    await expect(p.getOperationState('order-1', 'op-1')).rejects.toMatchObject({
       code: UZUM_CHECKOUT_ERROR.NOT_CONFIGURED,
     });
-    await expect(
-      p.refund({ orderId: 'order-1', amountSom: 150000 }),
-    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.NOT_CONFIGURED });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
-  it('env sozlangan, lekin rasmiy wire-format yo‘q => SPEC_REQUIRED (taxminiy so‘rov YUBORILMAYDI)', async () => {
+  it('auth (terminal/apiKey) bor, lekin fiskal (SPIC/packageCode/VAT/TIN-PINFL) yo‘q => NOT_CONFIGURED, register tashqi so‘rov yubormaydi', async () => {
     const fetchSpy = jest.spyOn(globalThis, 'fetch');
     const p = new UzumCheckoutProvider(
       mkConfig({
         UZUM_CHECKOUT_BASE_URL: 'https://checkout.example',
-        UZUM_CHECKOUT_MERCHANT_ID: 'm',
+        UZUM_CHECKOUT_TERMINAL_ID: 't',
         UZUM_CHECKOUT_API_KEY: 'k',
       }),
     );
     await expect(p.register(registerInput)).rejects.toMatchObject({
-      code: UZUM_CHECKOUT_ERROR.SPEC_REQUIRED,
+      code: UZUM_CHECKOUT_ERROR.NOT_CONFIGURED,
     });
-    await expect(p.getOrderStatus('order-1')).rejects.toMatchObject({
-      code: UZUM_CHECKOUT_ERROR.SPEC_REQUIRED,
-    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it('TIN va PINFL ikkalasi HAM berilsa => fiskal "sozlanmagan" deb hisoblanadi (Uzum ikkalasini birga rad etadi)', () => {
+    const p = new UzumCheckoutProvider(
+      mkConfig({
+        UZUM_CHECKOUT_BASE_URL: 'https://checkout.example',
+        UZUM_CHECKOUT_TERMINAL_ID: 't',
+        UZUM_CHECKOUT_API_KEY: 'k',
+        UZUM_CHECKOUT_SPIC: '10703999001000000',
+        UZUM_CHECKOUT_PACKAGE_CODE: '1495084',
+        UZUM_CHECKOUT_VAT_PERCENT: '12',
+        UZUM_CHECKOUT_RECEIPT_TIN: '123456789',
+        UZUM_CHECKOUT_RECEIPT_PINFL: '11111111111111',
+      }),
+    );
+    expect(p.isFiscalConfigured()).toBe(false);
+  });
+
+  it('refund() HAMON har doim SPEC_REQUIRED — to‘liq sozlangan bo‘lsa ham, hech qachon sinalmagan', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
     await expect(
       p.refund({ orderId: 'order-1', amountSom: 150000 }),
     ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.SPEC_REQUIRED });
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+});
+
+/** To‘liq (auth + fiskal) konfiguratsiya — 2026-09-11 sandboxda tasdiqlangan real qiymatlar EMAS, faqat TEST fixture'lari. */
+const FULL_UZUM_CONFIG: Record<string, string> = {
+  UZUM_CHECKOUT_BASE_URL: 'https://checkout.example',
+  UZUM_CHECKOUT_TERMINAL_ID: 'terminal-test',
+  UZUM_CHECKOUT_API_KEY: 'api-key-test',
+  UZUM_CHECKOUT_SPIC: '10703999001000000',
+  UZUM_CHECKOUT_PACKAGE_CODE: '1495084',
+  UZUM_CHECKOUT_VAT_PERCENT: '12',
+  UZUM_CHECKOUT_RECEIPT_PINFL: '11111111111111',
+};
+
+function mockFetchOnce(body: unknown, status = 200) {
+  return jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(body),
+  } as Response);
+}
+
+/** So‘ralgan `register()` tanasining test uchun kutilayotgan shakli. */
+interface RegisterRequestBody {
+  currency: number;
+  amount: number;
+  viewType: string;
+  paymentParams: { payType: string; force3ds: boolean };
+  successUrl: string;
+  failureUrl: string;
+  merchantParams: {
+    cart: {
+      receiptType: string;
+      total: number;
+      items: Array<{
+        receiptParams: {
+          spic?: string;
+          packageCode?: string;
+          vatPercent?: number;
+          TIN?: string;
+          PINFL?: string;
+        };
+      }>;
+    };
+  };
+}
+
+function parseRequestBody(init: RequestInit): RegisterRequestBody {
+  return JSON.parse(init.body as string) as RegisterRequestBody;
+}
+
+describe('UzumCheckoutProvider.register — real wire-format (mocked fetch, hech qanday haqiqiy tarmoq so‘rovi yo‘q)', () => {
+  const registerInput = {
+    bookingId: 'booking-1',
+    orderNumber: 'UZB-1',
+    merchantOperationId: 'payment-1',
+    amountSom: 1000,
+    currency: 'UZS',
+    successUrl: 'https://safaar.uz/booking/booking-1?payment=success',
+    failureUrl: 'https://safaar.uz/booking/booking-1?payment=failed',
+  };
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('muvaffaqiyatli javob => orderId/paymentUrl qaytaradi, so‘rov shakli rasmiy sxemaga mos', async () => {
+    const fetchSpy = mockFetchOnce({
+      errorCode: 0,
+      message: null,
+      result: {
+        orderId: 'order-abc',
+        paymentRedirectUrl: 'https://checkout.ipt-merch.com/?orderId=order-abc',
+      },
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    const result = await p.register(registerInput);
+    expect(result.orderId).toBe('order-abc');
+    expect(result.paymentUrl).toBe(
+      'https://checkout.ipt-merch.com/?orderId=order-abc',
+    );
+    expect(typeof result.raw).toBe('object');
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('https://checkout.example/api/v1/payment/register');
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    expect(headers['X-Terminal-Id']).toBe('terminal-test');
+    expect(headers['X-Api-Key']).toBe('api-key-test');
+    expect(headers['Content-Language']).toBe('uz-UZ');
+
+    const body = parseRequestBody(init as RequestInit);
+    expect(body.currency).toBe(860); // ISO-4217 RAQAMLI, "UZS" emas
+    expect(body.amount).toBe(100_000); // TIYIN: 1000 so'm * 100
+    expect(body.viewType).toBe('REDIRECT');
+    expect(body.paymentParams).toEqual({ payType: 'ONE_STEP', force3ds: true });
+    expect(body.successUrl).toBe(registerInput.successUrl);
+    expect(body.failureUrl).toBe(registerInput.failureUrl);
+    const cart = body.merchantParams.cart;
+    expect(cart.receiptType).toBe('PURCHASE');
+    expect(cart.total).toBe(100_000);
+    expect(cart.items).toHaveLength(1);
+    expect(cart.items[0].receiptParams).toEqual({
+      spic: '10703999001000000',
+      packageCode: '1495084',
+      vatPercent: 12,
+      PINFL: '11111111111111',
+    });
+  });
+
+  it('TIN sozlangan bo‘lsa (PINFL emas) — receiptParams.TIN yuboriladi, PINFL yo‘q', async () => {
+    const fetchSpy = mockFetchOnce({
+      errorCode: 0,
+      result: { orderId: 'o', paymentRedirectUrl: 'https://x' },
+    });
+    const p = new UzumCheckoutProvider(
+      mkConfig({
+        ...FULL_UZUM_CONFIG,
+        UZUM_CHECKOUT_RECEIPT_PINFL: '',
+        UZUM_CHECKOUT_RECEIPT_TIN: '123456789',
+      }),
+    );
+    await p.register(registerInput);
+    const [, init] = fetchSpy.mock.calls[0];
+    const body = parseRequestBody(init as RequestInit);
+    expect(body.merchantParams.cart.items[0].receiptParams.TIN).toBe(
+      '123456789',
+    );
+    expect(
+      body.merchantParams.cart.items[0].receiptParams.PINFL,
+    ).toBeUndefined();
+  });
+
+  it("Uzum errorCode!=0 (masalan 3055 IKPU topilmadi) => REGISTER_FAILED, xom xabar UzumCheckoutError message'ida saqlanmaydi", async () => {
+    mockFetchOnce({
+      errorCode: 3055,
+      message:
+        '{"spics":[{"spic":"10204001010000000","reason":"IKPU code is not found in the catalog"}]}',
+      result: null,
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(p.register(registerInput)).rejects.toMatchObject({
+      code: UZUM_CHECKOUT_ERROR.REGISTER_FAILED,
+    });
+  });
+
+  it('HTTP tarmoq xatosi (fetch throw) => REGISTER_FAILED', async () => {
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new Error('ECONNRESET'));
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(p.register(registerInput)).rejects.toMatchObject({
+      code: UZUM_CHECKOUT_ERROR.REGISTER_FAILED,
+    });
+  });
+
+  it('qo‘llab-quvvatlanmaydigan valyuta => REGISTER_FAILED, fetch UMUMAN chaqirilmaydi', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(
+      p.register({ ...registerInput, currency: 'GBP' }),
+    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.REGISTER_FAILED });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('javobda orderId yoki paymentRedirectUrl yo‘q => REGISTER_FAILED', async () => {
+    mockFetchOnce({ errorCode: 0, result: {} });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(p.register(registerInput)).rejects.toMatchObject({
+      code: UZUM_CHECKOUT_ERROR.REGISTER_FAILED,
+    });
+  });
+});
+
+describe('UzumCheckoutProvider.getOrderStatus — real wire-format (mocked fetch)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('status=COMPLETED => PAID, completedAmount tiyin->so‘m aylantiriladi', async () => {
+    mockFetchOnce({
+      errorCode: 0,
+      result: {
+        orderId: 'order-abc',
+        status: 'COMPLETED',
+        completedAmount: 100_000,
+        operations: [{ operationType: 'COMPLETE', state: 'SUCCESS' }],
+      },
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    const status = await p.getOrderStatus('order-abc');
+    expect(status.state).toBe('PAID');
+    expect(status.amountSom).toBe(1000);
+    expect(status.rawStatus).toBe('COMPLETED');
+  });
+
+  it('status=REGISTERED (hali to‘lanmagan) => PENDING, amountSom=null', async () => {
+    mockFetchOnce({
+      errorCode: 0,
+      result: { orderId: 'o', status: 'REGISTERED', completedAmount: 0 },
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    const status = await p.getOrderStatus('o');
+    expect(status.state).toBe('PENDING');
+    expect(status.amountSom).toBeNull();
+  });
+
+  it('hech qachon ko‘rilmagan status qiymati => xavfsiz UNKNOWN (taxmin qilinmaydi)', async () => {
+    mockFetchOnce({
+      errorCode: 0,
+      result: {
+        orderId: 'o',
+        status: 'SOME_FUTURE_STATUS',
+        completedAmount: 0,
+      },
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    const status = await p.getOrderStatus('o');
+    expect(status.state).toBe('UNKNOWN');
+  });
+
+  it('Uzum errorCode!=0 => STATUS_FAILED', async () => {
+    mockFetchOnce({ errorCode: 1000, result: null });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(p.getOrderStatus('o')).rejects.toMatchObject({
+      code: UZUM_CHECKOUT_ERROR.STATUS_FAILED,
+    });
+  });
+});
+
+describe('UzumCheckoutProvider.getOperationState — real wire-format (mocked fetch)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('operationId bo‘sh => tashqi so‘rovsiz STATUS_FAILED (Uzum operationId\'siz "Field required" beradi — bu yerda oldindan tekshiriladi)', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(p.getOperationState('order-1', '')).rejects.toMatchObject({
+      code: UZUM_CHECKOUT_ERROR.STATUS_FAILED,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("operationType=COMPLETE + state=SUCCESS => PAID (xuddi callback STATE_MAP'i bilan bir xil xaritalash)", async () => {
+    mockFetchOnce({
+      errorCode: 0,
+      result: {
+        operation: {
+          operationId: 'op-1',
+          operationType: 'COMPLETE',
+          state: 'SUCCESS',
+        },
+      },
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    const status = await p.getOperationState('order-1', 'op-1');
+    expect(status.state).toBe('PAID');
+    expect(status.amountSom).toBeNull(); // getOperationState javobida summa yo'q
+  });
+
+  it('so‘rov tanasi {orderId, operationId} ikkalasini ham o‘z ichiga oladi', async () => {
+    const fetchSpy = mockFetchOnce({
+      errorCode: 0,
+      result: { operation: { operationType: 'COMPLETE', state: 'SUCCESS' } },
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await p.getOperationState('order-1', 'op-1');
+    const [, init] = fetchSpy.mock.calls[0];
+    const body = JSON.parse((init as RequestInit).body as string) as unknown;
+    expect(body).toEqual({ orderId: 'order-1', operationId: 'op-1' });
   });
 });
 

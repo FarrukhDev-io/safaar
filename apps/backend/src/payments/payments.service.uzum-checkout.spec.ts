@@ -327,11 +327,14 @@ describe('normalizeCheckoutCallback (raw -> internal, best-effort, fail-closed s
 
 /**
  * Register-flow (`createPayment({ provider: 'uzum_checkout' })` ->
- * `createUzumCheckoutPayment`) — INTERNAL seam. Uzum wire-format kelmaguncha
- * `UzumCheckoutProvider.register()` FAIL-CLOSED, shu sabab bu yerda oqim
- * aniq 503 qaytaradi va HECH QANDAY `payments` qatori yozilmaydi.
+ * `createUzumCheckoutPayment`) — INTERNAL seam. `UzumCheckoutProvider.
+ * register()` 2026-09-11dan buyon RASMIY tasdiqlangan wire-format bilan
+ * HAQIQIY so'rov yuboradi (to'liq env sozlangan bo'lsa) — shu sabab bu
+ * blokda ENDI ham fail-closed (env yetarli emas) HAM muvaffaqiyatli
+ * (fetch mock qilingan, hech qanday haqiqiy tarmoq so'rovi yo'q) yo'llar
+ * bor.
  */
-describe('PaymentsService.createUzumCheckoutPayment (register seam — fail-closed)', () => {
+describe('PaymentsService.createUzumCheckoutPayment (register seam)', () => {
   const admin: RequestActor = {
     id: 'admin-1',
     actorType: 'admin',
@@ -397,6 +400,59 @@ describe('PaymentsService.createUzumCheckoutPayment (register seam — fail-clos
       String(sql).includes('INSERT INTO payments'),
     );
     expect(insertCall).toBeUndefined();
+  });
+
+  it('to‘liq sozlangan (auth+fiskal) + Uzum muvaffaqiyatli javob (fetch mock) => payments qatori orderId/paymentUrl bilan yoziladi', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          errorCode: 0,
+          result: {
+            orderId: 'order-real-1',
+            paymentRedirectUrl:
+              'https://checkout.ipt-merch.com/?orderId=order-real-1',
+          },
+        }),
+    } as Response);
+
+    const { pg, service } = makeService({
+      UZUM_CHECKOUT_BASE_URL: 'https://checkout.example',
+      UZUM_CHECKOUT_TERMINAL_ID: 'terminal-test',
+      UZUM_CHECKOUT_API_KEY: 'api-key-test',
+      UZUM_CHECKOUT_SPIC: '10703999001000000',
+      UZUM_CHECKOUT_PACKAGE_CODE: '1495084',
+      UZUM_CHECKOUT_VAT_PERCENT: '12',
+      UZUM_CHECKOUT_RECEIPT_PINFL: '11111111111111',
+    });
+    pg.query
+      .mockResolvedValueOnce([bookingRow]) // assertBookingVisible
+      .mockResolvedValueOnce([]) // createPayment: no open payment
+      .mockResolvedValueOnce([]) // createUzumCheckoutPayment: no open payment
+      .mockResolvedValueOnce([]); // INSERT INTO payments
+
+    const res = await service.createPayment(admin, 'booking-1', {
+      provider: 'uzum_checkout',
+    });
+    expect(res).toMatchObject({
+      provider: 'uzum_checkout',
+      status: 'processing',
+      payment_url: 'https://checkout.ipt-merch.com/?orderId=order-real-1',
+      amount: 150_000,
+      currency: 'UZS',
+    });
+
+    const insertCall = (
+      pg.query.mock.calls as Array<[string, readonly unknown[]]>
+    ).find(([sql]) => String(sql).includes('INSERT INTO payments'));
+    expect(insertCall).toBeDefined();
+    const [, params] = insertCall!;
+    expect(params).toContain('order-real-1'); // provider_reference
+    expect(params).toContain(
+      'https://checkout.ipt-merch.com/?orderId=order-real-1',
+    ); // payment_url
+    expect(params).toContain('uzum_checkout:order-real-1'); // idempotency_key
   });
 });
 

@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ProxyAgent, type Dispatcher } from 'undici';
 import { hmacSha256, timingSafeEqualString } from '../../auth/security';
@@ -404,6 +405,7 @@ export function buildUzumCheckoutProxyDispatcher(proxyUrl: string): ProxyAgent {
 
 @Injectable()
 export class UzumCheckoutProvider {
+  private readonly logger = new Logger(UzumCheckoutProvider.name);
   private readonly baseUrl?: string;
   private readonly merchantId?: string;
   private readonly terminalId?: string;
@@ -431,6 +433,19 @@ export class UzumCheckoutProvider {
   private readonly outboundProxyUrl?: string;
   /** Lazily qurilgan + keshlangan `ProxyAgent` (har chaqiruvda qayta emas). */
   private outboundDispatcherInstance?: Dispatcher;
+  /**
+   * `register()` fiskal `receiptParams` uchun — 2026-09-11 sandbox orqali
+   * tasdiqlangan (`docs/payments-uzum-checkout.md`). BIZNES tomonidan
+   * beriladi, kodda hardcode qilinmaydi. `vatPercent` ATAYLAB SANDBOX PROBE
+   * sifatida belgilangan — production soliq siyosati sifatida QABUL
+   * QILINMAYDI, faqat env orqali (haqiqiy stavka tasdiqlangach) o'zgaradi.
+   */
+  private readonly receiptSpic?: string;
+  private readonly receiptPackageCode?: string;
+  private readonly receiptVatPercent?: number;
+  private readonly receiptTin?: string;
+  private readonly receiptPinfl?: string;
+  private readonly contentLanguage: string;
 
   constructor(config: ConfigService) {
     const baseUrl = (
@@ -462,11 +477,53 @@ export class UzumCheckoutProvider {
     this.outboundProxyUrl =
       (config.get<string>('UZUM_CHECKOUT_HTTPS_PROXY') || '').trim() ||
       undefined;
+    this.receiptSpic = config.get<string>('UZUM_CHECKOUT_SPIC') || undefined;
+    this.receiptPackageCode =
+      config.get<string>('UZUM_CHECKOUT_PACKAGE_CODE') || undefined;
+    const vatPercentRaw = config.get<string>('UZUM_CHECKOUT_VAT_PERCENT');
+    this.receiptVatPercent =
+      vatPercentRaw && vatPercentRaw.trim() !== ''
+        ? Number(vatPercentRaw)
+        : undefined;
+    this.receiptTin =
+      config.get<string>('UZUM_CHECKOUT_RECEIPT_TIN') || undefined;
+    this.receiptPinfl =
+      config.get<string>('UZUM_CHECKOUT_RECEIPT_PINFL') || undefined;
+    this.contentLanguage = (
+      config.get<string>('UZUM_CHECKOUT_CONTENT_LANGUAGE') || 'uz-UZ'
+    ).trim();
   }
 
-  /** `payment/register` (chiquvchi) uchun konfiguratsiya to'liqmi. */
+  /**
+   * `payment/register` (chiquvchi) uchun asosiy (auth) konfiguratsiya
+   * to'liqmi. 2026-09-11 sandbox orqali tasdiqlangan: haqiqiy auth
+   * sarlavhalari `X-Terminal-Id` + `X-Api-Key` (`merchantId` HECH QANDAY
+   * tasdiqlangan so'rovda ishlatilmagan — shu sabab bu yerda talab
+   * qilinmaydi, lekin maydon o'zi kelajakda kerak bo'lib qolishi mumkin
+   * bo'lgani uchun saqlanadi).
+   */
   isConfigured(): boolean {
-    return Boolean(this.baseUrl && this.merchantId && this.apiKey);
+    return Boolean(this.baseUrl && this.terminalId && this.apiKey);
+  }
+
+  /**
+   * `register()` uchun fiskal (`receiptParams`) konfiguratsiya to'liqmi —
+   * `SPIC` + `packageCode` + `vatPercent` + (TIN YOKI PINFL, ikkalasi
+   * birga EMAS). 2026-09-11 sandbox orqali tasdiqlangan majburiy maydonlar
+   * ro'yxati (`docs/payments-uzum-checkout.md`).
+   */
+  isFiscalConfigured(): boolean {
+    // Aynan BITTASI kerak — XOR. Ikkalasi ham yo'q YOKI ikkalasi ham bor
+    // (Uzum "ikkalasini birga berish mumkin emas" deb rad etadi) —
+    // ikkala holatda ham "sozlanmagan" deb hisoblaymiz.
+    const hasIdentity = Boolean(this.receiptTin) !== Boolean(this.receiptPinfl);
+    return Boolean(
+      this.receiptSpic &&
+      this.receiptPackageCode &&
+      this.receiptVatPercent !== undefined &&
+      Number.isFinite(this.receiptVatPercent) &&
+      hasIdentity,
+    );
   }
 
   /** Chiquvchi Uzum Checkout so'rovlari uchun forward-proxy sozlanganmi. */
@@ -596,7 +653,11 @@ export class UzumCheckoutProvider {
   }
 
   // ==========================================================================
-  //  CHIQUVCHI (outbound) — FAIL-CLOSED, rasmiy wire-format kutilmoqda.
+  //  CHIQUVCHI (outbound) — `register` / `getOrderStatus` / `getOperationState`
+  //  2026-09-11 SANDBOXDA HAQIQIY so'rovlar bilan TASDIQLANGAN wire-format
+  //  (to'liq dalil/tarix: `docs/payments-uzum-checkout.md`). Faqat `refund()`
+  //  hamon FAIL-CLOSED qoladi — haqiqiy refund hech qachon sinalmagan
+  //  (real pul qaytarish — xato narxi yuqori, ataylab keyinga qoldirilgan).
   //
   //  STATIK CHIQUVCHI IP: agar `UZUM_CHECKOUT_HTTPS_PROXY` sozlangan bo'lsa,
   //  har bir `fetch()` chaqiruvi `dispatcher: this.outboundDispatcher()` bilan
@@ -607,108 +668,305 @@ export class UzumCheckoutProvider {
   //  qaytaradi va `fetch` odatdagi marshrutga tushadi.
   // ==========================================================================
 
+  /** Uzum'ning ISO-4217 RAQAMLI valyuta kodlari (sandbox orqali tasdiqlangan). */
+  private static readonly CURRENCY_NUMERIC: Readonly<Record<string, number>> =
+    Object.freeze({ UZS: 860, USD: 840, EUR: 978, RUB: 643 });
+
   /**
-   * Chiquvchi metod nima uchun bloklanganini bildiruvchi xato.
-   *
-   *  - env sozlanmagan  -> `NOT_CONFIGURED`
-   *  - env sozlangan     -> `SPEC_REQUIRED` (taxminiy so'rov YUBORILMAYDI —
-   *    rasmiy Uzum Checkout wire-format tasdiqlangach shu guard olib
-   *    tashlanadi va metodlar `fetch` bilan ishlaydi).
+   * `getOrderStatus`ning `status` maydoni -> ichki holat. FAQAT sandboxda
+   * bevosita KUZATILGAN qiymatlar xaritalangan (`REGISTERED`, `COMPLETED`) —
+   * boshqa har qanday qiymat (masalan mumkin bo'lgan `DECLINED`/`CANCELLED`/
+   * `EXPIRED` — bular hech qachon ko'rilmagan) xavfsiz `UNKNOWN`ga tushadi.
+   */
+  private static readonly ORDER_STATUS_MAP: Readonly<
+    Record<string, NormalizedCheckoutCallback['state']>
+  > = Object.freeze({ REGISTERED: 'PENDING', COMPLETED: 'PAID' });
+
+  /**
+   * Chiquvchi metod nima uchun bloklanganini bildiruvchi xato — asosiy
+   * (auth) YOKI fiskal konfiguratsiya to'liq bo'lmasa.
    */
   private outboundBlocker(): UzumCheckoutError {
     if (!this.isConfigured()) {
       return new UzumCheckoutError(
         UZUM_CHECKOUT_ERROR.NOT_CONFIGURED,
         'Uzum Checkout chiquvchi integratsiyasi sozlanmagan ' +
-          '(UZUM_CHECKOUT_BASE_URL / UZUM_CHECKOUT_MERCHANT_ID / UZUM_CHECKOUT_API_KEY)',
+          '(UZUM_CHECKOUT_BASE_URL / UZUM_CHECKOUT_TERMINAL_ID / UZUM_CHECKOUT_API_KEY)',
       );
     }
     return new UzumCheckoutError(
-      UZUM_CHECKOUT_ERROR.SPEC_REQUIRED,
-      "Uzum Checkout rasmiy wire-format tasdiqlanmagan — taxminiy so'rov " +
-        'yuborilmaydi. developer.uzumbank.uz/en/checkout/ spec olgach ' +
-        'outboundBlocker() guard olib tashlanadi.',
+      UZUM_CHECKOUT_ERROR.NOT_CONFIGURED,
+      'Uzum Checkout fiskal (receiptParams) konfiguratsiyasi to‘liq emas ' +
+        '(UZUM_CHECKOUT_SPIC / UZUM_CHECKOUT_PACKAGE_CODE / ' +
+        'UZUM_CHECKOUT_VAT_PERCENT / UZUM_CHECKOUT_RECEIPT_TIN yoki ' +
+        'UZUM_CHECKOUT_RECEIPT_PINFL — aynan bittasi)',
     );
   }
 
-  /**
-   * `POST {baseUrl}/payment/register` — SAFAAR to'lovini Uzum Checkout'da
-   * ro'yxatga oladi, `orderId` + to'lov sahifasi URL'ini qaytaradi.
-   *
-   * MAPPING (rasmiy spec kelgach tasdiqlanadi):
-   *   input.orderNumber          -> Uzum `orderNumber`
-   *   input.merchantOperationId  -> Uzum `merchantOperationId`
-   *   input.amountSom            -> Uzum `amount`  (birlik: so'm/tiyin — SPEC)
-   *   input.currency             -> Uzum `currency`
-   *   input.successUrl           -> Uzum `successUrl`
-   *   input.failureUrl           -> Uzum `failureUrl`
-   *   (this.merchantId/terminalId + this.apiKey -> auth — SPEC)
-   *   Uzum javob `orderId`       -> result.orderId (-> payments.provider_reference)
-   *   Uzum javob `paymentUrl`/`checkoutUrl` -> result.paymentUrl
-   *
-   * @example  // TODO(uzum-checkout-spec): rasmiy hujjat bilan tasdiqlang
-   *   const res = await fetch(`${this.baseUrl}/payment/register`, {
-   *     method: 'POST',
-   *     signal: AbortSignal.timeout(15_000),
-   *     // STATIK CHIQUVCHI IP: proxy sozlangan bo'lsa so'rov safaar-gateway
-   *     // orqali chiqadi; sozlanmagan bo'lsa `undefined` -> to'g'ridan-to'g'ri.
-   *     dispatcher: this.outboundDispatcher(),
-   *     headers: {
-   *       'Content-Type': 'application/json',
-   *       // auth sarlavhasi nomi/sxemasi — SPEC (masalan 'Authorization: Bearer'
-   *       // yoki 'X-Api-Key' + 'X-Terminal-Id')
-   *     },
-   *     body: JSON.stringify({
-   *       orderNumber: input.orderNumber,
-   *       merchantOperationId: input.merchantOperationId,
-   *       amount: input.amountSom,        // birlik — SPEC
-   *       currency: input.currency,
-   *       successUrl: input.successUrl,
-   *       failureUrl: input.failureUrl,
-   *       // viewType / sessionTimeoutSecs / clientId / paymentParams —
-   *       // ixtiyoriy, faqat SPEC tasdiqlasa
-   *     }),
-   *   });
-   *   if (!res.ok) throw new UzumCheckoutError(REGISTER_FAILED, `HTTP ${res.status}`);
-   *   const body = await res.json();
-   *   return { orderId: String(body.orderId), paymentUrl: String(body.paymentUrl), raw: body };
-   */
-  register(input: RegisterCheckoutInput): Promise<RegisterCheckoutResult> {
-    void input;
-    return Promise.reject(this.outboundBlocker());
+  private outboundHeaders(): Record<string, string> {
+    return {
+      'Content-Type': 'application/json',
+      'Content-Language': this.contentLanguage,
+      'X-Terminal-Id': this.terminalId as string,
+      'X-Api-Key': this.apiKey as string,
+    };
+  }
+
+  /** Uzum javobini `{errorCode, message, result}` shaklida parse qiladi. */
+  private async parseUzumResponse(
+    res: Response,
+    failureCode: UzumCheckoutErrorCode,
+    methodLabel: string,
+  ): Promise<Record<string, unknown>> {
+    const json = (await res.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
+    const errorCode =
+      json && typeof json.errorCode === 'number' ? json.errorCode : undefined;
+    if (!res.ok || errorCode !== 0 || !json?.result) {
+      // Xom javob (`message`/`result`) LOG QILINMAYDI — faqat http/errorCode.
+      this.logger.warn(
+        `uzum-checkout ${methodLabel} muvaffaqiyatsiz: http=${res.status} errorCode=${errorCode ?? 'n/a'}`,
+      );
+      throw new UzumCheckoutError(
+        failureCode,
+        `Uzum ${methodLabel}: HTTP ${res.status}, errorCode=${errorCode ?? 'n/a'}`,
+      );
+    }
+    return json;
   }
 
   /**
-   * `POST {baseUrl}/payment/getOrderStatus` — buyurtma holatini so'raydi
-   * (rekonsiliatsiya uchun). Xom holat `STATE_MAP` orqali normallashtiriladi;
-   * spec yo'q ekan — `state = 'UNKNOWN'`, ya'ni rekonsiliatsiya hech narsani
-   * PAID qilmaydi.
+   * `POST {baseUrl}/api/v1/payment/register` — SAFAAR to'lovini Uzum
+   * Checkout'da ro'yxatga oladi, `orderId` + to'lov sahifasi URL'ini
+   * qaytaradi. Wire-format 2026-09-11 sandboxda haqiqiy so'rovlar bilan
+   * tasdiqlangan (`docs/payments-uzum-checkout.md`). `amount` — TIYIN
+   * (checkout sahifasida "1 000 so'm" ko'rinishi orqali mustaqil
+   * tasdiqlangan). Fiskal `receiptParams` (SPIC/packageCode/vatPercent/
+   * TIN-yoki-PINFL) — `UZUM_CHECKOUT_*` orqali, BIZNES beradi, bu yerda
+   * hardcode YO'Q.
    */
-  getOrderStatus(orderId: string): Promise<CheckoutOrderStatus> {
-    void orderId;
-    return Promise.reject(this.outboundBlocker());
+  async register(
+    input: RegisterCheckoutInput,
+  ): Promise<RegisterCheckoutResult> {
+    if (!this.isConfigured() || !this.isFiscalConfigured()) {
+      throw this.outboundBlocker();
+    }
+    const currencyNumeric =
+      UzumCheckoutProvider.CURRENCY_NUMERIC[input.currency.toUpperCase()];
+    if (!currencyNumeric) {
+      throw new UzumCheckoutError(
+        UZUM_CHECKOUT_ERROR.REGISTER_FAILED,
+        `qo'llab-quvvatlanmaydigan valyuta: ${input.currency}`,
+      );
+    }
+    const amountTiyin = Math.round(input.amountSom * 100);
+
+    const receiptParams: Record<string, unknown> = {
+      spic: this.receiptSpic,
+      packageCode: this.receiptPackageCode,
+      vatPercent: this.receiptVatPercent,
+    };
+    if (this.receiptTin) receiptParams.TIN = this.receiptTin;
+    else if (this.receiptPinfl) receiptParams.PINFL = this.receiptPinfl;
+
+    const body = {
+      orderNumber: input.orderNumber,
+      clientId: randomUUID(),
+      currency: currencyNumeric,
+      amount: amountTiyin,
+      paymentDetails: `SAFAAR booking ${input.orderNumber}`,
+      sessionTimeoutSecs: 1800,
+      viewType: 'REDIRECT',
+      successUrl: input.successUrl,
+      failureUrl: input.failureUrl,
+      paymentParams: { payType: 'ONE_STEP', force3ds: true },
+      merchantParams: {
+        cart: {
+          cartId: randomUUID(),
+          receiptType: 'PURCHASE',
+          total: amountTiyin,
+          items: [
+            {
+              title: 'SAFAAR xizmat',
+              productId: randomUUID(),
+              quantity: 1,
+              unitPrice: amountTiyin,
+              total: amountTiyin,
+              receiptParams,
+            },
+          ],
+        },
+      },
+    };
+
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/api/v1/payment/register`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(15_000),
+        // STATIK CHIQUVCHI IP: proxy sozlangan bo'lsa so'rov safaar-gateway
+        // orqali chiqadi; sozlanmagan bo'lsa `undefined` -> to'g'ridan-to'g'ri.
+        dispatcher: this.outboundDispatcher(),
+        headers: this.outboundHeaders(),
+        body: JSON.stringify(body),
+      } as RequestInit);
+    } catch (err) {
+      this.logger.warn(
+        `uzum-checkout register tarmoq xatosi: ${(err as Error).message}`,
+      );
+      throw new UzumCheckoutError(
+        UZUM_CHECKOUT_ERROR.REGISTER_FAILED,
+        "tarmoq xatosi (Uzum'ga ulanib bo'lmadi)",
+      );
+    }
+
+    const json = await this.parseUzumResponse(
+      res,
+      UZUM_CHECKOUT_ERROR.REGISTER_FAILED,
+      'register',
+    );
+    const result = json.result as Record<string, unknown>;
+    const orderId = str(result.orderId);
+    const paymentUrl = str(result.paymentRedirectUrl ?? result.paymentUrl);
+    if (!orderId || !paymentUrl) {
+      throw new UzumCheckoutError(
+        UZUM_CHECKOUT_ERROR.REGISTER_FAILED,
+        "Uzum javobida orderId/paymentRedirectUrl yo'q",
+      );
+    }
+    return { orderId, paymentUrl, raw: json };
   }
 
   /**
-   * `POST {baseUrl}/payment/getOperationState` — alohida operatsiya holati.
+   * `POST {baseUrl}/api/v1/payment/getOrderStatus` — buyurtma holatini
+   * so'raydi (rekonsiliatsiya uchun). Xom `status` `ORDER_STATUS_MAP`
+   * orqali normallashtiriladi; faqat sandboxda kuzatilgan qiymatlar
+   * xaritalangan — boshqa hech qanday qiymat hech qachon PAID qilmaydi.
    */
-  getOperationState(
+  async getOrderStatus(orderId: string): Promise<CheckoutOrderStatus> {
+    if (!this.isConfigured()) throw this.outboundBlocker();
+
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/api/v1/payment/getOrderStatus`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(15_000),
+        dispatcher: this.outboundDispatcher(),
+        headers: this.outboundHeaders(),
+        body: JSON.stringify({ orderId }),
+      } as RequestInit);
+    } catch (err) {
+      this.logger.warn(
+        `uzum-checkout getOrderStatus tarmoq xatosi: ${(err as Error).message}`,
+      );
+      throw new UzumCheckoutError(
+        UZUM_CHECKOUT_ERROR.STATUS_FAILED,
+        "tarmoq xatosi (Uzum'ga ulanib bo'lmadi)",
+      );
+    }
+
+    const json = await this.parseUzumResponse(
+      res,
+      UZUM_CHECKOUT_ERROR.STATUS_FAILED,
+      'getOrderStatus',
+    );
+    const result = json.result as Record<string, unknown>;
+    const rawStatus = str(result.status);
+    const completedAmountTiyin = Number(result.completedAmount ?? 0);
+    return {
+      orderId: str(result.orderId) || orderId,
+      rawStatus,
+      state:
+        UzumCheckoutProvider.ORDER_STATUS_MAP[rawStatus.toUpperCase()] ??
+        'UNKNOWN',
+      amountSom:
+        Number.isFinite(completedAmountTiyin) && completedAmountTiyin > 0
+          ? completedAmountTiyin / 100
+          : null,
+      raw: json,
+    };
+  }
+
+  /**
+   * `POST {baseUrl}/api/v1/payment/getOperationState` — alohida operatsiya
+   * holati. `operationId` MAJBURIY (sandboxda tasdiqlangan — `orderId`
+   * yolg'iz yetarli emas, "Field required" xatosi qaytaradi).
+   */
+  async getOperationState(
     orderId: string,
-    operationId?: string,
+    operationId: string,
   ): Promise<CheckoutOrderStatus> {
-    void orderId;
-    void operationId;
-    return Promise.reject(this.outboundBlocker());
+    if (!this.isConfigured()) throw this.outboundBlocker();
+    if (!operationId) {
+      throw new UzumCheckoutError(
+        UZUM_CHECKOUT_ERROR.STATUS_FAILED,
+        "operationId shart (Uzum tomonidan talab qilinadi, orderId yolg'iz yetarli emas)",
+      );
+    }
+
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/api/v1/payment/getOperationState`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(15_000),
+        dispatcher: this.outboundDispatcher(),
+        headers: this.outboundHeaders(),
+        body: JSON.stringify({ orderId, operationId }),
+      } as RequestInit);
+    } catch (err) {
+      this.logger.warn(
+        `uzum-checkout getOperationState tarmoq xatosi: ${(err as Error).message}`,
+      );
+      throw new UzumCheckoutError(
+        UZUM_CHECKOUT_ERROR.STATUS_FAILED,
+        "tarmoq xatosi (Uzum'ga ulanib bo'lmadi)",
+      );
+    }
+
+    const json = await this.parseUzumResponse(
+      res,
+      UZUM_CHECKOUT_ERROR.STATUS_FAILED,
+      'getOperationState',
+    );
+    const result = json.result as Record<string, unknown>;
+    const operation = (result.operation ?? {}) as Record<string, unknown>;
+    const rawOperationType = str(operation.operationType).toUpperCase();
+    const rawState = str(operation.state).toUpperCase();
+    const stateKey = `${rawOperationType}:${rawState}`;
+    return {
+      orderId,
+      rawStatus: rawState,
+      // `state`/`operationType` maydonlari callback'dagi
+      // `operationState`/`operationType` bilan bir xil ma'noda — shu sabab
+      // AYNAN shu `STATE_MAP`ning o'zi qayta ishlatiladi (ikkinchi mustaqil
+      // xaritalash YO'Q).
+      state: STATE_MAP[stateKey] ?? 'UNKNOWN',
+      amountSom: null, // getOperationState javobida summa YO'Q (tasdiqlangan)
+      raw: json,
+    };
   }
 
   /**
    * `POST {baseUrl}/acquiring/refund` — to'lovni (qisman/to'liq) qaytarish.
    * SAFAAR refund modulidan (admin tasdig'idan keyin) chaqirilishi kerak —
    * bu metodning o'zi hech qachon avtomatik refund yubormaydi.
+   *
+   * HAMON FAIL-CLOSED: `register`/`getOrderStatus`/`getOperationState`dan
+   * farqli, bu endpoint HECH QACHON haqiqiy so'rov bilan sinalmagan —
+   * to'lovni QAYTARISH xato narxi register/status'dan yuqori, shuning
+   * uchun ataylab keyinga qoldirilgan (real refund test alohida, aniq
+   * ruxsat bilan).
    */
   refund(input: RefundCheckoutInput): Promise<RefundCheckoutResult> {
     void input;
-    return Promise.reject(this.outboundBlocker());
+    return Promise.reject(
+      new UzumCheckoutError(
+        UZUM_CHECKOUT_ERROR.SPEC_REQUIRED,
+        "Uzum Checkout refund hali sinalmagan — taxminiy so'rov yuborilmaydi.",
+      ),
+    );
   }
 }
 

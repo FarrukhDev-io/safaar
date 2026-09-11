@@ -294,10 +294,11 @@ export class PaymentsService {
    *   Uzum javob `orderId`         -> payments.provider_reference
    *   payments.idempotency_key      = `uzum_checkout:<orderId>`
    *
-   * Rasmiy Uzum Checkout wire-format olinmaguncha `checkout.register()`
-   * FAIL-CLOSED (`NOT_CONFIGURED` / `SPEC_REQUIRED`) — bu yerda u aniq 503'ga
-   * aylantiriladi (uzcard/humo bilan bir xil UX) va HECH QANDAY qator
-   * yozilmaydi.
+   * `checkout.register()` — 2026-09-11dan buyon RASMIY tasdiqlangan
+   * wire-format bilan HAQIQIY so'rov yuboradi (`docs/payments-uzum-checkout.md`),
+   * LEKIN to'liq env (auth + fiskal — `UZUM_CHECKOUT_*`) sozlanmasa hamon
+   * FAIL-CLOSED (`NOT_CONFIGURED`) — bu yerda u aniq 503'ga aylantiriladi
+   * (uzcard/humo bilan bir xil UX) va HECH QANDAY qator yozilmaydi.
    */
   private async createUzumCheckoutPayment(booking: BookingVisibilityRow) {
     const [existing] = await this.pg.query<PaymentRow>(
@@ -340,15 +341,16 @@ export class PaymentsService {
     }
 
     const now = new Date().toISOString();
-    // TODO(uzum-checkout-commission): `register()` yuqorida fail-closed
-    // bo'lgani uchun bu qator HOZIRDA HECH QACHON bajarilmaydi. Rasmiy
-    // wire-format tasdiqlanib shu guard olib tashlanganda, INSERT'ga
-    // `provider_fee_rate/provider_fee_amount/net_settlement_amount`
-    // qo'shish kerak — `calculateUzumCheckoutCommission(booking.total_amount)`
-    // orqali (qarang `uzum-checkout-commission.ts` +
-    // `docs/payments-uzum-checkout.md` "Uzum Checkout komissiyasi").
-    // Migratsiya (`20260911000000_uzum_checkout_commission_fields`) allaqachon
-    // DIZAYN QILINGAN, lekin ATAYLAB productionga qo'llanilmagan.
+    // TODO(uzum-checkout-commission): `register()` 2026-09-11dan buyon
+    // to'liq sozlangan terminalda (auth + fiskal env) HAQIQIY so'rov
+    // yuboradi — bu qator ENDI bajariladi. Hali qo'shilmagan:
+    // `provider_fee_rate/provider_fee_amount/net_settlement_amount` —
+    // `calculateUzumCheckoutCommission(booking.total_amount)` orqali
+    // (qarang `uzum-checkout-commission.ts` + `docs/payments-uzum-checkout.md`
+    // "Uzum Checkout komissiyasi"). Migratsiya
+    // (`20260911000000_uzum_checkout_commission_fields`) DIZAYN QILINGAN,
+    // lekin ATAYLAB productionga qo'llanilmagan — shu ustunlarni to'ldirish
+    // ALOHIDA, ongli qaror bilan qo'shiladi (bu commit doirasidan tashqarida).
     await this.pg.query(
       `INSERT INTO payments
          (id, booking_id, provider, status, amount, currency, payment_url,
@@ -1700,12 +1702,16 @@ export class PaymentsService {
    * Boshqa holatlar (`PENDING` / `UNKNOWN`) TEGILMAYDI.
    *
    * FAIL-CLOSED, hozircha ataylab `@Cron`SIZ:
-   *   - `checkout.isConfigured()` FALSE -> darhol no-op;
-   *   - `STATE_MAP` bo'sh (Uzum status enum spec'i YO'Q) -> har qanday holat
-   *     `UNKNOWN` va hech narsa o'zgarmaydi;
-   *   - `getOrderStatus()` spec kelmaguncha `SPEC_REQUIRED` bilan rad etadi.
-   * Uzum status enum'i tasdiqlangach shu metodga `@Cron(EVERY_5_MINUTES)`
-   * qo'shiladi.
+   *   - `checkout.isConfigured()` FALSE -> darhol no-op (fiskal env shart
+   *     EMAS — `getOrderStatus()`ga kerak emas, faqat auth);
+   *   - `ORDER_STATUS_MAP` FAQAT sandboxda bevosita kuzatilgan `status`
+   *     qiymatlarini (`REGISTERED`->PENDING, `COMPLETED`->PAID) taniydi —
+   *     boshqa har qanday (hali ko'rilmagan) qiymat xavfsiz `UNKNOWN`ga
+   *     tushadi, hech narsa o'zgartirmaydi;
+   *   - `getOrderStatus()` tarmoq/HTTP xatosida yoki `errorCode!=0` bo'lsa
+   *     `STATUS_FAILED` throw qiladi — quyidagi catch jim o'tkazib yuboradi.
+   * `@Cron` hali ATAYLAB qo'shilmagan — avtomatik ishga tushirish alohida,
+   * ongli qaror (bu commit doirasidan tashqarida).
    */
   async reconcileUzumCheckoutPayments(
     olderThanMinutes = 15,

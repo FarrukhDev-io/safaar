@@ -51,6 +51,24 @@ interface EnvironmentConfig {
   UZUM_CHECKOUT_CALLBACK_SIGN_KEY?: string;
   UZUM_CHECKOUT_SIGNATURE_HEADER?: string;
   UZUM_CHECKOUT_SIGNATURE_SCHEME?: string;
+  // `register()` chiquvchi fiskal `receiptParams` uchun — 2026-09-11 sandbox
+  // orqali tasdiqlangan wire-format (`docs/payments-uzum-checkout.md`).
+  // BIZNES/BUXGALTERIYA tomonidan beriladi, KODDA hardcode qilinmaydi.
+  // `UZUM_CHECKOUT_SPIC`/`_PACKAGE_CODE` — tasnif.soliq.uz'dan IKPU/o'lchov
+  // birligi kodi. `_VAT_PERCENT` — soliq stavkasi (%%); MUHIM: hozircha
+  // FAQAT sandbox probe sifatida tasdiqlangan (`12`), bu HAQIQIY production
+  // soliq siyosati DEGANI EMAS — real qiymat tasdiqlanmaguncha bu yerga
+  // real terminalning haqiqiy stavkasi qo'yilishi kerak. `_RECEIPT_TIN` /
+  // `_RECEIPT_PINFL` — kamida BITTASI SHART (ikkalasi birga bo'lmaydi);
+  // hech biri yo'q bo'lsa `register()` `NOT_CONFIGURED` bilan fail-closed.
+  UZUM_CHECKOUT_SPIC?: string;
+  UZUM_CHECKOUT_PACKAGE_CODE?: string;
+  UZUM_CHECKOUT_VAT_PERCENT?: string;
+  UZUM_CHECKOUT_RECEIPT_TIN?: string;
+  UZUM_CHECKOUT_RECEIPT_PINFL?: string;
+  // Ixtiyoriy — chiquvchi so'rov `Content-Language` sarlavhasi. Uzum FAQAT
+  // `ru-RU`/`uz-UZ`/`en-EN` qabul qiladi (tasdiqlangan); default `uz-UZ`.
+  UZUM_CHECKOUT_CONTENT_LANGUAGE?: string;
   // Uzum Checkout CHIQUVCHI (outbound) so'rovlari uchun IXTIYORIY forward-proxy
   // URL (`http://user:pass@host:port`). FAQAT `UzumCheckoutProvider`ning
   // chiquvchi metodlari (`register` / `getOrderStatus` / `getOperationState`
@@ -332,6 +350,24 @@ export function validateEnv(
       : undefined,
     UZUM_CHECKOUT_SIGNATURE_SCHEME: config.UZUM_CHECKOUT_SIGNATURE_SCHEME
       ? String(config.UZUM_CHECKOUT_SIGNATURE_SCHEME)
+      : undefined,
+    UZUM_CHECKOUT_SPIC: config.UZUM_CHECKOUT_SPIC
+      ? String(config.UZUM_CHECKOUT_SPIC)
+      : undefined,
+    UZUM_CHECKOUT_PACKAGE_CODE: config.UZUM_CHECKOUT_PACKAGE_CODE
+      ? String(config.UZUM_CHECKOUT_PACKAGE_CODE)
+      : undefined,
+    UZUM_CHECKOUT_VAT_PERCENT: config.UZUM_CHECKOUT_VAT_PERCENT
+      ? String(config.UZUM_CHECKOUT_VAT_PERCENT)
+      : undefined,
+    UZUM_CHECKOUT_RECEIPT_TIN: config.UZUM_CHECKOUT_RECEIPT_TIN
+      ? String(config.UZUM_CHECKOUT_RECEIPT_TIN)
+      : undefined,
+    UZUM_CHECKOUT_RECEIPT_PINFL: config.UZUM_CHECKOUT_RECEIPT_PINFL
+      ? String(config.UZUM_CHECKOUT_RECEIPT_PINFL)
+      : undefined,
+    UZUM_CHECKOUT_CONTENT_LANGUAGE: config.UZUM_CHECKOUT_CONTENT_LANGUAGE
+      ? String(config.UZUM_CHECKOUT_CONTENT_LANGUAGE)
       : undefined,
     UZUM_CHECKOUT_HTTPS_PROXY: uzumCheckoutHttpsProxy,
     UZUM_CHECKOUT_TEST_MODE: String(config.UZUM_CHECKOUT_TEST_MODE ?? 'false'),

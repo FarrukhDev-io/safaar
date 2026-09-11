@@ -12,16 +12,19 @@ bo'lmaydi (`web.archive.org` ham bu muhitda bloklangan). Shu sabab Uzum
 Checkout'ning **`/payment/register` / callback / `getOrderStatus` /
 `getOperationState` / `acquiring/refund` wire-format'i BIZDA TASDIQLANMAGAN**.
 
-Natijada butun integratsiya **fail-closed**:
+**2026-09-11 YANGILANDI**: `register`/`getOrderStatus`/`getOperationState`
+ENDI HAQIQIY (sandboxda tasdiqlangan) so'rov yuboradi — pastdagi jadval
+YANGI holatni aks ettiradi. Faqat callback autentifikatsiyasi va `refund()`
+hamon fail-closed:
 
-| Qism                                                 | Holati                        | Bloklovchi                              |
-| ---------------------------------------------------- | ----------------------------- | --------------------------------------- |
-| Callback qabul qilish (`/v1/uzum/checkout/callback`) | skeleton + wired + tested     | payload + imzo algoritmi                |
-| `register()` seam (`createUzumCheckoutPayment`)      | wired + tested, 503 qaytaradi | `/payment/register` shakli + credential |
-| `getOrderStatus` / `getOperationState`               | typed stub, `SPEC_REQUIRED`   | endpoint shakli + credential            |
-| `refund()`                                           | typed stub, `SPEC_REQUIRED`   | `/acquiring/refund` shakli + credential |
-| Reconciliation (`reconcileUzumCheckoutPayments`)     | metod tayyor, `@Cron`SIZ      | Uzum status enum                        |
-| `PaymentMethod` enum + backend allowlistlar          | ✅ tayyor (migration bilan)   | —                                       |
+| Qism                                                 | Holati                                                   | Bloklovchi                              |
+| ----------------------------------------------------- | --------------------------------------------------------- | --------------------------------------- |
+| Callback qabul qilish (`/v1/uzum/checkout/callback`) | skeleton + wired + tested, HAMON fail-closed              | imzo algoritmi (Uzum'dan rasmiy javob yo'q) |
+| `register()` seam (`createUzumCheckoutPayment`)      | ✅ HAQIQIY so'rov (auth+fiskal env sozlansa)               | fiskal env (`UZUM_CHECKOUT_SPIC` va h.k.) |
+| `getOrderStatus` / `getOperationState`               | ✅ HAQIQIY so'rov (auth env sozlansa)                      | —                                        |
+| `refund()`                                           | typed stub, `SPEC_REQUIRED`                                | hech qachon sinalmagan — ataylab keyinga qoldirilgan |
+| Reconciliation (`reconcileUzumCheckoutPayments`)     | metod tayyor, ishlaydi, `@Cron`SIZ                         | avtomatik ishga tushirish — ongli qaror |
+| `PaymentMethod` enum + backend allowlistlar          | ✅ tayyor (migration bilan)                                | —                                       |
 
 ## Route
 
