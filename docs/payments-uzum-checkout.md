@@ -470,3 +470,72 @@ TASHLANMAYDI.
 8. `UZUM_CHECKOUT_*` credential'larni `backend.env`ga qo'yish + migration'ni
    `develop → production` orqali qo'llash.
 9. Real Uzum sandbox bilan round-trip test.
+
+## 2026-09-11 — CART sxemasi RASMIY manbadan (developer.uzumbank.uz) topildi va tasdiqlandi
+
+`developer.uzumbank.uz/en/checkout` sahifasining o'zi JS SPA (render
+qilinmagan holda o'qib bo'lmaydi — avvalgi izohlarda qayd etilgan), LEKIN
+uning **JS bundle'i** (`https://developer.uzumbank.uz/en/assets/js/main.*.js`)
+to'liq OpenAPI spec matnini (tavsiflar, sxemalar, ishlaydigan misollar
+bilan) satr-literal sifatida o'zida saqlaydi — bu orqali RASMIY sxema
+to'g'ridan-to'g'ri o'qib olindi (fetch/curl bilan, hech qanday
+avtorizatsiyasiz — bu HAR KIM ochiq ko'rishi mumkin bo'lgan public bundle).
+
+**Rasmiy `merchantParams.cart` joylashuvi va sxemasi** (`OrderPaymentRequest`
+uchun, ishlaydigan rasmiy misoldan):
+```
+merchantParams: {
+  cart: {
+    cartId: <uuid>,
+    receiptType: "PURCHASE",
+    total: <butun summa>,
+    items: [
+      {
+        title: <mahsulot/xizmat nomi>,
+        productId: <uuid>,
+        quantity: <son>,
+        unitPrice: <bir dona narxi>,
+        total: <shu qatorning umumiy narxi>,
+        receiptParams: {          // = "UZReceiptParams" sxemasi
+          spic: <IKPU/MXIK, ANIQ 17 ta belgi>,
+          packageCode: <qadoqlash/o'lchov birligi kodi, 1-20 belgi>,
+          vatPercent: <QQS foizi, 0-99 oralig'idagi BUTUN son>,   // MAJBURIY
+          TIN: <STIR, 1-9 belgi>,      // ixtiyoriy, PINFL bilan birga BO'LMAYDI
+          PINFL: <JSHSHIR, 1-14 belgi> // ixtiyoriy, TIN bilan birga BO'LMAYDI
+        }
+      }
+    ]
+  }
+}
+```
+(Rasmiy misolda `paymentParams` ichida yana `force3ds: true` va
+`phoneNumber` ham ko'rsatilgan — ikkalasi ham `OrderPaymentRequest` uchun
+MAJBURIY emas edi, lekin `force3ds` 3DS oqimini sinash uchun foydali.)
+
+**Sandboxda haqiqiy MXIK/unit kod bilan tasdiqlandi** (2026-09-11, real
+`/api/v1/payment/register` so'rovi, `vatPercent` ATAYLAB qo'shilmadi):
+- `spic: "10204001010000000"` (MXIK — tasnif.soliq.uz'dan, biznes
+  tomonidan berilgan) — **HECH QANDAY xato QAYTMADI** (uzunlik/format
+  to'g'ri deb qabul qilindi).
+- `packageCode: "1504157"` (o'lchov birligi kodi — tasnif.soliq.uz
+  "Conditional Unit" bo'limidan, biznes tomonidan berilgan) — **HECH
+  QANDAY xato QAYTMADI**.
+- Javobda **YAGONA** qolgan xato: `receiptParams.vatPercent` — "Field
+  required". Boshqa hech bir maydon (`cartId`, `receiptType`, `total`,
+  `title`, `productId`, `quantity`, `unitPrice`, `force3ds`,
+  `paymentDetails`) qayd etilmadi — demak ULARNING HAMMASI to'g'ri.
+
+**VAT (`vatPercent`) — rasmiy hujjatda ANIQ ko'rsatilgan qiymat YO'Q.**
+Rasmiy misolda `vatPercent: 0` bor, lekin bu boshqa mahsulot ("Almond")
+uchun — umumiy/standart stavka sifatida hujjatlashtirilmagan. Docs matni
+IKPU/packaging kodini `tasnif.soliq.uz`dan olishni ko'rsatadi, lekin QQS
+stavkasini QAYERDAN olish kerakligi haqida HECH NARSA demaydi (bu —
+soliq/buxgalteriya masalasi, mahsulot katalogidan emas). Shu sabab
+`vatPercent` **BLOCKED** — o'ylab topilmadi, boshqa hech qayerda
+tasdiqlangan qiymat yo'q.
+
+**Xulosa**: `register()`ning FISKAL qismi (cart tuzilishi + IKPU/unit
+maydon nomlari/joylashuvi) endi 100% RASMIY manbadan TASDIQLANGAN.
+Yagona qolgan bloker — `vatPercent` uchun mehmonxona xizmati bo'yicha
+haqiqiy QQS stavkasi (0%, 12%, yoki boshqa) — bu BIZNES/BUXGALTERIYA
+tasdig'ini talab qiladi.
