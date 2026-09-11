@@ -288,12 +288,14 @@ describe('UzumCheckoutProvider outbound — config gating (NOT_CONFIGURED, tashq
     expect(p.isFiscalConfigured()).toBe(false);
   });
 
-  it('refund() HAMON har doim SPEC_REQUIRED — to‘liq sozlangan bo‘lsa ham, hech qachon sinalmagan', async () => {
-    const fetchSpy = jest.spyOn(globalThis, 'fetch');
-    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+  it('refund() — auth sozlanmagan => NOT_CONFIGURED, tashqi so‘rov yo‘q', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      throw new Error('fetch chaqirilmasligi kerak edi');
+    });
+    const p = new UzumCheckoutProvider(mkConfig({}));
     await expect(
-      p.refund({ orderId: 'order-1', amountSom: 150000 }),
-    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.SPEC_REQUIRED });
+      p.refund({ orderId: 'order-1', amountSom: 1500 }),
+    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.NOT_CONFIGURED });
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
@@ -513,6 +515,33 @@ describe('UzumCheckoutProvider.getOrderStatus — real wire-format (mocked fetch
     expect(status.state).toBe('UNKNOWN');
   });
 
+  it('status=DECLINED (rasmiy AcquiringStatus qiymati) => FAILED', async () => {
+    mockFetchOnce({
+      errorCode: 0,
+      result: { orderId: 'o', status: 'DECLINED', completedAmount: 0 },
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    const status = await p.getOrderStatus('o');
+    expect(status.state).toBe('FAILED');
+  });
+
+  it('status=REFUNDED/REVERSED/AUTHORIZED/TOP_UP_COMPLETED (rasmiy qiymatlar) => ATAYLAB UNKNOWN (PAID/FAILED bilan aralashtirilmaydi)', async () => {
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    for (const rawStatus of [
+      'REFUNDED',
+      'REVERSED',
+      'AUTHORIZED',
+      'TOP_UP_COMPLETED',
+    ]) {
+      mockFetchOnce({
+        errorCode: 0,
+        result: { orderId: 'o', status: rawStatus, completedAmount: 0 },
+      });
+      const status = await p.getOrderStatus('o');
+      expect(status.state).toBe('UNKNOWN');
+    }
+  });
+
   it('Uzum errorCode!=0 => STATUS_FAILED', async () => {
     mockFetchOnce({ errorCode: 1000, result: null });
     const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
@@ -561,6 +590,196 @@ describe('UzumCheckoutProvider.getOperationState — real wire-format (mocked fe
     const [, init] = fetchSpy.mock.calls[0];
     const body = JSON.parse((init as RequestInit).body as string) as unknown;
     expect(body).toEqual({ orderId: 'order-1', operationId: 'op-1' });
+  });
+});
+
+interface RefundRequestBody {
+  orderId: string;
+  amount: number;
+  cart?: {
+    total: number;
+    items: Array<{
+      productId: string;
+      quantity: number;
+      receiptParams: Record<string, unknown>;
+    }>;
+  };
+}
+
+/**
+ * `getOrderStatus()`ning navbatdagi chaqiruviga (refund fiskal cart.total
+ * uchun ICHKI chaqiradigan) mock javob beradi.
+ */
+function mockGetOrderStatusOnceFor(completedAmountTiyin: number) {
+  return jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    json: () =>
+      Promise.resolve({
+        errorCode: 0,
+        result: {
+          orderId: 'irrelevant',
+          status: 'COMPLETED',
+          completedAmount: completedAmountTiyin,
+        },
+      }),
+  } as Response);
+}
+
+describe('UzumCheckoutProvider.refund — real wire-format (mocked fetch, rasmiy /api/v1/acquiring/refund kontrakti)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("muvaffaqiyatli javob => operationId qaytaradi; ICHKI getOrderStatus() cart.total uchun original completedAmount'ni oladi (2026-09-11 sandboxda tasdiqlangan: cart.total = ORIGINAL to'liq summa, refund summasi EMAS)", async () => {
+    mockGetOrderStatusOnceFor(100_000); // original 1000 so'm
+    const refundFetchSpy = mockFetchOnce({
+      errorCode: 0,
+      message: null,
+      result: { operationId: 'refund-op-1' },
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    const result = await p.refund({
+      orderId: 'order-abc',
+      amountSom: 300, // QISMAN refund
+      operationId: 'my-idem-key-1',
+      originalProductId: 'payment-real-1',
+    });
+    expect(result.orderId).toBe('order-abc');
+    expect(result.refundId).toBe('refund-op-1');
+    expect(result.rawStatus).toBe('REQUESTED');
+
+    // `jest.spyOn` bir xil `fetch`ni ikkinchi marta spy qilganda O'SHA BIR
+    // spy instance qaytadi — shuning uchun `.mock.calls` ikkalasini ham
+    // (getOrderStatus + refund) jamlaydi: [0]=getOrderStatus, [1]=refund.
+    expect(refundFetchSpy).toHaveBeenCalledTimes(2);
+    const [url, init] = refundFetchSpy.mock.calls[1];
+    expect(url).toBe('https://checkout.example/api/v1/acquiring/refund');
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    expect(headers['X-Operation-Id']).toBe('my-idem-key-1');
+    expect(headers['X-Terminal-Id']).toBe('terminal-test');
+    expect(headers['X-Api-Key']).toBe('api-key-test');
+
+    const body = JSON.parse(
+      (init as RequestInit).body as string,
+    ) as RefundRequestBody;
+    expect(body.orderId).toBe('order-abc');
+    expect(body.amount).toBe(30_000); // 300 so'm (QISMAN) -> 30000 tiyin
+    // cart.total — ORIGINAL to'liq summa (100000), QISMAN refund summasi
+    // (30000) EMAS — aynan shu farq sandboxda `errorCode 3059`ni tuzatdi.
+    expect(body.cart?.total).toBe(100_000);
+    expect(body.cart?.items?.[0]?.productId).toBe('payment-real-1');
+    expect(body.cart?.items?.[0]?.quantity).toBe(1);
+    expect(body.cart?.items?.[0]?.receiptParams?.PINFL).toBe('11111111111111');
+  });
+
+  it('operationId berilmasa => avtomatik randomUUID generatsiya qilinadi (har safar boshqacha)', async () => {
+    mockGetOrderStatusOnceFor(10_000);
+    const fetchSpy1 = mockFetchOnce({
+      errorCode: 0,
+      result: { operationId: 'op-1' },
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await p.refund({
+      orderId: 'order-1',
+      amountSom: 100,
+      originalProductId: 'payment-1',
+    });
+    const [, init1] = fetchSpy1.mock.calls[1]; // [0]=ichki getOrderStatus, [1]=refund
+    const opId1 = ((init1 as RequestInit).headers as Record<string, string>)[
+      'X-Operation-Id'
+    ];
+    expect(opId1).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
+  });
+
+  it("originalProductId berilmasa (fiskal yoqilgan holda) => tashqi refund so'rovisiz REFUND_FAILED (taxminiy productId yubormaydi)", async () => {
+    mockGetOrderStatusOnceFor(10_000);
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(
+      p.refund({ orderId: 'order-1', amountSom: 100 }),
+    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.REFUND_FAILED });
+  });
+
+  it('fiskal konfiguratsiya YO‘Q bo‘lsa ham refund bloklanmaydi — faqat cart (va ichki getOrderStatus chaqiruvi) qo‘shilmaydi (rasmiy: cart faqat autofiskalizatsiyada shart)', async () => {
+    const fetchSpy = mockFetchOnce({
+      errorCode: 0,
+      result: { operationId: 'op-2' },
+    });
+    const authOnlyConfig = {
+      UZUM_CHECKOUT_BASE_URL: 'https://checkout.example',
+      UZUM_CHECKOUT_TERMINAL_ID: 'terminal-test',
+      UZUM_CHECKOUT_API_KEY: 'api-key-test',
+    };
+    const p = new UzumCheckoutProvider(mkConfig(authOnlyConfig));
+    const result = await p.refund({ orderId: 'order-1', amountSom: 100 });
+    expect(result.refundId).toBe('op-2');
+    expect(fetchSpy).toHaveBeenCalledTimes(1); // getOrderStatus chaqirilmadi
+    const [, init] = fetchSpy.mock.calls[0];
+    const body = JSON.parse(
+      (init as RequestInit).body as string,
+    ) as RefundRequestBody;
+    expect(body.cart).toBeUndefined();
+  });
+
+  it('amountSom <= 0 yoki NaN => tashqi so‘rovsiz REFUND_FAILED', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      throw new Error('fetch chaqirilmasligi kerak edi');
+    });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(
+      p.refund({ orderId: 'order-1', amountSom: 0 }),
+    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.REFUND_FAILED });
+    await expect(
+      p.refund({ orderId: 'order-1', amountSom: -50 }),
+    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.REFUND_FAILED });
+    await expect(
+      p.refund({ orderId: 'order-1', amountSom: NaN }),
+    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.REFUND_FAILED });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it('Uzum errorCode!=0 => REFUND_FAILED (xom message/result log qilinmaydi)', async () => {
+    mockGetOrderStatusOnceFor(10_000);
+    mockFetchOnce({ errorCode: 3009, result: null });
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(
+      p.refund({
+        orderId: 'order-1',
+        amountSom: 100,
+        originalProductId: 'payment-1',
+      }),
+    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.REFUND_FAILED });
+  });
+
+  it('tarmoq xatosi (refund so‘rovining o‘zida) => REFUND_FAILED', async () => {
+    mockGetOrderStatusOnceFor(10_000);
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new Error('ECONNRESET'));
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(
+      p.refund({
+        orderId: 'order-1',
+        amountSom: 100,
+        originalProductId: 'payment-1',
+      }),
+    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.REFUND_FAILED });
+  });
+
+  it("ICHKI getOrderStatus() o'zi muvaffaqiyatsiz (tarmoq) => STATUS_FAILED (refund so'rovining o'zi hech qachon yuborilmaydi)", async () => {
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new Error('ECONNRESET'));
+    const p = new UzumCheckoutProvider(mkConfig(FULL_UZUM_CONFIG));
+    await expect(
+      p.refund({
+        orderId: 'order-1',
+        amountSom: 100,
+        originalProductId: 'payment-1',
+      }),
+    ).rejects.toMatchObject({ code: UZUM_CHECKOUT_ERROR.STATUS_FAILED });
+    expect(fetchSpy).toHaveBeenCalledTimes(1); // faqat getOrderStatus
   });
 });
 

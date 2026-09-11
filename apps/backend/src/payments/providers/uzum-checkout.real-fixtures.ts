@@ -1,33 +1,26 @@
 /**
  * Uzum Checkout REAL callback fixture'lari.
  *
- * MUHIM — MANBA VA ISHONCH DARAJASI:
- * Bu shakl Uzum'ning o'z portalidan (`developer.uzumbank.uz/en/checkout/`)
- * TO'G'RIDAN-TO'G'RI olinmagan — portal client-side JS render qiladi va
- * oddiy HTTP fetch bilan spec matnini olib bo'lmaydi (buni Merchant sahifasi
- * bilan ham qayta tekshirdik — xuddi shu cheklov, faqat Checkout'ga xos
- * emas).
+ * MUHIM — MANBA VA ISHONCH DARAJASI (2026-09-11 YANGILANDI):
+ * Quyidagi shakl ENDI Uzum'ning O'Z RASMIY portalidan (`developer.uzumbank.uz`)
+ * TO'G'RIDAN-TO'G'RI tasdiqlangan. Portal sahifasining o'zi client-side JS
+ * render qiladi (oddiy HTML fetch bo'sh keladi), LEKIN uni render qiluvchi
+ * `main.<hash>.js` bundle to'liq OpenAPI JSON sxemasini (RU+EN, "Uzum
+ * Checkout") string literal sifatida o'z ichida olib yuradi — bu bundle
+ * oddiy `curl`/fetch bilan (auth'siz) to'liq o'qib olinadi va undan
+ * `AcquiringCallbackData`/`CallbackOperationState`/`PaymentOperationType`
+ * so'zma-so'z chiqarib olindi (avval UCHINCHI TOMON — `github.com/vsevalid/
+ * uzum-payments` — orqali TAXMIN qilingan bir xil shakl, endi rasmiy manba
+ * bilan mustaqil TASDIQLANDI, batafsili: `uzum-checkout.provider.ts` fayl
+ * boshidagi izoh).
  *
- * Bu yerdagi maydonlar UCHINCHI TOMON ombori orqali topildi:
- *   https://github.com/vsevalid/uzum-payments/blob/main/checkout_openapi.yaml
- *   (OpenAPI 3.0.2, `info.title: "Uzum Checkout"`, `info.version: 1.10.3`)
- *
- * Bu RASMIY Uzum tomonidan tasdiqlanmagan, lekin quyidagi sabablarga ko'ra
- * KUCHLI DALIL deb baholanadi:
- *   - repo'dagi PyPI paket tavsifi ham xuddi shu nom+versiyani ("Uzum
- *     Checkout API v1.10.1") mustaqil eslaydi;
- *   - spec matni (bir/ikki bosqichli to'lov, hold/complete/reverse/refund,
- *     3ds, avtofiskalizatsiya, karta bog'lash) SAFAAR'ning ILGARI (bu
- *     fayldan mustaqil) yozilgan `docs/payments-uzum-checkout.md`
- *     hujjatidagi terminologiya bilan to'liq mos keladi;
- *   - spec ichki izchil (masalan `MerchantPaymentStatus` — order darajasi —
- *     va `CallbackOperationState` — operatsiya darajasi — bir-biriga
- *     ziddiyatsiz mos keladi).
- *
- * Shunga qaramay: Uzum'ning O'ZIDAN yozma tasdiq YO'Q. Production'da
- * signature tekshiruvi shu sababdan ham FAIL-CLOSED qoladi (bu fayl faqat
- * PARSER/QA-mode uchun, autentifikatsiya sxemasi uchun EMAS — spec'da
- * callback yo'nalishi uchun hujjatlashtirilgan header/imzo TOPILMADI).
+ * Callback yo'nalishi uchun rasmiy OpenAPI `callbacks:` blokida (aynan shu
+ * `acquiring_merchant_callback` operatsiyasining o'zida) HECH QANDAY
+ * sarlavha/imzo talabi YO'Q — bu ENDI "topilmadi" emas, "rasmiy schema
+ * bo'yicha talab qilinmasligi TASDIQLANDI" degani. Shu sababdan production'da
+ * signature tekshiruvi hamon FAIL-CLOSED qoladi (Uzum umuman signature
+ * taklif qilmagani uchun — "placeholder" emas, chunki qabul qiladigan
+ * HAQIQIY sxema yo'q); bu fayl esa PARSER/QA-mode fixture'lari uchun.
  *
  * Schema (`AcquiringCallbackData`, majburiy: orderId, operationState,
  * operationType, orderNumber):

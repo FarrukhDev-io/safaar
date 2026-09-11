@@ -1596,12 +1596,67 @@ export class PaymentsService {
     //    terminal-holat qo'riqchi, booking -> confirmed + `expires_at=NULL`
     //    + `booking_status_history` + partner ledger krediti.
     //
-    //    MUHIM: `input.state === 'PAID'` bo'lishi FAQAT `STATE_MAP` orqali
-    //    (hozircha bo'sh, ya'ni HECH QACHON) mumkin — demak bu yo'lga xom,
-    //    tekshirilmagan "SUCCESS" qiymati bilan hech qachon yetib
-    //    bo'lmaydi. Haqiqiy holat o'zgarishi baribir shu yerdan — mavjud
-    //    ishonchli `processPaymentEvent()` pipeline'idan (amount/currency/
-    //    terminal-holat tekshiruvlari) — o'tadi.
+    //    MUHIM (2026-09-11 YANGILANDI): rasmiy `AcquiringCallbackData`
+    //    schema'da amount/currency MAYDONI UMUMAN YO'Q (tasdiqlangan —
+    //    `uzum-checkout.provider.ts` fayl boshidagi izohga qarang). Demak
+    //    HAQIQIY Uzum callback'ida `input.amountSom` DEYARLI HAR DOIM `NaN`
+    //    bo'ladi — va agar shuni to'g'ridan-to'g'ri `processPaymentEvent()`ga
+    //    uzatsak, `assertPaymentMatchesPayload()` `amount === undefined`
+    //    bo'lganda tekshiruvni JIM O'TKAZIB YUBORADI (ya'ni amount-mismatch
+    //    himoyasi callback orqali AMALIYOTDA hech qachon ishlamas edi — bu
+    //    haqiqiy, avval yashirin bo'lgan bo'shliq). Shu sabab callback
+    //    body'siga ISHONISH O'RNIGA har doim BIZNING o'z (X-Terminal-Id/
+    //    X-Api-Key bilan autentifikatsiyalangan) `getOrderStatus(orderId)`
+    //    chaqiruvimiz orqali summa QAYTA TASDIQLANADI, va FAQAT shu
+    //    tasdiqlangan summa quyida ishlatiladi.
+    let verifiedAmountSom: number | undefined;
+    try {
+      const verified = await this.checkout.getOrderStatus(input.orderId);
+      if (verified.state === 'PAID' && verified.amountSom !== null) {
+        verifiedAmountSom = verified.amountSom;
+      }
+    } catch (err) {
+      // `getOrderStatus`ning o'zi muvaffaqiyatsiz (tarmoq/konfiguratsiya) —
+      // `UzumCheckoutError` ATAYLAB oddiy `Error`ga aylantiriladi: aks holda
+      // controller uni signature-rad etish (401) deb noto'g'ri talqin
+      // qilardi (`instanceof UzumCheckoutError`). Oddiy `Error` esa
+      // controller'ning umumiy catch bloki orqali 500'ga tushadi — Uzum
+      // buni qayta urinish signali sifatida qabul qiladi (rasmiy: max 5
+      // marta), bu yerda esa hech qanday DB holati O'ZGARMAYDI.
+      this.logger.warn(
+        `uzum-checkout callback: getOrderStatus orqali qayta tasdiqlash ` +
+          `muvaffaqiyatsiz order=${input.orderId}: ${
+            err instanceof Error ? err.message : "noma'lum"
+          }`,
+      );
+      throw new Error('uzum_checkout_status_reverify_failed');
+    }
+
+    if (verifiedAmountSom === undefined) {
+      // Callback PAID deb da'vo qildi, lekin BIZNING o'z autentifikatsiyalangan
+      // tekshiruvimiz (`getOrderStatus`) buni tasdiqlay olmadi (masalan hali
+      // COMPLETED emas, yoki soxta/eskirgan callback) — HECH QANDAY
+      // payment/booking holati o'zgarmaydi, faqat audit yoziladi. Uzum
+      // rasmiy qoidaga ko'ra keyinroq qayta callback yuboradi va
+      // `reconcileUzumCheckoutPayments()` cron ham mustaqil tasdiqlaydi.
+      await this.pg.query(
+        `INSERT INTO payment_events
+           (id, provider, event_type, event_key, payload, payload_hash, processed_at)
+         VALUES ($1, 'uzum_checkout', 'callback:unverified', $2, $3::jsonb, $4, $5)
+         ON CONFLICT (event_key) DO NOTHING`,
+        [
+          randomUUID(),
+          `uzum_checkout:unverified:${input.orderId}`,
+          JSON.stringify(this.buildCheckoutAuditPayload(input, debugHeaders)),
+          createHash('sha256')
+            .update(this.stableStringify(input.raw))
+            .digest('hex'),
+          new Date().toISOString(),
+        ],
+      );
+      return { received: true, duplicate: false, applied: false };
+    }
+
     try {
       const result = (await this.processPaymentEvent(
         'uzum_checkout',
@@ -1610,9 +1665,9 @@ export class PaymentsService {
         {
           booking_id: payment.booking_id,
           transaction_id: input.orderId,
-          amount: Number.isFinite(input.amountSom)
-            ? input.amountSom
-            : undefined,
+          // Callback body'sidan EMAS — yuqorida `getOrderStatus()` orqali
+          // mustaqil tasdiqlangan summa.
+          amount: verifiedAmountSom,
           currency: input.currency,
           // To'liq xom Uzum payload + debug-safe sarlavhalar — faqat audit
           // uchun qo'shiladi, `processPaymentEvent()`ning o'z mantig'i
@@ -1701,20 +1756,63 @@ export class PaymentsService {
    *   - normallashtirilgan `FAILED` -> payment `failed`.
    * Boshqa holatlar (`PENDING` / `UNKNOWN`) TEGILMAYDI.
    *
-   * FAIL-CLOSED, hozircha ataylab `@Cron`SIZ:
+   * FAIL-CLOSED:
    *   - `checkout.isConfigured()` FALSE -> darhol no-op (fiskal env shart
    *     EMAS — `getOrderStatus()`ga kerak emas, faqat auth);
-   *   - `ORDER_STATUS_MAP` FAQAT sandboxda bevosita kuzatilgan `status`
-   *     qiymatlarini (`REGISTERED`->PENDING, `COMPLETED`->PAID) taniydi —
-   *     boshqa har qanday (hali ko'rilmagan) qiymat xavfsiz `UNKNOWN`ga
-   *     tushadi, hech narsa o'zgartirmaydi;
+   *   - `ORDER_STATUS_MAP` FAQAT rasmiy/sandboxda tasdiqlangan `status`
+   *     qiymatlarini (`REGISTERED`->PENDING, `COMPLETED`->PAID,
+   *     `DECLINED`->FAILED) taniydi — boshqa har qanday qiymat xavfsiz
+   *     `UNKNOWN`ga tushadi, hech narsa o'zgartirmaydi;
    *   - `getOrderStatus()` tarmoq/HTTP xatosida yoki `errorCode!=0` bo'lsa
    *     `STATUS_FAILED` throw qiladi — quyidagi catch jim o'tkazib yuboradi.
-   * `@Cron` hali ATAYLAB qo'shilmagan — avtomatik ishga tushirish alohida,
-   * ongli qaror (bu commit doirasidan tashqarida).
+   *
+   * ─────────────────────────────────────────────────────────────────────
+   * 2026-09-11 YANGILANDI — ENDI `@Cron` BILAN, PRODUCTIONDA YAGONA
+   * ISHONCHLI TASDIQLASH YO'LI SIFATIDA:
+   * ─────────────────────────────────────────────────────────────────────
+   * Uzum Checkout'ning rasmiy OpenAPI spec'i (2026-09-11 to'g'ridan-to'g'ri
+   * tasdiqlangan, `uzum-checkout.provider.ts` fayl boshiga qarang) inbound
+   * callback uchun HECH QANDAY signature/autentifikatsiya mexanizmi
+   * TAQDIM ETMAYDI. `UzumCheckoutController.callback()` shu sababdan
+   * production'da (`UZUM_CHECKOUT_SIGNATURE_SCHEME` sozlanmagan holatda)
+   * HAR DOIM rad etadi (401) — bu ATAYLAB O'ZGARTIRILMAYDI ("placeholder"
+   * imzo sxemasini productionga qabul qilish YO'Q). Amaliy natija: haqiqiy
+   * Uzum callback'i production'da HECH QACHON to'g'ridan-to'g'ri PAID
+   * holatiga OLIB KELMAYDI.
+   *
+   * Shuning uchun bu metod — o'zining OUTBOUND, `X-Terminal-Id`/`X-Api-Key`
+   * bilan autentifikatsiyalangan `getOrderStatus()` chaqiruviga tayangani
+   * uchun — production uchun YAGONA ishonchli PAID-tasdiqlash yo'li bo'lib
+   * qoladi (bu callback signature'ning "o'rnini bosuvchi zaif nusxasi"
+   * EMAS — aksincha KUCHLIROQ: hech qanday tasdiqlanmagan tashqi POST
+   * body'siga ISHONILMAYDI, faqat bizning o'z autentifikatsiyalangan
+   * so'rovimizga). `olderThanMinutes` standart qiymati shu sababdan
+   * (ilgari `15`) `2`ga TUSHIRILDI — aks holda to'lov ~15 daqiqagacha
+   * "pending" ko'rinib turardi. `2` daqiqa — checkout sahifasi
+   * ochilishi/3DS/redirect uchun kichik xavfsizlik bo'shlig'i, lekin
+   * javob tezligi uchun YETARLICHA qisqa. `@Cron(EVERY_MINUTE)` — mavjud
+   * `failStaleUzumTransactions()` konvensiyasi bilan bir xil chastota.
    */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async reconcileUzumCheckoutPaymentsCron(): Promise<void> {
+    try {
+      const result = await this.reconcileUzumCheckoutPayments();
+      if (result.updated > 0) {
+        this.logger.log(
+          `uzum-checkout reconcile: ${result.scanned} ko'rildi, ${result.updated} yangilandi`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `reconcileUzumCheckoutPaymentsCron xatosi: ${
+          error instanceof Error ? error.message : 'nomaʼlum'
+        }`,
+      );
+    }
+  }
+
   async reconcileUzumCheckoutPayments(
-    olderThanMinutes = 15,
+    olderThanMinutes = 2,
   ): Promise<{ scanned: number; updated: number }> {
     if (!this.checkout.isConfigured()) {
       return { scanned: 0, updated: 0 };

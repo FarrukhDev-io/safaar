@@ -75,6 +75,40 @@ const normalized = (
   ...over,
 });
 
+/**
+ * `getOrderStatus()` uchun auth (auth-only, fiskal SHART EMAS — `isConfigured()`
+ * fiskalni tekshirmaydi). PAID yo'liga yetgan HAR BIR testda callback endi
+ * BU orqali (X-Terminal-Id/X-Api-Key bilan autentifikatsiyalangan, mocked
+ * `fetch`) o'z summasini MUSTAQIL qayta tasdiqlaydi — callback body'sidagi
+ * `amountSom` ENDI hech qachon to'g'ridan-to'g'ri ishonilmaydi (2026-09-11
+ * YANGILANDI, `uzum-checkout.provider.ts` fayl boshidagi izohga qarang).
+ */
+const GET_ORDER_STATUS_AUTH_CONFIG: Record<string, string> = {
+  UZUM_CHECKOUT_BASE_URL: 'https://checkout.example',
+  UZUM_CHECKOUT_TERMINAL_ID: 'terminal-test',
+  UZUM_CHECKOUT_API_KEY: 'api-key-test',
+};
+
+/** `getOrderStatus()`ning navbatdagi (bitta) chaqiruviga mock javob beradi. */
+function mockGetOrderStatusOnce(opts: {
+  status: 'COMPLETED' | 'REGISTERED' | 'DECLINED';
+  completedAmountTiyin?: number;
+}) {
+  return jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    json: () =>
+      Promise.resolve({
+        errorCode: 0,
+        result: {
+          orderId: 'irrelevant-for-this-mock',
+          status: opts.status,
+          completedAmount: opts.completedAmountTiyin ?? 0,
+        },
+      }),
+  } as Response);
+}
+
 describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () => {
   let pg: { query: jest.Mock; transaction: jest.Mock };
   let service: PaymentsService;
@@ -90,11 +124,19 @@ describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () =>
       { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
       new UzumProvider({ get: jest.fn() } as never),
-      new UzumCheckoutProvider({ get: () => undefined } as never),
+      new UzumCheckoutProvider({
+        get: (k: string) => GET_ORDER_STATUS_AUTH_CONFIG[k],
+      } as never),
     );
   });
 
+  afterEach(() => jest.restoreAllMocks());
+
   it('8/9) state=PAID — payment paid, booking confirmed, ledger bir marta', async () => {
+    mockGetOrderStatusOnce({
+      status: 'COMPLETED',
+      completedAmountTiyin: 15_000_000,
+    }); // 150000 so'm
     pg.query
       .mockResolvedValueOnce([checkoutPayment]) // 1: locate checkout payment
       // processPaymentEvent(...):
@@ -119,6 +161,10 @@ describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () =>
   });
 
   it('2/10) duplicate callback — ikkinchi marta PAID/ledger qilinmaydi, applied=false', async () => {
+    mockGetOrderStatusOnce({
+      status: 'COMPLETED',
+      completedAmountTiyin: 15_000_000,
+    });
     pg.query
       .mockResolvedValueOnce([checkoutPayment]) // locate payment
       .mockResolvedValueOnce([]) // claim -> ON CONFLICT DO NOTHING (0 rows)
@@ -131,6 +177,25 @@ describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () =>
     expect(
       findCall(pg.query, 'SET status = $1, provider_reference'),
     ).toBeUndefined();
+  });
+
+  it("2b) allaqachon YAKUNIY holatda (refunded) to'lov uchun YANGI (duplicate EMAS) PAID claim keladi — qayta 'paid' qilinmaydi, ledger qayta kreditlanmaydi (TERMINAL_PAYMENT_STATUSES qo'riqchisi)", async () => {
+    mockGetOrderStatusOnce({ status: 'COMPLETED', completedAmountTiyin: 15_000_000 });
+    const refundedPayment = { ...checkoutPayment, status: 'refunded' };
+    pg.query
+      .mockResolvedValueOnce([refundedPayment]) // locate payment (allaqachon refunded)
+      .mockResolvedValueOnce([{ id: 'evt-new', payment_id: null }]) // YANGI claim (duplicate emas)
+      .mockResolvedValueOnce([openBooking]) // booking FOR UPDATE
+      .mockResolvedValueOnce([refundedPayment]) // payment FOR UPDATE — hamon refunded
+      .mockResolvedValueOnce([]); // UPDATE payment_events SET payment_id (terminal-guard yo'li)
+
+    const res = await service.uzumCheckoutCallback(normalized());
+    expect(res).toEqual({ received: true, duplicate: true, applied: false });
+    expect(countCalls(pg.query, 'INSERT INTO partner_ledger_entries')).toBe(0);
+    expect(
+      findCall(pg.query, 'SET status = $1, provider_reference'),
+    ).toBeUndefined();
+    expect(findCall(pg.query, 'UPDATE bookings')).toBeUndefined();
   });
 
   it("3) unknown order — payment/booking holati o'zgarmaydi, lekin xom payload audit uchun saqlanadi, code=unknown_order", async () => {
@@ -210,7 +275,15 @@ describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () =>
     expect(params[3]).toBe('__uzum_checkout_no_order_number__');
   });
 
-  it('4) amount mismatch — reject, PAID qilinmaydi', async () => {
+  it("4) amount mismatch — callback body'sidagi amountSom ENDI ISHLATILMAYDI; Uzum'ning O'ZI (getOrderStatus) qaytargan tasdiqlangan summa payment.amount bilan solishtiriladi", async () => {
+    // Callback body 150000 (to'g'ri) da'vo qilsa ham — bu ENDI e'tiborga
+    // olinmaydi. Uzum'ning O'Z (mustaqil, autentifikatsiyalangan)
+    // getOrderStatus javobi 999999 qaytaradi => shu tasdiqlangan summa
+    // payment.amount (150000) bilan solishtiriladi va mos kelmaydi.
+    mockGetOrderStatusOnce({
+      status: 'COMPLETED',
+      completedAmountTiyin: 99_999_900,
+    });
     pg.query
       .mockResolvedValueOnce([checkoutPayment])
       .mockResolvedValueOnce([{ id: 'evt-1', payment_id: null }]) // claim
@@ -218,7 +291,7 @@ describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () =>
       .mockResolvedValueOnce([checkoutPayment]); // payment FOR UPDATE (amount 150000)
 
     const res = await service.uzumCheckoutCallback(
-      normalized({ amountSom: 999999 }),
+      normalized({ amountSom: 150000 }), // callback body o'zi "to'g'ri" deb da'vo qiladi
     );
     expect(res).toMatchObject({ applied: false, code: 'amount_mismatch' });
     expect(
@@ -226,7 +299,47 @@ describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () =>
     ).toBeUndefined();
   });
 
+  it("4b) Uzum'ning O'Z getOrderStatus javobi HALI COMPLETED EMAS (masalan REGISTERED) — callback PAID deb da'vo qilsa ham hech narsa qo'llanilmaydi, faqat audit (callback:unverified)", async () => {
+    mockGetOrderStatusOnce({ status: 'REGISTERED', completedAmountTiyin: 0 });
+    pg.query
+      .mockResolvedValueOnce([checkoutPayment]) // locate payment
+      .mockResolvedValueOnce([]); // audit INSERT (callback:unverified)
+
+    const res = await service.uzumCheckoutCallback(normalized());
+    expect(res).toEqual({ received: true, duplicate: false, applied: false });
+    expect(
+      findCall(pg.query, 'SET status = $1, provider_reference'),
+    ).toBeUndefined();
+    // `event_type='callback:unverified'` SQL matnida literal (bog'langan
+    // parametr emas) — `findCall` SQL matnini o'zi orqali tekshiramiz.
+    const auditSql = pg.query.mock.calls.find(([sql]: [string]) =>
+      String(sql).includes("'callback:unverified'"),
+    ) as [string, readonly unknown[]] | undefined;
+    expect(auditSql).toBeDefined();
+    expect(String(auditSql?.[1]?.[1])).toBe(
+      `uzum_checkout:unverified:${ORDER_ID}`,
+    );
+  });
+
+  it("4c) getOrderStatus() o'zi muvaffaqiyatsiz (tarmoq/konfiguratsiya) — oddiy Error throw qiladi (UzumCheckoutError EMAS — controller uni signature-rad etish deb noto'g'ri talqin qilmasligi uchun), hech narsa PAID bo'lmaydi", async () => {
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new Error('ECONNRESET'));
+    pg.query.mockResolvedValueOnce([checkoutPayment]); // locate payment
+
+    await expect(service.uzumCheckoutCallback(normalized())).rejects.toThrow(
+      'uzum_checkout_status_reverify_failed',
+    );
+    expect(
+      findCall(pg.query, 'SET status = $1, provider_reference'),
+    ).toBeUndefined();
+  });
+
   it('5) currency mismatch — reject, PAID qilinmaydi', async () => {
+    mockGetOrderStatusOnce({
+      status: 'COMPLETED',
+      completedAmountTiyin: 15_000_000,
+    });
     pg.query
       .mockResolvedValueOnce([checkoutPayment])
       .mockResolvedValueOnce([{ id: 'evt-1', payment_id: null }])
@@ -513,11 +626,19 @@ describe('PaymentsService.uzumCheckoutCallback — REAL Uzum Checkout fixture or
       { isConfigured: () => false } as never,
       { isConfigured: () => false } as never,
       new UzumProvider({ get: jest.fn() } as never),
-      new UzumCheckoutProvider({ get: () => undefined } as never),
+      new UzumCheckoutProvider({
+        get: (k: string) => GET_ORDER_STATUS_AUTH_CONFIG[k],
+      } as never),
     );
   });
 
+  afterEach(() => jest.restoreAllMocks());
+
   it('REAL SUCCESS (AUTHORIZE:SUCCESS) fixture -> parser PAID deb aniqlaydi -> to‘lov/booking tasdiqlanadi', async () => {
+    mockGetOrderStatusOnce({
+      status: 'COMPLETED',
+      completedAmountTiyin: 15_000_000,
+    });
     pg.query
       .mockResolvedValueOnce([realPayment]) // locate checkout payment
       .mockResolvedValueOnce([{ id: 'evt-real-1', payment_id: null }]) // claim event
@@ -582,6 +703,10 @@ describe('PaymentsService.uzumCheckoutCallback — REAL Uzum Checkout fixture or
   });
 
   it('REAL SUCCESS fixture ikkinchi marta (duplicate) -> applied:false, duplicate:true, ledger ikkinchi marta kredit qilinmaydi', async () => {
+    mockGetOrderStatusOnce({
+      status: 'COMPLETED',
+      completedAmountTiyin: 15_000_000,
+    });
     pg.query
       .mockResolvedValueOnce([realPayment]) // locate payment
       .mockResolvedValueOnce([]) // claim -> ON CONFLICT DO NOTHING (0 rows, already claimed)
