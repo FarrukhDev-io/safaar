@@ -366,6 +366,24 @@ maydonini bo'sh `{}` bilan yuborish xatoni O'ZGARTIRMADI (bu
 struktura darajasidagi emas, biznes-qoida darajasidagi tekshiruv —
 Pydantic kabi "missing field" ro'yxatini bermaydi).
 
+**2026-09-11, qo'shimcha struktura probe'i**: `cart`ni turli
+shakllarda yuborish (noto'g'ri tip — string; array + placeholder
+element; `{items:[...]}` + placeholder element — hech birida haqiqiy
+IKPU/MXIK/narx qiymati YO'Q, faqat `___SAFAAR_PROBE___` markerlar)
+BARCHASI bir xil `3045` xatosini qaytardi — hatto `cart` NOTO'G'RI
+TIPDA (string) bo'lsa ham Pydantic darajasidagi tip-xatosi
+CHIQMADI. Bu shuni ko'rsatadiki: (a) tekshiruv `cart`ning ICHKI
+tarkibidan qat'i nazar ishlaydi — ya'ni haqiqiy IKPU/MXIK/narx
+qiymatlarisiz HECH QANDAY struktura o'tmaydi, VA/YOKI (b) haqiqiy
+maydon nomi/joylashuvi `cart` emas (masalan `paymentParams` ichida
+yoki butunlay boshqa nom bo'lishi mumkin) — buni ANIQLASH uchun
+haqiqiy IKPU kodi kerak bo'ladi, bu esa `tasnif.soliq.uz`dan
+(O'zbekiston rasmiy soliq tasnifi) BIZNES/BUXGALTERIYA tomonidan
+tanlanishi kerak bo'lgan real klassifikatsiya — bu yerda O'YLAB
+TOPILMAYDI. Qo'shimcha struktura probe'lari shu nuqtada TO'XTATILDI
+(keyingi tasodifiy nom taxminlari "cheksiz urinish"ga aylanib
+ketardi, foydasi kam).
+
 **BU YERDA TO'XTATILDI — taxminiy IKPU/MXIK kod yoki soxta
 `cart` tarkibi O'YLAB TOPILMADI.** Sabab: `docs/payments-uzum-checkout.md`
 "Uzum Checkout komissiyasi" bo'limida va oldingi fiskalizatsiya
