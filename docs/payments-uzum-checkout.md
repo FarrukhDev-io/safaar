@@ -384,6 +384,23 @@ TOPILMAYDI. Qo'shimcha struktura probe'lari shu nuqtada TO'XTATILDI
 (keyingi tasodifiy nom taxminlari "cheksiz urinish"ga aylanib
 ketardi, foydasi kam).
 
+**2026-09-11 (davomi) — REAL MXIK bilan urinish, hamon aniqlanmagan**:
+Biznes tomondan `tasnif.soliq.uz` rasmiy katalogidan haqiqiy
+klassifikatsiya olindi:
+  - MXIK: `10204001010000000` ("Mehmonxona xizmatlari (yashab
+    turish uchun)")
+  - O'lchov birligi kodi: `1504157` ("tunu-kun")
+
+Shu haqiqiy qiymatlar bilan `cart.items[{name, mxik, packageCode,
+quantity, price}]` shaklida (VAT/vatPercent ATAYLAB QO'SHILMADI —
+haqiqiy stavka noma'lum) yuborilgan so'rov ham AYNAN bir xil `3045`
+xatosini qaytardi — maydon nomlari (`mxik`/`packageCode` bo'lishi
+mumkin yoki bo'lmasligi mumkin) Pydantic darajasida HECH QACHON
+tasdiqlanmadi/rad etilmadi. Xulosa: **cart/fiscalization maydonining
+aniq JSON kaliti (nomi va joylashuvi) hamon NOMA'LUM** — buni
+faqat rasmiy Uzum Checkout hujjati yoki Uzum texnik yordami orqali
+aniqlash mumkin, keyingi tasodifiy kalit-nom taxminlari bilan EMAS.
+
 **BU YERDA TO'XTATILDI — taxminiy IKPU/MXIK kod yoki soxta
 `cart` tarkibi O'YLAB TOPILMADI.** Sabab: `docs/payments-uzum-checkout.md`
 "Uzum Checkout komissiyasi" bo'limida va oldingi fiskalizatsiya
