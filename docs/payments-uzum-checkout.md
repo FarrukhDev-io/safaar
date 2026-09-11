@@ -269,6 +269,64 @@ joy avvaldan ham yo'q edi. Komissiyani mijozga qo'shish yoki merchant
 o'zi ko'tarishi — BIZNES qaror, tasdiqlanmaguncha kod hech narsani
 o'zgartirmaydi.
 
+## TEST muhitidan tasdiqlangan wire-format (2026-09-11)
+
+⚠️ Bu bo'lim uchinchi-tomon spec EMAS — Uzum'ning **haqiqiy TEST
+serveridan** (`test-chk-api.uzumcheckout.uz`), sinov so'rovlariga
+qaytargan **haqiqiy validatsiya xatolari** orqali tasdiqlangan (kredential
+qiymatlari, karta ma'lumotlari va terminal ID HECH QACHON bu faylga
+yozilmagan/yozilmaydi).
+
+**MUHIM TUZATISH**: avvalgi taxmin (`${baseUrl}/payment/register`) —
+NOTO'G'RI edi. Haqiqiy yo'l prefiksi **`/api/v1/`** talab qiladi:
+```
+${UZUM_CHECKOUT_BASE_URL}/api/v1/payment/register
+${UZUM_CHECKOUT_BASE_URL}/api/v1/payment/getOrderStatus
+${UZUM_CHECKOUT_BASE_URL}/api/v1/payment/getOperationState
+${UZUM_CHECKOUT_BASE_URL}/api/v1/acquiring/refund
+```
+Prefikssiz variant (`/payment/register`, va umuman `/api/v1/` bilan
+boshlanmagan HAR QANDAY yo'l — `/checkout`, `/pay`, `/session` kabi
+taxminiy nomlar ham) nginx darajasida `403`ga tushadi — bu **IP allowlist
+EMAS** (avvalgi sessiyaning xulosasi shu qismda noto'g'ri edi): haqiqiy
+kredential bilan ham, `/api/v1/` prefiksisiz so'ralgan HAR QANDAY yo'l
+xuddi shu 403'ga tushadi, `/api/v1/...` esa kredentialsiz ham ilovaga
+yetib boradi (`200` + validatsiya xatosi JSON'i). IP allowlist masalasi
+hali ham NOMA'LUM (chunki hozircha faqat `51.250.78.204`dan sinalgan) —
+lekin bu 403'larning sababi ENDI aniq: noto'g'ri yo'l, IP emas.
+
+**Tasdiqlangan majburiy sarlavhalar** (`{}` bo'sh body bilan
+so'ralganda "Field required" deb qaytgan):
+- `X-Terminal-Id` — hamma endpoint uchun
+- `X-Api-Key` — yuborilganda hech qachon "missing" deb qaytmadi (talab
+  qilinishi mumkin, lekin bu tekshiruv qatlamida alohida qayd etilmagan)
+- `Content-Language` — `register`da talab qilinadi (qiymat sifatida
+  `en` yuborilganda ham ba'zan hamon "missing" ko'rinishi kuzatildi —
+  aniq qabul qilinadigan qiymat/format TASDIQLANMAGAN)
+- `X-Operation-Id` — FAQAT `refund`da talab qilinadi
+
+**Tasdiqlangan majburiy body maydonlari** (nomlar — TIPI/semantikasi
+HALI HAM NOMA'LUM, taxmin qilinmagan):
+- `register` (`OrderPaymentRequest` varianti — bir martalik karta
+  to'lovi, ko'rinadi): `viewType`, `clientId`, `currency`, `orderNumber`,
+  `sessionTimeoutSecs`, `amount`, `paymentParams`, `merchantParams`.
+  (Server bir nechta muqobil sxema — `OrderBindingRequest` (karta
+  bog'lash), `OrderMobileTopUpRegisterRequest`, `OrderTechCardRequest`,
+  `SBPPaymentRequest`, `OrderMunisTopUpRequest` — bilan ham solishtiradi;
+  bularning barchasi BITTA `/api/v1/payment/register` endpoint orqali
+  ishlaydi, alohida "registerless" endpoint TOPILMADI.)
+- `getOrderStatus`: `orderId` (shu bitta maydon)
+- `getOperationState`: `operationId` (shu bitta maydon)
+- `refund`: `orderId`, `amount` (+ yuqoridagi `X-Operation-Id` sarlavhasi)
+
+Bularning HAMMASI `{}` (bo'sh) body bilan qaytgan "field required"
+xatolaridan yig'ilgan — HAQIQIY qiymat/format/enum HALI HAM
+TASDIQLANMAGAN (masalan `viewType`ning mumkin qiymatlari, `paymentParams`/
+`merchantParams` ichki shakli, `amount` birligi — so'm yoki tiyin).
+Shu sabab `register()`/`getOrderStatus()`/`getOperationState()`/`refund()`
+hamon `SPEC_REQUIRED` bilan fail-closed qoladi — bu FAQAT maydon
+NOMLARINI tasdiqlaydi, TO'LIQ kontraktni emas.
+
 ## Fayllar
 
 - `src/payments/providers/uzum-checkout.provider.ts` — provider: fail-closed imzo
