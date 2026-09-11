@@ -180,7 +180,10 @@ describe('PaymentsService.uzumCheckoutCallback (INTERNAL contract layer)', () =>
   });
 
   it("2b) allaqachon YAKUNIY holatda (refunded) to'lov uchun YANGI (duplicate EMAS) PAID claim keladi — qayta 'paid' qilinmaydi, ledger qayta kreditlanmaydi (TERMINAL_PAYMENT_STATUSES qo'riqchisi)", async () => {
-    mockGetOrderStatusOnce({ status: 'COMPLETED', completedAmountTiyin: 15_000_000 });
+    mockGetOrderStatusOnce({
+      status: 'COMPLETED',
+      completedAmountTiyin: 15_000_000,
+    });
     const refundedPayment = { ...checkoutPayment, status: 'refunded' };
     pg.query
       .mockResolvedValueOnce([refundedPayment]) // locate payment (allaqachon refunded)

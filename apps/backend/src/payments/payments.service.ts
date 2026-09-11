@@ -1856,8 +1856,9 @@ export class PaymentsService {
           updated += 1;
         }
       } catch (err) {
-        // `getOrderStatus` fail-closed (`SPEC_REQUIRED`) bo'lsa — jim o'tamiz,
-        // secret log qilinmaydi (faqat orderId + xabar).
+        // `getOrderStatus` muvaffaqiyatsiz (tarmoq/HTTP/errorCode) bo'lsa —
+        // jim o'tamiz, secret log qilinmaydi (faqat orderId + xabar); keyingi
+        // cron aylanishida qayta sinaladi.
         this.logger.warn(
           `uzum-checkout reconcile order=${orderId} o'tkazib yuborildi: ${
             err instanceof Error ? err.message : 'nomaʼlum'

@@ -17,14 +17,14 @@ ENDI HAQIQIY (sandboxda tasdiqlangan) so'rov yuboradi — pastdagi jadval
 YANGI holatni aks ettiradi. Faqat callback autentifikatsiyasi va `refund()`
 hamon fail-closed:
 
-| Qism                                                 | Holati                                                                             | Bloklovchi                                           |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| Callback qabul qilish (`/v1/uzum/checkout/callback`) | ✅ QA E2E'da TASDIQLANDI (`UZUM_CHECKOUT_TEST_MODE`), production HAMON fail-closed | imzo algoritmi (Uzum'dan rasmiy javob yo'q)          |
-| `register()` seam (`createUzumCheckoutPayment`)      | ✅ HAQIQIY so'rov (auth+fiskal env sozlansa)                                       | fiskal env (`UZUM_CHECKOUT_SPIC` va h.k.)            |
-| `getOrderStatus` / `getOperationState`               | ✅ HAQIQIY so'rov (auth env sozlansa)                                              | —                                                    |
-| `refund()`                                           | typed stub, `SPEC_REQUIRED`                                                        | hech qachon sinalmagan — ataylab keyinga qoldirilgan |
-| Reconciliation (`reconcileUzumCheckoutPayments`)     | metod tayyor, ishlaydi, `@Cron`SIZ                                                 | avtomatik ishga tushirish — ongli qaror              |
-| `PaymentMethod` enum + backend allowlistlar          | ✅ tayyor (migration bilan)                                                        | —                                                    |
+| Qism                                                 | Holati                                                                                      | Bloklovchi                                                    |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Callback qabul qilish (`/v1/uzum/checkout/callback`) | ✅ QA E2E'da TASDIQLANDI, production HAMON fail-closed (ATAYLAB, MUDDATSIZ — pastga qarang) | imzo sxemasi RASMAN YO'Q (tasdiqlangan, "hali noma'lum" emas) |
+| `register()` seam (`createUzumCheckoutPayment`)      | ✅ HAQIQIY so'rov, productId ENDI deterministik                                             | fiskal env (`UZUM_CHECKOUT_SPIC` va h.k.)                     |
+| `getOrderStatus` / `getOperationState`               | ✅ HAQIQIY so'rov (auth env sozlansa)                                                       | —                                                             |
+| `refund()`                                           | ✅ HAQIQIY so'rov, sandboxda qisman+to'liq refund bilan TASDIQLANGAN                        | hali SAFAAR business-flow'ga ulanmagan (ongli qaror)          |
+| Reconciliation (`reconcileUzumCheckoutPayments`)     | ✅ `@Cron(EVERY_MINUTE)` — PRODUCTIONDA YAGONA PAID-tasdiqlash yo'li                        | —                                                             |
+| `PaymentMethod` enum + backend allowlistlar          | ✅ tayyor (migration bilan)                                                                 | —                                                             |
 
 ## Route
 
@@ -902,3 +902,270 @@ mustaqil emas: (a) callback signature sxemasi (shuning uchun QA-only
 `UZUM_CHECKOUT_TEST_MODE` bilan simulyatsiya qilindi — Uzum'dan
 real callback network orqali yetkazib berish emas), (b) callback
 `amount` birligi (so'm/tiyin) — yuqorida qayd etilgan.
+
+## 2026-09-11 (davomi 3) — PRODUCTION READINESS AUDIT: rasmiy manba, refund, amount-qayta-tasdiqlash, reconcile cron
+
+Ushbu audit `developer.uzumbank.uz`ning o'z JS bundle'ida (`main.
+<hash>.js`) yashiringan TO'LIQ OpenAPI JSON sxemasini (RU+EN, "Uzum
+Checkout") to'g'ridan-to'g'ri o'qib chiqdi (auth'siz, oddiy `curl`;
+portal HTML'i client-side render qilgani uchun bo'sh keladi, LEKIN
+uni render qiluvchi bundle to'liq spec matnini string literal
+sifatida ichida olib yuradi). Bu — ilgari faqat UCHINCHI TOMON
+(`github.com/vsevalid/uzum-payments`) orqali "kuchli dalil, rasmiy
+tasdiqlanmagan" deb belgilangan hamma narsani RASMAN TASDIQLADI (va
+ustiga bir nechta yangi, muhim narsani ochdi).
+
+### 1) Callback signature — RASMAN YO'QLIGI TASDIQLANDI
+
+`acquiring_merchant_callback` operatsiyasining o'z OpenAPI ta'rifida
+(`callbacks:` bloki) `parameters` kaliti BUTUNLAY YO'Q — demak hech
+qanday sarlavha (imzo, API-key, Authorization) rasman talab
+qilinmaydi. Prosaik "# Callbacks" bo'limi ham FAQAT: "server 200 OK
+qaytarishi kerak; qaytarmasa, Uzum maksimal 5 marta qayta yuboradi" —
+signature/hmac/secret/basic-auth haqida BIR OG'IZ SO'Z YO'Q.
+
+Solishtirish uchun: BUTUNLAY BOSHQA, alohida "Merchant API" spec'i
+(`/check /create /confirm /reverse /status`, bizning eski
+`UzumProvider`/`UzumWebhookController`) o'zining Webhooks bo'limida
+ANIQ HTTP Basic Auth talab qiladi. Demak Uzum umuman webhook-auth
+tushunchasisiz emas — Checkout mahsuloti buni ATAYLAB/HALI
+qo'llamaydi, xolos.
+
+**Qaror**: `UzumCheckoutProvider.verifyCallback()` production'da
+(`UZUM_CHECKOUT_SIGNATURE_SCHEME` sozlanmagan holatda) HAR DOIM rad
+etishda davom etadi — bu ATAYLAB O'ZGARTIRILMAYDI ("placeholder"
+HMAC'ni productionga qabul qilish YO'Q, aniq ko'rsatma bo'yicha). Bu
+degani: production HECH QACHON callback orqali to'g'ridan-to'g'ri
+PAID holatiga o'TMAYDI — bu doimiy holat, "hali" emas. Shuning uchun
+`reconcileUzumCheckoutPayments()` (bizning o'z, `X-Terminal-Id`/
+`X-Api-Key` bilan autentifikatsiyalangan `getOrderStatus()`
+chaqiruviga tayanadigan metod) `@Cron(EVERY_MINUTE)` bilan
+PRODUCTIONDA YAGONA ishonchli PAID-tasdiqlash yo'liga aylantirildi.
+Bu callback signature'ning "zaif o'rnini bosuvchisi" EMAS — aksincha
+KUCHLIROQ: hech qanday tasdiqlanmagan tashqi POST body'siga
+ISHONILMAYDI. `olderThanMinutes` standart qiymati (`15`dan `2`ga)
+tushirildi — aks holda to'lov ~15 daqiqagacha noto'g'ri "pending"
+ko'rinardi.
+
+### 2) Callback amount — rasman YO'QLIGI tasdiqlandi (unit emas, maydonning o'zi)
+
+`AcquiringCallbackData` schema: `required: [orderId, operationState,
+operationType, orderNumber]`, ixtiyoriy: `cardType`,
+`merchantOperationId`, `rrn`. **Amount/currency maydoni UMUMAN YO'Q.**
+
+Bu — avval yashirin bo'lgan HAQIQIY zaiflikni ochdi:
+`assertPaymentMatchesPayload()` `body.amount === undefined` bo'lsa
+tekshiruvni JIM O'TKAZIB YUBORADI. Demak HAQIQIY Uzum callback'i
+(agar kelajakda signature qandaydir tarzda tasdiqlansa ham) amount-
+mismatch himoyasini HECH QACHON ishga tushira olmasdi — chunki bu
+maydon hech qachon kelmaydi. **Tuzatildi**:
+`PaymentsService.uzumCheckoutCallback()` endi callback `state==='PAID'`
+bo'lganda avval MUSTAQIL `getOrderStatus(orderId)` chaqiradi va FAQAT
+o'sha (bizning autentifikatsiyalangan so'rovimiz orqali) tasdiqlangan
+summani `processPaymentEvent()`ga uzatadi — callback body'sidagi
+`amountSom` ENDI hech qachon moliyaviy qaror uchun ishlatilmaydi
+(faqat orqaga moslik/audit uchun saqlanadi). Agar `getOrderStatus`
+PAID qaytarmasa — hech narsa qo'llanilmaydi, faqat audit
+(`callback:unverified`) yoziladi; `getOrderStatus`ning o'zi
+muvaffaqiyatsiz bo'lsa (tarmoq/konfiguratsiya) — oddiy `Error` throw
+qilinadi (500, Uzum qayta urinadi), `UzumCheckoutError` EMAS
+(aks holda controller buni signature-rad etish deb noto'g'ri talqin
+qilardi).
+
+`getOrderStatus`ning O'ZI (bizning outbound so'rovimiz) esa TIYIN
+ishlatishi allaqachon (2026-09-11, oldingi yozuv) mustaqil
+tasdiqlangan edi — shu sabab "callback amount unit" savoli endi
+BUTUNLAY BOSHQACHA hal qilindi: callback amount'iga UMUMAN
+ishonilmaydi, shuning uchun uning birligi (so'm/tiyin) ahamiyatsiz.
+
+### 3) `AcquiringStatus` — to'liq rasmiy enum, `DECLINED` xaritalandi
+
+Rasmiy: `REGISTERED | AUTHORIZED | TOP_UP_COMPLETED | COMPLETED |
+REFUNDED | REVERSED | DECLINED`. `ORDER_STATUS_MAP`ga `DECLINED ->
+FAILED` qo'shildi (bank/protsessing rad etgan holat — `PAID` bilan
+aralashtirib bo'lmaydigan yagona ma'noli xaritalash). `AUTHORIZED`
+(SAFAAR `ONE_STEP` ishlatgani uchun amalda kutilmaydi), `REFUNDED`/
+`REVERSED` (pul CHIQISHI) va `TOP_UP_COMPLETED` (boshqa mahsulot)
+ATAYLAB `UNKNOWN`da qoldi.
+
+### 4) `refund()` — HAQIQIY implementatsiya, sandboxda TASDIQLANGAN
+
+`POST /api/v1/acquiring/refund` (sarlavhalar `X-Operation-Id`
+majburiy/UUID/idempotentlik, `X-Terminal-Id` majburiy, `X-Api-Key` —
+spec `required:false` deydi, lekin doim yuboriladi). Body:
+`orderId`, `amount` (TIYIN), `cart` (ixtiyoriy —
+`FiscalizationCartRequest`, "faqat autofiskalizatsiya yoqilganda").
+
+**Sandboxda haqiqiy test** (yangi order, 1000 so'm, UzCard+3DS bilan
+COMPLETED qilingach):
+
+1. **Qisman refund (300 so'm)** — birinchi urinish `errorCode 3046
+"NOT_FOUND_IN_PURCHASE_RECEIPT"` bilan rad etildi: cart item
+   `productId` sifatida tasodifiy `randomUUID()` ishlatilgan edi,
+   lekin Uzum bu qiymatni ORIGINAL purchase receipt bilan
+   solishtiradi. **Tuzatish**: `register()` endi cart item
+   `productId` sifatida `input.merchantOperationId` (=`payments.id`,
+   SAFAAR'da allaqachon saqlangan) ishlatadi — tasodifiy emas,
+   DETERMINISTIK. Yangi ustun/migratsiya SHART EMAS.
+2. Tuzatilgan `productId` bilan qayta urinish `errorCode 3059 "The
+cart total is incorrect"` berdi: `cart.total`ga QISMAN refund
+   summasini (30000 tiyin) yuborgan edim. **Tuzatish**: `cart.total`
+   — buyurtmaning ORIGINAL/completed TO'LIQ summasi
+   (`getOrderStatus().completedAmount`) bo'lishi kerak, QISMAN
+   summa EMAS — bir nechta qisman refund bo'lsa ham DOIM shu bir xil
+   qiymat. `refund()` endi bu qiymatni chaqiruvchidan talab qilish
+   O'RNIGA ICHKI `getOrderStatus()` orqali mustaqil oladi.
+3. Tuzatilgan cart bilan: `errorCode 0`, `operationId` qaytdi.
+   `getOrderStatus` orqali tasdiqlandi: `refundedAmount: 30000`,
+   `totalAmount: 70000` (qolgan balans), `completedAmount: 100000`
+   (o'zgarmadi), `operations[]`da yangi `{operationType: "REFUND",
+state: "SUCCESS"}` yozuvi.
+4. **To'liq refund (qolgan 700 so'm)** — xuddi shu naqsh bilan
+   (`cart.total` hamon 100000, `amount=70000`): `errorCode 0`.
+   `getOrderStatus`: `rawStatus: "REFUNDED"` (rasmiy `AcquiringStatus`
+   qiymati!), `refundedAmount: 100000`, `totalAmount: 0`.
+
+**MUHIM CHEKLOV**: `refund()` hali SAFAAR business-flow'ga
+(`admin.service.ts`ning `refundApprove()`) ULANMAGAN — u mavjud,
+ATAYLAB dizayn bo'yicha ("real tashqi provayder integratsiyasi
+yo'q — hech qanday tashqi so'rov yuborilmaydi") tashqi provayder
+so'rovisiz qoladi (bu boshqa PROVIDERLAR — click/payme/uzcard/humo —
+uchun ham bir xil, umumiy kod). Bu metodni avtomatik ravishda
+`refundApprove()`ga ulash — alohida, ongli biznes qaror (bu audit
+doirasidan tashqarida, business/ops tomonidan aniq so'ralishi kerak).
+
+### 5) Commission (1.5%) — audit, o'zgarishsiz TASDIQLANDI
+
+`uzum-checkout-commission.ts` allaqachon to'g'ri: butun-tiyin
+arifmetikasi (suzuvchi nuqta YO'Q), gross/commission/net aniq
+ajratilgan, `UZUM_CHECKOUT_SETTLEMENT_MODEL='REQUIRES_UZUM_CONFIRMATION'`
+(hardcoded, env orqali emas — tasdiqlanmaguncha o'zgarmaydi), refund
+komissiyasi bo'yicha taxmin YO'Q, customer-facing summaga
+TA'SIR QILMAYDI. Hech qanday o'zgartirish kerak emas — bu modul DB
+migratsiyasiga (`20260911000000_uzum_checkout_commission_fields`)
+hamon ulanmagan, bu ham ATAYLAB (ongli qaror, audit doirasidan
+tashqarida).
+
+### 6) Production config audit
+
+- Production konteynerida (`safaar-backend`, `NODE_ENV=production`)
+  `UZUM_CHECKOUT_*` muhit o'zgaruvchilarining BIRORTASI ham
+  sozlanmagan (nomlar tekshirildi, qiymatlar EMAS) — Uzum Checkout
+  productionda HALI UMUMAN FAOLLASHTIRILMAGAN (`isConfigured()` har
+  doim `false`, `register()` har doim `NOT_CONFIGURED`/503). Bu —
+  kutilgan holat (haqiqiy production credential hali berilmagan),
+  xato EMAS.
+- `UZUM_CHECKOUT_TEST_MODE=true` production'da `env.validation.ts`
+  darajasida QATTIQ rad etiladi (boot-vaqtida throw) — mustaqil
+  qayta tasdiqlandi.
+- Production callback URL (`https://api.safaar.uz/v1/uzum/checkout/
+callback`) tashqi, real `curl` bilan tekshirildi: HTTPS ochiq,
+  Cloudflare/gateway ortida javob beradi, imzosiz so'rovga `401`
+  qaytaradi (aynan kutilgan fail-closed xulq) — production kodga
+  HECH NARSA yozilmadi.
+- CORS (`CORS_ORIGINS`) — bu Uzum Checkout callback'iga (server-
+  server, brauzer EMAS) aloqasiz; brauzer-yo'naltiruvchi oqimlar
+  (checkout redirect) uchun allaqachon mavjud sozlamalar yetarli.
+- Static egress proxy (`UZUM_CHECKOUT_HTTPS_PROXY`, safaar-gateway
+  `51.250.78.204`) — ilgari tasdiqlangan, ishlaydi, lekin
+  PRODUCTIONda hamon sozlanmagan (yuqoridagi bandning bir qismi).
+
+### 7) Test isolation
+
+Barcha sandbox testlar (register/getOrderStatus/refund, bu audit
+davomida) `payments.id`ga o'xshash tasodifiy `merchantOperationId`/
+`orderNumber='UZB-REFUNDTEST-<timestamp>'` bilan, SAFAAR PRODUCTION
+DB'siga HECH QANDAY yozuvsiz amalga oshirildi (to'g'ridan-to'g'ri
+provider chaqiruvlari, mahalliy `tsx` skript orqali, production
+kodga/bazaga tegmasdan). Yagona DB yozuvlari — oldingi (2026-09-11,
+davomi 2) yozuvdagi QA konteyner testlari, ular ham faqat
+`safaar-qa-db`da.
+
+### Xulosa
+
+| Ochiq masala (audit boshida) | Holat endi                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Callback signature           | ✅ TASDIQLANDI: rasman yo'q. Production fail-closed abadiy qoladi; `reconcileUzumCheckoutPayments` PRODUCTIONDA yagona yo'l          |
+| Callback amount unit         | ✅ HAL QILINDI: maydonning o'zi yo'q — callback amount'iga umuman ishonilmaydi, har doim `getOrderStatus()` bilan qayta tasdiqlanadi |
+| Refund                       | ✅ HAQIQIY, sandboxda qisman+to'liq tasdiqlangan; SAFAAR business-flow'ga ulanmagan (ongli, alohida qaror)                           |
+| Commission                   | ✅ audit qilindi, o'zgarishsiz to'g'ri                                                                                               |
+| Production config            | ✅ audit qilindi — Checkout hali productionda FAOLLASHTIRILMAGAN (kutilgan)                                                          |
+
+## 2026-09-11 (davomi 4) — TUZATISHLARDAN KEYIN TO'LIQ QAYTA E2E (SAFAAR backend orqali)
+
+Yuqoridagi barcha tuzatishlardan (getOrderStatus qayta-tasdiqlash,
+`register()` deterministik `productId`, `refund()`, `@Cron`
+reconciliation) keyin butun zanjir **yana bir marta, yangi commit'dan
+qurilgan alohida bir martalik QA konteynerida**, SAFAAR'ning haqiqiy
+HTTP yo'li orqali sinaldi (avvalgi (davomi 2) yozuvdagi USUL bilan bir
+xil — alohida QA konteyner, `safaar-qa-network`, real OTP login).
+
+**Yo'lda topilgan HAQIQIY (kod bilan bog'liq bo'lmagan) infratuzilma
+xatosi**: birinchi urinishlar `503 PAYMENT_PROVIDER_NOT_CONFIGURED`
+bilan muvaffaqiyatsiz tugadi — sabab `UzumCheckoutProvider`ning
+o'zida EMAS (`isConfigured()`/`isFiscalConfigured()` ikkalasi ham
+`true` ekani mustaqil tasdiqlandi), balki QA konteynerining
+`WEB_USER_URL` muhit o'zgaruvchisi tasodifan doimiy `safaar-qa-backend`
+konteynerining O'Z ICHKI loopback manzilidan (`http://127.0.0.1:4401`)
+meros qilib olingan edi — bu qiymat `successUrl`/`failureUrl`
+qurilishida ishlatiladi (`PaymentsService.webUserUrl()`), va Uzum bu
+haqiqatan ham tashqi/ochiq bo'lmagan URL'ni **`errorCode 2000`** bilan
+rad etadi (buni to'g'ridan-to'g'ri provider chaqiruvi bilan, HAQIQIY
+booking ma'lumotlari bilan, lekin HTTP-tashqarisida takrorlab
+tasdiqlandi — ular muvaffaqiyatli edi, demak muammo faqat `WEB_USER_URL`
+qiymatida edi). `WEB_USER_URL=https://web-user-rho.vercel.app`ga
+(production'dagi HAQIQIY qiymat) tuzatilgach, HTTP yo'li darhol
+ishladi.
+
+**To'liq zanjir, tasdiqlangan**:
+
+1. Real OTP login → `POST /v1/payments/:id/create` → `201`, haqiqiy
+   `orderId` (`af39fa46-...`) + `paymentRedirectUrl`.
+2. Playwright + UzCard test karta + 3DS OTP → `checkout.ipt-merch.com/
+success`.
+3. SAFAAR'ning O'Z `getOrderStatus()`/`getOperationState()`si (standalone
+   Nest kontekst orqali) → `COMPLETED`/`PAID`, `amountSom:1000`.
+4. **Rasmiy schema bo'yicha, AMOUNT MAYDONISIZ** simulyatsiya
+   callback (`{orderId, orderNumber, merchantOperationId,
+operationType:"COMPLETE", operationState:"SUCCESS"}` — `amount`
+   maydoni ATAYLAB YO'Q, chunki rasmiy schema'da yo'q) →
+   `POST /v1/uzum/checkout/callback` → `200 {applied:true}`. Bu —
+   callback'ning YANGI `getOrderStatus()`-qayta-tasdiqlash mantig'i
+   HAQIQIY HTTP orqali TO'G'RI ishlayotganining to'g'ridan-to'g'ri
+   isboti (eski kod bu holatda `amountSom=NaN` bilan
+   `assertPaymentMatchesPayload`ni jim o'tkazib yuborardi).
+5. SAFAAR DB: `payments.status='paid'`, `amount=1000.00` (callback
+   body'sida UMUMAN bo'lmagan qiymat — faqat `getOrderStatus()` orqali
+   keldi), `bookings.status='confirmed'`.
+6. **Duplicate callback** → `200 {duplicate:true, applied:false}`.
+7. **Noma'lum order** → `404 unknown_order`.
+8. **"Soxta da'vo" testi** (yangi, MUHIM): alohida bron uchun
+   `register()` chaqirildi, LEKIN checkout HECH QACHON yakunlanmadi
+   (buyurtma Uzum tomonida `REGISTERED`, hech qachon `COMPLETED`
+   bo'lmadi). Shu buyurtma uchun `operationState:"SUCCESS"` da'vo
+   qiluvchi callback yuborildi — **`200 {applied:false}`**, `payments`
+   qatori `processing`da qoldi, `bookings` `pending`da qoldi, faqat
+   `payment_events`ga `callback:unverified` audit yozildi. Bu —
+   signature'siz callback'ning YANGI xavfsizlik modelining
+   TO'G'RIDAN-TO'G'RI, amaliy isboti: soxta/erta/eskirgan "PAID" da'vosi
+   HECH QANDAY moliyaviy holatni o'zgartira olmadi, chunki u BIZNING
+   o'z `getOrderStatus()` tekshiruvimiz bilan mos kelmadi.
+9. **`reconcileUzumCheckoutPaymentsCron()` — jonli, kutilmagan, ijobiy
+   dalil**: konteyner ishga tushgach, birinchi `@Cron(EVERY_MINUTE)`
+   aylanishining o'ZI (hech qanday qo'lda ishga tushirishsiz) OLDINGI
+   (2026-09-11, ertalabki) sessiyadan qolgan, hech qachon callback
+   olmagan, `processing` holatida "osilib qolgan" haqiqiy buyurtmani
+   (`orderId 1bcc97f2-...`, o'sha safar ham COMPLETED bo'lgan, lekin
+   hech qachon SAFAAR'ga xabar berilmagan) topdi, Uzum'dan mustaqil
+   `getOrderStatus()` bilan `COMPLETED` ekanini tasdiqladi va — **HECH
+   QANDAY inbound callback'siz** — `payments.status='paid'` +
+   `bookings.status='confirmed'`ga o'tkazdi (2+ soat "pending" turgan
+   bron). Bu — audit'ning markaziy tavsiyasining (callback signature
+   yo'qligi sharoitida reconciliation production uchun YAGONA ishonchli
+   yo'l) haqiqiy, kutilmagan, ishlab chiqarish sharoitiga o'xshash
+   tasdig'i.
+
+**Tozalash**: bir martalik konteyner/image o'chirildi, host'dagi vaqtinchalik
+env fayllari tozalandi, production (`safaar-backend`) va doimiy QA
+(`safaar-qa-backend`) konteynerlar butun jarayon davomida bir marta ham
+qayta ishga tushirilmadi/o'zgartirilmadi.
