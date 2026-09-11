@@ -704,3 +704,50 @@ o'zi ataylab "rad etish" ssenariysi uchun mo'ljallangan bo'lishi
 mumkin, yoki muddati o'tgan, yoki boshqa terminal/hisob sozlamasi bilan
 bog'liq bo'lishi mumkin) — bu Uzum tomonidan tasdiqlanishi kerak
 bo'lgan savol, bu yerda taxmin qilinmaydi.
+
+## 2026-09-11 (davomi) — TO'LIQ MUVAFFAQIYAT: UzCard + 3DS bilan birinchi TO'LIQ E2E
+
+Uzum YANGI test karta berdi — **UzCard** (avvalgi HUMO'dan farqli).
+Xuddi shu tasdiqlangan register sxemasi bilan (SAFAAR IKPU
+`10703999001000000`, `packageCode 1495084`, `vatPercent=12` — sandbox
+probe, `PINFL` — rasmiy docs placeholder) yangi order yaratildi, keyin
+haqiqiy checkout sahifasida (Playwright, headless Chrome) UzCard bilan
+to'liq oqim ishga tushirildi, BIR BROUZER SESSIYASI ichida uzluksiz:
+
+1. Karta raqami + amal qilish muddati to'ldirildi, "To'lash" bosildi.
+2. **3DS OTP challenge chiqdi** — `https://vform.ipt-merch.com/otp?...`
+   iframe'i, bitta matn maydoni (`maxLength:6` — bu `.env.local`dagi
+   `UZUM_TEST_CARD_3DS`ning aniq uzunligi bilan MOS keldi).
+3. OTP kodi to'ldirildi va tasdiqlandi.
+4. Sahifa `https://checkout.ipt-merch.com/success` manziliga o'tdi —
+   **"Muvaffaqiyatli!"**.
+
+**Rasmiy server tomonidan mustaqil tasdiqlandi** (`getOrderStatus`):
+```
+status: "COMPLETED", actionCode: 0,
+amount: 100000, totalAmount: 100000, completedAmount: 100000,
+operations: [{ operationType: "COMPLETE", state: "SUCCESS",
+               actionCodeDescription: "Запрос успешно обработан." }],
+ips: "UZCARD"
+```
+Va `getOperationState` (aniq `operationId` bilan — bu maydonning o'zi
+ILGARI hech qayerda hujjatlashtirilmagan edi, endi tasdiqlangan: FAQAT
+`operationId` kerak, `orderId` EMAS) — bir xil `state: "SUCCESS"`ni
+mustaqil tasdiqladi.
+
+**Bu — butun tekshiruv davomida BIRINCHI to'liq muvaffaqiyatli
+to'lov**: register → checkout → karta → 3DS/OTP → COMPLETE, uchtala
+mustaqil manbadan (checkout sahifasi UI'i, `getOrderStatus`,
+`getOperationState`) tasdiqlangan.
+
+**SAFAAR production ma'lumotlar bazasi TEGILMADI** — bu sinov
+`UzumCheckoutProvider.register()` orqali EMAS, to'g'ridan-to'g'ri
+xom Uzum API so'roviga (gateway orqali) yuborildi; SAFAAR'ning o'z
+backend kodi (`createUzumCheckoutPayment`, callback controller) bu
+jarayonda umuman ishtirok etmadi. Callback route (`/v1/uzum/checkout/
+callback`, production `api.safaar.uz`da) hamon fail-closed (signature
+sxemasi sozlanmagan) — hatto Uzum sandbox terminal shu URL'ga real
+callback yuborgan taqdirda ham, u imzosiz bo'lgani uchun 401 bilan rad
+etiladi va HECH QANDAY `payments` qatori yozilmaydi (bu — ilgari
+tasdiqlangan fail-closed dizaynning o'zi, bu safar amalda ishlayotgani
+ko'rsatildi).
