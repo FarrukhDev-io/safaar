@@ -3,7 +3,7 @@ import type { HomeDict } from "@/i18n/dictionaries";
 
 export function Hero({ dict, children }: { dict: HomeDict["hero"], children?: React.ReactNode }) {
   return (
-    <section className="relative flex min-h-[70vh] md:min-h-[80vh] w-full flex-col items-center justify-center pb-10">
+    <section className="relative flex min-h-[70vh] md:min-h-[80vh] w-full flex-col items-center justify-center pb-10 -mt-14 md:-mt-16">
       {/* Background image with slow zoom animation for premium feel */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <Image
@@ -15,8 +15,8 @@ export function Hero({ dict, children }: { dict: HomeDict["hero"], children?: Re
           sizes="100vw"
           quality={90}
         />
-        {/* Modern dark gradient overlay for text readability, blending smoothly into background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/25 to-background" />
+        {/* Modern dark gradient overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/10" />
       </div>
 
       {/* Hero Text */}
