@@ -77,7 +77,7 @@ Allow 127.0.0.1               # on-box ops checks only
 BasicAuth safaar-uzum <generated 48-hex>
 ConnectPort 443               # HTTPS CONNECT only
 FilterDefaultDeny Yes
-Filter "/etc/tinyproxy/filter"   #  (^|\.)uzumbank\.uz$   /   (^|\.)uzum\.uz$
+Filter "/etc/tinyproxy/filter"   #  (^|\.)uzumbank\.uz$ / (^|\.)uzum\.uz$ / (^|\.)uzumcheckout\.uz$
 FilterExtended On
 FilterCaseSensitive Off
 DisableViaHeader Yes
@@ -85,6 +85,26 @@ LogLevel Connect              # logs "CONNECT host:443" + client IP only — no
                              # URL path, headers, body, Authorization, card data
 ```
 `systemctl enable --now tinyproxy` (enabled + active).
+
+**2026-09-11 update**: the real Uzum Checkout TEST host was confirmed as
+`test-chk-api.uzumcheckout.uz` — a **different second-level domain from
+`uzumbank.uz`** (Checkout lives on `uzumcheckout.uz`; Merchant API/portal
+on `uzumbank.uz`). `(^|\.)uzumcheckout\.uz$` was added to the filter and
+verified end-to-end: `safaar-backend` container → proxy → `test-chk-api.
+uzumcheckout.uz/health` → `200 "Hello"`, egressing via `51.250.78.204`.
+The exact production Checkout host is still unconfirmed — likely a sibling
+of `uzumcheckout.uz` (e.g. `chk-api.uzumcheckout.uz`), add it here once
+known rather than guessing.
+
+**Separately discovered, unresolved blocker**: `test-chk-api.uzumcheckout.uz`
+returns HTTP 403 (generic nginx) for every path/method/header combination
+tried except the literal `GET /health` — identically from this proxy's
+egress IP (`51.250.78.204`) and from an unrelated IP, with or without
+placeholder auth headers. This is consistent with an **IP allowlist at
+Uzum's edge that neither IP is on yet** — likely needs `51.250.78.204` to
+be registered with Uzum during onboarding before any authenticated call
+(even with valid credentials) can succeed. Not something fixable from this
+side; needs confirmation from Uzum.
 
 ### Defense-in-depth firewall
 
