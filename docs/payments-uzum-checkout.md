@@ -626,3 +626,81 @@ ALOHIDA shunday sozlagan terminal uchun ishlaydi — bizniki bunday emas.
 Demak MXIK/cart masalasini chetlab o'tishning yo'li yo'q — yagona yo'l
 hamon to'g'ri, katalogda TAN OLINGAN MXIK topish (yuqoridagi bo'limga
 qarang).
+
+## 2026-09-11 (davomi) — MUVAFFAQIYAT: SAFAAR'ga xos MXIK bilan register PASS
+
+Biznes SAFAAR'ning Uzum shartnoma hujjatidan **SAFAAR'ga xos**
+(mehmonxona emas, umumiy "sayohat/bron xizmati") klassifikatsiyani
+berdi:
+  - SPIC/MXIK: `10703999001000000` ("Safaar (turizm/bron)")
+  - Package/unit code: `1495084`
+
+Bu qiymatlar bilan (`vatPercent=12` — hamon FAQAT sandbox probe,
+`PINFL="11111111111111"` — rasmiy docs placeholder, ilgari tasdiqlangan
+`merchantParams.cart` strukturasida) yuborilgan so'rov:
+
+```
+errorCode: 0
+result: { "orderId": "<uuid>", "paymentRedirectUrl": "https://checkout.ipt-merch.com/?..." }
+```
+
+**REGISTER MUVAFFAQIYATLI BO'LDI** — bu butun tekshiruv davomida
+BIRINCHI marta. Avvalgi umumiy mehmonxona MXIK'i (`10204001010000000`)
+Uzum katalogida topilmagan edi (`3055`); SAFAAR'ga maxsus
+`10703999001000000` esa QABUL QILINDI. `receiptType` — faqat
+`"PURCHASE"` yoki `"PREPAID"` qiymatlariga ega enum ekanligi rasmiy
+sxemadan tasdiqlangan (alohida "SERVICE" qiymati yo'q — shartnomadagi
+"Chek turi: Xizmat" MXIK'ning o'z tabiatini bildiradi, alohida field
+emas), shuning uchun `"PURCHASE"` ishlatildi.
+
+To'lov sahifasi domeni — `checkout.ipt-merch.com` (Uzum Checkout'ning
+hosted to'lov sahifasi provayderi; `uzumbank.uz`/`uzumcheckout.uz`dan
+FARQLI domen). Bu domenga SAFAAR backend/proxy hech qachon to'g'ridan-
+to'g'ri ulanmaydi — mijozning BROUZERI shu URL'ga redirect qilinadi,
+shuning uchun gateway proxy filter'iga qo'shish SHART EMAS.
+
+**MUHIM**: hujjatda so'ralgan `.env.local`dagi maxsus TIN/PINFL
+o'zgaruvchisi TOPILMADI (`UZUM_TEST_CARD_*` to'rttasi bor, lekin TIN/
+PINFL nomli hech narsa yo'q) — shu sabab ilgari ishlagan RASMIY
+Uzum docs placeholder (`PINFL: "11111111111111"`) qayta ishlatildi,
+va bu ham muvaffaqiyatli bo'ldi.
+
+## 2026-09-11 (davomi) — haqiqiy checkout sahifasi + TEST HUMO karta: bank RAD ETDI
+
+`paymentRedirectUrl` (`https://checkout.ipt-merch.com/...` — Uzum
+Checkout'ning hosted to'lov sahifasi, "Uzumpay" nomi bilan, UzCard/HUMO
+qabul qiladi) Playwright (headless Chrome) orqali ochildi va TEST HUMO
+karta (`.env.local`) bilan to'liq to'lov oqimi sinaldi:
+
+1. Karta raqami maydoni (`name="pan"`) to'ldirildi → forma avtomatik
+   amal qilish muddati maydonini (`name="date"`, `OO/YY` formatida)
+   ochdi.
+2. Amal qilish muddati to'ldirildi (format mos keldi — 5 belgi, `/`
+   bilan, formaning kutgan formatiga ANIQ mos).
+3. "To'lash 1,000 so'm" tugmasi bosildi (`1,000 so'm` = bizning
+   `amount:100000` — bu ORQALI `amount`ning TIYIN birligida ekani
+   YANA bir marta tasdiqlandi: 100000 tiyin = 1000 so'm).
+
+**Natija**: sahifa `https://checkout.ipt-merch.com/error?from=PAYMENT_ERROR&code=3009`
+manziliga o'tdi — "**Bank operatsiyani rad etdi**. Karta ma'lumotlarini
+tekshiring yoki boshqa to'lov usulidan foydalaning."
+
+**Tasdiqlash — bu formatlash xatosi EMAS**: karta raqami uzunligi va
+amal qilish muddati formati (belgilar soni, `/` mavjudligi) forma
+kutgan aniq shaklga mos ekanligi TEKSHIRILDI (faqat UZUNLIK, qiymat
+EMAS). Shuningdek `getOrderStatus` orqali mustaqil tasdiqlandi:
+```
+status: "REGISTERED", actionCode: 3009,
+amount: 100000, totalAmount: 100000, completedAmount: 0,
+operations: [], approvalCode: null
+```
+`actionCode: 3009` checkout sahifasidagi xato kodi bilan AYNAN mos
+keladi — bu Uzum'ning bank/protsessing simulyatoridan HAQIQIY, izchil
+rad javobi, UI nosozligi emas.
+
+3DS/OTP bosqichiga UMUMAN yetib borilmadi — karta birinchi urinishdayoq
+bank darajasida rad etildi. Sabab NOMA'LUM (bu aniq test kartaning
+o'zi ataylab "rad etish" ssenariysi uchun mo'ljallangan bo'lishi
+mumkin, yoki muddati o'tgan, yoki boshqa terminal/hisob sozlamasi bilan
+bog'liq bo'lishi mumkin) — bu Uzum tomonidan tasdiqlanishi kerak
+bo'lgan savol, bu yerda taxmin qilinmaydi.
