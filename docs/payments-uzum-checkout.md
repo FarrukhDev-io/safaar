@@ -596,3 +596,33 @@ BIZNES/BUXGALTERIYA uchun aniq, tor vazifa: `10204001010000000`ni
 bo'lishi mumkin) YOKI Uzum texnik yordamidan ularning ICHKI
 katalogidagi "Mehmonxona xizmatlari" uchun TAN OLINGAN aniq MXIK
 qiymatini so'rash.
+
+## 2026-09-11 (davomi) — AUTO-FISCALIZATIONSIZ oqim: bir xil terminalda ishlamaydi
+
+Rasmiy docs'da IKKITA alohida bo'lim bor: "Processing a one-step payment
+**with** auto-fiscalization" va "Processing a one-step payment **without**
+auto-fiscalization" — ikkalasi ham AYNAN BITTA endpoint
+(`POST /payment/register`, `payType=\"ONE_STEP\"`). Docs matnida bu
+ikkisi orasidagi FARQ **faqat**: "without" holatida "There is no need to
+provide information about the items in the cart" — so'rovda hech qanday
+qo'shimcha field/flag (masalan `"fiscalization": false`) KO'RSATILMAGAN.
+
+Bu shuni ko'rsatadiki: fiskalizatsiya talab qilinishi **so'rov darajasida
+EMAS, balki TERMINAL sozlamasi darajasida** aniqlanadi (Uzum tomonidan
+merchant onboarding paytida terminalga biriktiriladi).
+
+**Sandboxda tasdiqlandi**: bizning test terminalimizga (joriy
+`UZUM_CHECKOUT_TERMINAL_ID`) rasmiy "without auto-fiscalization" shaklida
+(`cart`/`merchantParams.cart` UMUMAN yo'q, boshqa hamma narsa avvalgi
+tasdiqlangan sxema bo'yicha) so'rov yuborilganda — natija AYNAN bir xil:
+```
+errorCode: 3045
+"[AUTOFISCALIZATION] You need to provide a cart with fiscalization params for your operation"
+```
+Ya'ni: **bizning terminalimiz auto-fiscalization YOQILGAN holda
+sozlangan, va bu terminal darajasidagi sozlama — so'rov ichida
+o'zgartirib bo'lmaydi.** "Without auto-fiscalization" oqimi faqat Uzum
+ALOHIDA shunday sozlagan terminal uchun ishlaydi — bizniki bunday emas.
+Demak MXIK/cart masalasini chetlab o'tishning yo'li yo'q — yagona yo'l
+hamon to'g'ri, katalogda TAN OLINGAN MXIK topish (yuqoridagi bo'limga
+qarang).
