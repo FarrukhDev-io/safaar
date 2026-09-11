@@ -17,14 +17,14 @@ ENDI HAQIQIY (sandboxda tasdiqlangan) so'rov yuboradi — pastdagi jadval
 YANGI holatni aks ettiradi. Faqat callback autentifikatsiyasi va `refund()`
 hamon fail-closed:
 
-| Qism                                                 | Holati                                                   | Bloklovchi                              |
-| ----------------------------------------------------- | --------------------------------------------------------- | --------------------------------------- |
-| Callback qabul qilish (`/v1/uzum/checkout/callback`) | skeleton + wired + tested, HAMON fail-closed              | imzo algoritmi (Uzum'dan rasmiy javob yo'q) |
-| `register()` seam (`createUzumCheckoutPayment`)      | ✅ HAQIQIY so'rov (auth+fiskal env sozlansa)               | fiskal env (`UZUM_CHECKOUT_SPIC` va h.k.) |
-| `getOrderStatus` / `getOperationState`               | ✅ HAQIQIY so'rov (auth env sozlansa)                      | —                                        |
-| `refund()`                                           | typed stub, `SPEC_REQUIRED`                                | hech qachon sinalmagan — ataylab keyinga qoldirilgan |
-| Reconciliation (`reconcileUzumCheckoutPayments`)     | metod tayyor, ishlaydi, `@Cron`SIZ                         | avtomatik ishga tushirish — ongli qaror |
-| `PaymentMethod` enum + backend allowlistlar          | ✅ tayyor (migration bilan)                                | —                                       |
+| Qism                                                 | Holati                                                                             | Bloklovchi                                           |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Callback qabul qilish (`/v1/uzum/checkout/callback`) | ✅ QA E2E'da TASDIQLANDI (`UZUM_CHECKOUT_TEST_MODE`), production HAMON fail-closed | imzo algoritmi (Uzum'dan rasmiy javob yo'q)          |
+| `register()` seam (`createUzumCheckoutPayment`)      | ✅ HAQIQIY so'rov (auth+fiskal env sozlansa)                                       | fiskal env (`UZUM_CHECKOUT_SPIC` va h.k.)            |
+| `getOrderStatus` / `getOperationState`               | ✅ HAQIQIY so'rov (auth env sozlansa)                                              | —                                                    |
+| `refund()`                                           | typed stub, `SPEC_REQUIRED`                                                        | hech qachon sinalmagan — ataylab keyinga qoldirilgan |
+| Reconciliation (`reconcileUzumCheckoutPayments`)     | metod tayyor, ishlaydi, `@Cron`SIZ                                                 | avtomatik ishga tushirish — ongli qaror              |
+| `PaymentMethod` enum + backend allowlistlar          | ✅ tayyor (migration bilan)                                                        | —                                                    |
 
 ## Route
 
@@ -210,7 +210,7 @@ eth0 → Yandex Cloud 1:1 NAT → <statik IP>   ← Uzum'ga shu IP beriladi
 - `UzumCheckoutProvider.outboundDispatcher()` — `UZUM_CHECKOUT_HTTPS_PROXY`
   bo'sh bo'lsa `undefined` (so'rov to'g'ridan-to'g'ri), sozlangan bo'lsa
   **keshlangan** undici `ProxyAgent`. Chiquvchi metodlar `fetch(url, {
-  dispatcher: this.outboundDispatcher(), signal: … })` bilan chaqiradi.
+dispatcher: this.outboundDispatcher(), signal: … })` bilan chaqiradi.
 - **`setGlobalDispatcher` ISHLATILMAYDI** — jarayondagi boshqa har qanday
   `fetch()` (SMS, email, CBU kurs, webhook yetkazish, OAuth) va boshqa
   host'dagi Baito trafigi **umuman o'zgarmaydi**.
@@ -242,6 +242,7 @@ calculateUzumCheckoutCommission(grossAmountSom) -> {
   grossAmountSom, commissionRate, commissionAmountSom, netSettlementAmountSom
 }
 ```
+
 Butun-tiyin arifmetikasi (`UzumProvider.toTiyin()` bilan bir xil `Math.round`
 yaxlitlash siyosati) — suzuvchi nuqta xatosiz. Nol/manfiy/NaN/Infinity ->
 `RangeError`.
@@ -249,6 +250,7 @@ yaxlitlash siyosati) — suzuvchi nuqta xatosiz. Nol/manfiy/NaN/Infinity ->
 **`REQUIRES_UZUM_CONFIRMATION`** (`UZUM_CHECKOUT_SETTLEMENT_MODEL`,
 kodda taxmin qilinmagan, rasmiy shartnoma/spec kelganda tasdiqlanishi
 SHART):
+
 - Uzum settlement'dan 1.5%ni **avtomatik ushlab qoladimi** (bankka NET
   keladi) yoki **to'liq GROSS'ni o'tkazib**, komissiyani alohida
   invoice bilan so'raydimi.
@@ -282,12 +284,14 @@ yozilmagan/yozilmaydi).
 
 **MUHIM TUZATISH**: avvalgi taxmin (`${baseUrl}/payment/register`) —
 NOTO'G'RI edi. Haqiqiy yo'l prefiksi **`/api/v1/`** talab qiladi:
+
 ```
 ${UZUM_CHECKOUT_BASE_URL}/api/v1/payment/register
 ${UZUM_CHECKOUT_BASE_URL}/api/v1/payment/getOrderStatus
 ${UZUM_CHECKOUT_BASE_URL}/api/v1/payment/getOperationState
 ${UZUM_CHECKOUT_BASE_URL}/api/v1/acquiring/refund
 ```
+
 Prefikssiz variant (`/payment/register`, va umuman `/api/v1/` bilan
 boshlanmagan HAR QANDAY yo'l — `/checkout`, `/pay`, `/session` kabi
 taxminiy nomlar ham) nginx darajasida `403`ga tushadi — bu **IP allowlist
@@ -300,6 +304,7 @@ lekin bu 403'larning sababi ENDI aniq: noto'g'ri yo'l, IP emas.
 
 **Tasdiqlangan majburiy sarlavhalar** (`{}` bo'sh body bilan
 so'ralganda "Field required" deb qaytgan):
+
 - `X-Terminal-Id` — hamma endpoint uchun
 - `X-Api-Key` — yuborilganda hech qachon "missing" deb qaytmadi (talab
   qilinishi mumkin, lekin bu tekshiruv qatlamida alohida qayd etilmagan)
@@ -310,6 +315,7 @@ so'ralganda "Field required" deb qaytgan):
 
 **Tasdiqlangan majburiy body maydonlari** (nomlar — TIPI/semantikasi
 HALI HAM NOMA'LUM, taxmin qilinmagan):
+
 - `register` (`OrderPaymentRequest` varianti — bir martalik karta
   to'lovi, ko'rinadi): `viewType`, `clientId`, `currency`, `orderNumber`,
   `sessionTimeoutSecs`, `amount`, `paymentParams`, `merchantParams`.
@@ -357,11 +363,13 @@ qiymatlar sifatida TASDIQLANDI (kredential/karta qiymatlari YO'Q):
 
 Yuqoridagi HAMMA maydon to'g'ri bo'lgach (5-urinish), javob endi
 Pydantic validatsiya xatosi EMAS, balki **biznes-qoida xatosi**:
+
 ```
 errorCode: 3045
 "[AUTOFISCALIZATION] You need to provide a cart with fiscalization
  params for your operation"
 ```
+
 Ya'ni: **bu test terminal avtofiskalizatsiya YOQILGAN holda
 sozlangan** — har bir `register` so'rovi fiskal `cart` (tovar/xizmat
 ro'yxati, IKPU/MXIK kodlari, SPIC, QQS stavkasi) talab qiladi. `cart`
@@ -390,9 +398,10 @@ ketardi, foydasi kam).
 **2026-09-11 (davomi) — REAL MXIK bilan urinish, hamon aniqlanmagan**:
 Biznes tomondan `tasnif.soliq.uz` rasmiy katalogidan haqiqiy
 klassifikatsiya olindi:
-  - MXIK: `10204001010000000` ("Mehmonxona xizmatlari (yashab
-    turish uchun)")
-  - O'lchov birligi kodi: `1504157` ("tunu-kun")
+
+- MXIK: `10204001010000000` ("Mehmonxona xizmatlari (yashab
+  turish uchun)")
+- O'lchov birligi kodi: `1504157` ("tunu-kun")
 
 Shu haqiqiy qiymatlar bilan `cart.items[{name, mxik, packageCode,
 quantity, price}]` shaklida (VAT/vatPercent ATAYLAB QO'SHILMADI —
@@ -433,7 +442,7 @@ TASHLANMAYDI.
 - `src/payments/providers/uzum-checkout-commission.ts` — 1.5% komissiya
   hisob-kitobi (`calculateUzumCheckoutCommission`), SAFAAR ICHKI accounting,
   Uzum API'ga bog'liq emas. `UZUM_CHECKOUT_SETTLEMENT_MODEL =
-  'REQUIRES_UZUM_CONFIRMATION'`.
+'REQUIRES_UZUM_CONFIRMATION'`.
 - `prisma/migrations/20260911000000_uzum_checkout_commission_fields/` —
   `payments.provider_fee_rate/provider_fee_amount/net_settlement_amount`
   (nullable) — **qo'llanilmagan**.
@@ -486,6 +495,7 @@ avtorizatsiyasiz — bu HAR KIM ochiq ko'rishi mumkin bo'lgan public bundle).
 
 **Rasmiy `merchantParams.cart` joylashuvi va sxemasi** (`OrderPaymentRequest`
 uchun, ishlaydigan rasmiy misoldan):
+
 ```
 merchantParams: {
   cart: {
@@ -511,12 +521,14 @@ merchantParams: {
   }
 }
 ```
+
 (Rasmiy misolda `paymentParams` ichida yana `force3ds: true` va
 `phoneNumber` ham ko'rsatilgan — ikkalasi ham `OrderPaymentRequest` uchun
 MAJBURIY emas edi, lekin `force3ds` 3DS oqimini sinash uchun foydali.)
 
 **Sandboxda haqiqiy MXIK/unit kod bilan tasdiqlandi** (2026-09-11, real
 `/api/v1/payment/register` so'rovi, `vatPercent` ATAYLAB qo'shilmadi):
+
 - `spic: "10204001010000000"` (MXIK — tasnif.soliq.uz'dan, biznes
   tomonidan berilgan) — **HECH QANDAY xato QAYTMADI** (uzunlik/format
   to'g'ri deb qabul qilindi).
@@ -551,14 +563,17 @@ SAFAAR'ning haqiqiy QQS stavkasi sifatida ISHLATISH KERAK EMAS**, kodga
 ham yozilmadi.
 
 Shundan keyin YANGI, ILGARI KO'RINMAGAN xato chiqdi:
+
 ```
 Value error: You need pass TIN or PINFL for receiptParams
 ```
+
 Ya'ni `receiptParams` ichida **`TIN` (STIR) yoki `PINFL` (JSHSHIR)dan
 KAMIDA BITTASI MAJBURIY** ekan (`UZReceiptParams` sxemasida ikkalasi ham
 ixtiyoriy ko'rinsa-da, amalda BIRI SHART). Bu — **SAFAAR'ning o'z STIR
 raqami** (yuridik shaxs sifatida ro'yxatdan o'tgan soliq to'lovchi ID'si)
 — mahsulot klassifikatsiyasi EMAS, MERCHANT identifikatori. Bu qiymat:
+
 - reponziyoriyda HECH QAYERDA saqlanmagan (allaqachon tasdiqlangan —
   fiskalizatsiya ma'lumotlari umuman yo'q);
 - O'YLAB TOPILMADI — bu SAFAAR'ning haqiqiy yuridik shaxs STIR raqami,
@@ -581,12 +596,14 @@ qo'shildi.
 Natija: **Pydantic sxema tekshiruvi TO'LIQ o'tdi** (endi hech qanday
 "Field required" xatosi yo'q) — so'rov ENDI ilovaning ICHKI biznes-qatlamiga
 yetib bordi va YANGI, ANIQROQ xato qaytardi:
+
 ```
 errorCode: 3055
 {"spics": [{"spic": "10204001010000000",
             "reason": "IKPU code is not found in the catalog",
             "reason_code": 1}]}
 ```
+
 Ya'ni: **MXIK `10204001010000000` (`tasnif.soliq.uz`dan olingan)
 Uzum'ning O'Z ICHKI fiskalizatsiya katalogida TOPILMADI.** Bu endi
 IKPU KOD DAN boshqa hech narsaga (VAT, packaging, PINFL — barchasi
@@ -618,10 +635,12 @@ merchant onboarding paytida terminalga biriktiriladi).
 `UZUM_CHECKOUT_TERMINAL_ID`) rasmiy "without auto-fiscalization" shaklida
 (`cart`/`merchantParams.cart` UMUMAN yo'q, boshqa hamma narsa avvalgi
 tasdiqlangan sxema bo'yicha) so'rov yuborilganda — natija AYNAN bir xil:
+
 ```
 errorCode: 3045
 "[AUTOFISCALIZATION] You need to provide a cart with fiscalization params for your operation"
 ```
+
 Ya'ni: **bizning terminalimiz auto-fiscalization YOQILGAN holda
 sozlangan, va bu terminal darajasidagi sozlama — so'rov ichida
 o'zgartirib bo'lmaydi.** "Without auto-fiscalization" oqimi faqat Uzum
@@ -635,8 +654,9 @@ qarang).
 Biznes SAFAAR'ning Uzum shartnoma hujjatidan **SAFAAR'ga xos**
 (mehmonxona emas, umumiy "sayohat/bron xizmati") klassifikatsiyani
 berdi:
-  - SPIC/MXIK: `10703999001000000` ("Safaar (turizm/bron)")
-  - Package/unit code: `1495084`
+
+- SPIC/MXIK: `10703999001000000` ("Safaar (turizm/bron)")
+- Package/unit code: `1495084`
 
 Bu qiymatlar bilan (`vatPercent=12` — hamon FAQAT sandbox probe,
 `PINFL="11111111111111"` — rasmiy docs placeholder, ilgari tasdiqlangan
@@ -692,11 +712,13 @@ tekshiring yoki boshqa to'lov usulidan foydalaning."
 amal qilish muddati formati (belgilar soni, `/` mavjudligi) forma
 kutgan aniq shaklga mos ekanligi TEKSHIRILDI (faqat UZUNLIK, qiymat
 EMAS). Shuningdek `getOrderStatus` orqali mustaqil tasdiqlandi:
+
 ```
 status: "REGISTERED", actionCode: 3009,
 amount: 100000, totalAmount: 100000, completedAmount: 0,
 operations: [], approvalCode: null
 ```
+
 `actionCode: 3009` checkout sahifasidagi xato kodi bilan AYNAN mos
 keladi — bu Uzum'ning bank/protsessing simulyatoridan HAQIQIY, izchil
 rad javobi, UI nosozligi emas.
@@ -726,6 +748,7 @@ to'liq oqim ishga tushirildi, BIR BROUZER SESSIYASI ichida uzluksiz:
    **"Muvaffaqiyatli!"**.
 
 **Rasmiy server tomonidan mustaqil tasdiqlandi** (`getOrderStatus`):
+
 ```
 status: "COMPLETED", actionCode: 0,
 amount: 100000, totalAmount: 100000, completedAmount: 100000,
@@ -733,6 +756,7 @@ operations: [{ operationType: "COMPLETE", state: "SUCCESS",
                actionCodeDescription: "Запрос успешно обработан." }],
 ips: "UZCARD"
 ```
+
 Va `getOperationState` (aniq `operationId` bilan — bu maydonning o'zi
 ILGARI hech qayerda hujjatlashtirilmagan edi, endi tasdiqlangan: FAQAT
 `operationId` kerak, `orderId` EMAS) — bir xil `state: "SUCCESS"`ni
@@ -754,3 +778,127 @@ callback yuborgan taqdirda ham, u imzosiz bo'lgani uchun 401 bilan rad
 etiladi va HECH QANDAY `payments` qatori yozilmaydi (bu — ilgari
 tasdiqlangan fail-closed dizaynning o'zi, bu safar amalda ishlayotgani
 ko'rsatildi).
+
+## 2026-09-11 (davomi 2) — SAFAAR BACKEND ORQALI TO'LIQ E2E (register → checkout → 3DS → callback → DB)
+
+Yuqoridagi sinov Uzum API'ga **to'g'ridan-to'g'ri** (SAFAAR kodini chetlab
+o'tib) yuborilgan edi. Bu safar butun oqim **SAFAAR'ning o'z backend
+kodi** orqali, boshidan oxirigacha ishga tushirildi — alohida,
+production'dan izolyatsiyalangan, bir martalik QA konteynerida
+(`safaar-e2e-test`, `safaar-qa-network`, `safaar-qa-db`/`safaar-qa-redis`,
+xuddi shu commit va xuddi shu production Dockerfile'dan qurilgan).
+
+**Muhit**: `NODE_ENV=qa-e2e` (hech qachon `production` emas),
+`UZUM_CHECKOUT_TEST_MODE=true` (faqat shu konteynerda — signature
+sxemasi hali tasdiqlanmagani uchun callback imzo tekshiruvini QA'da
+xavfsiz chetlab o'tish uchun), `ENABLE_DEMO_AUTH=true` (faqat shu
+konteynerda — real SMS provayder o'rniga OTP kodini javobda
+qaytarish, haqiqiy `/auth/user/send-otp` → `/auth/user/verify-otp`
+oqimini sinash uchun).
+
+**Autentifikatsiya**: real, mavjud QA test foydalanuvchi
+(`a4f48524-b752-47d9-bf7c-a705a7ea3c2e`) uchun haqiqiy telefon-OTP
+login oqimi (`POST /v1/auth/user/send-otp` → `dev_code` → `POST
+/v1/auth/user/verify-otp`) ishlatildi — JWT qo'lda "mint" qilinmadi,
+mavjud `signJwt`/`issueTokens` kodi orqali chiqarildi.
+
+**1) Register — SAFAAR backend orqali**: `POST
+/v1/payments/:bookingId/create {"provider":"uzum_checkout"}`
+(Bearer bilan) haqiqiy QA bron uchun chaqirildi.
+`PaymentsService.createPayment()` → `createUzumCheckoutPayment()` →
+`UzumCheckoutProvider.register()` — birinchi marta HAQIQIY foydalanuvchi
+so'rovi orqali ishga tushdi (avvalgi sinovlar bevosita provayder/xom
+API chaqiruvi edi). Natija: `201`, haqiqiy Uzum `orderId` va
+`paymentRedirectUrl` bilan, `payments` jadvaliga `status='processing'`,
+`provider_reference=orderId`, `idempotency_key='uzum_checkout:'+orderId`
+yozildi — bularning barchasi `psql` bilan to'g'ridan-to'g'ri
+tasdiqlandi.
+
+**2) Checkout + 3DS — real Uzum hosted checkout sahifasida**: qaytgan
+`paymentRedirectUrl` Playwright (headless Chrome) orqali ochildi,
+avvalgi sessiyada tasdiqlangan UzCard test karta + 3DS OTP bilan
+to'liq to'landi (`input[name="pan"]`, keyin `Tab` bilan `input[name="date"]`
+maydoni ochilishini kutish kerak edi — forma ikki bosqichli ekan;
+so'ng bitta 6-belgili OTP maydoni). Sahifa
+`https://checkout.ipt-merch.com/success` ga o'tdi.
+
+**3) Uzum tomonidan mustaqil tasdiqlash — SAFAAR'ning o'z provayder
+kodi orqali** (xom `curl` EMAS): konteyner ichida `NestFactory
+.createApplicationContext(AppModule)` bilan haqiqiy DI-kontekst
+ko'tarilib, undan haqiqiy `UzumCheckoutProvider` instance olindi va
+uning `getOrderStatus(orderId)` / `getOperationState(orderId,
+operationId)` metodlari chaqirildi:
+
+```
+getOrderStatus  -> rawStatus=COMPLETED, state=PAID, amountSom=1000
+operations      -> [{ operationType: "COMPLETE", state: "SUCCESS" }]
+getOperationState -> rawStatus=SUCCESS, state=PAID
+```
+
+**4) Callback — real maydon shakli bilan simulyatsiya qilindi**:
+Uzum'ning haqiqiy async callback'i ehtimol merchant-hisob darajasidagi
+(production `api.safaar.uz`) URL'ga yo'naltirilgan — shu QA
+konteyneriga real callback yetib kelishi kafolatlanmaydi. Shu sabab
+`POST /v1/uzum/checkout/callback`ga endi TASDIQLANGAN xom maydon
+qiymatlari bilan (yuqoridagi (3)-bosqichda haqiqiy Uzum javobidan
+olingan `operationType`/`operationState`) qo'lda quyidagi payload
+yuborildi:
+
+```json
+{
+  "orderId": "<haqiqiy Uzum orderId>",
+  "orderNumber": "<booking_number>",
+  "merchantOperationId": "<payments.id>",
+  "operationType": "COMPLETE",
+  "operationState": "SUCCESS",
+  "amount": 1000,
+  "currency": "UZS"
+}
+```
+
+⚠️ **`amount` birligi hamon TASDIQLANMAGAN** — `normalizeCheckoutCallback()`
+`raw.amount`ni to'g'ridan-to'g'ri (hozirgi kod bo'yicha) so'm sifatida
+o'qiydi (TIYIN emas); yuqoridagi payload ham shu taxminga mos ravishda
+so'm (`1000`) yubordi. Bu Uzum'ning HAQIQIY callback body'sidan hali
+mustaqil tasdiqlanmagan — faqat kodning HOZIRGI ichki taxminiga mos
+sinov.
+
+`UZUM_CHECKOUT_TEST_MODE=true` orqali imzo tekshiruvi (faqat shu QA
+konteynerida) o'tkazib yuborildi — boshqa BARCHA tekshiruvlar (order
+qidirish, `state==='PAID'` mapping, `processPaymentEvent()`ning
+amount/currency/terminal-holat/idempotentlik tekshiruvlari) TO'LIQ
+ishladi.
+
+**Natija — SAFAAR DB'da tasdiqlandi** (`psql`):
+
+| Jadval                   | Callback'dan OLDIN | Callback'dan KEYIN           |
+| ------------------------ | ------------------ | ---------------------------- |
+| `payments.status`        | `processing`       | `paid`                       |
+| `bookings.status`        | `pending`          | `confirmed`                  |
+| `bookings.expires_at`    | (bor edi)          | `NULL`                       |
+| `booking_status_history` | —                  | 1 ta yozuv (`confirmed`)     |
+| `payment_events`         | —                  | 1 ta audit yozuv (`confirm`) |
+
+**5) Edge case'lar — barchasi kutilganidek ishladi**:
+
+- **Duplicate callback** (bir xil payload ikkinchi marta): `200
+{"duplicate":true,"applied":false}` — payment holati/summasi
+  o'zgarmadi (qayta tekshirildi).
+- **Noma'lum order** (mavjud bo'lmagan `orderId`): `404
+{"code":"unknown_order"}` — hech qanday `payments`/`bookings`
+  yozuvi tegilmadi, faqat audit (`payment_events`) qatori yozildi.
+- **Noto'g'ri summa** (hali `pending`/`processing` holatdagi BOSHQA
+  test to'lov uchun, real summa `1000` o'rniga `999999` yuborildi):
+  `422 {"code":"amount_mismatch"}` — to'lov holati o'zgarmadi
+  (`processing`da qoldi, buzilmadi).
+
+**Xulosa**: bu — sessiyadagi birinchi marta butun zanjir (SAFAAR
+booking → SAFAAR backend `register()` → Uzum sandbox → real UzCard +
+3DS → Uzum `COMPLETED` → SAFAAR callback handler → `payments.status=
+paid` → `bookings.status=confirmed`) **SAFAAR'ning o'z ishlab
+chiqarish kodi orqali**, xom `curl`/to'g'ridan-to'g'ri API
+chaqiruvisiz isbotlandi. Faqat ikkita qism hamon xom Uzum API bilan
+mustaqil emas: (a) callback signature sxemasi (shuning uchun QA-only
+`UZUM_CHECKOUT_TEST_MODE` bilan simulyatsiya qilindi — Uzum'dan
+real callback network orqali yetkazib berish emas), (b) callback
+`amount` birligi (so'm/tiyin) — yuqorida qayd etilgan.
