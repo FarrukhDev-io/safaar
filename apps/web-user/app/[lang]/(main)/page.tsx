@@ -44,7 +44,7 @@ function TrustStats({ dict, publicStats }: { dict: any; publicStats: any }) {
   ];
 
   return (
-    <section className="bg-white border-y border-slate-100 py-10 sm:py-14 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: "300ms" }}>
+    <section className="bg-white border-y border-slate-200 py-10 sm:py-14 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: "300ms" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 sm:gap-8">
           {stats.map((stat, i) => (
@@ -151,7 +151,7 @@ export default async function HomePage({
 
 
   return (
-    <main className="relative flex flex-1 flex-col bg-background text-foreground">
+    <main className="relative flex flex-1 flex-col bg-white text-slate-900">
       {/* EKRAN 1: Hero + SearchBar + Featured Hotels */}
       <div className="flex min-h-svh flex-col justify-between">
         <div className="relative z-30 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both w-full" style={{ animationDelay: "0ms" }}>

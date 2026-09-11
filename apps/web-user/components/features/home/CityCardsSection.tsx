@@ -62,7 +62,7 @@ export async function CityCardsSection({
         {cities.length === 0 ? (
           <div className="mt-6">
             <EmptyState 
-              icon={<MapPin className="h-10 w-10 text-slate-400 dark:text-slate-500" />}
+              icon={<MapPin className="h-10 w-10 text-slate-400" />}
               title={(dict as any).empty || "Hozircha bo'sh"} 
               description="Ayni paytda mashhur shaharlar ruyxati shakllanmoqda." 
             />
