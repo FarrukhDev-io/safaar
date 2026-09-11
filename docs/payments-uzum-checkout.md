@@ -539,3 +539,29 @@ maydon nomlari/joylashuvi) endi 100% RASMIY manbadan TASDIQLANGAN.
 Yagona qolgan bloker — `vatPercent` uchun mehmonxona xizmati bo'yicha
 haqiqiy QQS stavkasi (0%, 12%, yoki boshqa) — bu BIZNES/BUXGALTERIYA
 tasdig'ini talab qiladi.
+
+**2026-09-11 (davomi) — `vatPercent=12` SANDBOX PROBE (biznes stavka EMAS,
+faqat sxemani sinash uchun), YANGI bloker topildi**: `12` qiymati (butun
+son, 0-99 oralig'ida) hech qanday xatosiz QABUL QILINDI. Bu FAQAT
+`vatPercent` maydonining TIP/DIAPAZON cheklovini tasdiqlaydi — **12%ni
+SAFAAR'ning haqiqiy QQS stavkasi sifatida ISHLATISH KERAK EMAS**, kodga
+ham yozilmadi.
+
+Shundan keyin YANGI, ILGARI KO'RINMAGAN xato chiqdi:
+```
+Value error: You need pass TIN or PINFL for receiptParams
+```
+Ya'ni `receiptParams` ichida **`TIN` (STIR) yoki `PINFL` (JSHSHIR)dan
+KAMIDA BITTASI MAJBURIY** ekan (`UZReceiptParams` sxemasida ikkalasi ham
+ixtiyoriy ko'rinsa-da, amalda BIRI SHART). Bu — **SAFAAR'ning o'z STIR
+raqami** (yuridik shaxs sifatida ro'yxatdan o'tgan soliq to'lovchi ID'si)
+— mahsulot klassifikatsiyasi EMAS, MERCHANT identifikatori. Bu qiymat:
+- reponziyoriyda HECH QAYERDA saqlanmagan (allaqachon tasdiqlangan —
+  fiskalizatsiya ma'lumotlari umuman yo'q);
+- O'YLAB TOPILMADI — bu SAFAAR'ning haqiqiy yuridik shaxs STIR raqami,
+  buni faqat kompaniya buxgalteriyasi/ro'yxatdan o'tish hujjatlaridan
+  olish mumkin.
+
+**Yangi aniq bloker**: `receiptParams.TIN` (yoki `PINFL`) — SAFAAR'ning
+haqiqiy STIR/JSHSHIR raqami kerak, bu ham BIZNES tomonidan berilishi
+kerak (IKPU/unit kod qanday berilgan bo'lsa, xuddi shunday).
