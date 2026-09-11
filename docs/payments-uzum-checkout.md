@@ -327,6 +327,61 @@ Shu sabab `register()`/`getOrderStatus()`/`getOperationState()`/`refund()`
 hamon `SPEC_REQUIRED` bilan fail-closed qoladi — bu FAQAT maydon
 NOMLARINI tasdiqlaydi, TO'LIQ kontraktni emas.
 
+### 2026-09-11 — real REGISTER urinishi: enumlar tasdiqlandi, AUTOFISCALIZATION bloker
+
+Sandbox terminalga (test kredentiallar bilan, faqat test summasi —
+haqiqiy pul YO'Q) ketma-ket 5 ta `POST /api/v1/payment/register`
+so'rovi yuborildi, har birida Uzum'ning HAQIQIY validatsiya xatosidan
+keyingisi tuzatildi. Yakuniy holat — quyidagilar HAQIQIY, ISHLAYDIGAN
+qiymatlar sifatida TASDIQLANDI (kredential/karta qiymatlari YO'Q):
+
+- `Content-Language` sarlavhasi: `'ru-RU'` | `'uz-UZ'` | `'en-EN'`
+  (aniq shu formatda — oddiy `'uz'`/`'en'` RAD ETILADI).
+- `viewType`: `'WEB_VIEW'` | `'IFRAME'` | `'REDIRECT'`.
+  `'REDIRECT'` tanlansa, body'da **`successUrl` va `failureUrl`
+  MAJBURIY** (bu bizning ichki domen maydonlarimiz bilan ALLAQACHON
+  mos — `RegisterCheckoutInput.successUrl/failureUrl`).
+- `currency`: ISO-4217 **RAQAMLI** kod, ALFA KOD EMAS —
+  UZS = **`860`** (`'UZS'` string RAD ETILADI). Boshqa ko'rilgan
+  qiymatlar: `643`=RUB, `840`=USD, `978`=EUR.
+- `paymentParams.payType`: `'ONE_STEP'` | `'TWO_STEP'` (bir/ikki
+  bosqichli to'lov — repo'dagi eski terminologiya bilan mos keladi).
+- `clientId` (ixtiyoriy client-generated UUID) va `amount` (butun son)
+  — HECH QANDAY qo'shimcha validatsiya xatosi bermadi (format/tip
+  to'g'ri, lekin bu ularning SEMANTIKASINI — masalan `amount` birligi
+  so'mmi yoki tiyinmi — TASDIQLAMAYDI, faqat qabul qilinishini
+  ko'rsatadi).
+
+Yuqoridagi HAMMA maydon to'g'ri bo'lgach (5-urinish), javob endi
+Pydantic validatsiya xatosi EMAS, balki **biznes-qoida xatosi**:
+```
+errorCode: 3045
+"[AUTOFISCALIZATION] You need to provide a cart with fiscalization
+ params for your operation"
+```
+Ya'ni: **bu test terminal avtofiskalizatsiya YOQILGAN holda
+sozlangan** — har bir `register` so'rovi fiskal `cart` (tovar/xizmat
+ro'yxati, IKPU/MXIK kodlari, SPIC, QQS stavkasi) talab qiladi. `cart`
+maydonini bo'sh `{}` bilan yuborish xatoni O'ZGARTIRMADI (bu
+struktura darajasidagi emas, biznes-qoida darajasidagi tekshiruv —
+Pydantic kabi "missing field" ro'yxatini bermaydi).
+
+**BU YERDA TO'XTATILDI — taxminiy IKPU/MXIK kod yoki soxta
+`cart` tarkibi O'YLAB TOPILMADI.** Sabab: `docs/payments-uzum-checkout.md`
+"Uzum Checkout komissiyasi" bo'limida va oldingi fiskalizatsiya
+auditida (2026-09-10) allaqachon qayd etilganidek, **SAFAAR'da
+fiskalizatsiya/IKPU/MXIK/cart-line-item infratuzilmasi UMUMAN YO'Q**
+— qaysi IKPU kodi mehmonxona bronlash yoki avtobus chiptasiga mos
+kelishini BIZNES/BUXGALTERIYA hal qilishi kerak, bu kod tomonidan
+taxmin qilinadigan narsa emas. Bu — real, texnik jihatdan aniqlangan
+BLOKER, IP yoki credential muammosi EMAS.
+
+**Xulosa**: `register()`ning to'liq WIRE-FORMATI (majburiy
+maydonlar+enumlar darajasida) endi katta ishonch bilan MA'LUM.
+Yagona qolgan bloker — fiskalizatsiya `cart` tarkibi — BIZNES qarorga
+bog'liq. `outboundBlocker()` guard shu sabab hamon OLIB
+TASHLANMAYDI.
+
 ## Fayllar
 
 - `src/payments/providers/uzum-checkout.provider.ts` — provider: fail-closed imzo
