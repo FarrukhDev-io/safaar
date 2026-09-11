@@ -12,7 +12,7 @@ export async function getPrimaryHotel(token?: string | null) {
   if (!hotel) {
     const user = useAuthStore.getState().user;
     const partnerType = user?.partnerType;
-    if (partnerType && partnerType !== 'bus') {
+    if (partnerType && partnerType !== 'bus' && partnerType !== 'rent_car') {
       hotel = await partners.createHotel({ name: 'Yangi obyekt' }, token);
     }
   }

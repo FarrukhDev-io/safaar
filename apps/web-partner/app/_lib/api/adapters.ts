@@ -150,6 +150,52 @@ export function pageItems<T>(value: T[] | BackendPage<T>): T[] {
   return value.items ?? value.data ?? [];
 }
 
+export interface BackendBusCompany {
+  id: string;
+  partner_organization_id?: string;
+  name?: Localized;
+  status?: string;
+  short_description?: Localized;
+  full_description?: Localized;
+  city_id?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  rating_average?: number;
+  reviews_count?: number;
+}
+
+export function toBusListing(bus: BackendBusCompany): Listing {
+  return {
+    name: localized(bus.name),
+    shortDescription: localized(bus.short_description) || '',
+    fullDescription: localized(bus.full_description) || '',
+    status:
+      bus.status === 'active'
+        ? ListingStatus.PUBLISHED
+        : bus.status === 'pending_review'
+          ? ListingStatus.UNDER_REVIEW
+          : bus.status === 'hidden'
+            ? ListingStatus.HIDDEN
+            : ListingStatus.DRAFT,
+    address: bus.address ?? '',
+    city: '', 
+    latitude: bus.latitude,
+    longitude: bus.longitude,
+    stars: 0,
+    checkInTime: '',
+    checkOutTime: '',
+    amenities: [],
+    photos: [],
+    nearby: [],
+    cancellationPolicy: CancellationPolicy.MODERATE,
+    smokingAllowed: false,
+    petsAllowed: false,
+    childrenAllowed: true,
+    extraFees: [],
+  };
+}
+
 export function toListing(hotel: BackendHotel): Listing {
   const imageIds = hotel.image_ids ?? [];
   return {

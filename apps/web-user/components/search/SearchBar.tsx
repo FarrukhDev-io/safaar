@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/Button";
 
 export type { PropertyType, SearchDefaults };
 
-const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-[24px] bg-slate-50 px-4 py-3 transition-all duration-300 hover:bg-slate-100 md:rounded-[32px] md:bg-transparent md:px-5 md:py-3 md:hover:bg-slate-50 cursor-pointer dark:bg-slate-800 dark:hover:bg-slate-700";
+const fieldWrapperClass = "group relative flex min-w-0 flex-1 items-center gap-3 rounded-[24px] bg-white border border-slate-200 px-4 py-3 transition-all duration-300 hover:border-slate-300 md:rounded-[32px] md:border-transparent md:bg-transparent md:px-5 md:py-3 md:hover:border-slate-200 cursor-pointer";
 
 export function SearchBar({
   locale,
@@ -135,7 +135,7 @@ export function SearchBar({
     <div className="mx-auto w-full relative z-50">
       <form
         onSubmit={handleSubmit}
-        className="relative flex flex-col gap-3 rounded-[32px] border border-slate-200 bg-white p-3 shadow-2xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none md:flex-row md:items-center md:gap-1 md:rounded-[40px] md:p-2 sm:p-4"
+        className="relative flex flex-col gap-3 rounded-[32px] border border-slate-200 bg-white p-3 shadow-2xl transition-all duration-300 md:flex-row md:items-center md:gap-1 md:rounded-[40px] md:p-2 sm:p-4"
       >
         {/* 1. Shahar / Destinatsiya */}
         <div 
@@ -165,7 +165,7 @@ export function SearchBar({
               {recentSearches.map((search) => (
                 <div
                   key={search.timestamp}
-                  className="group flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 hover:bg-slate-50 transition-colors"
+                  className="group flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 bg-white border border-transparent hover:border-slate-200 transition-colors"
                   onClick={() => {
                     setCityId(search.cityId);
                     setGuests(search.guests);
@@ -196,7 +196,7 @@ export function SearchBar({
                   </div>
                   <button
                     type="button"
-                    className="p-1 rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
+                    className="p-1 rounded-full text-slate-400 bg-white border border-transparent hover:border-slate-200 hover:text-slate-600 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       setRecentSearches(prev => {
@@ -215,7 +215,7 @@ export function SearchBar({
           )}
         </div>
 
-        <div className="hidden h-10 w-px shrink-0 bg-slate-200 dark:bg-slate-700 md:block" aria-hidden />
+        <div className="hidden h-10 w-px shrink-0 bg-slate-200 md:block" aria-hidden />
 
         {/* 2. Sanalar (Kirish - Chiqish) */}
         <div className="min-w-0 flex-1 px-2 md:px-0">

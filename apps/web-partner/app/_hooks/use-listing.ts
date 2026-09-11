@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { pageItems, toListing } from '../_lib/api/adapters';
+import { pageItems, toListing, toBusListing } from '../_lib/api/adapters';
 import { partners } from '../_lib/api';
 import { useDataStore } from '../_stores/data-store';
 import { useAuthStore } from '../_stores/auth-store';
@@ -21,13 +21,20 @@ export function useListing() {
   const listing = useDataStore((s) => s.listing);
   const setListing = useDataStore((s) => s.setListing);
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
+  const type = useAuthStore((s) => s.user?.partnerType);
+  const isBus = type === 'bus' || type === 'rent_car';
+
   const query = useQuery({
     queryKey: listingQueryKey,
     queryFn: async () => {
+      if (isBus) {
+        const bus = await partners.getBusCompany(accessToken);
+        return bus ? toBusListing(bus) : listing;
+      }
       const [hotel] = pageItems(await partners.listHotels(accessToken));
       return hotel ? toListing(hotel) : listing;
     },
-    enabled: Boolean(accessToken),
+    enabled: Boolean(accessToken) && Boolean(type),
   });
 
   useEffect(() => {
@@ -65,35 +72,61 @@ export function useListingCompleteness() {
 
 function useListingMutation<TVariables>(
   mutationFn: (
-    hotelId: string,
+    hotelId: string | null,
     token: string | null | undefined,
     variables: TVariables,
+    isBus: boolean,
   ) => Promise<Listing>,
 ) {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
+  const type = useAuthStore((s) => s.user?.partnerType);
+  const isBus = type === 'bus' || type === 'rent_car';
   const setListing = useDataStore((s) => s.setListing);
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (variables: TVariables) => {
-      const hotel = await getPrimaryHotel(accessToken);
-      if (!hotel) {
-        throw new Error("Sizning hamkor turingiz uchun alohida e'lon profili saqlanmaydi yoki obyektingiz hali tasdiqlanmagan.");
+      let hotelId = null;
+      if (!isBus) {
+        const hotel = await getPrimaryHotel(accessToken);
+        hotelId = hotel?.id ?? null;
       }
-      return mutationFn(hotel.id, accessToken, variables);
+      return mutationFn(hotelId, accessToken, variables, isBus);
     },
     onSuccess: (listing) => {
       setListing(listing);
       queryClient.setQueryData(listingQueryKey, listing);
-      void queryClient.invalidateQueries({ queryKey: primaryHotelQueryKey });
+      if (!isBus) {
+        void queryClient.invalidateQueries({ queryKey: primaryHotelQueryKey });
+      }
     },
   });
 }
 
 export function useUpdateListingGeneral() {
-  return useListingMutation<ListingGeneralDraft>((hotelId, token, values) =>
-    partners
+  return useListingMutation<ListingGeneralDraft>((hotelId, token, values, isBus) => {
+    if (isBus) {
+      return partners.updateBusCompany({
+        name: values.name,
+        shortDescription: values.shortDescription,
+        fullDescription: values.fullDescription,
+      }, token).then(toBusListing);
+    }
+    if (!isBus && !hotelId) {
+      return partners.createHotel(
+        {
+          name: values.name,
+          shortDescription: values.shortDescription,
+          fullDescription: values.fullDescription,
+          stars: values.stars,
+        },
+        token,
+      ).then(toListing);
+    }
+    
+    return partners
       .updateListingGeneral(
-        hotelId,
+        hotelId!,
         {
           name: values.name,
           shortDescription: values.shortDescription,
@@ -102,43 +135,64 @@ export function useUpdateListingGeneral() {
         },
         token,
       )
-      .then(toListing),
-  );
+      .then(toListing);
+  });
 }
 
 export function useUpdateListingLocation() {
-  return useListingMutation<ListingLocationDraft>((hotelId, token, values) =>
-    partners.updateListingLocation(hotelId, values, token).then(toListing),
-  );
+  return useListingMutation<ListingLocationDraft>((hotelId, token, values, isBus) => {
+    if (isBus) {
+      const currentListing = useDataStore.getState().listing;
+      return partners.updateBusCompany({
+        name: currentListing.name,
+        address: values.address,
+        latitude: values.latitude,
+        longitude: values.longitude,
+      }, token).then(toBusListing);
+    }
+    return partners.updateListingLocation(hotelId!, values, token).then(toListing);
+  });
 }
 
 export function useUpdateListingRules() {
   return useListingMutation<ListingRulesDraft>((hotelId, token, values) =>
-    partners.updateListingRules(hotelId, values, token).then(toListing),
+    partners.updateListingRules(hotelId!, values, token).then(toListing),
   );
 }
 
 export function useUpdateListingAmenities() {
   return useListingMutation<string[]>((hotelId, token, amenities) =>
-    partners.updateListingAmenities(hotelId, amenities, token).then(toListing),
+    partners.updateListingAmenities(hotelId!, amenities, token).then(toListing),
   );
 }
 
 /** E'lonni butunlay tozalab, qayta to'ldirish uchun (qaytarib bo'lmaydi). */
 export function useResetListing() {
   return useListingMutation<void>((hotelId, token) =>
-    partners.resetHotel(hotelId, token).then(toListing),
+    partners.resetHotel(hotelId!, token).then(toListing),
   );
 }
 
 export function useUpdateListingStatus() {
-  return useListingMutation<ListingStatus>((hotelId, token, status) => {
+  return useListingMutation<ListingStatus>((hotelId, token, status, isBus) => {
     const backendStatus =
       status === ListingStatus.UNDER_REVIEW
         ? 'pending_review'
         : status.toLowerCase();
+        
+    if (isBus) {
+      const currentListing = useDataStore.getState().listing;
+      return partners.updateBusCompany({
+        name: currentListing.name,
+        status: backendStatus,
+      }, token).then((bus) => ({
+          ...currentListing,
+          status: toBusListing(bus).status,
+        }));
+    }
+
     return partners
-      .updateListingStatus(hotelId, backendStatus, token)
+      .updateListingStatus(hotelId!, backendStatus, token)
       .then((hotel) => ({
         ...useDataStore.getState().listing,
         status: toListing(hotel).status,

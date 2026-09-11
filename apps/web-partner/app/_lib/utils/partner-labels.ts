@@ -284,6 +284,7 @@ const LABELS_MAP: Record<string, PartnerLabels> = {
   dacha: DACHA_LABELS,
   hostel: HOSTEL_LABELS,
   bus: BUS_LABELS,
+  rent_car: BUS_LABELS,
   guesthouse: GUESTHOUSE_LABELS,
   motel: MOTEL_LABELS,
   restaurant: RESTAURANT_LABELS,
@@ -308,7 +309,8 @@ export function hasRooms(partnerType?: string | null): boolean {
 }
 
 export function hasBuses(partnerType?: string | null): boolean {
-  return (partnerType ?? "hotel").toLowerCase() === "bus";
+  const type = (partnerType ?? "hotel").toLowerCase();
+  return type === "bus" || type === "rent_car";
 }
 
 export function isDacha(partnerType?: string | null): boolean {

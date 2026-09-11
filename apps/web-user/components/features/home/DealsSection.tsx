@@ -85,8 +85,8 @@ export function DealsSection({
       />
 
       {deals.length === 0 ? (
-        <EmptyState 
-          icon={<Tag className="h-10 w-10 text-slate-400 dark:text-slate-500" />}
+          <EmptyState 
+            icon={<Tag className="h-10 w-10 text-slate-400" />}
           title={(dict as any).empty || "Hozircha bo'sh"} 
           description="Ushbu sahifada tez orada foydali chegirmalar paydo bo'ladi." 
           className="mt-6"

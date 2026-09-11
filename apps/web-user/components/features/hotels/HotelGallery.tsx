@@ -23,7 +23,7 @@ export function HotelGallery({
   if (shots.length === 0) {
     return (
       <div
-        className="flex aspect-[21/9] w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800"
+        className="flex aspect-[21/9] w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-400"
         role="img"
         aria-label={alt}
       >
@@ -39,12 +39,12 @@ export function HotelGallery({
     <>
       {/* Desktop/Mobile Gallery Grid */}
       <div
-        className="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md dark:border-slate-800"
+        className="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md"
         onClick={() => setIsOpen(true)}
       >
         <div className="grid grid-cols-1 gap-1.5 sm:h-[400px] sm:grid-cols-4 sm:grid-rows-2">
           {/* Large Main Featured Photo */}
-          <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 sm:col-span-2 sm:row-span-2 sm:aspect-auto dark:bg-slate-800">
+          <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 sm:col-span-2 sm:row-span-2 sm:aspect-auto">
             <Image
               src={mainPhoto}
               alt={`${alt} — Asosiy ko'rinish`}
@@ -61,7 +61,7 @@ export function HotelGallery({
             <div
               key={`${src}-${i}`}
               className={cn(
-                'relative hidden overflow-hidden bg-slate-100 sm:block dark:bg-slate-800',
+                'relative hidden overflow-hidden bg-slate-100 sm:block',
                 i === 0 && 'sm:col-span-1 sm:row-span-1',
                 i === 1 && 'sm:col-span-1 sm:row-span-1',
                 i === 2 && 'sm:col-span-1 sm:row-span-1',
@@ -86,9 +86,9 @@ export function HotelGallery({
               e.stopPropagation();
               setIsOpen(true);
             }}
-            className="absolute bottom-4 right-4 z-10 inline-flex items-center gap-2 rounded-xl border border-white/30 bg-slate-900/80 px-4 py-2.5 text-sm font-semibold text-white shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:bg-slate-900 active:scale-95"
+            className="absolute bottom-4 right-4 z-10 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition-all hover:scale-105 hover:bg-slate-50 active:scale-95"
           >
-            <Camera className="h-4 w-4 text-amber-300" />
+            <Camera className="h-4 w-4 text-slate-800" />
             <span>{shots.length} ta rasm</span>
           </button>
         )}
@@ -106,7 +106,7 @@ export function HotelGallery({
             images={shots}
             alt={alt}
             aspectRatio="aspect-[16/10] sm:aspect-[21/9]"
-            className="rounded-xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-800"
+            className="rounded-xl shadow-lg ring-1 ring-slate-200"
           />
         </div>
       </Modal>

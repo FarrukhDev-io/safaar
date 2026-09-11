@@ -109,68 +109,84 @@ export function ReviewsList({
       : "0.0";
 
   return (
-    <section className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-card p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="flex flex-col gap-8">
       {/* Header Summary & Rating Breakdown */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-6 dark:border-slate-800">
-        <div className="flex items-center gap-5">
-          <div className="flex flex-col items-center justify-center rounded-2xl bg-primary-50 px-5 py-4 text-center dark:bg-primary-950/40">
-            <span className="text-3xl font-extrabold text-primary-600 dark:text-primary-400">
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+        
+        {/* Left Side: Overall Score */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-end gap-3">
+            <span className="text-6xl font-extrabold text-slate-900 tracking-tight">
               {avgOverall}
             </span>
-            <div className="flex text-amber-400 my-1">
-              {"★".repeat(Math.round(Number(avgOverall)))}
+            <div className="flex flex-col pb-1.5">
+              <span className="text-sm font-semibold text-slate-900">Exceptional</span>
+              <span className="text-sm text-slate-500">{totalCount} {dict.title}</span>
             </div>
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              {totalCount} ta sharh
-            </span>
           </div>
+        </div>
 
-          <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
-              {dict.title}
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Tasdiqlangan mehmonlarning haqiqiy baholari va tajribasi
-            </p>
+        {/* Right Side: Breakdown (Mocked) */}
+        <div className="flex-1 max-w-md w-full flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-slate-900 w-24">Cleanliness</span>
+            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full bg-slate-900 rounded-full" style={{ width: '98%' }}></div>
+            </div>
+            <span className="text-sm font-bold text-slate-900 w-8 text-right">4.9</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-slate-900 w-24">Location</span>
+            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full bg-slate-900 rounded-full" style={{ width: '100%' }}></div>
+            </div>
+            <span className="text-sm font-bold text-slate-900 w-8 text-right">5.0</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-slate-900 w-24">Service</span>
+            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full bg-slate-900 rounded-full" style={{ width: '96%' }}></div>
+            </div>
+            <span className="text-sm font-bold text-slate-900 w-8 text-right">4.8</span>
           </div>
         </div>
 
         {authed && hotelId && !isFormOpen && (
-          <Button onClick={() => setIsFormOpen(true)} variant="primary">
-            Sharh qoldirish
+          <Button onClick={() => setIsFormOpen(true)} variant="outline" className="border-slate-200 text-slate-900">
+            Write a review
           </Button>
         )}
       </div>
 
       {isFormOpen && (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-800/40">
-          <h3 className="font-bold text-slate-900 dark:text-white">Sharh yozish</h3>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="font-bold text-slate-900">Write a Review</h3>
           
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Baho (1-5)</label>
+            <label className="text-sm font-medium text-slate-900">Rating (1-5)</label>
             <select 
               value={rating} 
               onChange={(e) => setRating(Number(e.target.value))}
-              className="rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none dark:border-slate-700 dark:bg-slate-900"
+              className="rounded-xl border border-slate-200 bg-white p-2.5 text-sm outline-none focus:border-slate-400"
             >
-              {[5,4,3,2,1].map(num => <option key={num} value={num}>{num} Yulduz</option>)}
+              {[5,4,3,2,1].map(num => <option key={num} value={num}>{num} Stars</option>)}
             </select>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Sharh matni</label>
+            <label className="text-sm font-medium text-slate-900">Review Text</label>
             <textarea 
               required
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={4}
-              className="rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none dark:border-slate-700 dark:bg-slate-900"
-              placeholder="O'z tajribangiz haqida yozing..."
+              className="rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-slate-400"
+              placeholder="Tell us about your experience..."
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Rasmlar (ixtiyoriy)</label>
+            <label className="text-sm font-medium text-slate-900">Photos (optional)</label>
             <input 
               type="file" 
               multiple 
@@ -180,16 +196,16 @@ export function ReviewsList({
                   setFiles(Array.from(e.target.files));
                 }
               }}
-              className="text-sm"
+              className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-900 hover:file:bg-slate-200"
             />
           </div>
 
-          <div className="flex gap-2 justify-end mt-2">
+          <div className="flex gap-2 justify-end mt-4">
             <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)} disabled={isSubmitting}>
-              Bekor qilish
+              Cancel
             </Button>
             <Button type="submit" variant="primary" disabled={isSubmitting}>
-              {isSubmitting ? "Yuborilmoqda..." : "Yuborish"}
+              {isSubmitting ? "Submitting..." : "Submit Review"}
             </Button>
           </div>
         </form>
@@ -197,11 +213,11 @@ export function ReviewsList({
 
       {/* Reviews List */}
       {reviewsList.length === 0 ? (
-        <div className="py-12 text-center text-slate-500 rounded-2xl border border-dashed border-slate-200">
+        <div className="py-16 text-center text-slate-500">
           {dict.empty}
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {reviewsList.map((review) => {
             const rating = Math.max(0, Math.min(5, Math.round(review.rating)));
             const dateLabel = formatReviewDate(review.createdAt, locale);
@@ -209,72 +225,66 @@ export function ReviewsList({
             return (
               <div
                 key={review.id}
-                className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-5 shadow-xs transition-all hover:bg-slate-50 dark:border-slate-800/80 dark:bg-slate-800/40"
+                className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 transition-all hover:shadow-sm"
               >
                 {/* Author Info Header */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar
-                      src={review.avatarUrl}
-                      alt={review.authorName || "Mehmon"}
-                      fallback={review.authorName?.charAt(0) || "M"}
-                      size="sm"
-                    />
+                <div className="flex items-center gap-4">
+                  <Avatar
+                    src={review.avatarUrl}
+                    alt={review.authorName || "Guest"}
+                    fallback={review.authorName?.charAt(0) || "G"}
+                    size="md"
+                  />
 
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {review.authorName || "Mehmon"}
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-bold text-slate-900">
+                        {review.authorName || "Guest"}
+                      </span>
+                      {review.isVerifiedGuest && (
+                        <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-900">
+                        {rating}.0
+                      </span>
+                      {dateLabel && (
+                        <span className="text-sm text-slate-500">
+                          • {dateLabel}
                         </span>
-                        {review.isVerifiedGuest && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                            <ShieldCheck className="h-3 w-3 stroke-[2.5]" />
-                            Tasdiqlangan Mehmon
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-amber-500 font-bold">
-                          {"★".repeat(rating)} ({rating}.0)
-                        </span>
-                        {dateLabel && (
-                          <span className="text-xs text-slate-400">
-                            • {dateLabel}
-                          </span>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 {/* Review Text */}
                 {review.body && (
-                  <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                  <p className="text-base leading-relaxed text-slate-700">
                     {review.body}
                   </p>
                 )}
 
                 {/* Photo Gallery Thumbnails */}
                 {review.photos && review.photos.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-1">
+                  <div className="flex flex-wrap gap-2 pt-2">
                     {review.photos.map((photo, idx) => (
                       <button
-                        key={idx}
-                        type="button"
-                        onClick={() => openLightbox(review.photos!, idx)}
-                        className="group relative h-20 w-20 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700"
-                      >
-                        <Image
-                          src={photo}
-                          alt={`Review photo ${idx + 1}`}
-                          fill
-                          className="object-cover transition-transform duration-200 group-hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-black/20 opacity-0 transition-opacity group-hover:opacity-100 grid place-items-center">
-                          <Camera className="h-5 w-5 text-white" />
-                        </div>
-                      </button>
+                         key={idx}
+                         type="button"
+                         onClick={() => openLightbox(review.photos!, idx)}
+                         className="group relative h-24 w-24 overflow-hidden rounded-xl bg-slate-100"
+                       >
+                         <Image
+                           src={photo}
+                           alt={`Review photo ${idx + 1}`}
+                           fill
+                           className="object-cover transition-transform duration-200 group-hover:scale-105"
+                         />
+                         <div className="absolute inset-0 bg-black/10 opacity-0 transition-opacity group-hover:opacity-100 grid place-items-center">
+                           <Camera className="h-6 w-6 text-white" />
+                         </div>
+                       </button>
                     ))}
                   </div>
                 )}
@@ -293,6 +303,6 @@ export function ReviewsList({
           onNavigate={(newIdx) => setPhotoIndex(newIdx)}
         />
       )}
-    </section>
+    </div>
   );
 }

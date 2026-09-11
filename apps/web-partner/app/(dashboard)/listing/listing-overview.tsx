@@ -24,7 +24,7 @@ import {
   Users,
   Trash2,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '../../_components/ui/button';
 import { Card, CardBody } from '../../_components/ui/card';
@@ -113,6 +113,8 @@ export function ListingOverview() {
 
   const [openEditor, setOpenEditor] = useState<OpenEditor>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+
+
   const [roomTypeDialogOpen, setRoomTypeDialogOpen] = useState(false);
   const [editingRoomType, setEditingRoomType] = useState<
     import('../../_lib/domain/types').RoomType | null
@@ -300,7 +302,8 @@ export function ListingOverview() {
 
     if (isBus) {
       return [
-        ...base,
+        base[0],
+        base[3],
         {
           id: 'rooms',
           title: 'Avtomobillar',
@@ -405,6 +408,7 @@ export function ListingOverview() {
     });
   };
 
+
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="flex min-w-0 flex-col gap-5">
@@ -436,58 +440,60 @@ export function ListingOverview() {
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPreviewOpen(true)}
-                    >
-                      <Eye className="h-4 w-4" aria-hidden />
-                      Preview
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={
-                        listing.status === ListingStatus.PUBLISHED
-                          ? 'outline'
-                          : 'primary'
-                      }
-                      disabled={
-                        updateStatus.isPending ||
-                        listing.status === ListingStatus.UNDER_REVIEW ||
-                        (!readyToSubmit &&
-                          listing.status !== ListingStatus.PUBLISHED &&
-                          listing.status !== ListingStatus.HIDDEN)
-                      }
-                      onClick={handlePublishAction}
-                    >
-                      {listing.status === ListingStatus.PUBLISHED ? (
-                        <>
-                          <EyeOff className="h-4 w-4" aria-hidden />
-                          Yashirish
-                        </>
-                      ) : listing.status === ListingStatus.HIDDEN ? (
-                        <>
-                          <Eye className="h-4 w-4" aria-hidden />
-                          Qayta nashr
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4" aria-hidden />
-                          Nashrga yuborish
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={resetListing.isPending}
-                      onClick={handleResetListing}
-                    >
-                      <RotateCcw className="h-4 w-4" aria-hidden />
-                      Qayta e'lon yaratish
-                    </Button>
-                  </div>
+                  {!isBus && (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPreviewOpen(true)}
+                      >
+                        <Eye className="h-4 w-4" aria-hidden />
+                        Preview
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={
+                          listing.status === ListingStatus.PUBLISHED
+                            ? 'outline'
+                            : 'primary'
+                        }
+                        disabled={
+                          updateStatus.isPending ||
+                          listing.status === ListingStatus.UNDER_REVIEW ||
+                          (!readyToSubmit &&
+                            listing.status !== ListingStatus.PUBLISHED &&
+                            listing.status !== ListingStatus.HIDDEN)
+                        }
+                        onClick={handlePublishAction}
+                      >
+                        {listing.status === ListingStatus.PUBLISHED ? (
+                          <>
+                            <EyeOff className="h-4 w-4" aria-hidden />
+                            Yashirish
+                          </>
+                        ) : listing.status === ListingStatus.HIDDEN ? (
+                          <>
+                            <Eye className="h-4 w-4" aria-hidden />
+                            Qayta nashr
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4" aria-hidden />
+                            Nashrga yuborish
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={resetListing.isPending}
+                        onClick={handleResetListing}
+                      >
+                        <RotateCcw className="h-4 w-4" aria-hidden />
+                        Qayta e'lon yaratish
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -513,47 +519,59 @@ export function ListingOverview() {
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                  <Signal
-                    label="Rasmlar"
-                    value={`${listing.photos.length} ta`}
-                    hint={cover ? 'Muqova bor' : 'Muqova kerak'}
-                  />
-                  <Signal
-                    label="Qulayliklar"
-                    value={`${listing.amenities.length} ta`}
-                    hint="Filtrlarda chiqadi"
-                  />
-                  <Signal
-                    label="Joylashuv"
-                    value={listing.city || 'Kiritilmagan'}
-                    hint={
-                      typeof listing.latitude === 'number'
-                        ? listing.nearby.length > 0
-                          ? `${listing.nearby.length} yaqin joy · xarita bor`
-                          : 'Xarita bor'
-                        : 'Xarita nuqtasi kerak'
-                    }
-                  />
-                  {!dacha && (
+                  {isBus ? (
                     <Signal
-                      label={labels.unitTypesTitle}
-                      value={`${roomAds.length} tur`}
-                      hint={`${listedRooms.length} ${labels.unitPlural} sotuvda`}
+                      label="Avtomobillar"
+                      value={`${vehicles.length} ta`}
+                      hint={`${vehicles.filter(v => v.status === 'active').length} ta sotuvda`}
                     />
+                  ) : (
+                    <>
+                      <Signal
+                        label="Rasmlar"
+                        value={`${listing.photos.length} ta`}
+                        hint={cover ? 'Muqova bor' : 'Muqova kerak'}
+                      />
+                      <Signal
+                        label="Qulayliklar"
+                        value={`${listing.amenities.length} ta`}
+                        hint="Filtrlarda chiqadi"
+                      />
+                      <Signal
+                        label="Joylashuv"
+                        value={listing.city || 'Kiritilmagan'}
+                        hint={
+                          typeof listing.latitude === 'number'
+                            ? listing.nearby.length > 0
+                              ? `${listing.nearby.length} yaqin joy · xarita bor`
+                              : 'Xarita bor'
+                            : 'Xarita nuqtasi kerak'
+                        }
+                      />
+                      {!dacha && (
+                        <Signal
+                          label={labels.unitTypesTitle}
+                          value={`${roomAds.length} tur`}
+                          hint={`${listedRooms.length} ${labels.unitPlural} sotuvda`}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </div>
 
-              <LivePreview
-                cover={cover?.url}
-                name={listing.name}
-                city={listing.city}
-                stars={listing.stars}
-                showStars={showStars}
-                shortDescription={listing.shortDescription}
-                photosCount={listing.photos.length}
-                onOpen={() => setPreviewOpen(true)}
-              />
+              {!isBus && (
+                <LivePreview
+                  cover={cover?.url}
+                  name={listing.name}
+                  city={listing.city}
+                  stars={listing.stars}
+                  showStars={showStars}
+                  shortDescription={listing.shortDescription}
+                  photosCount={listing.photos.length}
+                  onOpen={() => setPreviewOpen(true)}
+                />
+              )}
             </div>
           </CardBody>
         </Card>
@@ -614,9 +632,11 @@ export function ListingOverview() {
               <p className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">
                 {nextSection
                   ? nextSection.missing
-                  : listing.status === ListingStatus.PUBLISHED
-                    ? "E'lon faol. Kerak bo'lsa preview orqali mijoz ko'rinishini tekshiring."
-                    : "Barcha bo'limlar tayyor. Endi e'lonni nashrga yuborishingiz mumkin."}
+                  : isBus
+                    ? "Barcha kerakli ma'lumotlar kiritilgan. Avtomobillaringiz mijozlarga ko'rinadi."
+                    : listing.status === ListingStatus.PUBLISHED
+                      ? "E'lon faol. Kerak bo'lsa preview orqali mijoz ko'rinishini tekshiring."
+                      : "Barcha bo'limlar tayyor. Endi e'lonni nashrga yuborishingiz mumkin."}
               </p>
             </div>
 
@@ -643,35 +663,37 @@ export function ListingOverview() {
         <Card>
           <CardBody className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold">Mijozga ko'rinadiganlar</h2>
-            <ChecklistItem done={Boolean(listing.name)} label="E'lon nomi" />
-            <ChecklistItem
-              done={listing.photos.length >= 3}
-              label="Kamida 3 ta rasm"
-            />
-            <ChecklistItem
-              done={listing.amenities.length >= 3}
-              label="Asosiy qulayliklar"
-            />
-            <ChecklistItem
-              done={Boolean(listing.address)}
-              label="Aniq manzil"
-            />
-            <ChecklistItem
-              done={
-                typeof listing.latitude === 'number' &&
-                typeof listing.longitude === 'number'
-              }
-              label="Xaritadagi nuqta"
-            />
             {!isBus && (
-              <ChecklistItem
-                done={Boolean(listing.checkInTime && listing.checkOutTime)}
-                label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
-              />
+              <>
+                <ChecklistItem done={Boolean(listing.name)} label="E'lon nomi" />
+                <ChecklistItem
+                  done={listing.photos.length >= 3}
+                  label="Kamida 3 ta rasm"
+                />
+                <ChecklistItem
+                  done={listing.amenities.length >= 3}
+                  label="Asosiy qulayliklar"
+                />
+                <ChecklistItem
+                  done={Boolean(listing.address)}
+                  label="Aniq manzil"
+                />
+                <ChecklistItem
+                  done={
+                    typeof listing.latitude === 'number' &&
+                    typeof listing.longitude === 'number'
+                  }
+                  label="Xaritadagi nuqta"
+                />
+                <ChecklistItem
+                  done={Boolean(listing.checkInTime && listing.checkOutTime)}
+                  label={`${labels.checkInLabel}/${labels.checkOutLabel.toLowerCase()} va qoidalar`}
+                />
+              </>
             )}
             <ChecklistItem
-              done={restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
-              label={restaurant ? 'Stollar' : labels.unitTypesTitle}
+              done={isBus ? vehicles.some(v => v.status === 'active') : restaurant ? listedRooms.length > 0 : roomAds.length > 0 && listedRooms.length > 0}
+              label={isBus ? 'Avtomobillar' : restaurant ? 'Stollar' : labels.unitTypesTitle}
             />
           </CardBody>
         </Card>

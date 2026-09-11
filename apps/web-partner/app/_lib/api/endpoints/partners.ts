@@ -159,6 +159,32 @@ export function updateHotelImage(
   );
 }
 
+export function getBusCompany(token?: string | null) {
+  return request<any>('/partners/bus-company', { token });
+}
+
+export function updateBusCompany(
+  body: Record<string, unknown>,
+  token?: string | null,
+) {
+  return request<any>('/partners/bus-company', {
+    method: 'PATCH',
+    body,
+    token,
+  });
+}
+
+export function updateBusCompanyStatus(
+  status: string,
+  token?: string | null,
+) {
+  return request<any>('/partners/bus-company', {
+    method: 'PATCH',
+    body: { status },
+    token,
+  });
+}
+
 export function uploadImage(file: File, token?: string | null) {
   const formData = new FormData();
   formData.set('file', file);
