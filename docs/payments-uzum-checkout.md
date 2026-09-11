@@ -565,3 +565,34 @@ raqami** (yuridik shaxs sifatida ro'yxatdan o'tgan soliq to'lovchi ID'si)
 **Yangi aniq bloker**: `receiptParams.TIN` (yoki `PINFL`) — SAFAAR'ning
 haqiqiy STIR/JSHSHIR raqami kerak, bu ham BIZNES tomonidan berilishi
 kerak (IKPU/unit kod qanday berilgan bo'lsa, xuddi shunday).
+
+**2026-09-11 (davomi) — rasmiy dokumentatsiyadagi PINFL placeholder
+ishlatildi, YANGI (chuqurroq) bloker topildi**: Uzum'ning o'z rasmiy JS
+bundle hujjatida **ikki alohida joyda** aynan shu placeholder ko'rsatilgan:
+`PINFL: "11111111111111"` (ish. misolida `receiptParams` ichida, va
+`commission_info` jadvalidagi izohli misolida — "TIN yuridik, PINFL jismoniy
+shaxslar uchun"). Bu SAFAAR tomonidan O'YLAB TOPILMAGAN — Uzum'ning O'ZI
+docs'da ko'rsatgan namunaviy qiymat, shuning uchun sandbox so'roviga
+qo'shildi.
+
+Natija: **Pydantic sxema tekshiruvi TO'LIQ o'tdi** (endi hech qanday
+"Field required" xatosi yo'q) — so'rov ENDI ilovaning ICHKI biznes-qatlamiga
+yetib bordi va YANGI, ANIQROQ xato qaytardi:
+```
+errorCode: 3055
+{"spics": [{"spic": "10204001010000000",
+            "reason": "IKPU code is not found in the catalog",
+            "reason_code": 1}]}
+```
+Ya'ni: **MXIK `10204001010000000` (`tasnif.soliq.uz`dan olingan)
+Uzum'ning O'Z ICHKI fiskalizatsiya katalogida TOPILMADI.** Bu endi
+IKPU KOD DAN boshqa hech narsaga (VAT, packaging, PINFL — barchasi
+qabul qilindi) bog'liq emas — faqat shu bitta MXIK qiymatining
+Uzum tomonida tan olinishiga bog'liq.
+
+**BU YERDA TO'XTATILDI** — boshqa MXIK kodi O'YLAB TOPILMADI. Bu —
+BIZNES/BUXGALTERIYA uchun aniq, tor vazifa: `10204001010000000`ni
+`tasnif.soliq.uz`da QAYTA tekshirish (versiya/format/checksum farqi
+bo'lishi mumkin) YOKI Uzum texnik yordamidan ularning ICHKI
+katalogidagi "Mehmonxona xizmatlari" uchun TAN OLINGAN aniq MXIK
+qiymatini so'rash.
