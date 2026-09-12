@@ -2938,6 +2938,18 @@ export class AdminService {
    *    qolardi (ikki marta sarflash).
    * Faqat `requested`/`processing` holatidan tasdiqlash mumkin — allaqachon
    * tasdiqlangan/rad etilgan refund'ni qayta tasdiqlab bo'lmaydi.
+   *
+   * IDEMPOTENTLIK (2026-09-12 tuzatildi): bitta bookingga bir nechta
+   * MUSTAQIL `refunds` qatori mavjud bo'lishi mumkin (foydalanuvchi so'rovi,
+   * hamkor rad etishi, tizim avto-refundi — har biri boshqa service'dan,
+   * bir-biridan bexabar yaratiladi, `refunds.id` bo'yicha alohida-alohida).
+   * Ilgari, agar admin shu bookingning IKKINCHI (allaqachon boshqa qator
+   * orqali qaytarilgan) so'rovini ham tasdiqlasa, `payments`/`bookings`
+   * UPDATE'lari xavfsiz no-op bo'lardi (`WHERE status='paid'` mos kelmasdi),
+   * LEKIN hamkor ledgeriga manfiy yozuv SHARTSIZ qo'shilardi — natijada
+   * bitta haqiqiy pul qaytarishga IKKITA ledger debiti to'g'ri kelardi.
+   * Endi ledger yozuvi (va booking bekor qilish) FAQAT `payments` qatori
+   * haqiqatan `paid`dan `refunded`ga o'tgan taqdirdagina yoziladi.
    */
   async refundApprove(
     actor: RequestActor | undefined,
@@ -3006,13 +3018,28 @@ export class AdminService {
       );
 
       if (booking) {
-        await tx.query(
+        // MUHIM (double-ledger-debit bugini tuzatish): shu bookingga bir
+        // nechta MUSTAQIL `refunds` qatori mavjud bo'lishi mumkin (foydalanuvchi
+        // so'rovi + hamkor rad etishi + tizim avto-refundi — barchasi turli
+        // service'lardan, bir-biridan bexabar yaratiladi). Agar ADMIN ikkinchi
+        // (allaqachon boshqa qator orqali "refunded" bo'lgan) so'rovni ham
+        // tasdiqlasa, quyidagi UPDATE `status='paid'` shartiga mos kelmaydi
+        // (0 qator) — bu holatda booking bekor qilish va ledger yozuvi ATAYLAB
+        // O'TKAZIB YUBORILADI (`paymentActuallyRefunded` orqali), aks holda
+        // hamkor ledgeriga IKKINCHI marta manfiy yozuv tushib, real moliyaviy
+        // effekt haqiqiy pul harakatidan ikki barobar ko'p bo'lib qolardi.
+        const paymentUpdate = await tx.query<{ id: string }>(
           `UPDATE payments SET status = 'refunded', updated_at = $2
-           WHERE booking_id = $1::uuid AND status = 'paid'`,
+           WHERE booking_id = $1::uuid AND status = 'paid'
+           RETURNING id`,
           [booking.id, now],
         );
+        const paymentActuallyRefunded = paymentUpdate.length > 0;
 
-        if (!['cancelled', 'completed'].includes(booking.status)) {
+        if (
+          paymentActuallyRefunded &&
+          !['cancelled', 'completed'].includes(booking.status)
+        ) {
           await tx.query(
             `UPDATE bookings SET status = 'cancelled', cancelled_at = $2,
                     cancel_reason_text = 'Refund tasdiqlandi', updated_at = $2
@@ -3021,18 +3048,20 @@ export class AdminService {
           );
         }
 
-        await tx.query(
-          `INSERT INTO partner_ledger_entries (id, organization_id, booking_id, type, amount, currency, created_at)
-           VALUES ($1, $2, $3, 'refund', $4, $5, $6)`,
-          [
-            randomUUID(),
-            booking.partner_organization_id,
-            booking.id,
-            -Number(booking.partner_payable),
-            booking.currency,
-            now,
-          ],
-        );
+        if (paymentActuallyRefunded) {
+          await tx.query(
+            `INSERT INTO partner_ledger_entries (id, organization_id, booking_id, type, amount, currency, created_at)
+             VALUES ($1, $2, $3, 'refund', $4, $5, $6)`,
+            [
+              randomUUID(),
+              booking.partner_organization_id,
+              booking.id,
+              -Number(booking.partner_payable),
+              booking.currency,
+              now,
+            ],
+          );
+        }
       }
 
       return updated;

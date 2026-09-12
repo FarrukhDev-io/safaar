@@ -723,7 +723,7 @@ describe('AdminService frontend action endpoints', () => {
             currency: 'UZS',
           },
         ]) // SELECT booking FOR UPDATE
-        .mockResolvedValueOnce([]) // UPDATE payments -> refunded
+        .mockResolvedValueOnce([{ id: 'payment-1' }]) // UPDATE payments -> refunded (RETURNING id, 1 qator)
         .mockResolvedValueOnce([]) // UPDATE bookings -> cancelled
         .mockResolvedValueOnce([]); // INSERT partner_ledger_entries (negative)
 
@@ -794,7 +794,7 @@ describe('AdminService frontend action endpoints', () => {
             currency: 'UZS',
           },
         ])
-        .mockResolvedValueOnce([]) // UPDATE payments -> refunded
+        .mockResolvedValueOnce([{ id: 'payment-1' }]) // UPDATE payments -> refunded (RETURNING id, 1 qator)
         .mockResolvedValueOnce([]); // INSERT partner_ledger_entries (still reversed)
 
       await service.refundApprove(actor, refundId, {});
@@ -803,6 +803,46 @@ describe('AdminService frontend action endpoints', () => {
         String(sql).includes('UPDATE bookings SET status'),
       );
       expect(bookingUpdate).toBeUndefined();
+    });
+
+    it("IKKINCHI (mustaqil) refund qatori — to'lov ALLAQACHON boshqa qator orqali 'refunded' bo'lgan (payment.status endi 'paid' emas) — refund 'approved' deb belgilanadi, LEKIN booking bekor qilinmaydi va ledgerga IKKINCHI marta yozilmaydi (double-debit regression)", async () => {
+      pgMock.query
+        .mockResolvedValueOnce([
+          {
+            id: refundId,
+            booking_id: bookingId,
+            status: 'requested',
+            requested_amount: '80000',
+            currency: 'UZS',
+          },
+        ]) // SELECT refund FOR UPDATE
+        .mockResolvedValueOnce([
+          { id: refundId, status: 'approved', approved_amount: 80000 },
+        ]) // UPDATE refunds
+        .mockResolvedValueOnce([
+          {
+            id: bookingId,
+            status: 'cancelled', // boshqa refund qatori orqali ALLAQACHON bekor qilingan
+            partner_organization_id: partnerId,
+            partner_payable: 70400,
+            currency: 'UZS',
+          },
+        ]) // SELECT booking FOR UPDATE
+        .mockResolvedValueOnce([]); // UPDATE payments -> refunded: 0 QATOR (allaqachon 'paid' emas)
+
+      const result = await service.refundApprove(actor, refundId, {});
+
+      expect(result).toMatchObject({ status: 'approved' });
+
+      const bookingUpdate = pgMock.query.mock.calls.find(([sql]) =>
+        String(sql).includes('UPDATE bookings SET status'),
+      );
+      expect(bookingUpdate).toBeUndefined();
+
+      const ledgerInsert = pgMock.query.mock.calls.find(([sql]) =>
+        String(sql).includes('INSERT INTO partner_ledger_entries'),
+      );
+      expect(ledgerInsert).toBeUndefined();
     });
   });
 

@@ -1169,3 +1169,69 @@ operationType:"COMPLETE", operationState:"SUCCESS"}` — `amount`
 env fayllari tozalandi, production (`safaar-backend`) va doimiy QA
 (`safaar-qa-backend`) konteynerlar butun jarayon davomida bir marta ham
 qayta ishga tushirilmadi/o'zgartirilmadi.
+
+## 2026-09-12 — QAYTA AUDIT: refund double-ledger-debit tuzatildi, duplicate-refund himoyasi jonli tasdiqlandi
+
+`develop`ga chiqarilgan + qaytadan `temp/save-all-work`ga pull qilingan
+o'zgarishlardan keyin (backend kod 0 ta fayl bo'yicha farq qildi —
+to'liq sinxron), butun Uzum Checkout implementatsiyasi qaytadan
+so'rovnoma qilindi. Kod o'zgarishsiz to'g'ri ekani tasdiqlandi, PLUS
+ikkita yangi, real topilma:
+
+### 1) `admin.refundApprove()` — double-ledger-debit BUGI (tuzatildi)
+
+Repo bo'yicha `INSERT INTO refunds` beshta MUSTAQIL joydan chaqiriladi
+(`bookings.service.ts` x2, `refunds.service.ts`, `payments.service.ts`
+— `autoRefundForLostRace`, `partners.service.ts`) — har biri bir-biridan
+bexabar, bitta bookingga bir nechta `refunds` qatorini yaratishi
+mumkin (masalan: mijoz so'rovi + tizim avto-refundi bir vaqtda).
+`refundApprove()`ning eski versiyasi har bir qatorni MUSTAQIL
+tekshirardi (`refund.status IN ('requested','processing')`), lekin
+`payments`/`bookings` UPDATE'lari xavfsiz no-op bo'lsa ham
+(`WHERE status='paid'` allaqachon mos kelmaydi), hamkor ledgeriga
+manfiy yozuv **SHARTSIZ** qo'shilardi — natijada BITTA haqiqiy pul
+qaytarishga IKKITA ledger debiti to'g'ri kelib, hamkorning haqiqiy
+qarzi noto'g'ri hisoblanardi.
+
+**Tuzatish**: `UPDATE payments ... RETURNING id` orqali haqiqatan
+qator o'zgarganini tekshirish qo'shildi; booking bekor qilish va
+ledger yozuvi FAQAT shu holatda bajariladi. Regressiya testi qo'shildi
+(`admin.service.spec.ts`): ikkinchi (allaqachon boshqa qator orqali
+qaytarilgan) refund so'rovini tasdiqlash — `approved` deb belgilanadi
+(admin qarori qayd etiladi), lekin booking/ledgerga IKKINCHI marta
+tegilmaydi. 34/34 mavjud + yangi test o'tdi, `tsc` toza.
+
+### 2) Duplicate refund himoyasi — Uzum'ning O'Z sandboxida jonli tasdiqlandi
+
+Avvalgi sessiyada to'liq refund qilingan haqiqiy buyurtmaga
+(`orderId 2dee4f1a-...`, `rawStatus: REFUNDED`, qolgan balans 0)
+nisbatan IKKINCHI marta `refund()` chaqirildi — Uzum'ning o'zi
+`errorCode 3000 "Invalid payment status for this operation"` bilan
+rad etdi. SAFAAR'ning `refund()` metodi buni to'g'ri `REFUND_FAILED`
+xatosiga aylantirdi, hech qanday soxta muvaffaqiyat/ikki karra
+qaytarish yuz bermadi. Bu — duplicate-refund himoyasining AUTORITATIV
+manba (Uzum) darajasida ishlashining real, sinovdan o'tgan dalili.
+
+### 3) `FAILED -> PAID` reconciliation — ATAYLAB implement qilinmadi (asoslash)
+
+`reconcileUzumCheckoutPaymentsCron()` faqat `pending`/`processing`
+holatidagi to'lovlarni ko'rib chiqadi — `failed` holatidagi to'lovlarga
+HECH QACHON tegmaydi. Bu ataylab: hozirgi kodda `uzum_checkout` to'lov
+FAQAT bitta yo'l bilan `failed` bo'ladi — reconcile'ning o'zi Uzum
+`AcquiringStatus=DECLINED` (rasmiy, bank/protsessing rad etgan holat)
+ko'rganda. `DECLINED` — Uzum tomonidan AVTORITATIV va YAKUNIY holat;
+xuddi shu buyurtma keyinchalik `COMPLETED`ga aylanishi kutilmaydigan
+(karta to'lovlarida rad etilgan tranzaksiya qayta jonlanmaydi) real
+stsenariy emas. Shu sabab `FAILED -> PAID`ni "rasmiy reconciliation"
+sifatida qo'shish — HOZIRCHA hech qanday haqiqiy ehtiyojga javob
+bermaydigan, faqat noaniqlik qo'shadigan o'zgarish bo'lardi — ATAYLAB
+qilinmadi (talab qilinsa, aniq biznes stsenariysi bilan qayta ko'rib
+chiqiladi).
+
+### Qayta tasdiqlangan (regressiya yo'q)
+
+Real sandboxga qarshi: `register()` → yangi `orderId` (`af06bbf6-...`),
+`getOrderStatus()` → `REGISTERED`/`PENDING` — ikkalasi ham kod
+o'zgarishisiz, `develop`ga chiqarish + qaytadan pull qilishdan keyin
+ham to'g'ri ishlayotgani tasdiqlandi. To'liq test to'plami: **695/695**
+(694 + yangi regressiya testi), `tsc --noEmit` toza, ESLint 0 xato.
