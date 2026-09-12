@@ -1,11 +1,6 @@
 import type { ApiError } from '@safaar/types';
 
-const DEFAULT_API_BASE_URL =
-  process.env.NODE_ENV === 'development'
-    ? '/api/backend'
-    : 'https://backend-production-87e6.up.railway.app/v1';
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_BASE_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api/backend';
 
 interface ApiEnvelope<T> {
   success: true;
@@ -34,85 +29,6 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
   unauthorizedHandler = handler;
 }
 
-type AccessTokenUpdater = (accessToken: string) => void;
-
-let accessTokenUpdater: AccessTokenUpdater | null = null;
-
-/** `session-expiry-handler.tsx` shu orqali yangi access tokenni Zustand
- * store'ga yozadi — `client.ts` store'ni to'g'ridan-to'g'ri import
- * qilmaydi (xuddi `setUnauthorizedHandler` kabi ataylab bo'shashtirilgan
- * bog'lanish). */
-export function setAccessTokenUpdater(updater: AccessTokenUpdater | null) {
-  accessTokenUpdater = updater;
-}
-
-/**
- * Chiqish (logout) paytida `clearSession()` access tokenni bo'shatadi —
- * bu `SessionExpiryHandler`dagi "tab yangi ochilganda jimgina refresh
- * qilib ko'rish" effektini ham qayta ishga tushiradi (u `hasTokens`
- * false bo'lishini kuzatadi). Ataylab chiqilganda bu ikkalasi poyga
- * qiladi: agar jim-refresh birinchi bo'lib bajarilsa, refresh-token
- * ROTATSIYA qilinib, foydalanuvchi chiqib ketgandan keyin ham
- * "qayta kirib qolishi" mumkin edi (real E2E orqali topilgan xato).
- * Shu bayroq orqali chiqish paytida jim-refresh urinishi o'tkazib
- * yuboriladi.
- */
-let loggingOut = false;
-
-export function setLoggingOut(value: boolean) {
-  loggingOut = value;
-}
-
-export function isLoggingOut(): boolean {
-  return loggingOut;
-}
-
-/**
- * 401 kelganda bitta umumiy refresh urinishini boshqaradi — 5 ta parallel
- * so'rov bir vaqtda 401 olsa, 5 ta emas, faqat BITTA `/api/auth/refresh`
- * chaqiruvi ketadi (single-flight). Refresh tokenning o'zi httpOnly
- * cookie'da, shu sabab bu yerda hech qanday token qo'lda yuborilmaydi.
- */
-let refreshPromise: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  if (isLoggingOut()) return null;
-  if (!refreshPromise) {
-    refreshPromise = fetch('/api/auth/refresh', { method: 'POST' })
-      .then(async (res) => {
-        if (!res.ok || isLoggingOut()) return null;
-        const data = (await res.json().catch(() => null)) as
-          | { accessToken?: string }
-          | null;
-        return data?.accessToken ?? null;
-      })
-      .catch(() => null)
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-  return refreshPromise;
-}
-
-/**
- * Chiqish paytida logout so'rovidan OLDIN allaqachon boshlangan (masalan
- * bildirishnomalar panelidan kelgan 401 sabab ishga tushgan) "single-flight"
- * refresh so'rovi bo'lishi mumkin — u logout so'rovidan KEYIN javob qaytarib,
- * `/api/auth/refresh` orqali YANGI refresh-token cookie'ni yozib qo'yishi
- * (va shu bilan chiqishni bekor qilib qo'yishi) mumkin edi (real E2E orqali
- * topilgan holat). `useLogout()` shu funksiya orqali bunday "in-flight"
- * refresh'ni kutib, keyin cookie'ni yana bir bor tozalaydi.
- */
-export async function waitForPendingRefresh(): Promise<void> {
-  if (refreshPromise) {
-    await refreshPromise.catch(() => {});
-  }
-}
-
-function isAuthEndpoint(path: string): boolean {
-  return /\/auth\//.test(path);
-}
-
 function handleUnauthorized(error: HttpError, token?: string | null) {
   // Demo token bilan 401 bo'lsa logout qilmaymiz
   // removed demo token bypass logic
@@ -120,6 +36,8 @@ function handleUnauthorized(error: HttpError, token?: string | null) {
     unauthorizedHandler?.(error);
   }
 }
+
+
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
@@ -156,7 +74,7 @@ function storedOrganizationId(): string | undefined {
   if (typeof window === 'undefined') return undefined;
   try {
     const auth = JSON.parse(
-      localStorage.getItem('safaar-partner-auth') || '{}',
+      localStorage.getItem('uzbron-partner-auth') || '{}',
     );
     if (auth?.state?.user?.organizationId) {
       return auth.state.user.organizationId;
@@ -206,14 +124,6 @@ export async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  return requestInternal<T>(path, options, false);
-}
-
-async function requestInternal<T>(
-  path: string,
-  options: RequestOptions,
-  isRetryAfterRefresh: boolean,
-): Promise<T> {
   const {
     body,
     token,
@@ -255,24 +165,6 @@ async function requestInternal<T>(
     const apiError = await parseErrorPayload(response);
     const error = new HttpError(response.status, apiError.message, apiError);
 
-    if (
-      error.status === 401 &&
-      token &&
-      !isRetryAfterRefresh &&
-      !isAuthEndpoint(path) &&
-      !isLoggingOut()
-    ) {
-      const newAccessToken = await refreshAccessToken();
-      if (newAccessToken) {
-        accessTokenUpdater?.(newAccessToken);
-        return requestInternal<T>(
-          path,
-          { ...options, token: newAccessToken },
-          true,
-        );
-      }
-    }
-
     handleUnauthorized(error, token);
     throw error;
   }
@@ -300,15 +192,6 @@ export async function requestFormData<T>(
   formData: FormData,
   options: Omit<RequestOptions, 'body'> = {},
 ): Promise<T> {
-  return requestFormDataInternal<T>(path, formData, options, false);
-}
-
-async function requestFormDataInternal<T>(
-  path: string,
-  formData: FormData,
-  options: Omit<RequestOptions, 'body'>,
-  isRetryAfterRefresh: boolean,
-): Promise<T> {
   const {
     token,
     organizationId = storedOrganizationId(),
@@ -331,25 +214,6 @@ async function requestFormDataInternal<T>(
   if (!response.ok) {
     const apiError = await parseErrorPayload(response);
     const error = new HttpError(response.status, apiError.message, apiError);
-
-    if (
-      error.status === 401 &&
-      token &&
-      !isRetryAfterRefresh &&
-      !isAuthEndpoint(path) &&
-      !isLoggingOut()
-    ) {
-      const newAccessToken = await refreshAccessToken();
-      if (newAccessToken) {
-        accessTokenUpdater?.(newAccessToken);
-        return requestFormDataInternal<T>(
-          path,
-          formData,
-          { ...options, token: newAccessToken },
-          true,
-        );
-      }
-    }
 
     handleUnauthorized(error, token);
     throw error;

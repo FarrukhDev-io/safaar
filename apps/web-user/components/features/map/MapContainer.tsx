@@ -169,6 +169,7 @@ function MapContent({ items, hoveredItemId, selectedItemId, onSelectItem, onBoun
   useEffect(() => {
     const isDark = document.documentElement.classList.contains("dark");
     if (isDark) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTileUrl("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png");
     }
   }, []);

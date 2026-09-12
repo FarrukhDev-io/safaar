@@ -12,13 +12,6 @@ import {
   PhotoCategory,
   type Listing,
 } from '../domain/listing';
-import type {
-  PartnerTeamMember,
-  PartnerDocument,
-  PartnerApiKey,
-  PartnerWebhook,
-  WithdrawalRequest,
-} from './endpoints/partners';
 
 type Localized =
   | string
@@ -56,13 +49,6 @@ export interface BackendHotel {
   pets_allowed?: boolean;
   children_allowed?: boolean;
   extra_fees?: unknown;
-  land_area_sotix?: number | null;
-  has_outdoor_pool?: boolean;
-  has_indoor_pool?: boolean;
-  has_sauna?: boolean;
-  has_playstation?: boolean;
-  has_billiards?: boolean;
-  capacity_people?: number | null;
 }
 
 export interface BackendRoom {
@@ -119,9 +105,6 @@ export interface BackendBooking {
   room_type_name?: string;
   room_type_id?: string;
   room_number?: string;
-  vehicle_id?: string;
-  vehicle_name?: string;
-  vehicle_plate_number?: string;
   price_snapshot?: {
     room_id?: string;
     room_type_id?: string;
@@ -142,95 +125,6 @@ export interface BackendBooking {
     nights?: number;
   };
   created_at?: string;
-}
-
-export interface BackendTeamMember {
-  id: string;
-  organization_id?: string;
-  email: string;
-  full_name?: string | null;
-  role: string;
-  status: string;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface BackendDocument {
-  id: string;
-  organization_id?: string;
-  type: string;
-  file_id?: string;
-  status: string;
-  file_url?: string | null;
-  file_name?: string | null;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface BackendApiKey {
-  id: string;
-  organization_id?: string;
-  name: string;
-  key_prefix: string;
-  scopes?: string[];
-  status: string;
-  created_at: string;
-  updated_at?: string;
-  api_key?: string;
-}
-
-export interface BackendWebhook {
-  id: string;
-  organization_id?: string;
-  url: string;
-  events: string[];
-  status: string;
-  secret_hash?: string | null;
-  failed_deliveries?: number;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface BackendWithdrawal {
-  id: string;
-  organization_id?: string;
-  amount: number | string;
-  currency?: string;
-  status: string;
-  bank_account?: string | null;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface BackendFinanceOverview {
-  pending_balance: number | string;
-  available_balance: number | string;
-  currency: string;
-}
-
-export interface FinanceOverview {
-  pendingBalance: number;
-  availableBalance: number;
-  currency: string;
-}
-
-export interface BackendLedgerEntry {
-  id: string;
-  partner_id: string;
-  booking_id: string | null;
-  type: string;
-  amount: number | string;
-  currency: string;
-  created_at: string;
-}
-
-export interface LedgerEntry {
-  id: string;
-  bookingId: string | null;
-  type: string;
-  amount: number;
-  currency: string;
-  createdAt: string;
 }
 
 export interface BackendDashboard {
@@ -254,6 +148,52 @@ function localized(value: Localized, fallback = ''): string {
 export function pageItems<T>(value: T[] | BackendPage<T>): T[] {
   if (Array.isArray(value)) return value;
   return value.items ?? value.data ?? [];
+}
+
+export interface BackendBusCompany {
+  id: string;
+  partner_organization_id?: string;
+  name?: Localized;
+  status?: string;
+  short_description?: Localized;
+  full_description?: Localized;
+  city_id?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  rating_average?: number;
+  reviews_count?: number;
+}
+
+export function toBusListing(bus: BackendBusCompany): Listing {
+  return {
+    name: localized(bus.name),
+    shortDescription: localized(bus.short_description) || '',
+    fullDescription: localized(bus.full_description) || '',
+    status:
+      bus.status === 'active'
+        ? ListingStatus.PUBLISHED
+        : bus.status === 'pending_review'
+          ? ListingStatus.UNDER_REVIEW
+          : bus.status === 'hidden'
+            ? ListingStatus.HIDDEN
+            : ListingStatus.DRAFT,
+    address: bus.address ?? '',
+    city: '', 
+    latitude: bus.latitude,
+    longitude: bus.longitude,
+    stars: 0,
+    checkInTime: '',
+    checkOutTime: '',
+    amenities: [],
+    photos: [],
+    nearby: [],
+    cancellationPolicy: CancellationPolicy.MODERATE,
+    smokingAllowed: false,
+    petsAllowed: false,
+    childrenAllowed: true,
+    extraFees: [],
+  };
 }
 
 export function toListing(hotel: BackendHotel): Listing {
@@ -366,9 +306,6 @@ export function toReservation(booking: BackendBooking): ReservationView {
     roomNumber:
       booking.room_number ?? booking.price_snapshot?.room_number ?? undefined,
     bedId: booking.price_snapshot?.bed_id,
-    vehicleId: booking.vehicle_id,
-    vehicleName: booking.vehicle_name,
-    vehiclePlateNumber: booking.vehicle_plate_number,
     slotTime: normalizeSlotTime(
       booking.slot_time ??
         booking.policy_snapshot?.slot_time ??
@@ -381,147 +318,8 @@ export function toReservation(booking: BackendBooking): ReservationView {
     children: booking.item?.children ?? 0,
     totalPrice: booking.total_amount ?? 0,
     paidAmount: booking.paid_amount ?? 0,
-    paymentMethod: booking.payment_method,
     source: normalizeReservationSource(booking.policy_snapshot?.source),
     createdAt: booking.created_at ?? '',
-  };
-}
-
-const TEAM_ROLES = ['admin', 'manager', 'staff'] as const;
-const TEAM_STATUSES = ['active', 'invited', 'blocked'] as const;
-const DOCUMENT_STATUSES = ['pending', 'approved', 'rejected'] as const;
-const WITHDRAWAL_STATUSES = ['pending', 'approved', 'rejected', 'paid'] as const;
-
-export function toTeamMember(raw: BackendTeamMember): PartnerTeamMember {
-  const role = TEAM_ROLES.includes(raw.role as (typeof TEAM_ROLES)[number])
-    ? (raw.role as PartnerTeamMember['role'])
-    : 'staff';
-  const status = TEAM_STATUSES.includes(
-    raw.status as (typeof TEAM_STATUSES)[number],
-  )
-    ? (raw.status as PartnerTeamMember['status'])
-    : 'invited';
-  return {
-    id: raw.id,
-    name: raw.full_name || raw.email,
-    email: raw.email,
-    role,
-    status,
-    created_at: raw.created_at,
-  };
-}
-
-export function toDocument(raw: BackendDocument): PartnerDocument {
-  // Backend 'uploaded' — hujjat qabul qilingan, tekshiruv navbatida
-  // ('pending' bilan bir xil ma'no, frontend uchun mos qiymatga o'giramiz).
-  const status =
-    raw.status === 'approved' || raw.status === 'rejected'
-      ? raw.status
-      : 'pending';
-  return {
-    id: raw.id,
-    name: raw.file_name || `${raw.type}.pdf`,
-    type: raw.type,
-    status,
-    url: raw.file_url ?? '',
-    uploaded_at: raw.created_at,
-  };
-}
-
-export function toApiKey(
-  raw: BackendApiKey,
-): PartnerApiKey & { key?: string } {
-  return {
-    id: raw.id,
-    name: raw.name,
-    keyPrefix: raw.key_prefix,
-    createdAt: raw.created_at,
-    key: raw.api_key,
-  };
-}
-
-export function toWebhook(raw: BackendWebhook): PartnerWebhook {
-  return {
-    id: raw.id,
-    url: raw.url,
-    events: raw.events ?? [],
-    isActive: raw.status === 'active',
-    failedDeliveries: raw.failed_deliveries ?? 0,
-    createdAt: raw.created_at,
-  };
-}
-
-export interface BackendWebhookDelivery {
-  id: string;
-  webhook_id: string;
-  event_type: string;
-  status: string;
-  payload?: unknown;
-  response_status?: number | null;
-  response_body?: string | null;
-  attempted_at?: string | null;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface WebhookDelivery {
-  id: string;
-  webhookId: string;
-  eventType: string;
-  status: string;
-  responseStatus: number | null;
-  responseBody: string | null;
-  attemptedAt: string | null;
-  createdAt: string;
-}
-
-export function toWebhookDelivery(raw: BackendWebhookDelivery): WebhookDelivery {
-  return {
-    id: raw.id,
-    webhookId: raw.webhook_id,
-    eventType: raw.event_type,
-    status: raw.status,
-    responseStatus: raw.response_status ?? null,
-    responseBody: raw.response_body ?? null,
-    attemptedAt: raw.attempted_at ?? null,
-    createdAt: raw.created_at,
-  };
-}
-
-export function toWithdrawal(raw: BackendWithdrawal): WithdrawalRequest {
-  const status = WITHDRAWAL_STATUSES.includes(
-    raw.status as (typeof WITHDRAWAL_STATUSES)[number],
-  )
-    ? (raw.status as WithdrawalRequest['status'])
-    // Backend'da boshlang'ich holat "requested" deb ataladi.
-    : raw.status === 'requested'
-      ? 'pending'
-      : 'pending';
-  return {
-    id: raw.id,
-    amount: Number(raw.amount),
-    status,
-    requestDate: raw.created_at,
-    bankAccount: raw.bank_account ?? '',
-  };
-}
-
-export function toFinanceOverview(raw: BackendFinanceOverview): FinanceOverview {
-  return {
-    pendingBalance: Number(raw.pending_balance),
-    availableBalance: Number(raw.available_balance),
-    currency: raw.currency,
-  };
-}
-
-export function toLedgerEntry(raw: BackendLedgerEntry): LedgerEntry {
-  return {
-    id: raw.id,
-    bookingId: raw.booking_id,
-    type: raw.type,
-    amount: Number(raw.amount),
-    currency: raw.currency,
-    createdAt: raw.created_at,
   };
 }
 
@@ -568,7 +366,7 @@ function normalizeReservationSource(source?: string): ReservationSource {
   if (value && value in ReservationSource) {
     return ReservationSource[value as keyof typeof ReservationSource];
   }
-  return 'safaar' as ReservationSource;
+  return 'UZBRON' as ReservationSource;
 }
 
 function calculateNights(checkIn: string, checkOut: string): number {

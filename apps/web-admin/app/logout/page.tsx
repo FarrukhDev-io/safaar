@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { adminLogoutAction } from "@/lib/auth/actions";
+import Cookies from "js-cookie";
 import { useAuthStore } from "@/lib/store/auth";
 
 export default function LogoutPage() {
@@ -11,8 +11,9 @@ export default function LogoutPage() {
 
   useEffect(() => {
     logout();
+    Cookies.remove("admin_token", { path: "/" });
     localStorage.removeItem("admin-auth-storage");
-    adminLogoutAction().finally(() => router.replace("/login"));
+    router.replace("/login");
   }, [logout, router]);
 
   return (

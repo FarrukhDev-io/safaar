@@ -50,7 +50,7 @@ export function useCreateRoomType() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (values: RoomTypeDraft) => {
-      const hotel = await getPrimaryHotel(queryClient, accessToken);
+      const hotel = await getPrimaryHotel(accessToken);
       return toRoomType(
         await partners.createRoomType(hotel.id, roomTypeBody(values), accessToken),
       );
@@ -72,7 +72,7 @@ export function useUpdateRoomType() {
       id: string;
       values: RoomTypeDraft;
     }) => {
-      const hotel = await getPrimaryHotel(queryClient, accessToken);
+      const hotel = await getPrimaryHotel(accessToken);
       return toRoomType(
         await partners.updateRoomType(
           hotel.id,
@@ -93,7 +93,7 @@ export function useDeleteRoomType() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const hotel = await getPrimaryHotel(queryClient, accessToken);
+      const hotel = await getPrimaryHotel(accessToken);
       const res = await partners.deleteRoomType(hotel.id, id, accessToken);
       if (!res.ok) {
         throw new Error(res.reason ?? "O'chirishda xatolik yuz berdi");

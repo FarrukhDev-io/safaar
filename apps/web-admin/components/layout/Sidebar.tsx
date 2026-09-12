@@ -77,17 +77,9 @@ function applyLiveBadges(
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  /** BUG-B02: off-canvas drawer state for < lg screens. */
-  mobileOpen?: boolean;
-  onMobileClose?: () => void;
 }
 
-export default function Sidebar({
-  collapsed,
-  onToggle,
-  mobileOpen = false,
-  onMobileClose,
-}: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [summary, setSummary] = useState<AdminNotificationSummary | null>(null);
 
@@ -120,28 +112,13 @@ export default function Sidebar({
   );
 
   return (
-    <>
-      {/* BUG-B02: backdrop for the mobile drawer */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
-          aria-hidden="true"
-          onClick={onMobileClose}
-        />
+    <aside
+      className={cn(
+        "fixed top-0 left-0 h-screen flex flex-col z-30",
+        "bg-[var(--sidebar-bg)] transition-all duration-300 ease-in-out",
+        collapsed ? "w-[var(--sidebar-collapsed)]" : "w-[var(--sidebar-width)]"
       )}
-      <aside
-        onClick={() => {
-          if (mobileOpen) onMobileClose?.();
-        }}
-        className={cn(
-          "fixed top-0 left-0 h-screen flex flex-col z-40",
-          "bg-[var(--sidebar-bg)] transition-all duration-300 ease-in-out",
-          collapsed ? "w-[var(--sidebar-collapsed)]" : "w-[var(--sidebar-width)]",
-          // < lg: slide in/out; lg+: always visible
-          "lg:translate-x-0",
-          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        )}
-      >
+    >
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-white/8 shrink-0">
         <div className="flex items-center gap-3">
@@ -188,7 +165,6 @@ export default function Sidebar({
           {!collapsed && <span>Yig&apos;ish</span>}
         </button>
       </div>
-      </aside>
-    </>
+    </aside>
   );
 }

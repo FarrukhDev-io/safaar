@@ -24,7 +24,7 @@ export enum RoomStatus {
 
 /** Bron manbai. */
 export enum ReservationSource {
-  safaar = "safaar",
+  UZBRON = "UZBRON",
   WALK_IN = "WALK_IN",
   PHONE = "PHONE",
   BOOKING_COM = "BOOKING_COM",
@@ -102,10 +102,6 @@ export interface ReservationView {
   roomNumber?: string;
   /** Faqat hostel: tayinlangan yotoq (Bed.id). */
   bedId?: string;
-  /** Faqat transport (rent-a-car): band qilingan mashina. */
-  vehicleId?: string;
-  vehicleName?: string;
-  vehiclePlateNumber?: string;
   /** Faqat restoran: bron vaqt-sloti ("HH:MM"). */
   slotTime?: string;
   checkIn: string;
@@ -115,7 +111,6 @@ export interface ReservationView {
   children: number;
   totalPrice: number;
   paidAmount: number;
-  paymentMethod?: string;
   specialRequests?: string;
   internalNote?: string;
   createdAt: string;

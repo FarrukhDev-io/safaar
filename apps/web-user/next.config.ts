@@ -16,10 +16,6 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**.up.railway.app',
-      },
-      {
-        protocol: 'https',
         hostname: 'pub-9055e0d28a444107a7df2431aff012ee.r2.dev',
       },
       {
@@ -29,11 +25,6 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    // SECURITY-P3 (A12-4, docs/product/security-product-readiness-report.md):
-    // the Content-Security-Policy itself now lives in middleware.ts, because
-    // it needs a fresh per-request nonce that this static headers() function
-    // cannot generate (it is evaluated once, not per request). The headers
-    // below have no per-request component, so they stay here.
     return [
       {
         source: '/:path*',

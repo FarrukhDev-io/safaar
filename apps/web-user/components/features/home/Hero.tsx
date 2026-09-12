@@ -1,34 +1,48 @@
 import Image from "next/image";
 import type { HomeDict } from "@/i18n/dictionaries";
 
-export function Hero({ dict }: { dict: HomeDict["hero"] }) {
+export function Hero({ dict, children }: { dict: HomeDict["hero"], children?: React.ReactNode }) {
   return (
-    <section className="relative flex min-h-[40vh] min-h-[400px] w-full flex-col items-center justify-center overflow-hidden -mt-16 md:-mt-[72px]">
-      {/* Orqa fon rasmi */}
-      <Image
-        src="/samarqans.jpg"
-        alt="Safaar Samarqand"
-        fill
-        priority
-        className="object-cover object-top"
-        sizes="100vw"
-        quality={85}
-      />
-      
-      {/* Matn o'qilishi uchun qora gradient qoplama */}
-      <div className="absolute inset-0 bg-black/40 bg-gradient-to-t from-black/60 to-transparent" />
+    <section className="relative flex min-h-[70vh] md:min-h-[80vh] w-full flex-col items-center justify-center pb-10 -mt-14 md:-mt-16">
+      {/* Background image with slow zoom animation for premium feel */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <Image
+          src="/samarqans.jpg"
+          alt="Safaar — Samarqand"
+          fill
+          priority
+          className="object-cover object-center animate-image-zoom"
+          sizes="100vw"
+          quality={90}
+        />
+        {/* Modern dark gradient overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/10" />
+      </div>
 
-      <div className="relative z-10 mx-auto max-w-5xl px-4 pt-[120px] pb-24 text-center sm:px-6 lg:pt-[168px] lg:pb-32">
-        {/* Title */}
-        <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl md:text-6xl animate-in fade-in zoom-in-95 duration-1000 drop-shadow-lg">
+      {/* Hero Text */}
+      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center px-4 pt-28 pb-12 text-center sm:px-6 lg:pt-36 lg:pb-16 flex-1 justify-center">
+        {/* H1 — Display scale: Manrope 900, tracking tight */}
+        <h1
+          className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl drop-shadow-lg animate-in fade-in zoom-in-95 duration-700 delay-100"
+          style={{ fontFamily: "var(--font-manrope, sans-serif)" }}
+        >
           {dict.title}
         </h1>
 
-        {/* Subtitle */}
-        <p className="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-slate-100 sm:text-lg md:text-xl animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-150 fill-mode-both drop-shadow-md">
+        {/* Subtitle — Body LG: Inter 400 */}
+        <p
+          className="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-white/90 sm:text-lg md:text-xl animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both drop-shadow-md"
+        >
           {dict.subtitle}
         </p>
       </div>
+
+      {/* Render SearchBar and CityPills exactly here inside the hero background */}
+      {children && (
+        <div className="relative z-20 w-full animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+          {children}
+        </div>
+      )}
     </section>
   );
 }

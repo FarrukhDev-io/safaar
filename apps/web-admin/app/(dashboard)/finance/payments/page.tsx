@@ -116,7 +116,7 @@ export default function PaymentsPage() {
         <div>
           <span className="capitalize text-slate-600 font-medium">{p.provider}</span>
           {p.providerTransactionId && (
-            <div className="text-[10px] text-slate-600 mt-0.5">ID: {p.providerTransactionId}</div>
+            <div className="text-[10px] text-slate-400 mt-0.5">ID: {p.providerTransactionId}</div>
           )}
         </div>
       ),
@@ -142,7 +142,6 @@ export default function PaymentsPage() {
         <div className="flex justify-end relative">
           <button
             onClick={() => setDropdownOpen(dropdownOpen === p.id ? null : p.id)}
-            aria-label="Qo'shimcha amallar"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <MoreVertical size={18} />

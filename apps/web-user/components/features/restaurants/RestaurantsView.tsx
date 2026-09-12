@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Clock, MapPin, PhoneCall, Star, Utensils, Search } from "lucide-react";
 import { formatSum } from "@/lib/money";
-import type { Locale } from "@/i18n/config";
 import type { CatalogDict } from "@/i18n/dictionaries";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import type { RestaurantItem } from "@/components/catalog/types";
@@ -11,32 +10,16 @@ import { UniversalCard } from "@/components/ui/UniversalCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
-import { useFavoriteToggle } from "@/components/features/favorites/useFavoriteToggle";
 
 export type { RestaurantItem };
 
 function RestaurantCard({
   item,
   dict,
-  locale,
-  authed,
-  favoriteId,
-  loginHref,
 }: {
   item: RestaurantItem;
   dict: CatalogDict["restaurants"];
-  locale: Locale;
-  authed: boolean;
-  favoriteId: string | null;
-  loginHref: string;
 }) {
-  const favorite = useFavoriteToggle({
-    targetType: "restaurant",
-    targetId: item.id,
-    initialFavoriteId: favoriteId,
-    authed,
-    loginHref,
-  });
   const price = item.averageCheckSum > 0 ? item.averageCheckSum : 180000;
   const tags = [
     item.cuisine,
@@ -45,13 +28,10 @@ function RestaurantCard({
 
   return (
     <UniversalCard
-      href={`/${locale}/restaurants/${item.id}`}
+      href={`/restaurants/${item.id}`}
       imageSrc={item.imageUrl}
       imageAlt={item.name}
       showFavorite
-      isFavorite={favorite.isFavorite}
-      favoritePending={favorite.pending}
-      onFavoriteToggle={favorite.toggle}
       title={item.name}
       location={[item.cityName, item.address].filter(Boolean).join(" · ")}
       tags={tags}
@@ -67,17 +47,9 @@ function RestaurantCard({
 export function RestaurantsView({
   dict,
   items,
-  locale,
-  authed,
-  favoriteIds,
-  loginHref,
 }: {
   dict: CatalogDict["restaurants"];
   items: RestaurantItem[];
-  locale: Locale;
-  authed: boolean;
-  favoriteIds: Record<string, string>;
-  loginHref: string;
 }) {
   const [query, setQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
@@ -113,8 +85,6 @@ export function RestaurantsView({
   return (
     <main className="mx-auto w-full md:w-[96%] max-w-[1536px] flex-1 px-4 md:px-8 py-8 sm:px-6">
       <CatalogHeader
-        icon={<Utensils className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />}
-        badge={dict.badge}
         title={dict.title}
         subtitle={dict.subtitle}
         searchControls={
@@ -156,20 +126,12 @@ export function RestaurantsView({
       {filtered.length === 0 ? (
         <EmptyState
           icon={<Utensils className="h-6 w-6" />}
-          title="Ma'lumot topilmadi"
+          title={(dict as any).empty?.title || "Ma'lumot topilmadi"}
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
           {filtered.map((item) => (
-            <RestaurantCard
-              key={item.id}
-              item={item}
-              dict={dict}
-              locale={locale}
-              authed={authed}
-              favoriteId={favoriteIds[item.id] ?? null}
-              loginHref={loginHref}
-            />
+            <RestaurantCard key={item.id} item={item} dict={dict} />
           ))}
         </div>
       )}

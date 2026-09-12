@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 import "../globals.css";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import {
   defaultLocale,
   isLocale,
@@ -91,24 +91,6 @@ export default async function LangLayout({
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
 
-  // P2-5 FIX: PWA o'rnatish bannerini joriy locale'da ko'rsatish uchun
-  // shu locale lug'atidagi `pwa` bo'limi olinadi (SSR — server komponenti
-  // ichida, mijoz tomonida qo'shimcha so'rovsiz). Agar lug'atda `pwa`
-  // umuman bo'lmasa (masalan eski keshlangan build) — xavfsiz o'zbekcha
-  // standart qiymatga qaytiladi, hech qachon bo'sh matn ko'rsatilmaydi.
-  const common = await getDictionary(lang as Locale, "common");
-  const pwaDict = common.pwa ?? {
-    title: "Safaar ilovasini o'rnating",
-    subtitle: "Tezkor kirish va offlayn rejim",
-    install: "O'rnatish",
-  };
-
-  // SECURITY-P3 (A12-4): per-request nonce set by middleware.ts, threaded
-  // down to the one inline script this app renders (AnalyticsProvider's
-  // GTM snippet) so it can run under a strict, non-'unsafe-inline'
-  // script-src. See docs/product/security-product-readiness-report.md.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
-
   return (
     <html
       lang={lang}
@@ -117,14 +99,16 @@ export default async function LangLayout({
     >
       <body className="flex min-h-full flex-col overflow-x-hidden bg-slate-100/60 text-slate-900 subpixel-antialiased dark:bg-slate-950 dark:text-slate-100">
         <NextTopLoader color="linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899)" showSpinner={false} shadow="0 0 10px #8b5cf6,0 0 5px #ec4899" />
-        <AnalyticsProvider nonce={nonce}>
-          <ClickSpark global />
-          <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
-            {children}
-            <Toaster position="top-right" richColors />
-            <ServiceWorkerRegister />
-            <PwaInstallBanner dict={pwaDict} />
-          </div>
+        <AnalyticsProvider>
+          <NuqsAdapter>
+            <ClickSpark global />
+            <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+              {children}
+              <Toaster position="top-right" richColors />
+              <ServiceWorkerRegister />
+              <PwaInstallBanner />
+            </div>
+          </NuqsAdapter>
         </AnalyticsProvider>
       </body>
     </html>

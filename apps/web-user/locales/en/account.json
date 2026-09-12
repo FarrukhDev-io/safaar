@@ -4,8 +4,7 @@
     "profile": "Profile",
     "bookings": "My bookings",
     "favorites": "Favorites",
-    "bonuses": "Bonuses",
-    "refunds": "Refunds"
+    "bonuses": "Bonuses"
   },
   "profile": {
     "title": "Profile details",
@@ -53,22 +52,5 @@
     "balance": "Bonus balance",
     "empty": "No bonus history yet.",
     "history": "History"
-  },
-  "refunds": {
-    "title": "My refunds",
-    "empty": "No refund requests yet.",
-    "emptyHint": "When you cancel a booking, if the refund policy allows it, the request will appear here.",
-    "requestedAmount": "Requested amount",
-    "approvedAmount": "Approved amount",
-    "reason": "Reason",
-    "date": "Date",
-    "viewBooking": "View booking",
-    "statuses": {
-      "requested": "Under review",
-      "processing": "Processing",
-      "approved": "Approved",
-      "rejected": "Rejected",
-      "paid": "Paid"
-    }
   }
 }

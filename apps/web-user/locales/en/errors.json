@@ -1,18 +1,18 @@
 {
   "notFound": {
     "code": "404",
-    "title": "Page not found",
-    "text": "Sorry, the page you are looking for does not exist or has been moved.",
-    "home": "Back to home"
+    "title": "Sorry, page not found 😕",
+    "text": "The page you are looking for might have been removed, had its name changed, or is temporarily unavailable. Please check the URL or go back to the homepage.",
+    "home": "Back to Homepage"
   },
   "error": {
-    "title": "Something went wrong",
-    "text": "An unexpected error occurred. Please try again.",
-    "retry": "Try again",
-    "home": "Go home"
+    "title": "A technical error occurred 🛠",
+    "text": "An unexpected error has occurred. Our engineering team has been notified and is working to fix it. Please try again later.",
+    "retry": "Try Again",
+    "home": "Back to Homepage"
   },
   "offline": {
-    "title": "No internet connection",
-    "text": "You are offline. Check your connection and try again."
+    "title": "No Internet Connection 🌐",
+    "text": "You are not connected to a network. Please check your internet connection and refresh the page."
   }
 }

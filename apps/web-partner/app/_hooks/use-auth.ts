@@ -1,71 +1,11 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { access, auth } from '../_lib/api';
-import { HttpError, setLoggingOut, waitForPendingRefresh } from '../_lib/api/client';
-import type { PartnerAccessStatus } from '../_lib/api/endpoints/access';
-import type { PartnerLoginResponse } from '../_lib/api/endpoints/auth';
-import { isLimitedPartnerAccessStatus } from '../_lib/auth/access-status';
 import { buildPartnerSession } from '../_lib/auth/session';
 import { useAuthStore } from '../_stores/auth-store';
-import { useDataStore } from '../_stores/data-store';
-
-const LOGIN_ALLOWED_STATUSES = new Set<PartnerAccessStatus>([
-  'approved',
-  'blocked',
-  'suspended',
-]);
-
-function assertPartnerLoginAllowed(status: PartnerAccessStatus) {
-  if (LOGIN_ALLOWED_STATUSES.has(status)) {
-    return;
-  }
-
-  if (status === 'rejected') {
-    throw new Error("Arizangiz rad etilgan. Admin bilan bog'laning.");
-  }
-
-  if (status === 'new' || status === 'reviewing' || status === 'submitted') {
-    throw new Error('Arizangiz hali admin tomonidan tasdiqlanmagan.');
-  }
-
-  throw new Error(
-    'Bu login uchun hamkorlik access topilmadi. Avval ariza yuboring.',
-  );
-}
-
-function statusFromTokens(
-  tokens: PartnerLoginResponse,
-  fallback: PartnerAccessStatus,
-): PartnerAccessStatus {
-  return String(
-    tokens.organizationStatus ?? tokens.organization_status ?? fallback,
-  ) as PartnerAccessStatus;
-}
-
-/**
- * Backend'dan olingan refresh tokenni httpOnly cookie'ga topshiradi —
- * shu daqiqadan boshlab u brauzer JS'iga hech qachon qaytmaydi
- * (localStorage/Zustand'ga yozilmaydi, faqat `setSession` chaqirilganda
- * bo'sh satr saqlanadi).
- */
-async function establishServerSession(refreshToken: string): Promise<void> {
-  // Yangi haqiqiy sessiya boshlanmoqda — oldingi chiqishdan qolgan
-  // bayroq (agar bo'lsa) endi ahamiyatsiz.
-  setLoggingOut(false);
-  const res = await fetch('/api/auth/session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
-  });
-  if (!res.ok) {
-    throw new Error(
-      "Sessiyani xavfsiz saqlab bo'lmadi. Qayta urinib ko'ring.",
-    );
-  }
-}
 
 // ─── Demo rejim ───────────────────────────────────────────────────────────────
 // Backend o'chiq bo'lganda ishlab chiqish uchun ishlatiladi.
@@ -84,41 +24,39 @@ const DEMO_TOKENS = {
 export function usePartnerPhoneLogin() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
-  const resetData = useDataStore((s) => s.reset);
-  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (phone: string) => {
       const accessStatus = await access.getPartnerAccessStatus(phone);
-      assertPartnerLoginAllowed(accessStatus.status);
+      if (accessStatus.status !== 'approved') {
+        if (accessStatus.status === 'rejected') {
+          throw new Error("Arizangiz rad etilgan. Admin bilan bog'laning.");
+        }
+        if (
+          accessStatus.status === 'new' ||
+          accessStatus.status === 'reviewing' ||
+          accessStatus.status === 'submitted'
+        ) {
+          throw new Error('Arizangiz hali admin tomonidan tasdiqlanmagan.');
+        }
+        throw new Error(
+          'Bu telefon uchun hamkorlik access topilmadi. Avval ariza yuboring.',
+        );
+      }
 
       const tokens = await auth.partnerPhoneLogin(phone);
-      await establishServerSession(tokens.refreshToken);
       const partnerType = accessStatus.request?.type || 'hotel';
       return {
         phone,
         tokens,
         organizationId: tokens.organizationId ?? tokens.organization_id,
         partnerType,
-        accessStatus: statusFromTokens(tokens, accessStatus.status),
       };
     },
-    onSuccess: ({ phone, tokens, organizationId, partnerType, accessStatus }) => {
-      // Oldingi sessiyadan (masalan boshqa tashkilot bilan chiqmasdan,
-      // to'g'ridan-to'g'ri /login orqali) qolgan kesh/ma'lumot yangi
-      // login'ning o'zida ko'rinib qolmasligi uchun — xuddi `useLogout()`
-      // qanday tozalasa shunday, lekin bu safar KIRISH paytida.
-      resetData();
-      queryClient.clear();
+    onSuccess: ({ phone, tokens, organizationId, partnerType }) => {
       const { user } = buildPartnerSession(phone, tokens, partnerType, 'phone');
       user.organizationId = organizationId;
-      user.accessStatus = accessStatus;
       setSession(user, tokens);
-      if (isLimitedPartnerAccessStatus(accessStatus)) {
-        toast.warning("Access cheklangan. Profil va yordam bo'limi ochiq.");
-        router.replace('/settings/profile');
-        return;
-      }
       toast.success('Xush kelibsiz!');
       router.replace('/');
     },
@@ -149,32 +87,33 @@ export function usePartnerPhoneOtpRequest() {
         .getPartnerAccessStatus({ phone })
         .catch(() => ({ status: 'approved' as const, request: { type: 'hotel' } }));
 
-      assertPartnerLoginAllowed(accessStatus.status);
+      if (accessStatus.status !== 'approved') {
+        if (accessStatus.status === 'rejected') {
+          throw new Error("Arizangiz rad etilgan. Admin bilan bog'laning.");
+        }
+        if (
+          accessStatus.status === 'new' ||
+          accessStatus.status === 'reviewing' ||
+          accessStatus.status === 'submitted'
+        ) {
+          throw new Error('Arizangiz hali admin tomonidan tasdiqlanmagan.');
+        }
+        throw new Error(
+          'Bu telefon raqam uchun hamkorlik access topilmadi. Avval ariza yuboring.',
+        );
+      }
 
       let challenge;
       try {
         challenge = await auth.requestOtp(phone);
-      } catch (error) {
-        // Demo rejimga FAQAT backend umuman ulanib bo'lmaganda o'tamiz —
-        // `client.ts` bunday holatda `HttpError(status: 0)` tashlaydi
-        // (fetch'ning o'zi otgan xato: tarmoq yo'q, CORS, backend offline).
-        // Real backend javoblari (400/401/403/409/422/429/500 va h.k. —
-        // masalan OTP_RESEND_TOO_SOON) HECH QACHON fake successga
-        // aylantirilmasin — булар chaqiruvchiga qayta uzatiladi va
-        // login-form.tsx haqiqiy backend xabarini foydalanuvchiga
-        // ko'rsatadi (avval bu yerda barcha xatolar yutilib, foydalanuvchi
-        // "kod yuborildi" deb ishonib qolar edi — real E2E orqali topilgan
-        // holat).
-        if (error instanceof HttpError && error.status === 0) {
-          challenge = {
-            sent: true,
-            challenge_id: 'demo-challenge-id',
-            expires_in_seconds: 300,
-            resend_after_seconds: 60,
-          };
-        } else {
-          throw error;
-        }
+      } catch {
+        // Backend o'chiq — demo rejimga o'tamiz
+        challenge = {
+          sent: true,
+          challenge_id: 'demo-challenge-id',
+          expires_in_seconds: 300,
+          resend_after_seconds: 60,
+        };
       }
 
       return {
@@ -183,7 +122,6 @@ export function usePartnerPhoneOtpRequest() {
         expiresInSeconds: challenge.expires_in_seconds,
         resendAfterSeconds: challenge.resend_after_seconds,
         partnerType: accessStatus.request?.type || 'hotel',
-        accessStatus: accessStatus.status,
         devCode: challenge.dev_code,
       };
     },
@@ -210,8 +148,6 @@ export function usePartnerPhoneOtpRequest() {
 export function usePartnerPhoneOtpVerify() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
-  const resetData = useDataStore((s) => s.reset);
-  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
@@ -219,13 +155,11 @@ export function usePartnerPhoneOtpVerify() {
       code,
       challengeId,
       partnerType,
-      accessStatus,
     }: {
       phone: string;
       code: string;
       challengeId: string;
       partnerType?: string;
-      accessStatus?: PartnerAccessStatus;
     }) => {
       // ── Demo rejim ──────────────────────────────────────────────────────────
       if (challengeId === 'demo-challenge-id') {
@@ -237,7 +171,6 @@ export function usePartnerPhoneOtpVerify() {
           tokens: DEMO_TOKENS as any,
           organizationId: 'demo-org-id',
           partnerType: partnerType || 'hotel',
-          accessStatus: accessStatus ?? 'approved',
           isDemo: true,
         };
       }
@@ -248,29 +181,19 @@ export function usePartnerPhoneOtpVerify() {
         code,
         challenge_id: challengeId,
       }) as any;
-      await establishServerSession(tokens.refreshToken);
 
       return {
         phone,
         tokens,
         organizationId: tokens.organizationId ?? tokens.organization_id,
         partnerType: partnerType || 'hotel',
-        accessStatus: statusFromTokens(tokens, accessStatus ?? 'approved'),
         isDemo: false,
       };
     },
-    onSuccess: ({ phone, tokens, organizationId, partnerType, accessStatus, isDemo }) => {
-      resetData();
-      queryClient.clear();
+    onSuccess: ({ phone, tokens, organizationId, partnerType, isDemo }) => {
       const { user } = buildPartnerSession(phone, tokens, partnerType, 'phone');
       user.organizationId = organizationId;
-      user.accessStatus = accessStatus;
       setSession(user, tokens);
-      if (isLimitedPartnerAccessStatus(accessStatus)) {
-        toast.warning("Access cheklangan. Profil va yordam bo'limi ochiq.");
-        router.replace('/settings/profile');
-        return;
-      }
       if (isDemo) {
         toast.success('Demo rejimda kirildingiz. Ma\'lumotlar ko\'rsatilmaydi.');
       } else {
@@ -288,47 +211,9 @@ export function usePartnerPhoneOtpVerify() {
 export function useLogout() {
   const router = useRouter();
   const clearSession = useAuthStore((s) => s.clearSession);
-  const resetData = useDataStore((s) => s.reset);
-  const queryClient = useQueryClient();
 
-  return async () => {
-    // SessionExpiryHandler'ning "jim-refresh" effekti `hasTokens` false
-    // bo'lganda ishga tushadi — bu ataylab chiqishda ham sodir bo'lardi va
-    // logout so'rovi bilan poyga qilib, sessiyani qayta tiklab qo'yishi
-    // mumkin edi. Shu bayroq bilan uni to'xtatamiz.
-    setLoggingOut(true);
+  return () => {
     clearSession();
-    resetData();
-    // Cookie tozalanishini navigatsiyadan OLDIN kutamiz — fire-and-forget
-    // bo'lsa, brauzer tez orient qilib ketganda so'rov hali yuborilmagan
-    // holatda qolib, httpOnly refresh-token cookie'si tozalanmay qolishi
-    // mumkin edi (real E2E orqali topilgan holat). `keepalive: true` shu
-    // so'rovni navigatsiya/sahifa unmount bo'lishidan keyin ham tugatib
-    // yuborishni kafolatlaydi (beacon-uslubidagi standart yechim).
-    await fetch('/api/auth/logout', { method: 'POST', keepalive: true }).catch(
-      () => {
-        // cookie tozalanmasa ham chiqish davom etadi.
-      },
-    );
-    // Bu logout so'rovidan OLDIN allaqachon boshlangan (masalan
-    // bildirishnomalar panelidan kelgan 401 sabab ishga tushgan)
-    // "in-flight" /api/auth/refresh so'rovi bo'lishi mumkin — u shu
-    // logout so'rovidan KEYIN javob qaytarib, YANGI refresh-token
-    // cookie'ni yozib, chiqishni bekor qilib qo'yishi mumkin edi (real
-    // E2E orqali topilgan holat). Shu so'rovni kutib, keyin cookie'ni
-    // yana bir bor tozalaymiz.
-    await waitForPendingRefresh();
-    await fetch('/api/auth/logout', { method: 'POST', keepalive: true }).catch(
-      () => {
-        // cookie tozalanmasa ham chiqish davom etadi.
-      },
-    );
-    // Boshqa hamkor tashkilotga (masalan boshqa biznes turi bilan) qayta
-    // kirilganda oldingi tashkilotning keshlangan e'lon/xona/bron
-    // ma'lumotlari ko'rinib qolmasligi uchun — session-expiry-handler.tsx
-    // avtomatik chiqishda buni allaqachon to'g'ri qilardi, qo'lda
-    // "Chiqish" tugmasida esa yetishmayotgan edi.
-    queryClient.clear();
     toast.success('Sessiya yakunlandi');
     router.replace('/login');
   };

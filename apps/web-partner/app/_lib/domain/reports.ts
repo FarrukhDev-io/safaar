@@ -15,7 +15,7 @@ function isActive(r: ReservationView): boolean {
   );
 }
 
-export function addDays(iso: string, days: number): string {
+function addDays(iso: string, days: number): string {
   const d = new Date(iso);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
@@ -91,7 +91,7 @@ export function buildUnitTypeDistribution(
 }
 
 const SOURCE_LABEL: Record<ReservationSource, string> = {
-  [ReservationSource.safaar]: 'Safaar',
+  [ReservationSource.UZBRON]: 'Safaar',
   [ReservationSource.WALK_IN]: 'Walk-in',
   [ReservationSource.PHONE]: 'Telefon',
   [ReservationSource.BOOKING_COM]: 'Booking.com',

@@ -32,7 +32,7 @@ export default async function TermsPage({
         <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl dark:text-white">
           {terms.title}
         </h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           {terms.updated}
         </p>
       </header>

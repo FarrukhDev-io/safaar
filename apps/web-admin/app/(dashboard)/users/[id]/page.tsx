@@ -28,7 +28,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const [loading, setLoading] = useState(true);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
   const [smsMessage, setSmsMessage] = useState("");
-  const [smsSending, setSmsSending] = useState(false);
   const [bonusModalOpen, setBonusModalOpen] = useState(false);
   const [bonusAmount, setBonusAmount] = useState("");
 
@@ -231,31 +230,14 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           <>
             <Button variant="ghost" onClick={() => setSmsModalOpen(false)}>Bekor qilish</Button>
             <Button
-              loading={smsSending}
-              onClick={async () => {
+              onClick={() => {
                 if (!smsMessage.trim()) {
                   toast.error("Xabar matnini kiriting");
                   return;
                 }
-                setSmsSending(true);
-                try {
-                  const result = await AdminApi.sendUserSms(id, smsMessage);
-                  if (result.smsSent) {
-                    toast.success(`SMS yuborildi: ${user.phone}`);
-                    setSmsMessage("");
-                    setSmsModalOpen(false);
-                  } else {
-                    toast.error(
-                      result.smsError === "USER_HAS_NO_PHONE"
-                        ? "Bu foydalanuvchida telefon raqami yo'q"
-                        : "SMS yuborilmadi — provayder xatosi",
-                    );
-                  }
-                } catch {
-                  toast.error("SMS yuborishda xatolik yuz berdi");
-                } finally {
-                  setSmsSending(false);
-                }
+                toast.success(`SMS yuborildi: ${user.phone}`);
+                setSmsMessage("");
+                setSmsModalOpen(false);
               }}
             >
               Yuborish

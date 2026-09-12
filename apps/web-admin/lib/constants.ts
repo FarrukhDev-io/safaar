@@ -123,43 +123,31 @@ export const SIDEBAR_ITEMS: NavItem[] = [
    Status turlari va ranglari
    ──────────────────────────────────────────── */
 
-// NEW-1 FIX: `color` bu yerda `StatusBadge.tsx` orqali matn rangi sifatida
-// o'zining O'ZI (`bg`) ustida ishlatiladi -- avval barcha 5 rang (yashil/
-// to'q sariq/qizil/ko'k/binafsha) o'zining tegishli 12%-shaffof
-// fon-ustidagi matn sifatida atigi ~1.9-4.0:1 kontrast berardi (WCAG AA
-// 4.5:1 talabidan past). `bg` (yumshoq, brendga mos rang tovlanishi)
-// ATAYLAB o'zgartirilmagan -- faqat `color` (matn/nuqta rangi) xuddi shu
-// tondagi ANCHA to'qroq variantga almashtirildi (har biri o'zining `bg`si
-// ustida 5.5:1+ berish uchun hisoblangan). E'tibor: `COLORS.accent` va
-// boshqa yorqin ranglar (yuqorida, grafiklarda ham) ATAYLAB TEGILMAGAN --
-// ular matn emas (tugma/grafik chizig'i kabi grafik elementlar) yoki
-// boshqa fonlarda ishlatiladi, shu sabab bu yerdagi muammoga aloqasi yo'q.
 export const BOOKING_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  PENDING: { label: "Kutilmoqda", color: "#885607", bg: "rgba(243,156,18,0.12)" },
-  CONFIRMED: { label: "Tasdiqlangan", color: "#19703E", bg: "rgba(46,204,113,0.12)" },
-  CANCELLED: { label: "Bekor qilingan", color: "#B62516", bg: "rgba(231,76,60,0.12)" },
-  COMPLETED: { label: "Yakunlangan", color: "#1B6496", bg: "rgba(52,152,219,0.12)" },
-  REFUND: { label: "Qaytarilgan", color: "#81449A", bg: "rgba(155,89,182,0.12)" },
+  PENDING: { label: "Kutilmoqda", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
+  CONFIRMED: { label: "Tasdiqlangan", color: "#2ECC71", bg: "rgba(46,204,113,0.12)" },
+  CANCELLED: { label: "Bekor qilingan", color: "#E74C3C", bg: "rgba(231,76,60,0.12)" },
+  COMPLETED: { label: "Yakunlangan", color: "#3498DB", bg: "rgba(52,152,219,0.12)" },
+  REFUND: { label: "Qaytarilgan", color: "#9B59B6", bg: "rgba(155,89,182,0.12)" },
 };
 
 export const USER_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  active: { label: "Faol", color: "#19703E", bg: "rgba(46,204,113,0.12)" },
-  blocked: { label: "Bloklangan", color: "#B62516", bg: "rgba(231,76,60,0.12)" },
-  unverified: { label: "Tasdiqlanmagan", color: "#885607", bg: "rgba(243,156,18,0.12)" },
+  active: { label: "Faol", color: "#2ECC71", bg: "rgba(46,204,113,0.12)" },
+  blocked: { label: "Bloklangan", color: "#E74C3C", bg: "rgba(231,76,60,0.12)" },
+  unverified: { label: "Tasdiqlanmagan", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
 };
 
 export const PARTNER_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  active: { label: "Faol", color: "#19703E", bg: "rgba(46,204,113,0.12)" },
-  suspended: { label: "To'xtatilgan", color: "#885607", bg: "rgba(243,156,18,0.12)" },
-  blocked: { label: "Bloklangan", color: "#B62516", bg: "rgba(231,76,60,0.12)" },
+  active: { label: "Faol", color: "#2ECC71", bg: "rgba(46,204,113,0.12)" },
+  suspended: { label: "To'xtatilgan", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
+  blocked: { label: "Bloklangan", color: "#E74C3C", bg: "rgba(231,76,60,0.12)" },
 };
 
 export const PARTNER_REQUEST_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  new: { label: "Yangi", color: "#885607", bg: "rgba(243,156,18,0.12)" },
-  submitted: { label: "Yangi", color: "#885607", bg: "rgba(243,156,18,0.12)" },
-  reviewing: { label: "Ko'rib chiqilmoqda", color: "#1B6496", bg: "rgba(52,152,219,0.12)" },
-  approved: { label: "Tasdiqlangan", color: "#19703E", bg: "rgba(46,204,113,0.12)" },
-  rejected: { label: "Rad etilgan", color: "#B62516", bg: "rgba(231,76,60,0.12)" },
+  new: { label: "Yangi", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
+  reviewing: { label: "Ko'rib chiqilmoqda", color: "#3498DB", bg: "rgba(52,152,219,0.12)" },
+  approved: { label: "Tasdiqlangan", color: "#2ECC71", bg: "rgba(46,204,113,0.12)" },
+  rejected: { label: "Rad etilgan", color: "#E74C3C", bg: "rgba(231,76,60,0.12)" },
 };
 
 export const PAYMENT_METHOD_MAP: Record<string, string> = {

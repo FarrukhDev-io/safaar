@@ -10,7 +10,6 @@ import { ActiveFilters } from "@/components/hotels/ActiveFilters";
 import { Button } from "@/components/ui/Button";
 import { AccommodationCategoryTabs } from "@/components/features/accommodation/AccommodationCategoryTabs";
 import { AccommodationListWithMap } from "@/components/features/accommodation/AccommodationListWithMap";
-import { getFavoritesMap } from "@/lib/account/favorites-actions";
 import type { HotelListItem } from "@/types/view";
 
 const PAGE_SIZE = 9;
@@ -34,11 +33,7 @@ export interface AccommodationPageProps {
   searchParams: SearchParams;
   basePath: string;
   title: string;
-  /**
-   * Yashash-joyi turi filtri (`dacha` | `resort` | `sanatorium`). `/hotels`
-   * uchun `undefined` — umumiy katalog.
-   */
-  accommodationType?: string;
+  type?: string;
 }
 
 export async function AccommodationPage({
@@ -46,7 +41,7 @@ export async function AccommodationPage({
   searchParams: sp,
   basePath,
   title,
-  accommodationType,
+  type,
 }: AccommodationPageProps) {
   const cityId = one(sp.city_id);
   const search = one(sp.search);
@@ -66,7 +61,7 @@ export async function AccommodationPage({
   const checkOut = one(sp.check_out);
   const guests = int(one(sp.guests));
 
-  const [common, dict, cities, hotelsResult, favoritesResult] = await Promise.all([
+  const [common, dict, cities, hotelsResult] = await Promise.all([
     getDictionary(locale, "common"),
     getDictionary(locale, "hotels"),
     api.catalog.getCities(locale),
@@ -74,17 +69,14 @@ export async function AccommodationPage({
       cityId,
       search,
       stars,
-      type: accommodationType,
+      type,
       minPrice,
       maxPrice,
       sort,
       page,
       limit: PAGE_SIZE,
     }),
-    getFavoritesMap("hotel"),
   ]);
-
-  const loginHref = `/${locale}/login?next=${encodeURIComponent(basePath)}`;
 
   const all: HotelListItem[] = hotelsResult.items;
   const total = hotelsResult.total;
@@ -328,7 +320,7 @@ export async function AccommodationPage({
                 <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
                   {title}
                 </h1>
-                <span aria-live="polite" className="text-xs font-bold text-slate-600 dark:text-slate-400 sm:text-sm">
+                <span aria-live="polite" className="text-xs font-bold text-slate-400 sm:text-sm">
                   {dict.resultsCount.replace("{count}", String(total))}
                 </span>
               </div>
@@ -364,9 +356,6 @@ export async function AccommodationPage({
           safePage={safePage}
           totalPages={totalPages}
           currentParams={currentParams}
-          authed={favoritesResult.authed}
-          favoriteIds={favoritesResult.favoriteIds}
-          loginHref={loginHref}
           filters={
             <Suspense key="filters" fallback={null}>
               <HotelFilters
@@ -384,7 +373,7 @@ export async function AccommodationPage({
               <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
                 {title}
               </h1>
-              <span aria-live="polite" className="text-xs font-bold text-slate-600 dark:text-slate-400 sm:text-sm">
+              <span aria-live="polite" className="text-xs font-bold text-slate-400 sm:text-sm">
                 {dict.resultsCount.replace("{count}", String(total))}
               </span>
             </div>

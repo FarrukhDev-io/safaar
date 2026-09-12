@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang } = await params;
+  if (!isLocale(lang)) return {};
+  const dict = await getDictionary(lang as Locale, "account");
+  return { title: dict.nav?.favorites ?? "Sevimlilar", robots: { index: false, follow: false } };
+}
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
@@ -22,9 +30,10 @@ export default async function AccountFavoritesPage({
   const locale = lang as Locale;
 
   // SENIOR OPTIMIZATION: Parallelize session & dictionary loading
-  const [session, dict] = await Promise.all([
+  const [session, dict, favDict] = await Promise.all([
     getSession(),
     getDictionary(locale, "account"),
+    getDictionary(locale, "favorites"),
   ]);
 
   if (!session) {
@@ -115,7 +124,7 @@ export default async function AccountFavoritesPage({
                     <span className="text-sm font-bold text-primary-700 dark:text-primary-400">
                       {formatSum(hotel.minPriceSum)}
                     </span>
-                    <span className="text-[10px] text-slate-400"> / kecha</span>
+                    <span className="text-[10px] text-slate-400"> / {(favDict as any).perNight || "kecha"}</span>
                   </div>
                 </div>
               </article>

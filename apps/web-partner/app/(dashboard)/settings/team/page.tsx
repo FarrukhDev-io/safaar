@@ -4,35 +4,40 @@ import { useEffect, useState } from "react";
 import { Users, UserPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PartnerTeamMember, listTeamMembers, inviteTeamMember, deleteTeamMember, updateTeamMember } from "@/app/_lib/api/endpoints/partners";
-import { toTeamMember } from "@/app/_lib/api/adapters";
-import { useAuthStore } from "@/app/_stores/auth-store";
 
 export default function TeamSettingsPage() {
-  const token = useAuthStore((s) => s.tokens?.accessToken);
   const [members, setMembers] = useState<PartnerTeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
-
+  
   const [inviteForm, setInviteForm] = useState({ name: "", email: "", role: "staff" });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchMembers = async () => {
-    if (!token) return;
     try {
-      setLoading(true);
-      const data = await listTeamMembers(token);
-      setMembers(data.map(toTeamMember));
+      const data = await listTeamMembers(null);
+      setMembers(data);
     } catch {
       toast.error("Jamoa a'zolarini yuklab bo'lmadi");
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMembers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await listTeamMembers(null);
+        if (!cancelled) setMembers(data);
+      } catch {
+        if (!cancelled) toast.error("Jamoa a'zolarini yuklab bo'lmadi");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, []);
 
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -43,10 +48,7 @@ export default function TeamSettingsPage() {
     }
     setSubmitting(true);
     try {
-      await inviteTeamMember(
-        { full_name: inviteForm.name, email: inviteForm.email, role: inviteForm.role },
-        token,
-      );
+      await inviteTeamMember(inviteForm, null);
       toast.success("Taklif yuborildi");
       setShowInviteModal(false);
       setInviteForm({ name: "", email: "", role: "staff" });
@@ -61,7 +63,7 @@ export default function TeamSettingsPage() {
   const handleRemove = async (id: string) => {
     if (!confirm("Ushbu xodimni rostdan ham o'chirmoqchimisiz? Uning tizimga kirish ruxsati bekor qilinadi.")) return;
     try {
-      await deleteTeamMember(id, token);
+      await deleteTeamMember(id, null);
       toast.success("Xodim o'chirildi");
       setMembers(members.filter((m) => m.id !== id));
     } catch {
@@ -71,7 +73,7 @@ export default function TeamSettingsPage() {
 
   const handleRoleChange = async (id: string, newRole: string) => {
     try {
-      await updateTeamMember(id, { role: newRole }, token);
+      await updateTeamMember(id, { role: newRole }, null);
       toast.success("Rol o'zgartirildi");
       setMembers(members.map((m) => (m.id === id ? { ...m, role: newRole as any } : m)));
     } catch {

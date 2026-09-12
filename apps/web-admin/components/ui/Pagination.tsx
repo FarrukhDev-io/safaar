@@ -38,17 +38,9 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         Sahifa {currentPage} / {totalPages}
       </span>
       <div className="flex items-center gap-1">
-        {/* NEW-2 FIX: ikkala paginatsiya tugmasi ham faqat ikonka edi,
-            hech qanday accessible name yo'q edi. Tabiiy HTML `disabled`
-            atributi (aria-disabled emas) allaqachon to'g'ri ishlatilgan --
-            u elementni tab tartibidan chiqaradi va screen readerlarga
-            "mavjud emas" deb e'lon qiladi, shuning uchun o'zgartirilmadi.
-            Klaviatura orqali faollashtirish ham allaqachon to'g'ri ishlaydi
-            (native <button>). */}
         <button
           disabled={currentPage === 1}
           onClick={() => onPageChange(currentPage - 1)}
-          aria-label="Oldingi sahifa"
           className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           <ChevronLeft size={16} />
@@ -78,7 +70,6 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         <button
           disabled={currentPage === totalPages}
           onClick={() => onPageChange(currentPage + 1)}
-          aria-label="Keyingi sahifa"
           className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           <ChevronRight size={16} />

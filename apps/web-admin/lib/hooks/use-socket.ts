@@ -2,15 +2,15 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import { getSocketAuthTokenAction } from '../auth/actions';
+import Cookies from 'js-cookie';
 
-const DEFAULT_API_BASE_URL =
-  process.env.NODE_ENV === 'development'
-    ? '/api/backend'
-    : 'https://backend-production-87e6.up.railway.app/v1';
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_BASE_URL;
+  process.env.NEXT_PUBLIC_API_URL || '/api/backend';
 const WS_URL = API_BASE_URL.replace(/\/v\d+$/, '').replace(/\/api$/, '');
+
+function getToken(): string | undefined {
+  return Cookies.get('admin_token');
+}
 
 export interface UseSocketOptions {
   enabled?: boolean;
@@ -25,39 +25,34 @@ export function useSocket(options?: UseSocketOptions) {
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
-    let cancelled = false;
-    let socket: Socket | null = null;
+    const token = getToken();
+    if (!token) return;
 
-    getSocketAuthTokenAction().then((token) => {
-      if (cancelled || !token) return;
-
-      socket = io(WS_URL, {
-        auth: { token },
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 50,
-      });
-
-      socket.on('connect', () => {
-        setConnected(true);
-        setSocket(socket);
-      });
-      socket.on('disconnect', () => {
-        setConnected(false);
-        setSocket(null);
-      });
-      socket.on('connect_error', () => {
-        setConnected(false);
-        setSocket(null);
-      });
-
-      socketRef.current = socket;
+    const socket = io(WS_URL, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 50,
     });
 
+    socket.on('connect', () => {
+      setConnected(true);
+      setSocket(socket);
+    });
+    socket.on('disconnect', () => {
+      setConnected(false);
+      setSocket(null);
+    });
+    socket.on('connect_error', () => {
+      setConnected(false);
+      setSocket(null);
+    });
+
+    socketRef.current = socket;
+
     return () => {
-      cancelled = true;
-      socket?.disconnect();
+      socket.disconnect();
       socketRef.current = null;
       setConnected(false);
     };

@@ -4,47 +4,46 @@ import { useEffect, useState, useRef } from "react";
 import { FileText, Upload, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { PartnerDocument, listDocuments, uploadDocument } from "@/app/_lib/api/endpoints/partners";
-import { toDocument } from "@/app/_lib/api/adapters";
 import { formatDate } from "@/app/_lib/utils/format";
-import { useAuthStore } from "@/app/_stores/auth-store";
 
 export default function DocumentsSettingsPage() {
-  const token = useAuthStore((s) => s.tokens?.accessToken);
   const [documents, setDocuments] = useState<PartnerDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedType, setSelectedType] = useState("license");
 
-  const fetchDocs = async () => {
-    if (!token) return;
-    try {
-      setLoading(true);
-      const data = await listDocuments(token);
-      setDocuments(data.map(toDocument));
-    } catch {
-      toast.error("Hujjatlarni yuklab bo'lmadi");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchDocs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await listDocuments(null);
+        if (!cancelled) setDocuments(data);
+      } catch {
+        if (!cancelled) toast.error("Hujjatlarni yuklab bo'lmadi");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, []);
 
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Simulated file upload for now
     setUploading(true);
     try {
-      await uploadDocument(file, selectedType, token);
+      // Create a dummy URL (in reality, you upload to a storage bucket first, get URL, then send to backend)
+      const mockUrl = URL.createObjectURL(file);
+      await uploadDocument({ name: file.name, type: selectedType, url: mockUrl }, null);
       toast.success("Hujjat yuklandi va tasdiqlash uchun yuborildi");
-      const data = await listDocuments(token);
-      setDocuments(data.map(toDocument));
+      const data = await listDocuments(null);
+      setDocuments(data);
     } catch {
       toast.error("Hujjat yuklashda xatolik");
     } finally {

@@ -187,10 +187,7 @@ function toPartner(row: ApiRecord): Partner {
     id: asString(row.id),
     companyName: asString(row.brand_name ?? row.legal_name, 'Hamkor'),
     type: partnerType(row.type),
-    contactPerson: asString(
-      row.contact_person ?? row.legal_name ?? row.brand_name,
-      "Mas'ul shaxs",
-    ),
+    contactPerson: asString(row.legal_name ?? row.brand_name, "Mas'ul shaxs"),
     phone: asString(row.phone),
     email: asString(row.email),
     city: asString(row.city),
@@ -214,34 +211,24 @@ function toPartner(row: ApiRecord): Partner {
 }
 
 function toPartnerRequest(row: ApiRecord): PartnerRequest {
-  const rawStatus = asString(row.status).toLowerCase();
-
   return {
     id: asString(row.id),
     companyName: asString(row.brand_name ?? row.legal_name, 'Hamkor arizasi'),
     type: partnerType(row.type),
-    contactPerson: asString(
-      row.contact_person ?? row.legal_name ?? row.brand_name,
-      "Mas'ul shaxs",
-    ),
+    contactPerson: asString(row.legal_name ?? row.brand_name, "Mas'ul shaxs"),
     phone: asString(row.phone),
     email: asString(row.email),
     city: asString(row.city),
     address: asString(row.address),
     documents: Array.isArray(row.documents) ? row.documents : [],
     status:
-      rawStatus === 'approved'
+      row.status === 'approved'
         ? 'approved'
-        : rawStatus === 'rejected' ||
-            rawStatus === 'blocked' ||
-            rawStatus === 'suspended'
+        : row.status === 'rejected'
           ? 'rejected'
-          : rawStatus === 'submitted'
-            ? 'submitted'
-            : rawStatus === 'under_review' ||
-                rawStatus === 'more_information_required'
-              ? 'reviewing'
-              : 'new',
+          : row.status === 'submitted'
+            ? 'reviewing'
+            : 'new',
     createdAt: asString(row.created_at, new Date().toISOString()),
   };
 }
@@ -255,22 +242,6 @@ function partnerType(value: unknown): Partner['type'] {
     type === 'motel' ||
     type === 'dacha' ||
     type === 'restaurant'
-  ) {
-    return type;
-  }
-  return 'hotel';
-}
-
-function listingPartnerType(value: unknown): AdminListing['partnerType'] {
-  const type = asString(value).toLowerCase();
-  if (
-    type === 'hotel' ||
-    type === 'hostel' ||
-    type === 'guesthouse' ||
-    type === 'motel' ||
-    type === 'dacha' ||
-    type === 'restaurant' ||
-    type === 'mixed'
   ) {
     return type;
   }
@@ -511,7 +482,6 @@ function toListing(row: ApiRecord): AdminListing {
   return {
     id: asString(row.id),
     partnerId: asString(row.partner_organization_id),
-    partnerType: listingPartnerType(row.partner_type ?? partner.type),
     companyName: localizedText(
       row.company_name ??
         row.brand_name ??
@@ -654,22 +624,13 @@ function toCmsArticle(row: ApiRecord, type?: CmsArticle['type']): CmsArticle {
 
   return {
     id: asString(row.id),
-    title: localizedText(
-      row.title ?? row.title_i18n ?? row.titleText ?? row.title_text,
-      asString(row.slug, 'Kontent'),
-    ),
+    title: localizedText(row.title, asString(row.slug, 'Kontent')),
     type: articleType,
     slug: asString(row.slug),
-    status:
-      asString(row.status) === 'published' || asString(row.status) === 'active'
-        ? 'published'
-        : 'draft',
+    status: asString(row.status) === 'published' ? 'published' : 'draft',
     publishedAt: asString(
       row.publishedAt ?? row.published_at ?? row.created_at,
       new Date().toISOString(),
-    ),
-    body: localizedText(
-      row.body ?? row.body_i18n ?? row.content ?? row.bodyText ?? row.body_text,
     ),
   };
 }
@@ -686,39 +647,6 @@ function toWithdrawal(row: ApiRecord): WithdrawalRequest {
     ),
     status: withdrawalStatus(row.status),
     bankAccount: asString(row.bankAccount ?? row.bank_account),
-  };
-}
-
-function toDeveloperApiKey(row: ApiRecord): DeveloperApiKey {
-  return {
-    id: asString(row.id),
-    partnerId: asString(row.partnerId ?? row.partner_id),
-    partnerName: asString(row.partnerName ?? row.partner_name, 'Hamkor'),
-    name: asString(row.name),
-    keyPrefix: asString(row.keyPrefix ?? row.key_prefix),
-    lastUsedAt: (row.lastUsedAt ?? row.last_used_at)
-      ? asString(row.lastUsedAt ?? row.last_used_at)
-      : undefined,
-    createdAt: asString(
-      row.createdAt ?? row.created_at,
-      new Date().toISOString(),
-    ),
-  };
-}
-
-function toDeveloperWebhook(row: ApiRecord): DeveloperWebhook {
-  return {
-    id: asString(row.id),
-    partnerId: asString(row.partnerId ?? row.partner_id),
-    partnerName: asString(row.partnerName ?? row.partner_name, 'Hamkor'),
-    url: asString(row.url),
-    events: Array.isArray(row.events) ? row.events.map((e) => String(e)) : [],
-    isActive: asBoolean(row.isActive ?? row.is_active, true),
-    failedDeliveries: asNumber(row.failedDeliveries ?? row.failed_deliveries),
-    createdAt: asString(
-      row.createdAt ?? row.created_at,
-      new Date().toISOString(),
-    ),
   };
 }
 
@@ -754,15 +682,15 @@ function toPaymentTransaction(row: ApiRecord): AdminPaymentTransaction {
     amount: asNumber(row.amount),
     provider: paymentProvider(row.provider),
     status: paymentTransactionStatus(row.status),
-    providerTransactionId: asString(row.provider_reference ?? row.provider_transaction_id ?? row.providerTransactionId) || undefined,
+    providerTransactionId: asString(row.provider_transaction_id ?? row.providerTransactionId) || undefined,
     createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
   };
 }
 
 function refundTransactionStatus(value: unknown): AdminRefundTransaction['status'] {
   const s = asString(value).toLowerCase();
-  if (s === 'processing' || s === 'approved' || s === 'rejected' || s === 'paid') return s;
-  return 'requested';
+  if (s === 'approved' || s === 'rejected' || s === 'failed' || s === 'completed') return s;
+  return 'pending';
 }
 
 function toRefundTransaction(row: ApiRecord): AdminRefundTransaction {
@@ -774,22 +702,6 @@ function toRefundTransaction(row: ApiRecord): AdminRefundTransaction {
     amount: asNumber(row.amount),
     reason: asString(row.reason, 'Sabab ko\'rsatilmagan'),
     status: refundTransactionStatus(row.status),
-    createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
-  };
-}
-
-export interface InternalNote {
-  id: string;
-  authorName: string;
-  body: string;
-  createdAt: string;
-}
-
-function toInternalNote(row: ApiRecord): InternalNote {
-  return {
-    id: asString(row.id),
-    authorName: asString(row.author_name ?? row.authorName, "Admin"),
-    body: asString(row.body),
     createdAt: asString(row.created_at ?? row.createdAt, new Date().toISOString()),
   };
 }
@@ -1041,31 +953,53 @@ function cmsBannerPayload(banner: Omit<CmsBanner, 'id'> | Partial<CmsBanner>) {
   };
 }
 
-function cmsArticlePayload(article: Partial<CmsArticle>) {
-  return {
-    slug: article.slug,
-    title: { uz: article.title ?? '' },
-    body: { uz: article.body ?? '' },
-    status: article.status ?? 'draft',
-  };
-}
-
-function isNotFoundError(error: unknown): boolean {
-  const record = asRecord(error);
-  const response = asRecord(record.response);
-  return response.status === 404;
-}
-
 export const AdminApi = {
   // Auth
-  //
-  // `login`/`verify2FA` ilgari shu yerda edi, lekin login vaqtida haqiqiy
-  // JWT'ni to'g'ridan-to'g'ri klientga qaytarib, keyin `js-cookie` orqali
-  // JS o'qiy oladigan cookie'ga yozib qo'yishardi (XSS bo'lsa,
-  // SUPER_ADMIN tokeni to'liq o'g'irlanishi mumkin edi). Endi bu ikkalasi
-  // `lib/auth/actions.ts`dagi Server Action'lar (`adminLoginAction`,
-  // `adminVerify2FAAction`) — token hech qachon klient JS'iga chiqmaydi,
-  // to'g'ridan-to'g'ri serverda httpOnly cookie'ga yoziladi.
+  login: async (username: string, password: string) => {
+    const { data } = await apiClient.post('/auth/admin/login', {
+      username,
+      password,
+    });
+    if (data.requires_2fa) {
+      return { requires2FA: true, challengeId: data.challenge_id };
+    }
+    const token = data.accessToken ?? data.access_token;
+    if (!token) {
+      throw new Error('Login token qaytmadi');
+    }
+    return {
+      requires2FA: false,
+      token,
+      user: {
+        id: data.admin?.id ?? 'admin',
+        name: data.admin?.full_name ?? data.admin?.email ?? 'Admin',
+        email: data.admin?.email ?? username,
+        role: data.admin?.role ?? 'SUPER_ADMIN',
+        has2FA: data.admin?.has_2fa ?? false,
+      },
+    };
+  },
+
+  verify2FA: async (challengeId: string, code: string) => {
+    const { data } = await apiClient.post('/auth/admin/verify-2fa', {
+      challenge_id: challengeId,
+      code,
+    });
+    const token = data.accessToken ?? data.access_token;
+    if (!token) {
+      throw new Error('Login token qaytmadi');
+    }
+    return {
+      token,
+      user: {
+        id: data.admin?.id ?? 'admin',
+        name: data.admin?.full_name ?? data.admin?.email ?? 'Admin',
+        email: data.admin?.email ?? 'admin@safaar.uz',
+        role: data.admin?.role ?? 'SUPER_ADMIN',
+        has2FA: data.admin?.has_2fa ?? true,
+      },
+    };
+  },
 
   setup2FA: async () => {
     const { data } = await apiClient.post('/auth/admin/2fa/setup');
@@ -1130,19 +1064,6 @@ export const AdminApi = {
     return asNumber(asRecord(data).balance);
   },
 
-  sendUserSms: async (id: string, message: string): Promise<{ smsSent: boolean; smsError?: string }> => {
-    const { data } = await apiClient.post(`/admin/users/${id}/message`, { message });
-    const row = asRecord(data);
-    return {
-      smsSent: Boolean(row.sms_sent),
-      smsError: row.sms_error ? String(row.sms_error) : undefined,
-    };
-  },
-
-  sendBulkUserSms: async (userIds: string[], message: string): Promise<void> => {
-    await apiClient.post('/admin/users/message', { user_ids: userIds, message });
-  },
-
   // Partners
   getPartners: async (): Promise<Partner[]> => {
     const { data } = await apiClient.get('/admin/partners');
@@ -1156,14 +1077,7 @@ export const AdminApi = {
 
   getPartnerRequests: async (): Promise<PartnerRequest[]> => {
     const { data } = await apiClient.get('/admin/partners/requests');
-    return unknownItems(data)
-      .map((row) => asRecord(row))
-      .filter((row) =>
-        ['submitted', 'under_review', 'more_information_required'].includes(
-          asString(row.status).toLowerCase(),
-        ),
-      )
-      .map((row) => toPartnerRequest(row));
+    return unknownItems(data).map((row) => toPartnerRequest(asRecord(row)));
   },
 
   approvePartner: async (id: string) => {
@@ -1238,7 +1152,19 @@ export const AdminApi = {
   // Developer (API & Webhooks)
   getDeveloperApiKeys: async (): Promise<DeveloperApiKey[]> => {
     const { data } = await apiClient.get('/admin/developer/api-keys');
-    return unknownItems(data).map((row) => toDeveloperApiKey(asRecord(row)));
+    return unknownItems(data).map((row) => {
+      const r = asRecord(row);
+      const org = asRecord(r.partner_organization ?? r.partnerOrganization);
+      return {
+        id: asString(r.id),
+        partnerId: asString(r.partner_organization_id ?? r.partnerId),
+        partnerName: asString(org.brand_name ?? org.legal_name ?? r.partner_name ?? r.partnerName, 'Hamkor'),
+        name: asString(r.name, 'API Key'),
+        keyPrefix: asString(r.key_prefix ?? r.keyPrefix, ''),
+        lastUsedAt: r.last_used_at ? asString(r.last_used_at) : undefined,
+        createdAt: asString(r.created_at ?? r.createdAt, new Date().toISOString()),
+      } satisfies DeveloperApiKey;
+    });
   },
 
   deleteDeveloperApiKey: async (id: string): Promise<void> => {
@@ -1247,7 +1173,20 @@ export const AdminApi = {
 
   getDeveloperWebhooks: async (): Promise<DeveloperWebhook[]> => {
     const { data } = await apiClient.get('/admin/developer/webhooks');
-    return unknownItems(data).map((row) => toDeveloperWebhook(asRecord(row)));
+    return unknownItems(data).map((row) => {
+      const r = asRecord(row);
+      const org = asRecord(r.partner_organization ?? r.partnerOrganization);
+      return {
+        id: asString(r.id),
+        partnerId: asString(r.partner_organization_id ?? r.partnerId),
+        partnerName: asString(org.brand_name ?? org.legal_name ?? r.partner_name ?? r.partnerName, 'Hamkor'),
+        url: asString(r.url),
+        events: Array.isArray(r.events) ? r.events.map(String) : [],
+        isActive: asBoolean(r.is_active ?? r.isActive, true),
+        failedDeliveries: asNumber(r.failed_deliveries ?? r.failedDeliveries),
+        createdAt: asString(r.created_at ?? r.createdAt, new Date().toISOString()),
+      } satisfies DeveloperWebhook;
+    });
   },
 
   // Team (Admin Users)
@@ -1370,13 +1309,9 @@ export const AdminApi = {
     }
   },
 
-  getNotifications: async (): Promise<{ items: AdminNotification[]; unreadCount: number }> => {
+  getNotifications: async (): Promise<AdminNotification[]> => {
     const { data } = await apiClient.get('/notifications');
-    const record = asRecord(data);
-    return {
-      items: unknownItems(data).map((row) => toNotification(asRecord(row))),
-      unreadCount: asNumber(record.unread_count ?? record.unreadCount),
-    };
+    return unknownItems(data).map((row) => toNotification(asRecord(row)));
   },
 
   markNotificationRead: async (id: string): Promise<AdminNotification> => {
@@ -1528,45 +1463,6 @@ export const AdminApi = {
     return toRefundTransaction(asRecord(data));
   },
 
-  createRefund: async (bookingId: string, reason: string): Promise<AdminRefundTransaction> => {
-    const { data } = await apiClient.post('/refunds', { booking_id: bookingId, reason });
-    return toRefundTransaction(asRecord(data));
-  },
-
-  getRoles: async (): Promise<{ id: string; permissions: string[] }[]> => {
-    const { data } = await apiClient.get('/admin/roles');
-    return unknownItems(data).map((row) => {
-      const record = asRecord(row);
-      return {
-        id: asString(record.id),
-        permissions: Array.isArray(record.permissions)
-          ? (record.permissions as unknown[]).map((p) => String(p))
-          : [],
-      };
-    });
-  },
-
-  // Internal notes (booking / partner)
-  getBookingNotes: async (bookingId: string): Promise<InternalNote[]> => {
-    const { data } = await apiClient.get(`/admin/bookings/${bookingId}/notes`);
-    return unknownItems(data).map((row) => toInternalNote(asRecord(row)));
-  },
-
-  addBookingNote: async (bookingId: string, body: string): Promise<InternalNote> => {
-    const { data } = await apiClient.post(`/admin/bookings/${bookingId}/notes`, { body });
-    return toInternalNote(asRecord(data));
-  },
-
-  getPartnerNotes: async (partnerId: string): Promise<InternalNote[]> => {
-    const { data } = await apiClient.get(`/admin/partners/${partnerId}/notes`);
-    return unknownItems(data).map((row) => toInternalNote(asRecord(row)));
-  },
-
-  addPartnerNote: async (partnerId: string, body: string): Promise<InternalNote> => {
-    const { data } = await apiClient.post(`/admin/partners/${partnerId}/notes`, { body });
-    return toInternalNote(asRecord(data));
-  },
-
   getSettings: async (): Promise<AdminSettings> => {
     const { data } = await apiClient.get('/admin/settings');
     return {
@@ -1708,111 +1604,6 @@ export const AdminApi = {
   },
   deleteCmsBanner: async (id: string): Promise<void> => {
     await apiClient.post(`/admin/cms/banners/${id}/archive`);
-  },
-  createCmsNews: async (article: Partial<CmsArticle>): Promise<CmsArticle> => {
-    const { data } = await apiClient.post(
-      '/admin/cms/news',
-      cmsArticlePayload(article),
-    );
-    return toCmsArticle(asRecord(data), 'news');
-  },
-  updateCmsNews: async (
-    id: string,
-    article: Partial<CmsArticle>,
-  ): Promise<CmsArticle> => {
-    const { data } = await apiClient.patch(
-      `/admin/cms/news/${id}`,
-      cmsArticlePayload(article),
-    );
-    return toCmsArticle(asRecord(data), 'news');
-  },
-  setCmsNewsStatus: async (
-    id: string,
-    status: CmsArticle['status'],
-  ): Promise<CmsArticle> => {
-    const action = status === 'published' ? 'publish' : 'unpublish';
-    const { data } = await apiClient.post(`/admin/cms/news/${id}/${action}`);
-    return toCmsArticle(asRecord(data), 'news');
-  },
-  deleteCmsNews: async (id: string): Promise<void> => {
-    try {
-      await apiClient.delete(`/admin/cms/news/${id}`);
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-      await apiClient.post(`/admin/cms/news/${id}/archive`);
-    }
-  },
-  createCmsOffer: async (article: Partial<CmsArticle>): Promise<CmsArticle> => {
-    const { data } = await apiClient.post(
-      '/admin/cms/offers',
-      cmsArticlePayload(article),
-    );
-    return toCmsArticle(asRecord(data), 'offer');
-  },
-  updateCmsOffer: async (
-    id: string,
-    article: Partial<CmsArticle>,
-  ): Promise<CmsArticle> => {
-    const { data } = await apiClient.patch(
-      `/admin/cms/offers/${id}`,
-      cmsArticlePayload(article),
-    );
-    return toCmsArticle(asRecord(data), 'offer');
-  },
-  setCmsOfferStatus: async (
-    id: string,
-    status: CmsArticle['status'],
-  ): Promise<CmsArticle> => {
-    const action = status === 'published' ? 'publish' : 'unpublish';
-    const { data } = await apiClient.post(`/admin/cms/offers/${id}/${action}`);
-    return toCmsArticle(asRecord(data), 'offer');
-  },
-  deleteCmsOffer: async (id: string): Promise<void> => {
-    try {
-      await apiClient.delete(`/admin/cms/offers/${id}`);
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-      await apiClient.post(`/admin/cms/offers/${id}/archive`);
-    }
-  },
-  createCmsPage: async (article: Partial<CmsArticle>): Promise<CmsArticle> => {
-    const { data } = await apiClient.post(
-      '/admin/cms/pages',
-      cmsArticlePayload(article),
-    );
-    return toCmsArticle(asRecord(data), 'page');
-  },
-  updateCmsPage: async (
-    id: string,
-    article: Partial<CmsArticle>,
-  ): Promise<CmsArticle> => {
-    const { data } = await apiClient.patch(
-      `/admin/cms/pages/${id}`,
-      cmsArticlePayload(article),
-    );
-    return toCmsArticle(asRecord(data), 'page');
-  },
-  setCmsPageStatus: async (
-    id: string,
-    status: CmsArticle['status'],
-  ): Promise<CmsArticle> => {
-    const action = status === 'published' ? 'publish' : 'unpublish';
-    const { data } = await apiClient.post(`/admin/cms/pages/${id}/${action}`);
-    return toCmsArticle(asRecord(data), 'page');
-  },
-  deleteCmsPage: async (id: string): Promise<void> => {
-    try {
-      await apiClient.delete(`/admin/cms/pages/${id}`);
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-      await apiClient.post(`/admin/cms/pages/${id}/archive`);
-    }
   },
 
   // Catalog

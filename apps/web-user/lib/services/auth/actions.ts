@@ -89,40 +89,8 @@ export async function verifyOtpAction(
   const lastName = String(formData.get("lastName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const registrationToken = String(formData.get("registrationToken") ?? "").trim();
-  const oauthProvider = String(formData.get("oauthProvider") ?? "").trim();
 
   if (!phone) return { error: "PHONE_REQUIRED" };
-
-  if (registrationToken && oauthProvider) {
-    try {
-      const result = await api.auth.completeOAuthRegistration({
-        provider: oauthProvider,
-        registrationToken,
-        phone,
-        code,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-      });
-      await setSession({
-        userId: result.user.id,
-        role: Role.USER,
-        email: result.user.email ?? undefined,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
-    } catch (error) {
-      return {
-        error:
-          error instanceof ApiRequestError
-            ? error.code || error.message
-            : "ERROR",
-      };
-    }
-
-    const target = next.startsWith("/") ? next : `/${locale}`;
-    redirect(target);
-  }
 
   try {
     const result = await api.auth.verifyPhoneOtp(phone, code);
@@ -175,7 +143,7 @@ export interface CompleteProfileState {
 
 export interface PasswordResetRequestState {
   ok: boolean;
-  phone?: string;
+  email?: string;
   challengeId?: string;
   error?: string;
 }
@@ -184,14 +152,14 @@ export async function requestPasswordResetAction(
   _prev: PasswordResetRequestState,
   formData: FormData,
 ): Promise<PasswordResetRequestState> {
-  const phone = String(formData.get("phone") ?? "").trim();
-  if (!phone) return { ok: false, error: "PHONE_REQUIRED" };
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { ok: false, error: "EMAIL_REQUIRED" };
 
   try {
-    const result = await api.auth.forgotPassword(phone);
+    const result = await api.auth.forgotPassword(email);
     return {
       ok: true,
-      phone,
+      email,
       challengeId: result.challengeId,
     };
   } catch (error) {
@@ -207,7 +175,7 @@ export async function requestPasswordResetAction(
 
 export interface PasswordResetCodeState {
   verified: boolean;
-  phone?: string;
+  email?: string;
   resetToken?: string;
   error?: string;
 }
@@ -216,22 +184,22 @@ export async function verifyPasswordResetCodeAction(
   _prev: PasswordResetCodeState,
   formData: FormData,
 ): Promise<PasswordResetCodeState> {
-  const phone = String(formData.get("phone") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
   const code = String(formData.get("code") ?? "").trim();
   const challengeId = String(formData.get("challengeId") ?? "").trim();
 
-  if (!phone) return { verified: false, error: "PHONE_REQUIRED" };
+  if (!email) return { verified: false, error: "EMAIL_REQUIRED" };
   if (!code) return { verified: false, error: "CODE_REQUIRED" };
 
   try {
     const result = await api.auth.verifyResetCode(
-      phone,
+      email,
       code,
       challengeId || undefined,
     );
     return {
       verified: result.verified,
-      phone,
+      email,
       resetToken: result.resetToken,
     };
   } catch (error) {
@@ -254,12 +222,12 @@ export async function resetPasswordAction(
   _prev: PasswordResetState,
   formData: FormData,
 ): Promise<PasswordResetState> {
-  const phone = String(formData.get("phone") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
   const resetToken = String(formData.get("resetToken") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-  if (!phone) return { ok: false, error: "PHONE_REQUIRED" };
+  if (!email) return { ok: false, error: "EMAIL_REQUIRED" };
   if (!resetToken) return { ok: false, error: "RESET_TOKEN_REQUIRED" };
   if (!password) return { ok: false, error: "PASSWORD_REQUIRED" };
   if (password !== confirmPassword) {
@@ -270,7 +238,7 @@ export async function resetPasswordAction(
   if (passwordError) return { ok: false, error: passwordError };
 
   try {
-    await api.auth.resetPassword(phone, password, resetToken);
+    await api.auth.resetPassword(email, password, resetToken);
     return { ok: true };
   } catch (error) {
     return {

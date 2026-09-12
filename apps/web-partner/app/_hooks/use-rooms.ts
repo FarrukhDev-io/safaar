@@ -59,7 +59,7 @@ export function useCreateRoom() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (values: RoomDraft) => {
-      const hotel = await getPrimaryHotel(queryClient, accessToken);
+      const hotel = await getPrimaryHotel(accessToken);
       return toRoom(await partners.createRoom(hotel.id, roomBody(values), accessToken));
     },
     onSuccess: () => {
@@ -73,7 +73,7 @@ export function useUpdateRoom() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, values }: { id: string; values: Partial<RoomDraft> }) => {
-      const hotel = await getPrimaryHotel(queryClient, accessToken);
+      const hotel = await getPrimaryHotel(accessToken);
       return toRoom(
         await partners.updateRoom(hotel.id, id, roomBody(values), accessToken),
       );
@@ -89,7 +89,7 @@ export function useDeleteRoom() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const hotel = await getPrimaryHotel(queryClient, accessToken);
+      const hotel = await getPrimaryHotel(accessToken);
       return partners.deleteRoom(hotel.id, id, accessToken);
     },
     onSuccess: () => {
@@ -103,7 +103,7 @@ export function useBulkCreateRooms() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (values: BulkRoomsDraft & { basePrice?: number; capacity?: number }) => {
-      const hotel = await getPrimaryHotel(queryClient, accessToken);
+      const hotel = await getPrimaryHotel(accessToken);
       return partners.bulkCreateRooms(
         hotel.id,
         {

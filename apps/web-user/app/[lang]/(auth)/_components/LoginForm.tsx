@@ -21,16 +21,7 @@ import { config } from "@/lib/config";
 
 const API_URL = config.apiUrl;
 
-type LoginMode = "login" | "forgot-phone" | "forgot-code" | "reset-password";
-type SocialProvider = "google" | "facebook";
-
-// Backend OAuth callback xato bo'lsa `socialError` bilan `/login`ga qaytaradi,
-// lekin qaysi provider (Google/Facebook) bilan boshlangani query parametrida
-// kelmaydi (bu OAuth callback logikasiga tegishli emas — sof frontend
-// masalasi). Shuning uchun tugma bosilgan zahoti (sahifadan chiqishdan oldin)
-// shu tab'ga xos `sessionStorage`ga yozib qo'yiladi, keyin `/login`ga
-// qaytilganda o'qib, aynan shu provider nomi bilan xato xabari ko'rsatiladi.
-const LAST_OAUTH_PROVIDER_KEY = "safaar_last_oauth_provider";
+type LoginMode = "login" | "forgot-email" | "forgot-code" | "reset-password";
 
 function GoogleIcon() {
   return (
@@ -79,7 +70,7 @@ export function LoginForm({
 }) {
   const [mode, setMode] = useState<LoginMode>("login");
   const [email, setEmail] = useState("");
-  const [resetPhone, setResetPhone] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
   const [resetChallengeId, setResetChallengeId] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [resetDone, setResetDone] = useState(false);
@@ -104,9 +95,9 @@ export function LoginForm({
     });
 
   useEffect(() => {
-    if (resetRequestState.ok && resetRequestState.phone) {
+    if (resetRequestState.ok && resetRequestState.email) {
       queueMicrotask(() => {
-        setResetPhone(resetRequestState.phone ?? "");
+        setResetEmail(resetRequestState.email ?? "");
         setResetChallengeId(resetRequestState.challengeId ?? "");
         setMode("forgot-code");
       });
@@ -116,12 +107,12 @@ export function LoginForm({
   useEffect(() => {
     if (resetCodeState.verified && resetCodeState.resetToken) {
       queueMicrotask(() => {
-        setResetPhone(resetCodeState.phone ?? resetPhone);
+        setResetEmail(resetCodeState.email ?? resetEmail);
         setResetToken(resetCodeState.resetToken ?? "");
         setMode("reset-password");
       });
     }
-  }, [resetCodeState, resetPhone]);
+  }, [resetCodeState, resetEmail]);
 
   useEffect(() => {
     if (resetPasswordState.ok) {
@@ -132,42 +123,12 @@ export function LoginForm({
     }
   }, [resetPasswordState.ok]);
 
-  // Backend faqat OAUTH_ALLOWED_ORIGINS ro'yxatidagi origin'larga qaytaradi
-  // (open-redirect'dan himoya) — shu sabab hozirgi sahifa qaysi domenda
-  // ochilgan bo'lsa (masalan safaar-uz.vercel.app yoki web-user-rho.vercel.app),
-  // aynan o'sha origin backendga uzatiladi. `useEffect` orqali olinadi
-  // (render paytida `typeof window` emas) — aks holda server/client render
-  // mos kelmay, React hydration mismatch beradi va href hech qachon
-  // to'g'irlanmaydi ("this won't be patched up").
-  const [browserOrigin, setBrowserOrigin] = useState<string | null>(null);
-  useEffect(() => {
-    setBrowserOrigin(window.location.origin);
-  }, []);
-
   const oauthQuery = new URLSearchParams({
     locale,
     ...(next ? { next } : {}),
-    ...(browserOrigin ? { origin: browserOrigin } : {}),
   }).toString();
-
-  const [lastOAuthProvider, setLastOAuthProvider] =
-    useState<SocialProvider | null>(null);
-  useEffect(() => {
-    if (!socialError) return;
-    try {
-      const stored = sessionStorage.getItem(LAST_OAUTH_PROVIDER_KEY);
-      if (stored === "google" || stored === "facebook") {
-        setLastOAuthProvider(stored);
-      }
-    } catch {
-      // Ba'zi brauzer maxfiylik rejimlarida sessionStorage istisno tashlashi
-      // mumkin — bunday holda shunchaki provider nomsiz umumiy xabar
-      // ko'rsatiladi.
-    }
-  }, [socialError]);
-
   const socialErrorMessage = socialError
-    ? socialErrorMessageFor(socialError, lastOAuthProvider, dict)
+    ? socialErrorMessageFor(socialError, dict)
     : "";
 
   return (
@@ -229,7 +190,7 @@ export function LoginForm({
               className="text-sm font-extrabold text-primary-700 hover:text-primary-800"
               onClick={() => {
                 setResetDone(false);
-                setMode("forgot-phone");
+                setMode("forgot-email");
               }}
             >
               {dict.forgotPassword}
@@ -254,21 +215,21 @@ export function LoginForm({
         </form>
       )}
 
-      {mode === "forgot-phone" && (
+      {mode === "forgot-email" && (
         <form action={requestResetFormAction} className="flex flex-col gap-4">
           <AuthHeader
             title={dict.forgotPasswordTitle}
             subtitle={dict.forgotPasswordSubtitle}
           />
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.phone}</span>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.email}</span>
             <Input
-              name="phone"
-              type="tel"
-              autoComplete="tel"
+              name="email"
+              type="email"
+              autoComplete="email"
               required
-              defaultValue={resetPhone}
-              placeholder={dict.phonePlaceholder}
+              defaultValue={email}
+              placeholder={dict.emailPlaceholder}
             />
           </label>
           {resetRequestState.error && (
@@ -289,7 +250,7 @@ export function LoginForm({
             title={dict.resetCodeTitle}
             subtitle={dict.resetCodeSubtitle}
           />
-          <input type="hidden" name="phone" value={resetPhone} />
+          <input type="hidden" name="email" value={resetEmail} />
           <input type="hidden" name="challengeId" value={resetChallengeId} />
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.code}</span>
@@ -320,7 +281,7 @@ export function LoginForm({
             title={dict.newPasswordTitle}
             subtitle={dict.newPasswordSubtitle}
           />
-          <input type="hidden" name="phone" value={resetPhone} />
+          <input type="hidden" name="email" value={resetEmail} />
           <input type="hidden" name="resetToken" value={resetToken} />
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{dict.newPassword}</span>
@@ -405,7 +366,6 @@ function SocialLoginButtons({
       <div className="flex flex-col gap-3">
         <a
           href={`${API_URL}/auth/google?${oauthQuery}`}
-          onClick={() => rememberOAuthProvider("google")}
           className="flex items-center justify-center gap-3 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98]"
         >
           <GoogleIcon />
@@ -413,7 +373,6 @@ function SocialLoginButtons({
         </a>
         <a
           href={`${API_URL}/auth/facebook?${oauthQuery}`}
-          onClick={() => rememberOAuthProvider("facebook")}
           className="flex items-center justify-center gap-3 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98]"
         >
           <FacebookIcon />
@@ -424,20 +383,7 @@ function SocialLoginButtons({
   );
 }
 
-function rememberOAuthProvider(provider: SocialProvider) {
-  try {
-    sessionStorage.setItem(LAST_OAUTH_PROVIDER_KEY, provider);
-  } catch {
-    // Xatolik xabari sahifasi shunchaki provider nomsiz umumiy matnga
-    // qaytadi — OAuth so'rovining o'zi bunga bog'liq emas.
-  }
-}
-
-function socialErrorMessageFor(
-  error: string,
-  provider: SocialProvider | null,
-  dict: AuthDict,
-): string {
+function socialErrorMessageFor(error: string, dict: AuthDict): string {
   if (
     error === "OAUTH_ACCOUNT_NOT_REGISTERED" ||
     error === "OAUTH_USER_NOT_REGISTERED"
@@ -447,8 +393,6 @@ function socialErrorMessageFor(
   if (error === "USER_NOT_ACTIVE") {
     return dict.accountNotActive;
   }
-  if (provider === "google") return dict.googleLoginError;
-  if (provider === "facebook") return dict.facebookLoginError;
   return dict.socialLoginError;
 }
 
@@ -457,7 +401,6 @@ function authErrorMessageFor(error: string, dict: AuthDict): string {
     AUTH_INVALID_CREDENTIALS: dict.invalidCredentials,
     USER_NO_PASSWORD: dict.userNoPassword,
     EMAIL_REQUIRED: dict.emailRequired,
-    PHONE_REQUIRED: dict.phoneRequired,
     PASSWORD_REQUIRED: dict.passwordRequired,
     CODE_REQUIRED: dict.codeRequired,
     OTP_INVALID: dict.codeInvalid,

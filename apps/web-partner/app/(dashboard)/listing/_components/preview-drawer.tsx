@@ -20,7 +20,6 @@ import { useAuthStore } from "../../../_stores/auth-store";
 import { getPartnerLabels, hasBuses, hasStarRating, isRestaurant } from "../../../_lib/utils/partner-labels";
 import { cn } from "../../../_lib/utils/cn";
 import { formatMoney } from "../../../_lib/utils/format";
-import { resolveMediaUrl } from "../../../_lib/utils/media";
 
 // Amenities'ni label'ga aylantirish uchun map (barcha turlar birlashtirilgan)
 const AMENITY_LABEL = new Map<string, string>();
@@ -78,7 +77,7 @@ export function PreviewDrawer({
             {cover ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={resolveMediaUrl(cover.url)}
+                src={cover.url}
                 alt=""
                 className="h-full w-full object-cover"
               />
@@ -96,7 +95,7 @@ export function PreviewDrawer({
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={resolveMediaUrl(p.url)}
+                  src={p.url}
                   alt=""
                   className="h-full w-full object-cover"
                 />
@@ -190,7 +189,7 @@ export function PreviewDrawer({
                       {roomType.imageUrl ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img
-                          src={resolveMediaUrl(roomType.imageUrl)}
+                          src={roomType.imageUrl}
                           alt=""
                           className="h-full w-full object-cover"
                         />

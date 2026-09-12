@@ -11,5 +11,16 @@
     "nature": "Nature & Leisure"
   },
   "bestTime": "Best time:",
-  "viewDetails": "Details"
+  "viewDetails": "Details",
+  "empty": {
+    "title": "No data found"
+  },
+  "map": {
+    "title": "Interactive map",
+    "soon": "Coming soon",
+    "show": "Show on map"
+  },
+  "filters": {
+    "title": "Filters"
+  }
 }

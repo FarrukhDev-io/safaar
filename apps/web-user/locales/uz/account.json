@@ -4,8 +4,7 @@
     "profile": "Profil",
     "bookings": "Bronlarim",
     "favorites": "Sevimlilar",
-    "bonuses": "Bonuslar",
-    "refunds": "Qaytarishlar"
+    "bonuses": "Bonuslar"
   },
   "profile": {
     "title": "Profil ma'lumotlari",
@@ -53,22 +52,5 @@
     "balance": "Bonus balansi",
     "empty": "Bonus tarixi hozircha bo'sh.",
     "history": "Tarix"
-  },
-  "refunds": {
-    "title": "Mening qaytarishlarim",
-    "empty": "Hozircha qaytarish so'rovlari yo'q.",
-    "emptyHint": "Bronni bekor qilganingizda, agar qaytarish siyosati ruxsat bersa, so'rov shu yerda ko'rinadi.",
-    "requestedAmount": "So'ralgan summa",
-    "approvedAmount": "Tasdiqlangan summa",
-    "reason": "Sabab",
-    "date": "Sana",
-    "viewBooking": "Bronni ko'rish",
-    "statuses": {
-      "requested": "Ko'rib chiqilmoqda",
-      "processing": "Jarayonda",
-      "approved": "Tasdiqlangan",
-      "rejected": "Rad etilgan",
-      "paid": "To'landi"
-    }
   }
 }

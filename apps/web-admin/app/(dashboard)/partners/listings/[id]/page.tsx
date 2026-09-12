@@ -10,7 +10,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AdminApi } from "@/lib/api/admin-api";
 import { extractApiErrorMessage } from "@/lib/utils";
-import { resolveMediaUrl } from "@/lib/media";
 import type { AdminListing } from "@/types/admin";
 
 const MISSING_FIELD_LABELS: Record<string, string> = {
@@ -22,19 +21,10 @@ const MISSING_FIELD_LABELS: Record<string, string> = {
   rooms: "Kamida 1 ta faol xona",
 };
 
-function missingFieldLabel(field: string, isRestaurant: boolean) {
-  if (field === "rooms" && isRestaurant) {
-    return "Kamida 1 ta faol stol yoki stol sig'imi";
-  }
-  return MISSING_FIELD_LABELS[field] ?? field;
-}
-
-// NEW-1 FIX: qarang apps/web-admin/lib/constants.ts'dagi izoh (bir xil
-// sabab/tuzatish).
 const LISTING_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  under_review: { label: "Ko'rib chiqilmoqda", color: "#885607", bg: "rgba(243,156,18,0.12)" },
-  published: { label: "Nashr qilingan", color: "#19703E", bg: "rgba(46,204,113,0.12)" },
-  rejected: { label: "Rad etilgan", color: "#B62516", bg: "rgba(231,76,60,0.12)" },
+  under_review: { label: "Ko'rib chiqilmoqda", color: "#F39C12", bg: "rgba(243,156,18,0.12)" },
+  published: { label: "Nashr qilingan", color: "#2ECC71", bg: "rgba(46,204,113,0.12)" },
+  rejected: { label: "Rad etilgan", color: "#E74C3C", bg: "rgba(231,76,60,0.12)" },
 };
 
 const AMENITY_ICONS: Record<string, LucideIcon> = {
@@ -82,7 +72,6 @@ export default function ListingDetailsPage() {
       </div>
     );
   }
-  const isRestaurant = listing.partnerType === "restaurant";
 
   const handleApprove = async () => {
     if (!confirm("Ushbu e'lonni tasdiqlab, nashr qilasizmi?")) return;
@@ -160,7 +149,7 @@ export default function ListingDetailsPage() {
             </p>
             <ul className="mt-2 list-inside list-disc text-[var(--text-secondary)]">
               {listing.completeness.missingFields.map((field) => (
-                <li key={field}>{missingFieldLabel(field, isRestaurant)}</li>
+                <li key={field}>{MISSING_FIELD_LABELS[field] ?? field}</li>
               ))}
             </ul>
           </div>
@@ -175,8 +164,8 @@ export default function ListingDetailsPage() {
             <div className="flex flex-col gap-2">
               <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-[var(--bg-tertiary)]">
                 <Image
-                  src={resolveMediaUrl(listing.photos[activePhoto]) ?? listing.photos[activePhoto]}
-                  alt={listing.hotelName}
+                  src={listing.photos[activePhoto]} 
+                  alt="Hotel" 
                   fill
                   unoptimized
                   sizes="(min-width: 1024px) 660px, 100vw"
@@ -190,7 +179,7 @@ export default function ListingDetailsPage() {
                     onClick={() => setActivePhoto(idx)}
                     className={`relative shrink-0 w-24 h-16 rounded-lg overflow-hidden border-2 transition-all ${activePhoto === idx ? "border-[var(--primary)]" : "border-transparent hover:border-[var(--border)]"}`}
                   >
-                    <Image src={resolveMediaUrl(photo) ?? photo} alt="" fill unoptimized sizes="96px" className="object-cover" />
+                    <Image src={photo} alt="" fill unoptimized sizes="96px" className="object-cover" />
                   </button>
                 ))}
               </div>
@@ -235,31 +224,20 @@ export default function ListingDetailsPage() {
           {/* Key Info */}
           <div className="p-6 rounded-2xl border border-[var(--border)] bg-white flex flex-col gap-4">
             <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Asosiy ma'lumotlar</h3>
-
-            {isRestaurant ? (
-              <div className="flex justify-between items-center py-2 border-b border-[var(--border)]">
-                <span className="text-sm text-[var(--text-muted)] flex items-center gap-2">
-                  <Utensils size={16} /> Obyekt turi
-                </span>
-                <span className="font-semibold">Restoran</span>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center py-2 border-b border-[var(--border)]">
-                  <span className="text-sm text-[var(--text-muted)] flex items-center gap-2">
-                    <Star size={16} /> Yulduzlar
-                  </span>
-                  <span className="font-semibold">{listing.stars} yulduz</span>
-                </div>
-
-                <div className="flex justify-between items-center py-2 border-b border-[var(--border)]">
-                  <span className="text-sm text-[var(--text-muted)] flex items-center gap-2">
-                    <Users size={16} /> Xonalar soni
-                  </span>
-                  <span className="font-semibold">{listing.roomsCount || "Noma'lum"}</span>
-                </div>
-              </>
-            )}
+            
+            <div className="flex justify-between items-center py-2 border-b border-[var(--border)]">
+              <span className="text-sm text-[var(--text-muted)] flex items-center gap-2">
+                <Star size={16} /> Yulduzlar
+              </span>
+              <span className="font-semibold">{listing.stars} yulduz</span>
+            </div>
+            
+            <div className="flex justify-between items-center py-2 border-b border-[var(--border)]">
+              <span className="text-sm text-[var(--text-muted)] flex items-center gap-2">
+                <Users size={16} /> Xonalar soni
+              </span>
+              <span className="font-semibold">{listing.roomsCount || "Noma'lum"}</span>
+            </div>
 
             <div className="flex flex-col gap-2 py-2">
               <span className="text-sm text-[var(--text-muted)] flex items-center gap-2">
@@ -272,21 +250,15 @@ export default function ListingDetailsPage() {
           {/* Rules */}
           {listing.rules && listing.type !== "bus" && (
             <div className="p-6 rounded-2xl border border-[var(--border)] bg-white flex flex-col gap-4">
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                {isRestaurant ? "Ish va bron qoidalari" : "Uy qoidalari"}
-              </h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Uy qoidalari</h3>
               
               <div className="grid grid-cols-2 gap-4 mb-2">
                 <div className="p-3 rounded-xl bg-[var(--bg-tertiary)] flex flex-col gap-1">
-                  <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold">
-                    {isRestaurant ? "Ochilish" : "Check-in"}
-                  </span>
+                  <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold">Check-in</span>
                   <span className="font-bold text-[var(--text-primary)]">{listing.rules.checkInTime || "--:--"}</span>
                 </div>
                 <div className="p-3 rounded-xl bg-[var(--bg-tertiary)] flex flex-col gap-1">
-                  <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold">
-                    {isRestaurant ? "Yopilish" : "Check-out"}
-                  </span>
+                  <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold">Check-out</span>
                   <span className="font-bold text-[var(--text-primary)]">{listing.rules.checkOutTime || "--:--"}</span>
                 </div>
               </div>

@@ -1,13 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ImageOff, Heart, MapPin, ChevronRight } from "lucide-react";
+import { ImageOff, Heart, MapPin, ChevronRight, ChevronLeft } from "lucide-react";
 import { formatSum } from "@/lib/utils/money";
 
 export interface UniversalCardProps {
-  imageSrc?: string | null;
+  imageSrc?: string | string[] | null;
   imageAlt?: string;
   href?: string;
   onClick?: () => void;
@@ -19,7 +19,6 @@ export interface UniversalCardProps {
   topRight?: React.ReactNode;
   showFavorite?: boolean;
   isFavorite?: boolean;
-  favoritePending?: boolean;
   onFavoriteToggle?: (isFav: boolean) => void;
 
   // Content
@@ -51,8 +50,7 @@ export function UniversalCard({
   topLeft,
   topRight,
   showFavorite = false,
-  isFavorite = false,
-  favoritePending = false,
+  isFavorite: initialIsFavorite = false,
   onFavoriteToggle,
   title,
   location,
@@ -65,11 +63,130 @@ export function UniversalCard({
   actionIcon,
   onActionClick,
 }: UniversalCardProps) {
+  const [favorite, setFavorite] = useState(initialIsFavorite);
+
+  // Carousel State
+  const [currentImageIdx, setCurrentImageIdx] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
+
+  const images = Array.isArray(imageSrc) ? imageSrc : (imageSrc ? [imageSrc] : []);
+
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (favoritePending) return;
-    onFavoriteToggle?.(!isFavorite);
+    const nextState = !favorite;
+    setFavorite(nextState);
+    onFavoriteToggle?.(nextState);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+    setTouchStartTime(Date.now());
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd || !touchStartTime) return;
+    const distance = touchStart - touchEnd;
+    const time = Date.now() - touchStartTime;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (time <= 300) {
+      if (isLeftSwipe && currentImageIdx < images.length - 1) {
+        setCurrentImageIdx((prev) => prev + 1);
+      } else if (isRightSwipe && currentImageIdx > 0) {
+        setCurrentImageIdx((prev) => prev - 1);
+      }
+    }
+  };
+
+  const nextImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (currentImageIdx < images.length - 1) setCurrentImageIdx((p) => p + 1);
+  };
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (currentImageIdx > 0) setCurrentImageIdx((p) => p - 1);
+  };
+
+  const renderImages = () => {
+    if (images.length === 0) {
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center text-slate-400 opacity-60">
+          <ImageOff className={variant === "overlay" ? "mb-2 h-8 w-8" : "mb-2 h-10 w-10"} />
+          {variant === "overlay" && <span className="text-xs font-medium uppercase tracking-wider">Rasm yo'q</span>}
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="relative w-full h-full overflow-hidden"
+        onTouchStart={images.length > 1 ? handleTouchStart : undefined}
+        onTouchMove={images.length > 1 ? handleTouchMove : undefined}
+        onTouchEnd={images.length > 1 ? handleTouchEnd : undefined}
+      >
+        <div 
+          className="flex w-full h-full transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(-${currentImageIdx * 100}%)` }}
+        >
+          {images.map((src, idx) => (
+            <div key={idx} className="relative min-w-full h-full">
+              <Image
+                src={src}
+                alt={imageAlt}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                className="object-cover transition-transform duration-500 ease-out group-hover/card:scale-105"
+                quality={85}
+                loading={idx <= currentImageIdx + 1 ? "eager" : "lazy"}
+              />
+            </div>
+          ))}
+        </div>
+        
+        {images.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={prevImage}
+              className={`absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/90 shadow-md flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity z-20 cursor-pointer disabled:hidden ${currentImageIdx === 0 ? 'hidden' : ''}`}
+            >
+              <ChevronLeft className="h-4 w-4 text-slate-700" />
+            </button>
+            <button
+              type="button"
+              onClick={nextImage}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/90 shadow-md flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity z-20 cursor-pointer disabled:hidden ${currentImageIdx === images.length - 1 ? 'hidden' : ''}`}
+            >
+              <ChevronRight className="h-4 w-4 text-slate-700" />
+            </button>
+            
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1 z-20">
+              {images.slice(0, 5).map((_, idx) => {
+                const isActive = currentImageIdx >= 4 ? idx === 4 : idx === currentImageIdx;
+                return (
+                  <div 
+                    key={idx} 
+                    className={`h-1.5 rounded-full transition-colors ${isActive ? 'w-1.5 bg-white' : 'w-1.5 bg-white/50'}`}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   // Resolve Location Node
@@ -128,10 +245,10 @@ export function UniversalCard({
   const actionNode = actionLabel ? (
     <span
       onClick={onActionClick ? (e) => { e.stopPropagation(); onActionClick(); } : undefined}
-      className="inline-flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50/80 px-2.5 py-1 sm:px-3 sm:py-1.5 text-[11px] sm:text-xs font-extrabold text-blue-600 transition-all duration-200 group-hover:border-blue-600 group-hover:bg-blue-600 group-hover:text-white dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-400 dark:group-hover:bg-blue-600 dark:group-hover:text-white select-none"
+      className="inline-flex items-center gap-1 rounded-xl bg-primary-600 px-3 py-1.5 text-[11px] sm:text-xs font-extrabold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-500 hover:shadow-md active:translate-y-0 active:shadow-none select-none"
     >
       <span>{actionLabel}</span>
-      {actionIcon ?? <ChevronRight className="h-3.5 w-3.5 stroke-[2.5]" />}
+      {actionIcon ?? <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />}
     </span>
   ) : null;
 
@@ -142,21 +259,7 @@ export function UniversalCard({
       {variant === "overlay" ? (
         /* Overlay variant (e.g. City Card / Special Showcase) */
         <div className="relative aspect-[4/3] sm:aspect-[3/2] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-          {imageSrc ? (
-            <Image
-              src={imageSrc}
-              alt={imageAlt}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover transition-transform duration-500 ease-out group-hover/card:scale-105"
-              quality={85}
-            />
-          ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center text-slate-400 opacity-60">
-              <ImageOff className="mb-2 h-8 w-8" />
-              <span className="text-xs font-medium uppercase tracking-wider">Rasm yo'q</span>
-            </div>
-          )}
+          {renderImages()}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
           {topLeft && <div className="absolute left-3 top-3 z-10">{topLeft}</div>}
           {(topRight || showFavorite) && (
@@ -165,15 +268,12 @@ export function UniversalCard({
                 <button
                   type="button"
                   aria-label="Sevimli"
-                  aria-pressed={isFavorite}
-                  aria-busy={favoritePending}
-                  disabled={favoritePending}
                   onClick={handleFavoriteClick}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100/80 bg-white/90 shadow-md backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white disabled:opacity-60 disabled:cursor-wait dark:border-slate-700/80 dark:bg-slate-900/90"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100/80 bg-white/90 shadow-md backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white dark:border-slate-700/80 dark:bg-slate-900/90 cursor-pointer"
                 >
                   <Heart
                     className={`h-4 w-4 transition-colors ${
-                      isFavorite
+                      favorite
                         ? "fill-rose-500 text-rose-500"
                         : "text-slate-600 dark:text-slate-300 hover:text-rose-500"
                     }`}
@@ -203,20 +303,7 @@ export function UniversalCard({
         <>
           {/* Top Media Section */}
           <div className="relative aspect-[4/3] sm:aspect-[16/10] w-full overflow-hidden rounded-t-2xl sm:rounded-t-[24px] bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-            {imageSrc ? (
-              <Image
-                src={imageSrc}
-                alt={imageAlt}
-                fill
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                className="object-cover transition-transform duration-500 ease-out group-hover/card:scale-105"
-                quality={85}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center text-slate-400 opacity-60">
-                <ImageOff className="mb-2 h-10 w-10" />
-              </div>
-            )}
+            {renderImages()}
 
             {topLeft && <div className="absolute left-3 top-3 z-10">{topLeft}</div>}
 
@@ -226,15 +313,12 @@ export function UniversalCard({
                   <button
                     type="button"
                     aria-label="Sevimli"
-                    aria-pressed={isFavorite}
-                    aria-busy={favoritePending}
-                    disabled={favoritePending}
                     onClick={handleFavoriteClick}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100/80 bg-white/90 shadow-md backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white disabled:opacity-60 disabled:cursor-wait dark:border-slate-700/80 dark:bg-slate-900/90 cursor-pointer"
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100/80 bg-white/90 shadow-md backdrop-blur-md transition-all duration-200 hover:scale-110 hover:bg-white dark:border-slate-700/80 dark:bg-slate-900/90 cursor-pointer"
                   >
                     <Heart
                       className={`h-4 w-4 transition-colors ${
-                        isFavorite
+                        favorite
                           ? "fill-rose-500 text-rose-500"
                           : "text-slate-600 dark:text-slate-300 hover:text-rose-500"
                       }`}

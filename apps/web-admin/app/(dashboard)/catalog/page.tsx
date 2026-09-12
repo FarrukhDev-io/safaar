@@ -155,7 +155,7 @@ export default function CatalogPage() {
       key: "isActive",
       label: "Holat",
       render: (row) => (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${row.isActive ? "bg-[var(--success)]/10 text-[#19703E]" : "bg-[var(--text-muted)]/10 text-[var(--text-secondary)]"}`}>
+        <span className={`px-2 py-1 rounded text-xs font-medium ${row.isActive ? "bg-[var(--success)]/10 text-[var(--success)]" : "bg-[var(--text-muted)]/10 text-[var(--text-secondary)]"}`}>
           {row.isActive ? "Faol" : "Nofaol"}
         </span>
       ),
@@ -195,7 +195,7 @@ export default function CatalogPage() {
       key: "isActive",
       label: "Holat",
       render: (row) => (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${row.isActive ? "bg-[var(--success)]/10 text-[#19703E]" : "bg-[var(--text-muted)]/10 text-[var(--text-secondary)]"}`}>
+        <span className={`px-2 py-1 rounded text-xs font-medium ${row.isActive ? "bg-[var(--success)]/10 text-[var(--success)]" : "bg-[var(--text-muted)]/10 text-[var(--text-secondary)]"}`}>
           {row.isActive ? "Faol" : "Nofaol"}
         </span>
       ),

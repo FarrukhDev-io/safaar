@@ -12,7 +12,6 @@ import {
   Route,
   Ticket,
   UtensilsCrossed,
-  UserCircle2,
   type LucideIcon,
 } from "lucide-react";
 import { getPartnerLabels } from "../../_lib/utils/partner-labels";
@@ -30,18 +29,6 @@ export interface NavGroup {
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-export function getLimitedAccessNavGroups(): NavGroup[] {
-  return [
-    {
-      title: "Access",
-      items: [
-        { label: "Profil", href: "/settings/profile", icon: UserCircle2 },
-        { label: "Yordam", href: "/support", icon: LifeBuoy },
-      ],
-    },
-  ];
-}
 
 /**
  * Dinamik navigatsiya paneli — hamkor turiga qarab o'zgaradi.

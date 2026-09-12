@@ -35,21 +35,7 @@ export default function DataTable<T>({
   onRetry,
 }: DataTableProps<T>) {
   return (
-    // A6 FIX: bu konteyner gorizontal aylantiriladigan (overflow-x-auto),
-    // lekin klaviatura orqali umuman fokusga tushmas edi (fақат sichqoncha/
-    // touch bilan aylantirish mumkin edi) — klaviaturadan foydalanuvchilar
-    // jadvalning ko'rinmay qolgan ustunlarini o'qiy olmasdi. `tabIndex={0}`
-    // + `role="region"`/`aria-label` konteynerni klaviatura bilan
-    // fokuslanadigan va (o'q tugmalari bilan) aylantiriladigan qiladi.
-    // Bu — barcha `DataTable` ishlatilgan joylarda (jumladan
-    // /finance/reports) baravar tuzatiladigan umumiy komponent darajasidagi
-    // tuzatish.
-    <div
-      role="region"
-      aria-label="Jadval, gorizontal aylantirish mumkin"
-      tabIndex={0}
-      className={cn("overflow-x-auto rounded-xl border border-[var(--border)] bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40", className)}
-    >
+    <div className={cn("overflow-x-auto rounded-xl border border-[var(--border)] bg-white", className)}>
       <table className="w-full text-sm whitespace-nowrap">
         <thead>
           <tr className="border-b border-[var(--border)] bg-[var(--bg-tertiary)]">

@@ -41,6 +41,14 @@ export function BookingsListLive({
 
   useRealtimeEvent("booking.status_changed", refresh, [refresh]);
 
+  if (bookings.length === 0) {
+    return (
+      <div className="py-12 text-center text-slate-500 rounded-2xl border border-dashed border-slate-200">
+        Sizda hali bronlar yo'q
+      </div>
+    );
+  }
+
   return (
     <ul className="flex flex-col gap-4">
       {bookings.map((booking) => {

@@ -157,11 +157,7 @@ export default function FinanceReportsPage() {
               { key: "title", label: "Hisobot nomi", render: (r) => <span className="font-medium">{r.title}</span> },
               { key: "period", label: "Davr" },
               { key: "totalRevenue", label: "Umumiy Daromad", render: (r) => <span className="font-semibold text-[var(--text-primary)]">{formatPrice(r.totalRevenue)}</span> },
-              // NEW-1 FIX (widened investigation): `--success` matn
-              // sifatida oq fonda ~2.1:1 berardi -- token o'ziga tegilmadi,
-              // faqat shu summaning matn rangi to'qroq qiymatga
-              // almashtirildi.
-              { key: "totalCommission", label: "Sof Komissiya", render: (r) => <span className="font-semibold text-[#19703E]">{formatPrice(r.totalCommission)}</span> },
+              { key: "totalCommission", label: "Sof Komissiya", render: (r) => <span className="font-semibold text-[var(--success)]">{formatPrice(r.totalCommission)}</span> },
               { key: "dateGenerated", label: "Sana", render: (r) => <span>{formatDate(r.dateGenerated)}</span> },
             ]}
             data={reports}

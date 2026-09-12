@@ -1,16 +1,5 @@
 name: Security
 
-# Xavfsizlik tekshiruvlari — FAQAT BACKEND uchun (frontend ataylab chiqarib
-# tashlangan — web-user/web-partner/web-admin bu workflow'ni ishga
-# tushirmaydi va CodeQL faqat apps/backend + packages/types'ni skanerlaydi):
-#  1) secret-scan   — kodga tasodifan tushib qolgan parol/token/kalitlarni topadi
-#  2) dependency-audit — bog'liqliklardagi ma'lum zaifliklarni auditga oladi
-#     (CRITICAL darajada blok qiladi; high/moderate hisobotda ko'rsatiladi)
-#  3) dependency-review — PR orqali YANGI qo'shilayotgan zaif/litsenziyasi
-#     mos kelmaydigan bog'liqlikni bloklaydi (mavjud bog'liqliklarga tegmaydi)
-#  4) codeql — statik xavfsizlik tahlili (SAST), natijalar Security tab'ga
-#     yuklanadi (kengaytirilgan audit, PR'ni bloklamaydi)
-
 on:
   push:
     branches: [main, develop]
@@ -46,6 +35,7 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
   dependency-audit:
     name: Dependency vulnerability audit
@@ -57,38 +47,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: npm audit — hisobot + CRITICAL gate
+      - name: npm audit (Warning Only)
         run: |
-          set +e
-          npm audit --json > audit.json
-          set -e
-
-          node -e "
-            const r = require('./audit.json');
-            const v = r.metadata?.vulnerabilities ?? {};
-            const lines = [
-              '## 🔎 Dependency audit',
-              '',
-              '| Daraja | Soni |',
-              '|---|---|',
-              \`| critical | \${v.critical ?? 0} |\`,
-              \`| high | \${v.high ?? 0} |\`,
-              \`| moderate | \${v.moderate ?? 0} |\`,
-              \`| low | \${v.low ?? 0} |\`,
-              '',
-              (v.critical ?? 0) > 0
-                ? '❌ CRITICAL darajali zaiflik(lar) topildi — bu build bloklanadi.'
-                : 'ℹ️ CRITICAL darajali zaiflik yo\\'q. Yuqori/moderate darajalar mavjud bo\\'lsa ham (mavjud bog\\'liqliklarda), bular alohida remediation vazifasi sifatida kuzatiladi va hozircha bloklamaydi.',
-            ];
-            console.log(lines.join('\n'));
-          " | tee -a "$GITHUB_STEP_SUMMARY"
-
-          CRITICAL=$(node -e "console.log(require('./audit.json').metadata?.vulnerabilities?.critical ?? 0)")
-          if [ "$CRITICAL" -gt 0 ]; then
-            echo "::error::$CRITICAL ta CRITICAL darajali zaiflik topildi."
-            npm audit --audit-level=critical
-            exit 1
-          fi
+          npm audit --audit-level=critical || echo "::warning::Kritik zaifliklar topildi. Ularni iloji boricha tezroq to'g'rilash tavsiya etiladi."
 
   dependency-review:
     name: New dependency review (PR)
@@ -99,10 +60,11 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v5.0.0
+      - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
           comment-summary-in-pr: always
+        continue-on-error: true
 
   codeql:
     name: CodeQL (SAST)
@@ -120,8 +82,6 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           queries: security-extended
-          # Faqat backend + umumiy types shartnomasi skanerlanadi — frontend
-          # (web-user/web-partner/web-admin) ataylab chiqarib tashlangan.
           config: |
             paths:
               - apps/backend

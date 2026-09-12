@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   BedDouble,
   CalendarRange,
-  CarFront,
   Mail,
   Phone,
   Printer,
@@ -37,7 +36,6 @@ import {
   useRejectReservation,
   useCheckIn,
   useCheckOut,
-  useAcceptCashPayment,
 } from "../../../_hooks/use-reservations";
 import { useBeds } from "../../../_hooks/use-beds";
 import {
@@ -47,7 +45,7 @@ import {
 } from "../../../_lib/utils/format";
 import { useAuthStore } from "../../../_stores/auth-store";
 import { useDataStore } from "../../../_stores/data-store";
-import { getPartnerLabels, hasBuses, isRestaurant } from "../../../_lib/utils/partner-labels";
+import { getPartnerLabels, isRestaurant } from "../../../_lib/utils/partner-labels";
 
 export function ReservationDetailView({ id }: { id: string }) {
   const { data } = useReservation(id);
@@ -55,13 +53,11 @@ export function ReservationDetailView({ id }: { id: string }) {
   const rejectReservation = useRejectReservation();
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
-  const acceptCashPayment = useAcceptCashPayment();
   useBeds();
   const beds = useDataStore((s) => s.beds);
   const partnerType = useAuthStore((s) => s.user?.partnerType);
   const labels = getPartnerLabels(partnerType);
   const restaurant = isRestaurant(partnerType);
-  const isBus = hasBuses(partnerType);
 
   const [confirmDialog, setConfirmDialog] = useState<
     "reject" | "cancel" | null
@@ -191,38 +187,19 @@ export function ReservationDetailView({ id }: { id: string }) {
             </CardHeader>
             <CardBody className="grid gap-4 sm:grid-cols-2">
               <InfoItem
-                icon={
-                  isBus ? (
-                    <CarFront className="h-4 w-4" aria-hidden />
-                  ) : restaurant ? (
-                    <UtensilsCrossed className="h-4 w-4" aria-hidden />
-                  ) : (
-                    <BedDouble className="h-4 w-4" aria-hidden />
-                  )
-                }
+                icon={restaurant ? <UtensilsCrossed className="h-4 w-4" aria-hidden /> : <BedDouble className="h-4 w-4" aria-hidden />}
                 label={labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1)}
                 value={
-                  isBus ? (
-                    <>
-                      {data.vehicleName}
-                      {data.vehiclePlateNumber && (
-                        <span className="ml-1 font-mono text-brand-700 dark:text-brand-300">
-                          · {data.vehiclePlateNumber}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {data.roomTypeName}
-                      {data.roomNumber && (
-                        <span className="ml-1 font-mono text-brand-700 dark:text-brand-300">
-                          · {data.roomNumber}
-                          {data.bedId &&
-                            ` · ${beds.find((b) => b.id === data.bedId)?.label ?? ""}`}
-                        </span>
-                      )}
-                    </>
-                  )
+                  <>
+                    {data.roomTypeName}
+                    {data.roomNumber && (
+                      <span className="ml-1 font-mono text-brand-700 dark:text-brand-300">
+                        · {data.roomNumber}
+                        {data.bedId &&
+                          ` · ${beds.find((b) => b.id === data.bedId)?.label ?? ""}`}
+                      </span>
+                    )}
+                  </>
                 }
               />
               <InfoItem
@@ -324,25 +301,14 @@ export function ReservationDetailView({ id }: { id: string }) {
               tone={balance > 0 ? "danger" : "accent"}
               bold
             />
-            {balance > 0 && data.paymentMethod === "cash" && (
+            {balance > 0 && (
               <Button
                 variant="secondary"
                 className="mt-2"
-                loading={acceptCashPayment.isPending}
-                onClick={() => {
-                  acceptCashPayment.mutate(data.id, {
-                    onSuccess: () => toast.success("Naqd to'lov qabul qilindi"),
-                    onError: () => toast.error("To'lovni belgilashda xatolik yuz berdi"),
-                  });
-                }}
+                onClick={() => toast.info("To'lov modul keyingi sprint'da")}
               >
-                Naqd to'lovni qabul qilish
+                To'lov qabul qilish
               </Button>
-            )}
-            {balance > 0 && data.paymentMethod && data.paymentMethod !== "cash" && (
-              <p className="mt-2 text-xs text-[var(--text-muted)]">
-                Bu bron onlayn to'lov ({data.paymentMethod}) orqali amalga oshiriladi — to'lov provayder tomonidan avtomatik tasdiqlanadi.
-              </p>
             )}
           </CardBody>
         </Card>

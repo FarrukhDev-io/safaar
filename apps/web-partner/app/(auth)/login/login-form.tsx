@@ -69,7 +69,7 @@ export function LoginForm() {
     }
 
     const code = String(values.code ?? '').trim();
-    if (code.length !== 6) {
+    if (code.length < 4) {
       form.setError('code', {
         message: 'Telefon raqamga yuborilgan kodni kiriting',
       });

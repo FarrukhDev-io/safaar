@@ -16,7 +16,8 @@ export type VehicleDraft = {
 
 export function useVehicles() {
   const accessToken = useAuthStore((s) => s.tokens?.accessToken);
-  const isBus = useAuthStore((s) => s.user?.partnerType === 'bus');
+  const partnerType = useAuthStore((s) => s.user?.partnerType);
+  const isBus = partnerType === 'bus' || partnerType === 'rent_car';
   
   const query = useQuery({
     queryKey: vehiclesQueryKey,

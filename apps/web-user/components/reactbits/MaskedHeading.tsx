@@ -82,6 +82,7 @@ const MaskedHeading: React.FC<MaskedHeadingProps> = ({
     grayscale: boolean;
     textScale: number;
   }>({ fillScale: 1, parallax: 0, drift: 0, brightness: 1, saturation: 1, grayscale: false, textScale: 0.115 });
+  // eslint-disable-next-line react-hooks/refs
   settingsRef.current = { fillScale, parallax, drift, brightness, saturation, grayscale, textScale };
 
   const place = useCallback(() => {

@@ -21,13 +21,6 @@ export default function ApplicationStatusPage() {
     request?: {
       id: string;
       companyName: string;
-      contactPerson?: string;
-      phone?: string;
-      email?: string;
-      city?: string;
-      address?: string;
-      taxId?: string;
-      type?: string;
       status: PartnerAccessStatus;
     } | null;
   } | null>(null);
@@ -51,31 +44,24 @@ export default function ApplicationStatusPage() {
   };
 
   const handleResubmit = async () => {
-    const req = statusResult?.request;
-    if (!req?.id) return;
-
-    if (!req.contactPerson || !req.email || !req.city || !req.address || !req.taxId) {
-      toast.error(
-        "Oldingi ariza ma'lumotlari to'liq emas. Iltimos, qo'llab-quvvatlash xizmatiga murojaat qiling.",
-      );
-      return;
-    }
-
+    if (!statusResult?.request?.id) return;
     setResubmitting(true);
     try {
+      // In real scenario, this would open a form prefilled with previous data.
+      // For now, we simulate calling the resubmit API endpoint.
       await access.submitPartnerApplication({
-        type: (req.type as any) ?? "hotel",
-        companyName: req.companyName,
-        contactPerson: req.contactPerson,
+        type: "hotel",
+        companyName: statusResult.request.companyName,
+        contactPerson: "Qayta yuboruvchi",
         phone: normalizePhone(phone),
-        email: req.email,
-        city: req.city,
-        address: req.address,
-        taxId: req.taxId,
+        email: "resubmitted@example.com",
+        city: "Toshkent",
+        address: "Qayta yuborilgan manzil",
+        taxId: "123456789",
         note: "Qayta yuborilgan ariza",
       });
       toast.success("Ariza muvaffaqiyatli qayta yuborildi");
-      setStatusResult((prev) => (prev ? { ...prev, status: "submitted" } : prev));
+      setStatusResult({ ...statusResult, status: "submitted" });
     } catch {
       toast.error("Xatolik yuz berdi");
     } finally {

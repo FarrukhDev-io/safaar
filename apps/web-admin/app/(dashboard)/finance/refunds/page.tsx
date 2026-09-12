@@ -10,18 +10,18 @@ import { AdminRefundTransaction } from "@/types/admin";
 import { cn, formatPrice } from "@/lib/utils";
 
 const STATUS_COLORS = {
-  requested: "bg-amber-100 text-amber-700",
-  processing: "bg-blue-100 text-blue-700",
-  approved: "bg-emerald-100 text-emerald-700",
-  paid: "bg-emerald-100 text-emerald-700",
-  rejected: "bg-red-100 text-red-700",
+  pending: "bg-amber-100 text-amber-700",
+  approved: "bg-blue-100 text-blue-700",
+  completed: "bg-emerald-100 text-emerald-700",
+  failed: "bg-red-100 text-red-700",
+  rejected: "bg-slate-100 text-slate-700",
 };
 
 const STATUS_LABELS = {
-  requested: "Kutilmoqda",
-  processing: "Jarayonda",
+  pending: "Kutilmoqda",
   approved: "Tasdiqlangan",
-  paid: "To'landi",
+  completed: "Yakunlangan",
+  failed: "Xatolik",
   rejected: "Rad etilgan",
 };
 
@@ -138,7 +138,6 @@ export default function RefundsPage() {
         <div className="flex justify-end relative">
           <button
             onClick={() => setDropdownOpen(dropdownOpen === r.id ? null : r.id)}
-            aria-label="Qo'shimcha amallar"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             {actionLoading?.startsWith(r.id) ? (
@@ -151,7 +150,7 @@ export default function RefundsPage() {
             <>
               <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />
               <div className="absolute right-0 top-8 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-20 py-1 overflow-hidden">
-                {(r.status === 'requested' || r.status === 'processing') && (
+                {r.status === 'pending' && (
                   <>
                     <button
                       onClick={() => handleAction(r.id, 'approve')}
@@ -167,17 +166,17 @@ export default function RefundsPage() {
                     </button>
                   </>
                 )}
-
-                {r.status === 'rejected' && (
+                
+                {r.status === 'failed' && (
                   <button
                     onClick={() => handleAction(r.id, 'retry')}
                     className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 transition-colors font-medium"
                   >
-                    <RefreshCw size={16} /> Qayta ochish
+                    <RefreshCw size={16} /> Qayta urinish
                   </button>
                 )}
-
-                {r.status !== 'requested' && r.status !== 'processing' && r.status !== 'rejected' && (
+                
+                {r.status !== 'pending' && r.status !== 'failed' && (
                   <div className="px-4 py-2 text-xs text-slate-400">
                     Boshqa amal mavjud emas
                   </div>

@@ -21,20 +21,7 @@ function PageViewTracker() {
   return null;
 }
 
-export function AnalyticsProvider({
-  children,
-  nonce,
-}: {
-  children: React.ReactNode;
-  /**
-   * SECURITY-P3 (A12-4): the per-request CSP nonce from middleware.ts
-   * (read via headers() in the root layout, since this is a client
-   * component and cannot call next/headers itself). Passed straight
-   * through to next/script so both tags below run under script-src's
-   * nonce instead of needing 'unsafe-inline'.
-   */
-  nonce?: string;
-}) {
+export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   return (
     <>
       {/* GA4 Script Ingestion */}
@@ -43,9 +30,8 @@ export function AnalyticsProvider({
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
             strategy="afterInteractive"
-            nonce={nonce}
           />
-          <Script id="google-analytics" strategy="afterInteractive" nonce={nonce}>
+          <Script id="google-analytics" strategy="afterInteractive">
             {`
               window.dataLayer = window.dataLayer || [];
               function gtag(){window.dataLayer.push(arguments);}

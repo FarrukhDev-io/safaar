@@ -15,11 +15,7 @@ function getValidSiteUrl(): string {
 }
 
 export const config = {
-  apiUrl:
-    process.env.NEXT_PUBLIC_API_URL?.trim() ||
-    (process.env.NODE_ENV === "development"
-      ? "http://localhost:4000/v1"
-      : "https://backend-production-87e6.up.railway.app/v1"),
+  apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1",
   siteUrl: getValidSiteUrl(),
   isProd: process.env.NODE_ENV === "production",
 };

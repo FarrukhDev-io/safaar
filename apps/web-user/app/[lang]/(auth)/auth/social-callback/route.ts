@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Role } from "@safaar/types";
 import { api, ApiRequestError } from "@/lib/api";
-import type { OAuthRegistrationRequiredResult } from "@safaar/api-client";
 import { config } from "@/lib/config/config";
 import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
-
-function isRegistrationRequired(
-  result: unknown,
-): result is OAuthRegistrationRequiredResult {
-  return (
-    typeof result === "object" &&
-    result !== null &&
-    (result as { requiresRegistration?: unknown }).requiresRegistration === true
-  );
-}
 
 const COOKIE_NAME = "safaar_session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -40,24 +29,27 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   try {
     const result = await api.auth.exchangeOAuthCode(code);
 
-    if (isRegistrationRequired(result)) {
-      const target = new URL(`/${locale}/register`, request.nextUrl.origin);
-      target.searchParams.set("social", result.provider);
-      target.searchParams.set("registrationToken", result.registrationToken);
-      target.searchParams.set("email", result.email);
-      if (result.firstName) target.searchParams.set("firstName", result.firstName);
-      if (result.lastName) target.searchParams.set("lastName", result.lastName);
-      if (next) target.searchParams.set("next", next);
-      return NextResponse.redirect(target);
+    if ("requiresRegistration" in result && result.requiresRegistration) {
+      const registerUrl = new URL(`/${locale}/register`, request.nextUrl.origin);
+      registerUrl.searchParams.set("registrationToken", result.registrationToken);
+      registerUrl.searchParams.set("provider", result.provider);
+      if (result.email) registerUrl.searchParams.set("email", result.email);
+      if (result.firstName) registerUrl.searchParams.set("firstName", result.firstName);
+      if (result.lastName) registerUrl.searchParams.set("lastName", result.lastName);
+      if (next) registerUrl.searchParams.set("next", next);
+      
+      return NextResponse.redirect(registerUrl);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const authResult = result as any;
     const response = NextResponse.redirect(new URL(next, request.nextUrl.origin));
     response.cookies.set(COOKIE_NAME, JSON.stringify({
-      userId: result.user.id,
+      userId: authResult.user.id,
       role: Role.USER,
-      email: result.user.email,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
+      email: authResult.user.email,
+      accessToken: authResult.accessToken,
+      refreshToken: authResult.refreshToken,
     }), {
       httpOnly: true,
       sameSite: "lax",

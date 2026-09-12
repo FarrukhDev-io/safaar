@@ -214,7 +214,6 @@ export default function CmsTemplatesPage() {
           <select
             value={activeTab}
             onChange={(event) => setActiveTab(event.target.value as "all" | TemplateType)}
-            aria-label="Turi bo'yicha filtrlash"
             className="h-10 rounded-lg border border-[var(--border)] bg-white px-3 text-sm"
           >
             <option value="all">Barchasi</option>
@@ -244,7 +243,6 @@ export default function CmsTemplatesPage() {
             onChange={(event) =>
               setDraft((prev) => ({ ...prev, type: event.target.value as TemplateType }))
             }
-            aria-label="Shablon turi"
             className="h-10 rounded-lg border border-[var(--border)] bg-white px-3 text-sm"
           >
             <option value="sms">SMS</option>
@@ -340,7 +338,7 @@ export default function CmsTemplatesPage() {
                       onClick={() => void toggleActive(template)}
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         template.isActive
-                          ? "bg-[var(--success)]/10 text-[#19703E]"
+                          ? "bg-[var(--success)]/10 text-[var(--success)]"
                           : "bg-gray-100 text-gray-600"
                       }`}
                     >

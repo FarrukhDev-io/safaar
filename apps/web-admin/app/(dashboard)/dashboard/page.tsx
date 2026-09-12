@@ -65,21 +65,17 @@ export default function DashboardPage() {
 
       setOverview(overviewData);
       setRecentActivities(activities);
-      // NEW-1 FIX: bu ranglar quyida (~L.225) o'zining shaffof (+"15")
-      // fon-tovlanishi ustida matn ("count") sifatida ishlatiladi -- shu
-      // sababli standart yorqin ranglar emas, to'qroq (matn-uchun-xavfsiz)
-      // variantlar berilgan.
       setQuickActions([
         {
           label: "Yangi hamkor arizalari",
           count: summary.partnerRequests,
-          color: "#81449A",
+          color: "#9B59B6",
           href: "/partners/requests",
         },
         {
           label: "Ochiq support murojaatlari",
           count: summary.supportOpen,
-          color: "#B62516",
+          color: "#E74C3C",
           href: "/support",
         },
       ]);
@@ -92,13 +88,9 @@ export default function DashboardPage() {
                 color: "#1E3A5F",
               },
               {
-                // NEW-1 FIX: shu qiymat "value%" matn label rangi sifatida
-                // ham, progress-bar to'ldirilishi (fon) sifatida ham
-                // ishlatiladi -- standart yorqin yashil oq fonda matn
-                // sifatida ~2.1:1 berardi.
                 name: "Mashina Ijarasi",
                 value: Math.round((busBookings.length / totalServiceBookings) * 100),
-                color: "#19703E",
+                color: "#2ECC71",
               },
             ]
           : [],
@@ -175,38 +167,17 @@ export default function DashboardPage() {
               <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)]">
                 <Activity size={18} />
               </div>
-              <h2 className="text-lg font-bold text-[var(--text-primary)]">
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">
                 So'nggi harakatlar
-              </h2>
+              </h3>
             </div>
-            {/* NEW-1 FIX: "Jonli rejim" matni `--accent`ni to'g'ridan-to'g'ri
-                o'zining shaffof foni ustida matn rangi sifatida ishlatgani
-                uchun ~1.9:1 kontrast berardi. `--accent` o'ziga tegilmadi
-                (keng ishlatiladigan umumiy token) -- faqat MATN rangi
-                literal to'qroq qiymatga almashtirildi; fon tovlanishi va
-                pulsatsiya qiluvchi nuqta o'zgarishsiz qoldi. */}
-            <span className="flex items-center gap-1.5 text-xs text-[#19703E] font-medium px-2.5 py-1 bg-[var(--accent)]/10 rounded-full">
+            <span className="flex items-center gap-1.5 text-xs text-[var(--accent)] font-medium px-2.5 py-1 bg-[var(--accent)]/10 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
               Jonli rejim
             </span>
           </div>
           
-          {/* NEW-3 FIX: bu ro'yxat vertikal aylantiriladigan
-              (overflow-y-auto + max-h), lekin klaviatura orqali umuman
-              fokusga tushmas edi -- ichidagi qatorlar faqat matn (havola/
-              tugma yo'q), shuning uchun klaviaturadan foydalanuvchi uchun
-              butun ro'yxatni aylantirishning yagona yo'li yo'q edi.
-              `tabIndex={0}` + `role="region"` + `aria-label` (yuqoridagi
-              "So'nggi harakatlar" sarlavhasi bilan mos) konteynerni
-              o'zini fokuslanadigan va (o'q tugmalari bilan)
-              aylantiriladigan qiladi -- sichqoncha/touch xatti-harakati
-              o'zgarmaydi. */}
-          <div
-            role="region"
-            aria-label="So'nggi harakatlar ro'yxati"
-            tabIndex={0}
-            className="flex flex-col gap-2 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40 rounded-lg"
-          >
+          <div className="flex flex-col gap-2 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
             {recentActivities.length === 0 ? (
               <div className="p-6 text-center text-sm text-[var(--text-muted)]">
                 Harakatlar topilmadi
@@ -239,9 +210,9 @@ export default function DashboardPage() {
           
           {/* Quick actions */}
           <Card padding="lg">
-            <h2 className="text-base font-semibold text-[var(--text-primary)] mb-4">
+            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-4">
               Tezkor harakatlar
-            </h2>
+            </h3>
             <div className="flex flex-col gap-3">
               {quickActions.map((action) => (
                 <Link
@@ -271,9 +242,9 @@ export default function DashboardPage() {
 
           {/* Service Distribution (Replaced Donut Chart with Progress Bars) */}
           <Card padding="lg">
-            <h2 className="text-base font-semibold text-[var(--text-primary)] mb-5">
+            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-5">
               Xizmatlar ulushi
-            </h2>
+            </h3>
             <div className="flex flex-col gap-5">
               {serviceDistribution.length === 0 ? (
                 <p className="text-sm text-[var(--text-muted)]">

@@ -16,19 +16,9 @@ export default function Select({
   placeholder,
   className,
   id,
-  "aria-label": ariaLabel,
   ...rest
 }: SelectProps) {
   const selectId = id ?? label?.toLowerCase().replace(/ /g, "-");
-  // A3 FIX: bir nechta filtr <select>lari (masalan /users, /partners/list,
-  // /bookings/hotels) faqat `placeholder` bilan ishlatilgan — ko'zga
-  // ko'rinadigan (vizual) yorliq yo'q va hech qanday aria-label ham
-  // berilmagan edi, natijada screen reader uchun butunlay nomsiz element
-  // qolardi. Chaqiruvchi allaqachon aniq `label` yoki `aria-label` bergan
-  // bo'lsa — bu yerga tegilmaydi (ortiqcha/qo'sh ARIA bo'lmasligi uchun);
-  // faqat ikkalasi ham yo'q bo'lgan holatda, allaqachon vizual jihatdan
-  // maqsadni bildiruvchi `placeholder` matni fallback sifatida ishlatiladi.
-  const resolvedAriaLabel = ariaLabel ?? (!label ? placeholder : undefined);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -40,7 +30,6 @@ export default function Select({
       <div className="relative">
         <select
           id={selectId}
-          aria-label={resolvedAriaLabel}
           className={cn(
             "w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)]",
             "bg-white text-[var(--text-primary)] appearance-none cursor-pointer",

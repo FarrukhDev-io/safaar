@@ -2,15 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
-import { useEffect, useId, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-
-// Tracks every currently-open <Modal> instance, in open order, so that when
-// modals are stacked (e.g. a confirmation dialog opened on top of a detail
-// drawer) Escape only closes the TOPMOST one — each instance's `document`
-// keydown listener checks this stack before calling its own onClose, instead
-// of every open modal reacting to the same Escape keypress independently.
-const openModalStack: string[] = [];
 
 interface ModalProps {
   open: boolean;
@@ -36,8 +29,6 @@ export default function Modal({
   size = "md",
   footer,
 }: ModalProps) {
-  const instanceId = useId();
-
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
@@ -47,33 +38,15 @@ export default function Modal({
     };
   }, [open]);
 
-  // Register/unregister this instance on the shared open-modal stack — kept
-  // separate from the Escape-listener effect below so re-registering on
-  // every onClose identity change (an inline arrow function in most callers)
-  // doesn't also churn this instance's stack position.
-  useEffect(() => {
-    if (!open) return;
-    openModalStack.push(instanceId);
-    return () => {
-      const index = openModalStack.lastIndexOf(instanceId);
-      if (index !== -1) openModalStack.splice(index, 1);
-    };
-  }, [open, instanceId]);
-
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      // Only the topmost open modal (the one opened most recently, e.g. a
-      // confirmation dialog stacked on top of a detail drawer) responds —
-      // otherwise every open modal would close on the same keypress.
-      if (openModalStack[openModalStack.length - 1] !== instanceId) return;
-      onClose();
+      if (e.key === "Escape") onClose();
     }
     if (open) {
       document.addEventListener("keydown", handleEscape);
     }
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [open, onClose, instanceId]);
+  }, [open, onClose]);
 
   if (!open || typeof document === "undefined") return null;
 

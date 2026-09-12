@@ -1,26 +1,22 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Mail, MapPin, Camera, Send } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { CommonDict } from "@/i18n/dictionaries";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 
-type FooterSections = {
-  platform?: string;
-  company?: string;
-  partners?: string;
-  contact?: string;
-};
+interface PaymentMethod {
+  name: string;
+  logo?: string;
+}
 
-type FooterData = CommonDict["footer"] & {
-  sections?: FooterSections;
-};
-
-const defaultSections: Required<FooterSections> = {
-  platform: "Platforma",
-  company: "Kompaniya",
-  partners: "Hamkorlik",
-  contact: "Aloqa",
-};
+const PAYMENT_METHODS: PaymentMethod[] = [
+  { name: "Click" },
+  { name: "Payme" },
+  { name: "Uzum" },
+  { name: "Humo" },
+  { name: "UzCard" },
+];
 
 export function SiteFooter({
   locale,
@@ -31,8 +27,14 @@ export function SiteFooter({
 }) {
   const base = `/${locale}`;
   const year = new Date().getFullYear();
-  const footerData = dict.footer as FooterData;
-  const sections = { ...defaultSections, ...footerData.sections };
+  const footerData = dict.footer as Record<string, unknown>;
+  const sections = (footerData.sections as Record<string, string>) || {
+    platform: "Platforma",
+    company: "Kompaniya",
+    partners: "Hamkorlik",
+    contact: "Aloqa",
+  };
+  const paymentMethods = PAYMENT_METHODS;
 
   return (
     <footer className="mt-auto bg-black text-slate-300">
@@ -46,14 +48,18 @@ export function SiteFooter({
             </p>
             <div className="mt-1 flex items-center gap-3">
               <a
-                href="#"
+                href="https://www.instagram.com/safaar.uz"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-primary-500 transition-colors hover:bg-primary-500 hover:text-white"
                 aria-label="Instagram"
               >
                 <Camera className="h-5 w-5" />
               </a>
               <a
-                href="#"
+                href="https://t.me/safaar_uz"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-primary-500 transition-colors hover:bg-primary-500 hover:text-white"
                 aria-label="Telegram"
               >
@@ -149,8 +155,47 @@ export function SiteFooter({
           </div>
         </div>
 
+        {/* Xavfsiz to'lov usullari */}
+        <div className="mt-12 py-6 border-t border-slate-200 text-center">
+          <h4 className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-4">
+            {(dict.footer as any).securePayments}
+          </h4>
+          <div className="flex items-center justify-center flex-wrap gap-6 sm:gap-8">
+            {paymentMethods.some((m) => m.logo) ? (
+              paymentMethods.map((method) => (
+                <Image
+                  key={method.name}
+                  src={method.logo!}
+                  alt={method.name}
+                  width={80}
+                  height={24}
+                  className="h-6 w-auto object-contain grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                />
+              ))
+            ) : (
+              <>
+                <span className="text-sm font-bold text-slate-300 hover:text-slate-600 transition-colors">
+                  Click
+                </span>
+                <span className="text-sm font-bold text-slate-300 hover:text-slate-600 transition-colors">
+                  Payme
+                </span>
+                <span className="text-sm font-bold text-slate-300 hover:text-slate-600 transition-colors">
+                  Uzum
+                </span>
+                <span className="text-sm font-bold text-slate-300 hover:text-slate-600 transition-colors">
+                  Humo
+                </span>
+                <span className="text-sm font-bold text-slate-300 hover:text-slate-600 transition-colors">
+                  UzCard
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Divider & Copyright */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 sm:flex-row">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 sm:flex-row">
           <p className="text-xs text-slate-400">
             © {year} {dict.brand}. {dict.footer.rights}
           </p>

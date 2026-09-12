@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 /* ────────────────────────────────────────────
-   Design System — safaar Admin
+   Design System — UzBron Admin
    Ranglar: Ko'k #1E3A5F asosiy, Yashil #2ECC71 aksent
    ──────────────────────────────────────────── */
 
@@ -27,7 +27,7 @@
   --border-light: #F1F5F9;
   --text-primary: #0F172A;
   --text-secondary: #475569;
-  --text-muted: #5B6B82; /* A2 FIX: was #94A3B8 (2.56:1 vs white -- failed WCAG AA 4.5:1); now 5.19-5.43:1 across all real usage backgrounds (white/bg-primary/bg-tertiary), verified not used in the dark sidebar context */
+  --text-muted: #94A3B8;
 
   /* Sidebar */
   --sidebar-bg: #0B1120;

@@ -17,7 +17,6 @@ import { formatMoney } from "../../_lib/utils/format";
 import { useAuthStore } from "../../_stores/auth-store";
 import { useDataStore } from "../../_stores/data-store";
 import { getPartnerLabels, hasBeds, hasBuses, isDacha, isRestaurant } from "../../_lib/utils/partner-labels";
-import { DachaDetailsView } from "./dacha-details-view";
 
 export function RoomsView() {
   const router = useRouter();
@@ -37,6 +36,10 @@ export function RoomsView() {
   const [addingRoom, setAddingRoom] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [managingBedsFor, setManagingBedsFor] = useState<Room | null>(null);
+
+  useEffect(() => {
+    if (isDachaType) router.replace("/listing");
+  }, [isDachaType, router]);
 
   // Qavatlar bo'yicha guruhlash
   const floors = useMemo(() => {
@@ -63,9 +66,7 @@ export function RoomsView() {
     return sortedFloors;
   }, [rooms]);
 
-  // Dachada "xonalar" tushunchasi yo'q — o'zining sotix/basseyn/sauna kabi
-  // xususiyatlarini tahrirlaydigan alohida forma ko'rsatiladi.
-  if (isDachaType) return <DachaDetailsView />;
+  if (isDachaType) return null;
 
   return (
     <div className="flex flex-col gap-8 max-w-7xl mx-auto pb-10">
@@ -335,10 +336,9 @@ function RoomCard({
           Sotuvda ko'rsatish
         </span>
         <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            aria-label="Sotuvda ko'rsatish"
-            className="sr-only peer"
+          <input 
+            type="checkbox" 
+            className="sr-only peer" 
             checked={room.isListed}
             disabled={isUpdating}
             onChange={(e) => {

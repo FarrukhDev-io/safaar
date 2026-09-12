@@ -9,19 +9,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-// P2-5 FIX: matn avval har doim (locale'dan qat'iy nazar) qattiq
-// yozilgan o'zbekcha bo'lardi. Endi chaqiruvchi (layout) joriy locale
-// lug'atidan (`common.pwa`) tarjima obyektini beradi; agar biror
-// sababga ko'ra lug'atda `pwa` kaliti bo'lmasa (masalan eski keshlangan
-// lug'at) — xavfsiz o'zbekcha standart qiymatga qaytiladi, komponent
-// hech qachon bo'sh matn ko'rsatmaydi.
-interface PwaInstallBannerDict {
-  title: string;
-  subtitle: string;
-  install: string;
-}
-
-export function PwaInstallBanner({ dict }: { dict: PwaInstallBannerDict }) {
+export function PwaInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -59,10 +47,10 @@ export function PwaInstallBanner({ dict }: { dict: PwaInstallBannerDict }) {
         
         <div className="flex min-w-0 flex-1 flex-col justify-center pl-1">
           <span className="truncate text-[13px] font-bold leading-tight text-slate-900 dark:text-white">
-            {dict.title}
+            Safaar ilovasini o'rnating
           </span>
           <span className="truncate text-[10px] font-medium leading-tight text-slate-500 dark:text-slate-400 mt-0.5">
-            {dict.subtitle}
+            Tezkor kirish va offlayn rejim
           </span>
         </div>
 
@@ -72,7 +60,7 @@ export function PwaInstallBanner({ dict }: { dict: PwaInstallBannerDict }) {
           onClick={handleInstall}
           className="h-7 shrink-0 rounded-[10px] px-3 text-[11px] font-bold shadow-none"
         >
-          {dict.install}
+          O'rnatish
         </Button>
 
         <button

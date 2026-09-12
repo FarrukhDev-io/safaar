@@ -33,6 +33,14 @@ export function RoomList({
     return `/${locale}/booking?${params.toString()}`;
   }
 
+  if (rooms.length === 0) {
+    return (
+      <div className="py-8 text-center text-slate-500 rounded-2xl border border-dashed border-slate-200">
+        Boshqa xonalar topilmadi.
+      </div>
+    );
+  }
+
   return (
     <ul className="flex flex-col gap-3">
       {rooms.map((room) => {

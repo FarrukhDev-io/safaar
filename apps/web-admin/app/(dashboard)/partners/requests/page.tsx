@@ -5,13 +5,14 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Modal from '@/components/ui/Modal';
-import { AdminApi, InternalNote } from '@/lib/api/admin-api';
+import { AdminApi } from '@/lib/api/admin-api';
 import { formatDate } from '@/lib/utils';
 import { PARTNER_REQUEST_STATUS_MAP } from '@/lib/constants';
 import {
   CheckCircle,
   XCircle,
   Phone,
+  MessageSquare,
   FileText,
 } from 'lucide-react';
 import type { PartnerRequest } from '@/types/admin';
@@ -30,49 +31,12 @@ function isActiveRequest(request: PartnerRequest) {
 
 export default function PartnerRequestsPage() {
   const storeRequests = useAdminStore((s) => s.partnerRequests);
+  const setPartnerRequestNote = useAdminStore((s) => s.setPartnerRequestNote);
   const [selectedRequest, setSelectedRequest] = useState<PartnerRequest | null>(
     null,
   );
   const [decisionId, setDecisionId] = useState<string | null>(null);
-  const [notes, setNotes] = useState<InternalNote[]>([]);
-  const [notesLoading, setNotesLoading] = useState(false);
-  const [notesError, setNotesError] = useState(false);
-  const [noteDraft, setNoteDraft] = useState("");
-  const [noteSubmitting, setNoteSubmitting] = useState(false);
-  // BUG-B01: destructive moderation now requires an explicit confirmation step.
-  const [confirmKind, setConfirmKind] = useState<"approve" | "reject" | null>(
-    null,
-  );
-  const [rejectReason, setRejectReason] = useState("");
-
-  const fetchNotes = async (id: string) => {
-    try {
-      setNotesLoading(true);
-      setNotesError(false);
-      setNotes(await AdminApi.getPartnerNotes(id));
-    } catch {
-      setNotesError(true);
-    } finally {
-      setNotesLoading(false);
-    }
-  };
-
-  const handleAddNote = async () => {
-    if (!selectedRequest) return;
-    const text = noteDraft.trim();
-    if (!text) return;
-    setNoteSubmitting(true);
-    try {
-      const created = await AdminApi.addPartnerNote(selectedRequest.id, text);
-      setNotes((prev) => [created, ...prev]);
-      setNoteDraft("");
-      toast.success("Izoh saqlandi");
-    } catch (error: any) {
-      toast.error(error?.message || "Izohni saqlab bo'lmadi");
-    } finally {
-      setNoteSubmitting(false);
-    }
-  };
+  const [adminNoteDraft, setAdminNoteDraft] = useState("");
 
   const setPartnerRequests = useAdminStore((s) => s.setPartnerRequests);
   useEffect(() => {
@@ -89,24 +53,18 @@ export default function PartnerRequestsPage() {
 
   const requests = storeRequests.filter(isActiveRequest);
 
-  const handleDecision = async (
-    id: string,
-    decision: 'approve' | 'reject',
-    reason?: string,
-  ) => {
+  const handleDecision = async (id: string, decision: 'approve' | 'reject') => {
     setDecisionId(`${decision}:${id}`);
     try {
       if (decision === 'approve') {
         await AdminApi.approvePartner(id);
         toast.success('Ariza muvaffaqiyatli tasdiqlandi!');
       } else {
-        await AdminApi.rejectPartner(id, reason);
+        await AdminApi.rejectPartner(id);
         toast.success('Ariza rad etildi!');
       }
       const data = await AdminApi.getPartnerRequests();
       setPartnerRequests(data);
-      setConfirmKind(null);
-      setRejectReason('');
       setSelectedRequest(null);
     } catch {
       toast.error("Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.");
@@ -177,12 +135,7 @@ export default function PartnerRequestsPage() {
                   {formatDate(req.createdAt)}
                 </td>
                 <td className="px-4 py-3">
-                  {/* NEW-1 FIX (widened investigation): `--info` (#3498DB)
-                      matn sifatida oq fonda ~3.15:1 berardi -- token o'ziga
-                      tegilmadi (boshqa joyda ham ishlatiladi, masalan
-                      yuqoridagi ikonka), faqat shu matnning rangi literal
-                      to'qroq qiymatga almashtirildi. */}
-                  <span className="inline-flex items-center gap-1 text-sm text-[#1B6496]">
+                  <span className="inline-flex items-center gap-1 text-sm text-[var(--info)]">
                     <FileText size={14} /> {req.documents.length} ta
                   </span>
                 </td>
@@ -198,8 +151,7 @@ export default function PartnerRequestsPage() {
                     size="sm"
                     onClick={() => {
                       setSelectedRequest(req);
-                      setNoteDraft("");
-                      fetchNotes(req.id);
+                      setAdminNoteDraft(req.adminNote ?? "");
                     }}
                   >
                     Ko&apos;rish
@@ -310,51 +262,29 @@ export default function PartnerRequestsPage() {
               </div>
             )}
 
-            {/* Admin izohlari */}
+            {/* Admin izohi */}
             <div>
-              <p className="text-xs text-[var(--text-muted)] mb-2 uppercase font-semibold tracking-wider">
-                Admin izohlari
-              </p>
-
-              {notesLoading ? (
-                <p className="text-xs text-[var(--text-muted)] py-2">Yuklanmoqda...</p>
-              ) : notesError ? (
-                <div className="flex items-center justify-between py-2">
-                  <p className="text-xs text-red-500">Izohlarni yuklab bo'lmadi</p>
-                  <button
-                    onClick={() => fetchNotes(selectedRequest.id)}
-                    className="text-xs text-[var(--primary)] hover:underline"
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-[var(--text-muted)] uppercase font-semibold tracking-wider">Admin izohi</p>
+                {adminNoteDraft !== (selectedRequest.adminNote ?? "") && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setPartnerRequestNote(selectedRequest.id, adminNoteDraft);
+                      toast.success("Izoh saqlandi");
+                    }}
                   >
-                    Qayta urinish
-                  </button>
-                </div>
-              ) : notes.length === 0 ? (
-                <p className="text-xs text-[var(--text-muted)] py-2">Hali izoh yo&apos;q</p>
-              ) : (
-                <div className="flex flex-col gap-3 mb-3 max-h-48 overflow-y-auto pr-1">
-                  {notes.map((note) => (
-                    <div key={note.id} className="text-sm border-b border-[var(--border)] pb-2 last:border-0">
-                      <p className="text-[var(--text-primary)] whitespace-pre-wrap">{note.body}</p>
-                      <p className="text-xs text-[var(--text-muted)] mt-1">
-                        {note.authorName} · {formatDate(note.createdAt)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2">
-                <textarea
-                  value={noteDraft}
-                  onChange={(e) => setNoteDraft(e.target.value)}
-                  placeholder="Ariza yuzasidan ichki izoh qoldiring..."
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none"
-                />
-                <Button size="sm" onClick={handleAddNote} disabled={noteSubmitting || !noteDraft.trim()} className="self-end">
-                  {noteSubmitting ? "Saqlanmoqda..." : "Qo'shish"}
-                </Button>
+                    Saqlash
+                  </Button>
+                )}
               </div>
+              <textarea
+                value={adminNoteDraft}
+                onChange={(e) => setAdminNoteDraft(e.target.value)}
+                placeholder="Ariza yuzasidan ichki izoh qoldiring..."
+                rows={3}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none"
+              />
             </div>
 
             {/* Quick actions */}
@@ -369,17 +299,27 @@ export default function PartnerRequestsPage() {
               >
                 Qo&apos;ng&apos;iroq
               </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<MessageSquare size={14} />}
+                onClick={() =>
+                  toast.info(
+                    'Izoh qoldirish funksiyasi tez orada ishga tushadi.',
+                  )
+                }
+              >
+                Izoh qoldirish
+              </Button>
               {isActiveRequest(selectedRequest) ? (
                 <div className="ml-auto flex items-center gap-2">
                   <Button
                     variant="danger"
                     size="sm"
                     icon={<XCircle size={14} />}
+                    loading={decisionId === `reject:${selectedRequest.id}`}
                     disabled={decisionId !== null}
-                    onClick={() => {
-                      setRejectReason('');
-                      setConfirmKind('reject');
-                    }}
+                    onClick={() => handleDecision(selectedRequest.id, 'reject')}
                   >
                     Rad etish
                   </Button>
@@ -387,101 +327,16 @@ export default function PartnerRequestsPage() {
                     variant="accent"
                     size="sm"
                     icon={<CheckCircle size={14} />}
+                    loading={decisionId === `approve:${selectedRequest.id}`}
                     disabled={decisionId !== null}
-                    onClick={() => setConfirmKind('approve')}
+                    onClick={() =>
+                      handleDecision(selectedRequest.id, 'approve')
+                    }
                   >
                     Tasdiqlash
                   </Button>
                 </div>
               ) : null}
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* BUG-B01: confirmation step — approve needs an explicit confirm,
-          reject needs a written reason. An accidental click never mutates. */}
-      <Modal
-        open={confirmKind !== null && !!selectedRequest}
-        onClose={() => {
-          if (decisionId === null) {
-            setConfirmKind(null);
-            setRejectReason('');
-          }
-        }}
-        title={
-          confirmKind === 'approve'
-            ? 'Arizani tasdiqlash'
-            : 'Arizani rad etish'
-        }
-        size="sm"
-      >
-        {selectedRequest && confirmKind && (
-          <div className="flex flex-col gap-4">
-            {confirmKind === 'approve' ? (
-              <p className="text-sm text-[var(--text-secondary)]">
-                <span className="font-medium text-[var(--text-primary)]">
-                  {selectedRequest.companyName}
-                </span>{' '}
-                arizasini tasdiqlaysizmi? Hamkor faollashtiriladi.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <p className="text-sm text-[var(--text-secondary)]">
-                  <span className="font-medium text-[var(--text-primary)]">
-                    {selectedRequest.companyName}
-                  </span>{' '}
-                  arizasini rad etish sababini kiriting.
-                </p>
-                <label
-                  htmlFor="reject-reason"
-                  className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider"
-                >
-                  Rad etish sababi
-                </label>
-                <textarea
-                  id="reject-reason"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  rows={3}
-                  autoFocus
-                  placeholder="Masalan: hujjatlar to'liq emas..."
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none"
-                />
-              </div>
-            )}
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={decisionId !== null}
-                onClick={() => {
-                  setConfirmKind(null);
-                  setRejectReason('');
-                }}
-              >
-                Bekor qilish
-              </Button>
-              <Button
-                variant={confirmKind === 'approve' ? 'accent' : 'danger'}
-                size="sm"
-                loading={decisionId !== null}
-                disabled={
-                  decisionId !== null ||
-                  (confirmKind === 'reject' && !rejectReason.trim())
-                }
-                onClick={() =>
-                  handleDecision(
-                    selectedRequest.id,
-                    confirmKind,
-                    confirmKind === 'reject'
-                      ? rejectReason.trim()
-                      : undefined,
-                  )
-                }
-              >
-                {confirmKind === 'approve' ? 'Tasdiqlash' : 'Rad etish'}
-              </Button>
             </div>
           </div>
         )}

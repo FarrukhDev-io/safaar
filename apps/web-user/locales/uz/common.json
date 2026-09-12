@@ -1,10 +1,5 @@
 {
   "brand": "Safaar",
-  "pwa": {
-    "title": "Safaar ilovasini o'rnating",
-    "subtitle": "Tezkor kirish va offlayn rejim",
-    "install": "O'rnatish"
-  },
   "promo": "🔥 Yozgi chegirma! Birinchi bron uchun 20% — SAFAAR20 promokodi bilan",
   "nav": {
     "home": "Bosh",
@@ -20,7 +15,11 @@
     "vipTaxi": "VIP Taksi",
     "about": "Biz haqimizda",
     "help": "Yordam",
-    "terms": "Shartlar"
+    "terms": "Shartlar",
+    "search": "Qidirish",
+    "favorites": "Saqlanganlar",
+    "bookings": "Bronlarim",
+    "profile": "Profil"
   },
   "actions": {
     "login": "Kirish",
@@ -53,6 +52,7 @@
     "email": "info@safaar.uz",
     "supportLabel": "(Qo'llab-quvvatlash)",
     "secureBooking": "Xavfsiz va kafolatlangan bron qilish",
+    "securePayments": "Xavfsiz to'lov usullari",
     "partner": "Hamkorlar uchun portal",
     "sections": {
       "platform": "Platforma",

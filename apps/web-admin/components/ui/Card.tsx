@@ -59,15 +59,10 @@ export function StatCard({ label, value, change, icon, color }: StatCardProps) {
       </div>
       {change !== undefined && (
         <div className="mt-3 flex items-center gap-1.5">
-          {/* NEW-1 FIX: `var(--success)`/`var(--danger)` shu o'zining tinted
-              foni ustida matn sifatida ~2-4:1 kontrast berardi (WCAG AA'ni
-              o'tmaydi). Umumiy CSS o'zgaruvchilarga tegilmadi (boshqa
-              ko'plab joyda ishlatiladi) -- shu yerda faqat matn rangi
-              to'g'ridan-to'g'ri to'qroq literal qiymatga almashtirildi. */}
           <span
             className="text-xs font-semibold px-1.5 py-0.5 rounded"
             style={{
-              color: isPositive ? "#19703E" : "#B62516",
+              color: isPositive ? "var(--success)" : "var(--danger)",
               backgroundColor: isPositive ? "rgba(46,204,113,0.1)" : "rgba(231,76,60,0.1)",
             }}
           >

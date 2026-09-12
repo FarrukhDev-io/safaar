@@ -6,9 +6,7 @@ export type PartnerAccessStatus =
   | 'reviewing'
   | 'approved'
   | 'rejected'
-  | 'submitted'
-  | 'blocked'
-  | 'suspended';
+  | 'submitted';
 
 export interface PartnerApplicationDraft {
   companyName: string;
@@ -56,15 +54,8 @@ export async function getPartnerAccessStatus(lookup: PartnerAccessLookup) {
     request?: {
       id: string;
       companyName: string;
-      contactPerson?: string;
-      phone?: string;
-      email?: string;
-      city?: string;
-      address?: string;
-      taxId?: string;
       status: PartnerAccessStatus;
       type?: string;
-      rejectionReason?: string;
     } | null;
   }>('/partners/requests', {
     searchParams,

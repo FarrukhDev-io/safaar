@@ -1,21 +1,21 @@
-import { notFound } from 'next/navigation';
+import { notFound } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
   CreditCard,
   ShieldCheck,
-} from 'lucide-react';
-import { isLocale, type Locale } from '@/i18n/config';
-import { getDictionary } from '@/i18n/dictionaries';
-import { getSession } from '@/lib/auth/session';
-import { api, ApiRequestError } from '@/lib/api';
-import { formatSum } from '@/lib/money';
-import { BackButton } from '@/components/ui/BackButton';
-import { RetryPaymentForm } from './_components/RetryPaymentForm';
-import { BookingActions } from './_components/BookingActions';
-import { BookingChat } from './_components/BookingChat';
-import type { BookingView } from '@/types/view';
-import type { PaymentProvider } from '@/lib/services/payments/payments';
+} from "lucide-react";
+import { isLocale, type Locale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/dictionaries";
+import { getSession } from "@/lib/auth/session";
+import { api, ApiRequestError } from "@/lib/api";
+import { formatSum } from "@/lib/money";
+import { BackButton } from "@/components/ui/BackButton";
+import { RetryPaymentForm } from "./_components/RetryPaymentForm";
+import { BookingActions } from "./_components/BookingActions";
+import { BookingChat } from "./_components/BookingChat";
+import type { BookingView } from "@/types/view";
+import type { PaymentProvider } from "@/lib/services/payments/payments";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -23,32 +23,11 @@ function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-/**
- * `GET /bookings/:id` login talab qiladi (IDOR himoyasi) — sessiya
- * bo'lmasa (guest), buning o'rniga bron raqami + email orqali
- * `lookupBooking` chaqiriladi (checkout paytida
- * `guestConfirmationQuery`dan kelgan `bn`/`ge` query parametrlari orqali).
- * Ikkalasi ham muvaffaqiyatsiz bo'lsa — xatolik tashlanmaydi, sahifa
- * mavjud "bron topilmadi" holatini ko'rsatadi.
- */
-async function getBookingOrNull(
-  id: string,
-  token: string | undefined,
-  guestLookup: { bookingNumber: string; email: string } | null,
-) {
+async function getBookingOrNull(id: string, token?: string) {
   try {
-    if (!token && guestLookup) {
-      return await api.bookings.lookupBooking(
-        guestLookup.bookingNumber,
-        guestLookup.email,
-      );
-    }
     return await api.bookings.getBooking(id, token ? { token } : undefined);
   } catch (error) {
-    if (
-      error instanceof ApiRequestError &&
-      (error.statusCode === 404 || error.statusCode === 401 || error.statusCode === 403)
-    ) {
+    if (error instanceof ApiRequestError && error.statusCode === 404) {
       return null;
     }
     throw error;
@@ -67,21 +46,18 @@ export default async function BookingDetailPage({
   const locale = lang as Locale;
   const sp = await searchParams;
 
+  const paymentQuery = one(sp.payment);
+  const statusQuery = one(sp.status);
   const providerQuery = one(sp.provider);
-  const bookingNumberQuery = one(sp.bn);
-  const guestEmailQuery = one(sp.ge);
 
   const [dict, session] = await Promise.all([
-    getDictionary(locale, 'booking'),
+    getDictionary(locale, "booking"),
     getSession(),
   ]);
 
   const booking: BookingView | null = await getBookingOrNull(
     id,
     session?.accessToken,
-    bookingNumberQuery && guestEmailQuery
-      ? { bookingNumber: bookingNumberQuery, email: guestEmailQuery }
-      : null,
   );
 
   if (!booking) {
@@ -96,28 +72,18 @@ export default async function BookingDetailPage({
 
   const statuses = dict.statuses as Record<string, string>;
   const paymentStatuses = dict.paymentStatuses as Record<string, string>;
-  // Backend `booking.status`ni har doim kichik harfda qaytaradi
-  // (masalan "confirmed", "pending"), lekin lug'at kalitlari katta
-  // harfda yozilgan ("CONFIRMED", "PENDING") — bu ikkalasi hech qachon
-  // mos kelmas, va foydalanuvchi doim tarjima qilinmagan xom inglizcha
-  // so'zni ko'rardi.
-  const statusKey = booking.status.toUpperCase();
-  const statusLabel = statuses[statusKey] ?? booking.status;
+  const statusLabel = statuses[booking.status] ?? booking.status;
   const payment = booking.payment;
 
-  // MUHIM: bu yerda faqat backend'dan kelgan HAQIQIY holat (booking.status,
-  // payment.status) ishlatiladi — URL query parametrlariga (`?status=...`,
-  // `?payment=...`) hech qanday ishonch YO'Q, chunki ularni foydalanuvchi
-  // manzil satrida qo'lda o'zgartirib, to'lov muvaffaqiyatli bo'lmagan
-  // holatda ham "tasdiqlandi" degan xabarni ko'rsatishga majburlashi
-  // mumkin edi.
   const isConfirmed =
-    booking.status === 'confirmed' ||
-    booking.status === 'awaiting_partner_confirmation' ||
-    payment?.status === 'paid';
+    statusQuery === "confirmed" ||
+    paymentQuery === "success" ||
+    booking.status === "CONFIRMED" ||
+    payment?.status === "paid";
 
-  const isFailed = payment?.status === 'failed';
-  const isAwaitingCash = payment?.status === 'awaiting_cash';
+  const isFailed = paymentQuery === "failed" || payment?.status === "failed";
+  const isAwaitingCash =
+    paymentQuery === "cash" || payment?.status === "awaiting_cash";
 
   return (
     <main className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
@@ -139,8 +105,7 @@ export default async function BookingDetailPage({
             </h1>
           </div>
           <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-            Tafsilotlar va vaucher ma'lumotlari shaxsiy kabinetingizda
-            saqlanadi.
+            Tafsilotlar va vaucher ma'lumotlari shaxsiy kabinetingizda saqlanadi.
           </p>
         </div>
       ) : isFailed ? (
@@ -203,7 +168,7 @@ export default async function BookingDetailPage({
         {payment && (
           <Row label={dict.payment}>
             <span className="text-sm font-semibold capitalize text-slate-900 dark:text-white">
-              {payment.provider ? `${payment.provider.toUpperCase()} · ` : ''}
+              {payment.provider ? `${payment.provider.toUpperCase()} · ` : ""}
               {paymentStatuses[payment.status] ?? payment.status}
             </span>
           </Row>
@@ -219,14 +184,14 @@ export default async function BookingDetailPage({
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Payme, Click, Uzcard/Humo yoki joyida to'lash usullari orqali
-            to'lovni amalga oshiring.
+            Payme, Click, Uzcard/Humo yoki joyida to'lash usullari orqali to'lovni
+            amalga oshiring.
           </p>
 
           <RetryPaymentForm
             bookingId={booking.id}
             locale={locale}
-            initialProvider={(providerQuery as PaymentProvider) ?? 'click'}
+            initialProvider={(providerQuery as PaymentProvider) ?? "click"}
           />
         </section>
       ) : null}
@@ -236,7 +201,7 @@ export default async function BookingDetailPage({
         isConfirmed={isConfirmed}
         bookingId={booking.id}
         totalSum={booking.totalSum}
-        paymentMethod={payment?.provider || 'online'}
+        paymentMethod={payment?.provider || "online"}
         token={session?.accessToken}
         dict={{
           voucher: dict.voucher,
@@ -262,9 +227,7 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between gap-4 py-1">
-      <span className="text-sm text-slate-500 dark:text-slate-400">
-        {label}
-      </span>
+      <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>
       {children ?? (
         <span className="font-semibold text-slate-900 dark:text-white">
           {value}

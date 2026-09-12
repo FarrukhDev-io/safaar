@@ -1,14 +1,6 @@
 import type { AuthTokens } from '@safaar/types';
 import { Role } from '@safaar/types';
-import type { PartnerAccessStatus } from '../api/endpoints/access';
 import type { AuthUser } from '../../_stores/auth-store';
-
-type PartnerSessionTokens = AuthTokens & {
-  organization_id?: string;
-  organizationId?: string;
-  organization_status?: string;
-  organizationStatus?: string;
-};
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const [, payload] = token.split('.');
@@ -34,23 +26,16 @@ export function isAccessTokenExpired(
 
 export function buildPartnerSession(
   contact: string,
-  tokens: PartnerSessionTokens,
+  tokens: AuthTokens,
   partnerType?: string,
   contactType: 'email' | 'phone' = 'email',
 ): { user: AuthUser; tokens: AuthTokens } {
   const payload = decodeJwtPayload(tokens.accessToken);
   const id = typeof payload.sub === 'string' ? payload.sub : contact;
-  let organizationId: string | undefined;
-  if (typeof tokens.organizationId === 'string') {
-    organizationId = tokens.organizationId;
-  } else if (typeof tokens.organization_id === 'string') {
-    organizationId = tokens.organization_id;
-  } else if (typeof payload.organization_id === 'string') {
-    organizationId = payload.organization_id;
-  }
-  const accessStatus = String(
-    tokens.organizationStatus ?? tokens.organization_status ?? 'approved',
-  ) as PartnerAccessStatus;
+  const organizationId =
+    typeof payload.organization_id === 'string'
+      ? payload.organization_id
+      : undefined;
 
   return {
     user: {
@@ -61,7 +46,6 @@ export function buildPartnerSession(
       role: Role.PARTNER,
       organizationId,
       partnerType: partnerType || 'hotel',
-      accessStatus,
     },
     tokens,
   };

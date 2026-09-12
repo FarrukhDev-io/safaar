@@ -1,18 +1,27 @@
 import axios from "axios";
+import Cookies from "js-cookie";
 
-// Barcha so'rovlar shu ilovaning o'z same-origin proxy'i orqali o'tadi
-// (`app/api/proxy/[...path]/route.ts`) — u httpOnly cookie'dan tokenni
-// o'qib, `Authorization` header'ini serverda biriktiradi. Brauzer JS
-// tokenni hech qachon ko'rmaydi, shu sabab bu yerda uni cookie'dan o'qib
-// header'ga qo'shishning hojati (va imkoni) yo'q.
 const apiClient = axios.create({
-  baseURL: "/api/proxy",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "/api/backend",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
+// Request interceptor: attach token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = Cookies.get("admin_token");
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor: handle 401 Unauthorized
 apiClient.interceptors.response.use(
   (response) => {
     if (
@@ -27,12 +36,10 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Sessiya (httpOnly cookie) yaroqsiz/muddati o'tgan — uni tozalash
-      // uchun server action kerak (JS uni to'g'ridan-to'g'ri o'chira
-      // olmaydi), shuning uchun to'g'ridan-to'g'ri /logout'ga
-      // yo'naltiramiz — o'sha sahifa sessiyani to'liq tozalaydi.
+      // Token is expired or invalid
+      Cookies.remove("admin_token");
       if (typeof window !== "undefined") {
-        window.location.href = "/logout";
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);

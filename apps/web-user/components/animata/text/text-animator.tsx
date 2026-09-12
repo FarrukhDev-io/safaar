@@ -927,7 +927,9 @@ export default function TextAnimator({
   const contentKey = `${samplesKey}|${phrasesKey}`;
   const prevContentKeyRef = useRef(contentKey);
 
+  // eslint-disable-next-line react-hooks/refs
   if (contentKey !== prevContentKeyRef.current) {
+    // eslint-disable-next-line react-hooks/refs
     prevContentKeyRef.current = contentKey;
     if (failed) {
       setFailed(false);
@@ -938,7 +940,9 @@ export default function TextAnimator({
   // as deps (we drive re-runs via the content keys above).
   const samplesRef = useRef(samples);
   const phrasesRef = useRef(phrases);
+  // eslint-disable-next-line react-hooks/refs
   samplesRef.current = samples;
+  // eslint-disable-next-line react-hooks/refs
   phrasesRef.current = phrases;
 
   const effectiveSamples = samples?.length ? samples : ["Animation"];

@@ -6,22 +6,16 @@ import type { SupportTicket, TicketMessage, TicketStatus } from "@/types/admin";
 import { formatDate } from "@/lib/utils";
 import { MessageCircle, Search, X, Send, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 
-// NEW-1 FIX (widened investigation): ikkala xarita ham matn rangi
-// sifatida umumiy CSS o'zgaruvchini (yoki uning class-nomini) o'zining
-// mos shaffof foni ustida ishlatgan -- ~1.9-3.6:1 kontrast berardi.
-// Umumiy o'zgaruvchilarga tegilmadi (boshqa ko'p joyda ishlatiladi),
-// faqat shu ikkala LOKAL xaritaning matn ranglari to'qroq literal
-// qiymatlarga almashtirildi.
 const STATUS_MAP = {
-  open: { label: "Ochiq", color: "#B62516", bg: "rgba(231, 76, 60, 0.1)" },
-  in_progress: { label: "Jarayonda", color: "#885607", bg: "rgba(243, 156, 18, 0.1)" },
-  closed: { label: "Yopilgan", color: "#19703E", bg: "rgba(46, 204, 113, 0.1)" },
+  open: { label: "Ochiq", color: "var(--danger)", bg: "rgba(231, 76, 60, 0.1)" },
+  in_progress: { label: "Jarayonda", color: "var(--warning)", bg: "rgba(243, 156, 18, 0.1)" },
+  closed: { label: "Yopilgan", color: "var(--success)", bg: "rgba(46, 204, 113, 0.1)" },
 };
 
 const PRIORITY_MAP = {
-  low: { label: "Past", color: "bg-[var(--success)]/10 text-[#19703E]" },
-  medium: { label: "O'rta", color: "bg-[var(--warning)]/10 text-[#885607]" },
-  high: { label: "Yuqori", color: "bg-[var(--danger)]/10 text-[#B62516] font-bold" },
+  low: { label: "Past", color: "bg-[var(--success)]/10 text-[var(--success)]" },
+  medium: { label: "O'rta", color: "bg-[var(--warning)]/10 text-[var(--warning)]" },
+  high: { label: "Yuqori", color: "bg-[var(--danger)]/10 text-[var(--danger)] font-bold" },
 } as const;
 
 function statusInfo(status: unknown) {
@@ -210,7 +204,6 @@ export default function SupportPage() {
                     <select
                       value={selectedTicket.status}
                       onChange={(e) => handleStatusChange(selectedTicket.id, e.target.value as TicketStatus)}
-                      aria-label="Murojaat holati"
                       className="text-xs font-bold rounded-full px-3 py-1 bg-transparent cursor-pointer border border-[var(--border)] focus:outline-none"
                       style={{ color: statusInfo(selectedTicket.status).color, backgroundColor: statusInfo(selectedTicket.status).bg }}
                     >
@@ -304,7 +297,6 @@ export default function SupportPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as "all" | TicketStatus)}
-              aria-label="Holati bo'yicha filtrlash"
               className="px-2 py-1.5 text-xs rounded-lg bg-white border border-[var(--border)] focus:outline-none"
             >
               <option value="all">Barcha holatlar</option>
@@ -315,7 +307,6 @@ export default function SupportPage() {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value as "all" | "low" | "medium" | "high")}
-              aria-label="Daraja bo'yicha filtrlash"
               className="px-2 py-1.5 text-xs rounded-lg bg-white border border-[var(--border)] focus:outline-none"
             >
               <option value="all">Barcha daraja</option>

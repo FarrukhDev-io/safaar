@@ -6,9 +6,8 @@ import { logoutAction } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/cn";
-import { ScrollNav, type ScrollNavItem } from "./ScrollNav";
 import { LocaleSwitcher } from "./LocaleSwitcher";
-import { NotificationsBell } from "./NotificationsBell";
+import { HeaderWrapper, type NavItem } from "./header";
 
 function AuthButtons({
   authed,
@@ -30,12 +29,12 @@ function AuthButtons({
       <div className={`flex gap-2 ${isCol ? "flex-col" : "items-center"}`}>
         <Link
           href={`${base}/account`}
-          className={buttonVariants({ variant: "ghost", rounded: "full", className: cn(sizeClass, "font-bold text-slate-800 dark:text-white") })}
+          className={buttonVariants({ variant: "ghost", rounded: "lg", className: cn(sizeClass, "font-bold text-slate-700 dark:text-white hover:bg-slate-100") })}
         >
           {dict.actions.account}
         </Link>
         <form action={logoutAction.bind(null, locale)} className={isCol ? "w-full flex" : ""}>
-          <Button size="sm" variant="secondary" rounded="full" type="submit" className={isCol ? "w-full flex-1 min-h-[44px]" : ""}>
+          <Button size="md" variant="secondary" rounded="lg" type="submit" className={isCol ? "w-full flex-1" : ""}>
             {dict.actions.logout}
           </Button>
         </form>
@@ -45,14 +44,14 @@ function AuthButtons({
 
   const loginClasses = buttonVariants({ 
     variant: "secondary", 
-    rounded: "full", 
-    className: cn(sizeClass, "!h-11 min-h-[44px] px-4 text-[15px] font-bold") 
+    rounded: "lg", 
+    className: cn(sizeClass, "!h-10 px-4 text-[14px] font-bold") 
   });
   
   const registerClasses = buttonVariants({ 
     variant: "primary", 
-    rounded: "full", 
-    className: cn(sizeClass, "!h-11 min-h-[44px] px-4 text-[15px] font-bold") 
+    rounded: "lg", 
+    className: cn(sizeClass, "!h-10 px-4 text-[14px] font-bold") 
   });
 
   return (
@@ -71,17 +70,10 @@ export function SiteHeader({
   locale,
   dict,
   authed,
-  token,
 }: {
   locale: Locale;
   dict: CommonDict;
   authed: boolean;
-  /**
-   * Kirgan foydalanuvchining access tokeni — faqat `NotificationsBell`ga
-   * uzatiladi (bildirishnomalarni backenddan olish uchun). Yo'q bo'lsa
-   * qo'ng'iroq umuman render qilinmaydi.
-   */
-  token?: string;
 }) {
   const base = `/${locale}`;
   const navDict = dict.nav as typeof dict.nav & {
@@ -91,7 +83,7 @@ export function SiteHeader({
     vipTaxi?: string;
   };
 
-  const desktopItems: ScrollNavItem[] = [
+  const desktopItems: NavItem[] = [
     {
       href: `${base}/hotels`,
       label: dict.nav.hotels,
@@ -116,13 +108,7 @@ export function SiteHeader({
 
   const localeSwitcherLight = <LocaleSwitcher current={locale} light />;
   const authActions = <AuthButtons authed={authed} locale={locale} dict={dict} orientation="horizontal" />;
-  const authActionsLight = <AuthButtons authed={authed} locale={locale} dict={dict} orientation="vertical" />;
-
-  // Bildirishnomalar qo'ng'irog'i faqat kirgan foydalanuvchi uchun (token
-  // bo'lsa). `NotificationsBell`ning o'zi ham `token` bo'lmasa `null`
-  // qaytaradi — bu ikki bosqichli tekshiruv ataylab.
-  const notifications =
-    authed && token ? <NotificationsBell locale={locale} token={token} /> : null;
+  const authActionsMobile = <AuthButtons authed={authed} locale={locale} dict={dict} orientation="vertical" />;
 
   const actions = (
     <div className="flex items-center gap-2">
@@ -132,14 +118,13 @@ export function SiteHeader({
   );
 
   return (
-    <ScrollNav
+    <HeaderWrapper
       items={desktopItems}
       brand={dict.brand}
       brandHref={base}
       actions={actions}
-      notifications={notifications}
-      localeSwitcher={localeSwitcherLight}
-      authActions={authActionsLight}
+      localeSwitcher={<LocaleSwitcher current={locale} />}
+      authActions={authActionsMobile}
     />
   );
 }

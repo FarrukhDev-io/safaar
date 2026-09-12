@@ -22,6 +22,7 @@ import { useGenerateBeds } from "../../../../_hooks/use-beds";
 import { RoomStatus, type Room } from "../../../../_lib/domain/types";
 import { roomStatusLabel } from "../../../../_components/domain/room-status-badge";
 import { getPartnerLabels, hasBeds, hasBuses, isRestaurant } from "../../../../_lib/utils/partner-labels";
+import { partners } from "../../../../_lib/api";
 import { getPrimaryHotel } from "../../../../_hooks/use-primary-hotel";
 
 const schema = z.object({

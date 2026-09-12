@@ -75,8 +75,8 @@ function exportToCsv(items: ReservationView[], unitLabel: string, beds: Bed[], r
       r.id,
       r.guest.fullName,
       `+${r.guest.phone}`,
-      r.roomTypeName || r.vehicleName || "",
-      [r.roomNumber ?? r.vehiclePlateNumber, bed?.label].filter(Boolean).join(" · "),
+      r.roomTypeName,
+      [r.roomNumber, bed?.label].filter(Boolean).join(" · "),
       r.checkIn,
       ...(restaurant ? [r.slotTime ?? ""] : [r.checkOut, r.nights]),
       r.totalPrice,
@@ -180,15 +180,7 @@ export function ReservationsView() {
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter((r) =>
-        [
-          r.id,
-          r.guest.fullName,
-          r.guest.phone,
-          r.roomTypeName,
-          r.roomNumber,
-          r.vehicleName,
-          r.vehiclePlateNumber,
-        ]
+        [r.id, r.guest.fullName, r.guest.phone, r.roomTypeName, r.roomNumber]
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
@@ -314,8 +306,7 @@ export function ReservationsView() {
                       </div>
                       <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                         {formatDate(r.checkIn)}
-                        {r.slotTime ? ` ${r.slotTime}` : ""} ·{" "}
-                        {r.roomTypeName || r.vehicleName}
+                        {r.slotTime ? ` ${r.slotTime}` : ""} · {r.roomTypeName}
                       </p>
                       <div className="mt-2">
                         <ReservationStatusBadge status={r.status} />
@@ -527,30 +518,19 @@ function ReservationCard({
   return (
     <Card interactive>
       <CardBody className="p-0">
-        {/* A12 FIX: butun qatorni role="button" qilish, uning ICHIDA esa
-            haqiqiy <Button> (Rad/Tasdiqlash/Check-in) elementlarini
-            joylashtirish ARIA jihatidan yaroqsiz edi ("nested interactive")
-            -- ko'plab screen reader/klaviatura birikmalarida ichki
-            tugmalar butunlay Tab bilan yetib bo'lmas edi (faqat butun qator
-            "button" sifatida e'lon qilinardi). Endi role="button"/tabIndex/
-            onClick/onKeyDown FAQAT chap ustundagi (haqiqatan ham interaktiv
-            bo'lmagan, faqat ko'rsatuvchi) ustunga qo'yiladi; o'ng ustundagi
-            haqiqiy amal tugmalari endi shu "button"ning tashqarisida,
-            aka-uka (sibling) sifatida joylashadi -- mustaqil fokuslanadigan
-            va bosiladigan bo'lib qoladi. */}
-        <div className="grid w-full gap-0 text-left lg:grid-cols-[minmax(0,1fr)_220px]">
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={onOpen}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onOpen();
-              }
-            }}
-            className="flex min-w-0 cursor-pointer flex-col gap-4 p-4"
-          >
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onOpen}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpen();
+            }
+          }}
+          className="grid w-full cursor-pointer gap-0 text-left lg:grid-cols-[minmax(0,1fr)_220px]"
+        >
+          <div className="flex min-w-0 flex-col gap-4 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -595,21 +575,13 @@ function ReservationCard({
               <MiniInfo
                 icon={isBus ? <CarFront /> : restaurant ? <UtensilsCrossed /> : <BedDouble />}
                 label={labels.unitSingular.charAt(0).toUpperCase() + labels.unitSingular.slice(1)}
-                value={
-                  isBus
-                    ? `${reservation.vehicleName ?? ""}${
-                        reservation.vehiclePlateNumber
-                          ? ` · ${reservation.vehiclePlateNumber}`
-                          : ""
-                      }`
-                    : `${reservation.roomTypeName}${
-                        reservation.roomNumber ? ` · ${reservation.roomNumber}` : ""
-                      }${
-                        reservation.bedId
-                          ? ` · ${beds.find((b) => b.id === reservation.bedId)?.label ?? ""}`
-                          : ""
-                      }`
-                }
+                value={`${reservation.roomTypeName}${
+                  reservation.roomNumber ? ` · ${reservation.roomNumber}` : ""
+                }${
+                  reservation.bedId
+                    ? ` · ${beds.find((b) => b.id === reservation.bedId)?.label ?? ""}`
+                    : ""
+                }`}
               />
             </div>
 

@@ -8,33 +8,6 @@ import type {
   BackendRoom,
 } from '../adapters';
 
-// Transport (bus) hamkorlar uchun — mehmonxona `Room`/`Listing` domenidan
-// mustaqil, chunki maydonlari butunlay boshqa (o'rindiqlar soni, davlat
-// raqami va h.k.).
-export interface BackendBusCompany {
-  id: string;
-  partner_organization_id?: string;
-  name: string;
-  status?: string;
-  rating_average?: number;
-  reviews_count?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface BackendVehicle {
-  id: string;
-  company_id?: string;
-  name: string;
-  plate_number?: string | null;
-  seats_count: number;
-  price_per_day?: number;
-  seat_layout?: unknown;
-  status?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
 export interface PartnerDashboard {
   todayBookings: number;
   monthRevenue: number;
@@ -50,7 +23,6 @@ export interface PartnerProfile {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
-  status?: string | null;
 }
 
 /** Hamkor bosh paneli ko'rsatkichlari (`GET /api/partners/dashboard`). */
@@ -187,6 +159,32 @@ export function updateHotelImage(
   );
 }
 
+export function getBusCompany(token?: string | null) {
+  return request<any>('/partners/bus-company', { token });
+}
+
+export function updateBusCompany(
+  body: Record<string, unknown>,
+  token?: string | null,
+) {
+  return request<any>('/partners/bus-company', {
+    method: 'PATCH',
+    body,
+    token,
+  });
+}
+
+export function updateBusCompanyStatus(
+  status: string,
+  token?: string | null,
+) {
+  return request<any>('/partners/bus-company', {
+    method: 'PATCH',
+    body: { status },
+    token,
+  });
+}
+
 export function uploadImage(file: File, token?: string | null) {
   const formData = new FormData();
   formData.set('file', file);
@@ -203,51 +201,6 @@ export function listRooms(hotelId: string, token?: string | null) {
   return request<BackendRoom[]>(
     `/partners/hotels/${encodeURIComponent(hotelId)}/rooms`,
     { token },
-  );
-}
-
-export interface BackendInventoryDay {
-  room_id: string;
-  date: string;
-  total_count: number;
-  held_count: number;
-  booked_count: number;
-  closed: boolean;
-}
-
-export function getInventory(hotelId: string, token?: string | null) {
-  return request<BackendInventoryDay[]>(
-    `/partners/hotels/${encodeURIComponent(hotelId)}/inventory`,
-    { token },
-  );
-}
-
-export interface InventoryUpdateItem {
-  room_id: string;
-  date: string;
-  total_count?: number;
-  closed?: boolean;
-}
-
-export function updateInventory(
-  hotelId: string,
-  items: InventoryUpdateItem[],
-  token?: string | null,
-) {
-  return request<{ hotel_id: string; updated: boolean; items: BackendInventoryDay[] }>(
-    `/partners/hotels/${encodeURIComponent(hotelId)}/inventory`,
-    { method: 'PUT', body: { items }, token },
-  );
-}
-
-export function createBlackoutDates(
-  hotelId: string,
-  body: { dates: string[]; room_id?: string },
-  token?: string | null,
-) {
-  return request<{ hotel_id: string; room_id: string | null; dates: string[]; closed: boolean }>(
-    `/partners/hotels/${encodeURIComponent(hotelId)}/blackout-dates`,
-    { method: 'POST', body, token },
   );
 }
 
@@ -349,17 +302,6 @@ export function createBooking(
 export function confirmBooking(id: string, token?: string | null) {
   return request<BackendBooking>(
     `/partners/bookings/${encodeURIComponent(id)}/confirm`,
-    {
-      method: 'POST',
-      token,
-    },
-  );
-}
-
-/** Mijoz joyida naqd to'laganini hamkor tasdiqlaydi — `payments.status`ni 'paid'ga o'tkazadi. */
-export function acceptCashPayment(id: string, token?: string | null) {
-  return request<{ booking_id: string; cash_status: string }>(
-    `/partners/bookings/${encodeURIComponent(id)}/cash-collected`,
     {
       method: 'POST',
       token,
@@ -616,39 +558,6 @@ export function updateListingStatus(
   );
 }
 
-// ---------------------------------------------------------------------------
-// Transport (bus) — kompaniya e'loni + transport parki
-// ---------------------------------------------------------------------------
-
-/** `null` qaytadi (404 emas) — hali kompaniya yaratilmagan bo'lishi mumkin. */
-export function getBusCompany(token?: string | null) {
-  return request<BackendBusCompany | null>('/partners/bus-company', {
-    token,
-  });
-}
-
-export function createBusCompany(
-  body: Record<string, unknown>,
-  token?: string | null,
-) {
-  return request<BackendBusCompany>('/partners/bus-company', {
-    method: 'POST',
-    body,
-    token,
-  });
-}
-
-export function updateBusCompany(
-  body: Record<string, unknown>,
-  token?: string | null,
-) {
-  return request<BackendBusCompany>('/partners/bus-company', {
-    method: 'PATCH',
-    body,
-    token,
-  });
-}
-
 // TEAM MANAGEMENT
 export interface PartnerTeamMember {
   id: string;
@@ -661,15 +570,15 @@ export interface PartnerTeamMember {
 }
 
 export function listTeamMembers(token?: string | null) {
-  return request<import('../adapters').BackendTeamMember[]>('/partner/team', { token });
+  return request<PartnerTeamMember[]>('/partner/team', { token });
 }
 
 export function inviteTeamMember(body: Record<string, unknown>, token?: string | null) {
-  return request<import('../adapters').BackendTeamMember>('/partner/team', { method: 'POST', body, token });
+  return request<PartnerTeamMember>('/partner/team', { method: 'POST', body, token });
 }
 
 export function updateTeamMember(id: string, body: Record<string, unknown>, token?: string | null) {
-  return request<import('../adapters').BackendTeamMember>(`/partner/team/${id}`, { method: 'PATCH', body, token });
+  return request<PartnerTeamMember>(`/partner/team/${id}`, { method: 'PATCH', body, token });
 }
 
 export function deleteTeamMember(id: string, token?: string | null) {
@@ -687,64 +596,11 @@ export interface PartnerDocument {
 }
 
 export function listDocuments(token?: string | null) {
-  return request<import('../adapters').BackendDocument[]>('/partner/documents', { token });
+  return request<PartnerDocument[]>('/partner/documents', { token });
 }
 
-interface PresignResult {
-  upload_url: string;
-  method: string;
-  headers?: Record<string, string>;
-  url: string;
-  mime_type: string;
-}
-
-/**
- * Hujjat yuklash 3 bosqichli: (1) presigned URL olish, (2) faylni
- * to'g'ridan-to'g'ri R2'ga PUT qilish, (3) natijani `media_files`ga
- * ro'yxatga olish. Backend `/partner/documents` esa faqat tayyor
- * `file_id`ni kutadi — shu sabab bu yerda zanjir sifatida qilingan.
- */
-export async function uploadDocument(
-  file: File,
-  type: string,
-  token?: string | null,
-) {
-  const presign = await request<PresignResult>('/uploads/presign', {
-    method: 'POST',
-    body: {
-      type: 'document',
-      mime_type: file.type,
-      size: file.size,
-      filename: file.name,
-    },
-    token,
-  });
-
-  const uploadResponse = await fetch(presign.upload_url, {
-    method: presign.method,
-    headers: presign.headers,
-    body: file,
-  });
-  if (!uploadResponse.ok) {
-    throw new Error("Fayl saqlash xizmatiga yuklab bo'lmadi");
-  }
-
-  const registered = await request<{ id: string }>('/uploads/documents', {
-    method: 'POST',
-    body: {
-      url: presign.url,
-      mime_type: presign.mime_type,
-      size: file.size,
-      caption: file.name,
-    },
-    token,
-  });
-
-  return request<import('../adapters').BackendDocument>('/partner/documents', {
-    method: 'POST',
-    body: { type, file_id: registered.id },
-    token,
-  });
+export function uploadDocument(body: Record<string, unknown>, token?: string | null) {
+  return request<PartnerDocument>('/partner/documents', { method: 'POST', body, token });
 }
 
 // DEVELOPER API KEYS & WEBHOOKS
@@ -766,11 +622,11 @@ export interface PartnerWebhook {
 }
 
 export function listApiKeys(token?: string | null) {
-  return request<import('../adapters').BackendApiKey[]>('/partner/api-keys', { token });
+  return request<PartnerApiKey[]>('/partner/api-keys', { token });
 }
 
 export function createApiKey(body: Record<string, unknown>, token?: string | null) {
-  return request<import('../adapters').BackendApiKey>('/partner/api-keys', { method: 'POST', body, token });
+  return request<PartnerApiKey & { key: string }>('/partner/api-keys', { method: 'POST', body, token });
 }
 
 export function deleteApiKey(id: string, token?: string | null) {
@@ -778,40 +634,19 @@ export function deleteApiKey(id: string, token?: string | null) {
 }
 
 export function listWebhooks(token?: string | null) {
-  return request<import('../adapters').BackendWebhook[]>('/partner/webhooks', { token });
+  return request<PartnerWebhook[]>('/partner/webhooks', { token });
 }
 
 export function createWebhook(body: Record<string, unknown>, token?: string | null) {
-  return request<import('../adapters').BackendWebhook>('/partner/webhooks', { method: 'POST', body, token });
+  return request<PartnerWebhook>('/partner/webhooks', { method: 'POST', body, token });
 }
 
 export function updateWebhook(id: string, body: Record<string, unknown>, token?: string | null) {
-  return request<import('../adapters').BackendWebhook>(`/partner/webhooks/${id}`, { method: 'PATCH', body, token });
+  return request<PartnerWebhook>(`/partner/webhooks/${id}`, { method: 'PATCH', body, token });
 }
 
 export function deleteWebhook(id: string, token?: string | null) {
   return request<{ ok: boolean }>(`/partner/webhooks/${id}`, { method: 'DELETE', token });
-}
-
-export function testWebhook(id: string, token?: string | null) {
-  return request<import('../adapters').BackendWebhookDelivery>(
-    `/partner/webhooks/${id}/test`,
-    { method: 'POST', token },
-  );
-}
-
-export function getWebhookDeliveries(id: string, token?: string | null) {
-  return request<import('../adapters').BackendWebhookDelivery[]>(
-    `/partner/webhooks/${id}/deliveries`,
-    { token },
-  );
-}
-
-export function retryWebhookDelivery(deliveryId: string, token?: string | null) {
-  return request<import('../adapters').BackendWebhookDelivery>(
-    `/partner/webhooks/deliveries/${deliveryId}/retry`,
-    { method: 'POST', token },
-  );
 }
 
 // FINANCE WITHDRAWALS
@@ -824,88 +659,36 @@ export interface WithdrawalRequest {
 }
 
 export function getWithdrawals(token?: string | null) {
-  return request<import('../adapters').BackendWithdrawal[]>('/partner/withdrawals', { token });
+  return request<WithdrawalRequest[]>('/partner/withdrawals', { token });
 }
 
 export function createWithdrawal(body: Record<string, unknown>, token?: string | null) {
-  return request<import('../adapters').BackendWithdrawal>('/partner/withdrawals', { method: 'POST', body, token });
-}
-
-export function getFinanceOverview(token?: string | null) {
-  return request<import('../adapters').BackendFinanceOverview>('/partner/finance/overview', { token });
-}
-
-export interface LedgerQuery {
-  page?: number;
-  limit?: number;
-  sortBy?: 'created_at' | 'amount';
-  order?: 'asc' | 'desc';
-}
-
-export function getLedger(query: LedgerQuery = {}, token?: string | null) {
-  return request<import('../adapters').BackendLedgerEntry[]>('/partner/finance/ledger', {
-    token,
-    searchParams: {
-      page: query.page,
-      limit: query.limit,
-      sortBy: query.sortBy,
-      order: query.order,
-    },
-  });
-}
-
-export interface FinanceDocument {
-  id: string;
-  type: string;
-  format: string;
-  status: 'queued' | 'processing' | 'ready' | 'failed';
-  download_key?: string | null;
-  created_at: string;
-}
-
-export function createFinanceExport(body: Record<string, unknown>, token?: string | null) {
-  return request<{ id: string; status: string }>('/partner/exports/finance', { method: 'POST', body, token });
-}
-
-export function getFinanceDocuments(token?: string | null) {
-  return request<FinanceDocument[]>('/partner/finance/documents', { token });
-}
-
-export function getFinanceDocumentDownload(id: string, token?: string | null) {
-  return request<{ id: string; download_url: string }>(
-    `/partner/finance/documents/${id}/download`,
-    { token },
-  );
+  return request<WithdrawalRequest>('/partner/withdrawals', { method: 'POST', body, token });
 }
 
 // VEHICLES (Rent-Car)
+export interface BackendVehicle {
+  id: string;
+  company_id: string;
+  name: string;
+  plate_number: string | null;
+  seats_count: number;
+  price_per_day: number;
+  seat_layout: unknown | null;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+}
 
 export function listVehicles(token?: string | null) {
   return request<BackendVehicle[]>('/partners/vehicles', { token });
 }
 
-export function createVehicle(
-  body: Record<string, unknown>,
-  token?: string | null,
-) {
-  return request<BackendVehicle>('/partners/vehicles', {
-    method: 'POST',
-    body,
-    token,
-  });
+export function createVehicle(body: Record<string, unknown>, token?: string | null) {
+  return request<BackendVehicle>('/partners/vehicles', { method: 'POST', body, token });
 }
 
-export function updateVehicle(
-  id: string,
-  body: Record<string, unknown>,
-  token?: string | null,
-) {
-  return request<BackendVehicle>(
-    `/partners/vehicles/${encodeURIComponent(id)}`,
-    {
-      method: 'PATCH',
-      body,
-      token,
-    },
-  );
+export function updateVehicle(id: string, body: Record<string, unknown>, token?: string | null) {
+  return request<BackendVehicle>(`/partners/vehicles/${id}`, { method: 'PATCH', body, token });
 }
+

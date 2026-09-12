@@ -8,9 +8,7 @@ import { CommandPalette } from './command-palette';
 import { ThemeToggle } from './theme-toggle';
 import { Tooltip } from '../ui/tooltip';
 import { UserMenu } from './user-menu';
-import { NotificationsButton } from './notifications-button';
 import { getPartnerLabels } from '../../_lib/utils/partner-labels';
-import { isLimitedPartnerAccessStatus } from '../../_lib/auth/access-status';
 
 export function Topbar() {
   const user = useAuthStore((s) => s.user);
@@ -18,7 +16,6 @@ export function Topbar() {
   const openMobileMenu = useUiStore((s) => s.openMobileSidebar);
 
   const partnerType = user?.partnerType || 'hotel';
-  const limitedAccess = isLimitedPartnerAccessStatus(user?.accessStatus);
   const labels = getPartnerLabels(partnerType);
   const orgName = user?.fullName || 'Hamkor Kabinetim';
 
@@ -46,8 +43,7 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-1 md:gap-2">
-        {!limitedAccess ? <CommandPalette /> : null}
-        {!limitedAccess ? <NotificationsButton /> : null}
+        <CommandPalette />
         <ThemeToggle />
         <UserMenu
           name={user?.fullName ?? 'Hamkor'}

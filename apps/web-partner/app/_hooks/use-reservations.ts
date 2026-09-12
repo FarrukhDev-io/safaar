@@ -39,7 +39,7 @@ export function useCreateWalkInReservation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (draft: WalkInDraft) => {
-      const hotel = await getPrimaryHotel(queryClient, accessToken);
+      const hotel = await getPrimaryHotel(accessToken);
       return toReservation(
         await partners.createBooking(
           {
@@ -86,20 +86,6 @@ export function useConfirmReservation() {
     },
     onSuccess: (id) => {
       confirmLocal(id);
-      void queryClient.invalidateQueries({ queryKey: reservationsQueryKey });
-    },
-  });
-}
-
-export function useAcceptCashPayment() {
-  const accessToken = useAuthStore((s) => s.tokens?.accessToken);
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      await partners.acceptCashPayment(id, accessToken);
-      return id;
-    },
-    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: reservationsQueryKey });
     },
   });

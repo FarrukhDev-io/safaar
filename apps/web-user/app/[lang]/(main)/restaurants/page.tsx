@@ -4,7 +4,6 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { api } from "@/lib/api";
 import { RestaurantsView } from "@/components/features/restaurants/RestaurantsView";
-import { getFavoritesMap } from "@/lib/account/favorites-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +19,7 @@ export async function generateMetadata({
     getDictionary(lang as Locale, "restaurants"),
   ]);
   return {
-    title: `${commonDict.nav.restaurants} — Safaar`,
+    title: commonDict.nav.restaurants,
     description: restaurantsDict.subtitle,
   };
 }
@@ -34,24 +33,14 @@ export default async function RestaurantsPage({
   if (!isLocale(lang)) notFound();
   const locale = lang as Locale;
 
-  const [restaurantsDict, restaurants, favoritesResult] = await Promise.all([
+  const [restaurantsDict, restaurants] = await Promise.all([
     getDictionary(locale, "restaurants"),
     api.catalog.getRestaurants(locale),
-    getFavoritesMap("restaurant"),
   ]);
-
-  const loginHref = `/${locale}/login?next=${encodeURIComponent(`/${locale}/restaurants`)}`;
 
   return (
     <main className="flex flex-1 flex-col">
-      <RestaurantsView
-        dict={restaurantsDict}
-        items={restaurants}
-        locale={locale}
-        authed={favoritesResult.authed}
-        favoriteIds={favoritesResult.favoriteIds}
-        loginHref={loginHref}
-      />
+      <RestaurantsView dict={restaurantsDict} items={restaurants} />
     </main>
   );
 }

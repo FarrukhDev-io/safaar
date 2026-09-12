@@ -5,9 +5,19 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { RegisterForm } from "../_components/RegisterForm";
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await params;
+  if (!isLocale(lang)) return {};
+  const dict = await getDictionary(lang as Locale, "auth");
+  return {
+    title: dict.registerTitle ?? "Ro'yxatdan o'tish",
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function RegisterPage({
   params,
@@ -26,13 +36,6 @@ export default async function RegisterPage({
     ? nextRaw
     : "";
 
-  const social = typeof sp.social === "string" ? sp.social : "";
-  const registrationToken =
-    typeof sp.registrationToken === "string" ? sp.registrationToken : "";
-  const socialEmail = typeof sp.email === "string" ? sp.email : "";
-  const socialFirstName = typeof sp.firstName === "string" ? sp.firstName : "";
-  const socialLastName = typeof sp.lastName === "string" ? sp.lastName : "";
-
   // SENIOR OPTIMIZATION: Parallelize session check and dictionary loading
   const [session, dict] = await Promise.all([
     getSession(),
@@ -40,19 +43,12 @@ export default async function RegisterPage({
   ]);
 
   if (session) {
-    redirect(next || `/${locale}`);
+    let safeNext = next || `/${locale}`;
+    if (safeNext.includes("/login") || safeNext.includes("/register") || safeNext.includes("/auth/")) {
+      safeNext = `/${locale}`;
+    }
+    redirect(safeNext);
   }
 
-  return (
-    <RegisterForm
-      locale={locale}
-      next={next}
-      dict={dict}
-      socialProvider={social && registrationToken ? social : undefined}
-      registrationToken={registrationToken || undefined}
-      socialEmail={socialEmail || undefined}
-      socialFirstName={socialFirstName || undefined}
-      socialLastName={socialLastName || undefined}
-    />
-  );
+  return <RegisterForm locale={locale} next={next} dict={dict} />;
 }

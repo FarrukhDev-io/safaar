@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Shield, Lock, User, KeyRound, ArrowLeft } from "lucide-react";
-import { adminLoginAction, adminVerify2FAAction } from "../../../lib/auth/actions";
+import Cookies from "js-cookie";
+import { AdminApi } from "../../../lib/api/admin-api";
 import { useAuthStore } from "../../../lib/store/auth";
 
 export default function LoginPage() {
@@ -30,14 +31,13 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const result = await adminLoginAction(username, password);
-
-      if ("error" in result) {
-        setError(result.error);
-      } else if (result.requires2FA) {
-        setChallengeId(result.challengeId);
-      } else {
-        login(result.user);
+      const data = await AdminApi.login(username, password);
+      
+      if (data.requires2FA) {
+        setChallengeId(data.challengeId!);
+      } else if (data.token && data.user) {
+        Cookies.set("admin_token", data.token, { expires: 1, path: "/" });
+        login(data.user);
         router.push("/dashboard");
       }
     } catch (err) {
@@ -58,16 +58,17 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const result = await adminVerify2FAAction(challengeId!, otpCode);
-      if (result.ok) {
-        login(result.user);
-        router.push("/dashboard");
-      } else if (result.expired) {
-        setError(result.error);
+      const data = await AdminApi.verify2FA(challengeId!, otpCode);
+      Cookies.set("admin_token", data.token, { expires: 1, path: "/" });
+      login(data.user);
+      router.push("/dashboard");
+    } catch (err: any) {
+      if (err?.response?.status === 401 && err?.response?.data?.error === 'AUTH_2FA_EXPIRED') {
+        setError("Vaqt tugadi, qaytadan kiring");
         setChallengeId(null);
         setOtpCode("");
       } else {
-        setError(result.error);
+        setError("Kod noto'g'ri");
       }
     } finally {
       setLoading(false);
@@ -92,15 +93,11 @@ export default function LoginPage() {
         {!challengeId ? (
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="admin-username" className="text-xs font-bold text-slate-700">Admin Logini</label>
+              <label className="text-xs font-bold text-slate-700">Admin Logini</label>
               <div className="relative">
                 <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  id="admin-username"
-                  name="username"
                   type="text"
-                  autoComplete="username"
-                  aria-label="Admin logini"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="admin"
@@ -110,15 +107,11 @@ export default function LoginPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="admin-password" className="text-xs font-bold text-slate-700">Maxfiy Parol</label>
+              <label className="text-xs font-bold text-slate-700">Maxfiy Parol</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  id="admin-password"
-                  name="password"
                   type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  aria-label="Maxfiy parol"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"

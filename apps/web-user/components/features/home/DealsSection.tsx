@@ -1,12 +1,9 @@
-"use client";
-
 import { ArrowRight } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { HomeDict } from "@/i18n/dictionaries";
 import { UniversalCard } from "@/components/ui/UniversalCard";
-import { ShinyText } from "@/components/ui/ShinyText";
 import { DealsMobileCarousel } from "./DealsMobileCarousel";
-import { useFavoriteToggle } from "@/components/features/favorites/useFavoriteToggle";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export interface DealItem {
   id: string;
@@ -25,25 +22,12 @@ function DealCard({
   dict,
   locale,
   now,
-  authed,
-  favoriteId,
-  loginHref,
 }: {
   deal: DealItem;
   dict: HomeDict["deals"];
   locale: Locale;
   now: number;
-  authed: boolean;
-  favoriteId: string | null;
-  loginHref: string;
 }) {
-  const favorite = useFavoriteToggle({
-    targetType: "hotel",
-    targetId: deal.id,
-    initialFavoriteId: favoriteId,
-    authed,
-    loginHref,
-  });
   const endsInDays = deal.endsAt && now > 0
     ? Math.max(0, Math.ceil((Date.parse(deal.endsAt) - now) / 86_400_000))
     : 0;
@@ -63,9 +47,6 @@ function DealCard({
       imageAlt={deal.name}
       topLeft={discountBadge}
       showFavorite
-      isFavorite={favorite.isFavorite}
-      favoritePending={favorite.pending}
-      onFavoriteToggle={favorite.toggle}
       title={deal.name}
       location={deal.cityName}
       tags={tags}
@@ -80,72 +61,58 @@ function DealCard({
   );
 }
 
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Tag } from "lucide-react";
+
 export function DealsSection({
   deals,
   dict,
   locale,
-  authed,
-  favoriteIds,
-  loginHref,
 }: {
   deals: DealItem[];
   dict: HomeDict["deals"];
   locale: Locale;
-  authed: boolean;
-  favoriteIds: Record<string, string>;
-  loginHref: string;
 }) {
-  if (deals.length === 0) return null;
-
   // RSC rendering evaluates `now` on the server during request time
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
 
   return (
     <section className="mx-auto w-full md:w-[96%] max-w-[1536px] px-3 sm:px-4 md:px-8">
-      <div className="mb-4 sm:mb-5">
-        <h2 className="text-xl font-black tracking-tight sm:text-2xl">
-          <ShinyText>{dict.title}</ShinyText>
-        </h2>
-        <p className="mt-0.5 text-xs font-semibold text-slate-600 sm:text-sm dark:text-slate-400">
-          {dict.subtitle}
-        </p>
-      </div>
+      <SectionHeader 
+        title={dict.title}
+        subtitle={dict.subtitle}
+      />
 
-      {/* Mobile Carousel (Client wrapper for interaction, Server Children) */}
-      <DealsMobileCarousel itemsCount={deals.length}>
-        {deals.map((deal) => (
-          <div
-            key={deal.id}
-            className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
-          >
-            <DealCard
-              deal={deal}
-              locale={locale}
-              dict={dict}
-              now={now}
-              authed={authed}
-              favoriteId={favoriteIds[deal.id] ?? null}
-              loginHref={loginHref}
-            />
+      {deals.length === 0 ? (
+          <EmptyState 
+            icon={<Tag className="h-10 w-10 text-slate-400" />}
+          title={(dict as any).empty || "Hozircha bo'sh"} 
+          description="Ushbu sahifada tez orada foydali chegirmalar paydo bo'ladi." 
+          className="mt-6"
+        />
+      ) : (
+        <>
+          {/* Mobile Carousel (Client wrapper for interaction, Server Children) */}
+          <DealsMobileCarousel itemsCount={deals.length}>
+            {deals.map((deal) => (
+              <div
+                key={deal.id}
+                className="w-[85vw] max-w-[320px] sm:w-[calc(50%-0.375rem)] shrink-0 snap-start"
+              >
+                <DealCard deal={deal} locale={locale} dict={dict} now={now} />
+              </div>
+            ))}
+          </DealsMobileCarousel>
+
+          {/* Desktop Grid */}
+          <div className="hidden sm:grid sm:grid-cols-4 sm:gap-4 mt-6">
+            {deals.slice(0, 4).map((deal) => (
+              <DealCard key={deal.id} deal={deal} locale={locale} dict={dict} now={now} />
+            ))}
           </div>
-        ))}
-      </DealsMobileCarousel>
-
-      {/* Desktop Grid */}
-      <div className="hidden sm:grid sm:grid-cols-4 sm:gap-4">
-        {deals.slice(0, 4).map((deal) => (
-          <DealCard
-            key={deal.id}
-            deal={deal}
-            locale={locale}
-            dict={dict}
-            now={now}
-            authed={authed}
-            favoriteId={favoriteIds[deal.id] ?? null}
-            loginHref={loginHref}
-          />
-        ))}
-      </div>
+        </>
+      )}
     </section>
   );
 }

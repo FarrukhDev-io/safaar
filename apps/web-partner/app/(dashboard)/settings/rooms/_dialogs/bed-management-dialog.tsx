@@ -42,17 +42,14 @@ export function BedManagementDialog({ open, onClose, room }: Props) {
     }
   };
 
-  const handleToggleListed = (bedId: string, isListed: boolean) => {
-    updateBed.mutate(
-      { id: bedId, values: { isListed: !isListed } },
-      {
-        onError: (error) => {
-          toast.error(
-            error instanceof Error ? error.message : "O'zgartirib bo'lmadi",
-          );
-        },
-      },
-    );
+  const handleToggleListed = async (bedId: string, isListed: boolean) => {
+    try {
+      await updateBed.mutateAsync({ id: bedId, values: { isListed: !isListed } });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "O'zgartirib bo'lmadi",
+      );
+    }
   };
 
   const handleDelete = async (bedId: string, label: string) => {
@@ -67,7 +64,8 @@ export function BedManagementDialog({ open, onClose, room }: Props) {
     }
   };
 
-  const submitting = createBed.isPending || deleteBed.isPending;
+  const submitting =
+    createBed.isPending || updateBed.isPending || deleteBed.isPending;
 
   return (
     <Drawer

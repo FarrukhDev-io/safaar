@@ -17,7 +17,6 @@ import { EmptyState } from "../../../_components/ui/empty-state";
 import { Input } from "../../../_components/ui/input";
 import { Label } from "../../../_components/ui/label";
 import { Tooltip } from "../../../_components/ui/tooltip";
-import { resolveMediaUrl } from "../../../_lib/utils/media";
 import {
   useAddListingPhoto,
   useDeleteListingPhoto,
@@ -153,7 +152,7 @@ export function PhotosEditor({
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={resolveMediaUrl(photo.url)}
+                  src={photo.url}
                   alt={photo.caption ?? categoryLabel[photo.category]}
                   className="aspect-video w-full object-cover"
                 />

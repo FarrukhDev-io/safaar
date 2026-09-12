@@ -10,20 +10,6 @@ export type AccommodationRouteKey =
   | "sanatoriums"
   | "resorts";
 
-/**
- * Route kaliti → backend `?type=` filtri (`partner_organizations.type`).
- * `hotels` uchun filtr yo'q — umumiy "Mehmonxonalar" katalogi.
- */
-const ACCOMMODATION_TYPE_BY_KEY: Record<
-  AccommodationRouteKey,
-  string | undefined
-> = {
-  hotels: undefined,
-  dachas: "dacha",
-  sanatoriums: "sanatorium",
-  resorts: "resort",
-};
-
 export async function generateAccommodationMetadata(
   lang: string,
   key: AccommodationRouteKey
@@ -48,13 +34,24 @@ export async function renderAccommodationRoute(
     ? (await getDictionary(locale, "hotels")).title
     : (common.nav as Record<string, string>)[key] ?? key;
 
+  // Define the backend types expected
+  // 'hotels' shows everything by default (or specific hotel type if needed later)
+  const accommodationType =
+    key === "dachas"
+      ? "dacha"
+      : key === "sanatoriums"
+      ? "sanatorium"
+      : key === "resorts"
+      ? "resort"
+      : undefined;
+
   return (
     <AccommodationPage
       locale={locale}
       searchParams={searchParams}
       basePath={`/${locale}/${key}`}
       title={title}
-      accommodationType={ACCOMMODATION_TYPE_BY_KEY[key]}
+      type={accommodationType}
     />
   );
 }

@@ -1,28 +1,26 @@
-import { Skeleton } from "@/components/ui/Skeleton";
 export default function Loading() {
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
-      {/* Header Skeleton */}
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-8 w-64 rounded-xl" />
-        <Skeleton className="h-4 w-96 rounded-lg" />
+    <div className="flex flex-col w-full min-h-svh">
+      {/* Hero Skeleton */}
+      <div className="h-[60vh] w-full bg-slate-200 animate-pulse rounded-none" />
+
+      {/* Stats Skeleton */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 bg-slate-200 animate-pulse rounded-xl" />
+          ))}
+        </div>
       </div>
 
-      {/* Grid Skeleton */}
-      <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-card shadow-xs dark:border-slate-800 dark:bg-slate-900"
-          >
-            <Skeleton className="aspect-video w-full" />
-            <div className="flex flex-col gap-2.5 p-4">
-              <Skeleton className="h-4 w-3/4 rounded-md" />
-              <Skeleton className="h-3 w-1/2 rounded-md" />
-              <Skeleton className="mt-2 h-5 w-1/3 rounded-md" />
-            </div>
-          </div>
-        ))}
+      {/* Cards Skeleton */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-10">
+        <div className="h-8 w-64 bg-slate-200 animate-pulse rounded-lg mb-8" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="aspect-[4/3] bg-slate-200 animate-pulse rounded-2xl" />
+          ))}
+        </div>
       </div>
     </div>
   );

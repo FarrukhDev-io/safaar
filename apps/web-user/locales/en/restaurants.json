@@ -4,5 +4,8 @@
   "subtitle": "Top rated restaurants, national eateries, and cozy teahouses across Uzbekistan.",
   "searchPlaceholder": "Search by restaurant name or cuisine...",
   "allCities": "All Cities",
-  "avgCheck": "Avg check"
+  "avgCheck": "Avg check",
+  "empty": {
+    "title": "No data found"
+  }
 }
