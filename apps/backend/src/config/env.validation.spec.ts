@@ -38,6 +38,19 @@ describe('validateEnv (regression: H-3 HOST var was silently dropped)', () => {
     const result = validateEnv(minimalProdConfig);
     expect(result.ENABLE_DEMO_AUTH).toBe('false');
   });
+
+  it('passes through an explicitly-set DEMO_AUTH_ALLOWED_PHONES value (same silent-drop risk as HOST/ENABLE_DEMO_AUTH -- must be forwarded or the scoped allowlist would silently never work)', () => {
+    const result = validateEnv({
+      ...minimalProdConfig,
+      DEMO_AUTH_ALLOWED_PHONES: '+998900000001,+998900000002',
+    });
+    expect(result.DEMO_AUTH_ALLOWED_PHONES).toBe('+998900000001,+998900000002');
+  });
+
+  it('defaults DEMO_AUTH_ALLOWED_PHONES to undefined when unset (fail-closed: no allowlist configured)', () => {
+    const result = validateEnv(minimalProdConfig);
+    expect(result.DEMO_AUTH_ALLOWED_PHONES).toBeUndefined();
+  });
 });
 
 describe('validateEnv — production secret strength (regression: CRITICAL finding, JWT fallback bypassed its own "change_me" check)', () => {

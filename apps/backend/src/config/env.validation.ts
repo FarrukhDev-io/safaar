@@ -8,6 +8,12 @@ interface EnvironmentConfig {
   PORT: number;
   HOST: string;
   ENABLE_DEMO_AUTH: string;
+  // Global ENABLE_DEMO_AUTH'dan MUSTAQIL, tor doiradagi mexanizm: faqat shu
+  // yerda ANIQ ro'yxatlangan (vergul bilan ajratilgan) telefon raqamlari
+  // uchun OTP `dev_code` sifatida qaytariladi — boshqa HAMMA raqam odatdagi
+  // haqiqiy SMS orqali boradi. Bo'sh/unset = hech kim ruxsat etilmagan
+  // (fail-closed standart). Qiymatlar Git'ga HECH QACHON commit qilinmaydi.
+  DEMO_AUTH_ALLOWED_PHONES?: string;
   SMS_PROVIDER?: string;
   ESKIZ_EMAIL?: string;
   ESKIZ_PASSWORD?: string;
@@ -255,6 +261,9 @@ export function validateEnv(
     PORT: toNumber(config.PORT, 4000),
     HOST: String(config.HOST ?? '0.0.0.0'),
     ENABLE_DEMO_AUTH: String(config.ENABLE_DEMO_AUTH ?? 'false'),
+    DEMO_AUTH_ALLOWED_PHONES: config.DEMO_AUTH_ALLOWED_PHONES
+      ? String(config.DEMO_AUTH_ALLOWED_PHONES)
+      : undefined,
     SMS_PROVIDER: config.SMS_PROVIDER ? String(config.SMS_PROVIDER) : undefined,
     ESKIZ_EMAIL: config.ESKIZ_EMAIL ? String(config.ESKIZ_EMAIL) : undefined,
     ESKIZ_PASSWORD: config.ESKIZ_PASSWORD

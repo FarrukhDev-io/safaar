@@ -26,6 +26,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "security:hash-password": "ts-node scripts/hash-password.ts",
+    "admin:create": "ts-node scripts/create-admin.ts",
     "postman:generate": "node postman/generate-collection.mjs",
     "test": "jest",
     "test:backend": "npm run test",
